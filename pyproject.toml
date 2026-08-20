@@ -24,6 +24,9 @@ siemens-protocol = "siemens_protocol.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+siemens_protocol = ["vocabulary/*.json", "py.typed"]
+
 [tool.black]
 line-length = 99
 target-version = ["py310"]

@@ -97,15 +97,32 @@ Two things to carry into your summary:
 * A relabeled key whose value *also* changed is substantive and is shown with
   both spellings (`Distortion Corr. -> Distortion Correction: Off | 3D`). Do
   not dismiss it as a rename.
-* An add plus a remove may be a semantic rename the tool refuses to guess at,
-  such as `Coil Select Mode` disappearing while `Coil Selection` appears. Say
-  so rather than reporting a parameter as lost. The tool is deliberately
-  conservative here: `Fat sat. mode` and `Fast Mode` look similar and are
-  unrelated, so it never matches on similarity alone.
+* An add plus a remove may be a rename the tool refuses to guess at. Say so
+  rather than reporting a parameter as lost. Known renames are already
+  resolved through per-release vocabularies (`PAT mode` ↔ `Acceleration
+  Mode`); what remains unresolved is either a genuine change or a mapping
+  nobody has vetted yet. Some are *structural* rather than renames — XA60
+  merged `Normalize` and `Prescan Normalize` into one parameter and split
+  `Reference scan mode` into two — and those are deliberately left visible.
+* The tool never matches on similarity alone: `Fat sat. mode` and `Fast Mode`
+  look alike and are unrelated parameters.
 
 Scans align by sequence, not by name, so a renamed scan is flagged
 `(scan renamed)` and an inserted or deleted one is listed separately rather
 than knocking the rest out of step.
+
+### Standard parameter names
+
+`siemens-protocol vocab list --canonical NAME` answers what each release calls
+a given parameter, and `vocab list VERSION` shows a release's whole mapping
+with the notes explaining each entry. Use it when the user asks what a
+parameter is called in another software version.
+
+Do **not** add mappings yourself on a hunch. `vocab suggest LEFT RIGHT`
+proposes candidates with evidence but co-occurrence is weak on its own, and a
+wrong entry hides a real difference. Anything added must pass
+`vocab check --against LEFT RIGHT`, which catches a mapping that steals a
+pairing that already worked.
 
 ## Caveats
 

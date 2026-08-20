@@ -20,6 +20,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
+from .vocabulary import Vocabulary, load_vocabulary
+
 #: Abbreviations Siemens expanded between releases. Deliberately short: each
 #: entry was confirmed against the matched example pairs. Semantic renames
 #: such as ``Coil Combine Mode`` -> ``Coil Combination`` are *not* listed,
@@ -87,6 +89,34 @@ def normalize_key(key: str) -> str:
     """
     words = re.split(r"[^a-z0-9]+", base_key(key).lower())
     return " ".join(ABBREVIATIONS.get(w, w) for w in words if w)
+
+
+def canonical_key(key: str, vocabulary: Vocabulary | None = None) -> str:
+    """Reduce a key to the standard name shared across releases.
+
+    Ordinary normalization -- case, punctuation, abbreviations -- handles the
+    relabeling that is purely typographic. A release's vocabulary handles what
+    is left: parameters the vendor actually renamed, such as VE11C's
+    ``PAT mode`` becoming XA60's ``Acceleration Mode``.
+
+    Parameters
+    ----------
+    key : str
+        A parameter label, possibly with a repeat suffix.
+    vocabulary : Vocabulary or None, optional
+        The release's vocabulary. Without one, only normalization applies.
+
+    Returns
+    -------
+    str
+        The canonical name. Vocabulary hits come back snake_case, so they are
+        distinguishable from the space-separated normalized forms.
+    """
+    if vocabulary is not None:
+        mapped = vocabulary.canonical(base_key(key), normalize_key)
+        if mapped is not None:
+            return mapped
+    return normalize_key(key)
 
 
 def compare_values(left: str, right: str) -> str:
@@ -400,6 +430,8 @@ def diff_parameters(
     left: Mapping[str, dict],
     right: Mapping[str, dict],
     normalize: bool = True,
+    vocabulary_left: Vocabulary | None = None,
+    vocabulary_right: Vocabulary | None = None,
 ) -> tuple[list[ParameterDiff], int]:
     """Compare two flattened parameter views.
 
@@ -409,9 +441,12 @@ def diff_parameters(
         Flattened views, as produced by
         :func:`~siemens_protocol.flatten.flatten_sections`.
     normalize : bool, optional
-        Whether to match keys through :func:`normalize_key`, which is what
+        Whether to match keys through :func:`canonical_key`, which is what
         lets a relabeled parameter be recognized as the same one. Default
         ``True``.
+    vocabulary_left, vocabulary_right : Vocabulary or None, optional
+        Each side's release vocabulary, for parameters the vendor renamed
+        outright rather than merely respelled.
 
     Returns
     -------
@@ -422,22 +457,27 @@ def diff_parameters(
     groups_left = _flat_groups(left)
     groups_right = _flat_groups(right)
 
-    def index(groups: Mapping[str, tuple[list[str], bool]]) -> dict[str, str]:
+    def index(
+        groups: Mapping[str, tuple[list[str], bool]], vocabulary: Vocabulary | None
+    ) -> dict[str, str]:
         """Map each matching form back to its printed key.
 
         Parameters
         ----------
         groups : mapping
             Base key to values and conflict flag.
+        vocabulary : Vocabulary or None
+            That side's release vocabulary.
 
         Returns
         -------
         dict
             Match form to printed key.
         """
-        return {(normalize_key(k) if normalize else k): k for k in groups}
+        return {(canonical_key(k, vocabulary) if normalize else k): k for k in groups}
 
-    index_left, index_right = index(groups_left), index(groups_right)
+    index_left = index(groups_left, vocabulary_left)
+    index_right = index(groups_right, vocabulary_right)
     diffs: list[ParameterDiff] = []
     unchanged = 0
 
@@ -499,7 +539,13 @@ def _header_view(header: Mapping[str, str]) -> dict[str, dict]:
     return {key: {"value": value, "conflict": False} for key, value in header.items()}
 
 
-def diff_scans(left: Mapping, right: Mapping, normalize: bool = True) -> ScanDiff:
+def diff_scans(
+    left: Mapping,
+    right: Mapping,
+    normalize: bool = True,
+    vocabulary_left: Vocabulary | None = None,
+    vocabulary_right: Vocabulary | None = None,
+) -> ScanDiff:
     """Compare two scans.
 
     The two may come from different protocols or from the same one, which is
@@ -511,7 +557,9 @@ def diff_scans(left: Mapping, right: Mapping, normalize: bool = True) -> ScanDif
     left, right : mapping
         Serialized scans, each carrying ``header`` and ``flat``.
     normalize : bool, optional
-        Whether to match keys through :func:`normalize_key`. Default ``True``.
+        Whether to match keys through :func:`canonical_key`. Default ``True``.
+    vocabulary_left, vocabulary_right : Vocabulary or None, optional
+        Each side's release vocabulary.
 
     Returns
     -------
@@ -524,7 +572,11 @@ def diff_scans(left: Mapping, right: Mapping, normalize: bool = True) -> ScanDif
         normalize=normalize,
     )
     parameters, unchanged = diff_parameters(
-        left.get("flat", {}), right.get("flat", {}), normalize=normalize
+        left.get("flat", {}),
+        right.get("flat", {}),
+        normalize=normalize,
+        vocabulary_left=vocabulary_left,
+        vocabulary_right=vocabulary_right,
     )
     return ScanDiff(
         name_left=left.get("name", ""),
@@ -578,7 +630,13 @@ def align_scans(left: Sequence[str], right: Sequence[str]) -> list[tuple[int | N
     return pairs
 
 
-def diff_protocols(left: Mapping, right: Mapping, normalize: bool = True) -> ProtocolDiff:
+def diff_protocols(
+    left: Mapping,
+    right: Mapping,
+    normalize: bool = True,
+    use_vocabulary: bool = True,
+    extra_vocabulary_dir: str | None = None,
+) -> ProtocolDiff:
     """Compare two protocols scan by scan.
 
     Parameters
@@ -586,7 +644,13 @@ def diff_protocols(left: Mapping, right: Mapping, normalize: bool = True) -> Pro
     left, right : mapping
         Serialized protocols, each carrying ``scans`` with flattened views.
     normalize : bool, optional
-        Whether to match keys through :func:`normalize_key`. Default ``True``.
+        Whether to match keys through :func:`canonical_key`. Default ``True``.
+    use_vocabulary : bool, optional
+        Whether to apply each release's vocabulary, which is what resolves
+        parameters the vendor renamed rather than merely respelled. Default
+        ``True``.
+    extra_vocabulary_dir : str or None, optional
+        A directory of additional dictionaries overlaying the shipped ones.
 
     Returns
     -------
@@ -601,6 +665,13 @@ def diff_protocols(left: Mapping, right: Mapping, normalize: bool = True) -> Pro
         left_version=left.get("software_version"),
         right_version=right.get("software_version"),
     )
+    vocabulary_left = vocabulary_right = None
+    if use_vocabulary and normalize:
+        vocabulary_left = load_vocabulary(left.get("software_version") or "", extra_vocabulary_dir)
+        vocabulary_right = load_vocabulary(
+            right.get("software_version") or "", extra_vocabulary_dir
+        )
+
     for i, j in align_scans(
         [s.get("name", "") for s in left_scans], [s.get("name", "") for s in right_scans]
     ):
@@ -609,5 +680,13 @@ def diff_protocols(left: Mapping, right: Mapping, normalize: bool = True) -> Pro
         elif j is None:
             result.only_left.append(left_scans[i].get("name", ""))
         else:
-            result.scans.append(diff_scans(left_scans[i], right_scans[j], normalize=normalize))
+            result.scans.append(
+                diff_scans(
+                    left_scans[i],
+                    right_scans[j],
+                    normalize=normalize,
+                    vocabulary_left=vocabulary_left,
+                    vocabulary_right=vocabulary_right,
+                )
+            )
     return result

@@ -150,6 +150,63 @@ Either input may be a PDF or JSON this tool wrote earlier, so a protocol can be
 parsed once and compared many times. The exit status is `1` when any substantive
 difference was found, `0` when none was, which makes it usable in a check.
 
+### Standard parameter names
+
+Case-folding and abbreviations only reach relabeling that is typographic.
+Between releases Siemens also *reorganizes*: VE11C's `PAT mode` is XA60's
+`Acceleration Mode`, its `Img. Scale Cor.` is `Image Scaling`, and its `Load
+images to viewer` names a viewer that was itself renamed to MR View&GO. Nothing
+in the spelling connects those.
+
+So each release carries a JSON dictionary in
+`src/siemens_protocol/vocabulary/` mapping its own labels onto shared
+**canonical names**, which are snake_case so they stay distinguishable from the
+space-separated forms ordinary normalization produces:
+
+```json
+{ "aliases": { "PAT mode": "acceleration_mode" } }     // VE11C.json
+{ "aliases": { "Acceleration Mode": "acceleration_mode" } }   // XA60.json
+```
+
+The mapping works in both directions — `vocab list --canonical NAME` answers
+what each release calls a standard parameter:
+
+```sh
+siemens-protocol vocab list --canonical acceleration_mode
+siemens-protocol vocab list VE11C          # every mapping, with its notes
+siemens-protocol vocab check               # validate the dictionaries
+```
+
+A lookup that misses on the literal label is retried on its normalized form, so
+one entry covers a release's own spelling variants — XA60 prints both
+`Acceleration Mode` and `Accel. Mode`, and a single mapping catches each.
+
+Point `--vocabulary DIR` at a directory of JSON files to overlay the shipped
+ones without editing the installed package; `--no-vocabulary` on `diff` turns
+the layer off entirely.
+
+#### Why these are curated, not inferred
+
+A wrong entry is worse than a missing one: it hides a real difference instead of
+merely failing to explain one. Statistical pairing cannot be trusted here — any
+two parameters that exist in only one release and sit in the same section
+co-occur perfectly, which is how a naive pass confidently proposes
+`Save uncombined` → `Radial Sorting`.
+
+`vocab suggest LEFT RIGHT` therefore proposes candidates *with their evidence*
+(support, value agreement, section agreement, and the actual values on each
+side) and never applies them. Two rules held while curating the shipped data:
+
+- **Only one-to-one renames qualify.** XA60 *merged* VE11C's `Normalize` and
+  `Prescan Normalize` into one parameter, and *split* `Reference scan mode` into
+  two. Neither is a rename, so neither is mapped; both stay visible as an add
+  plus a remove. Declined candidates are recorded in each file's `rejected`
+  block with the reason, so nobody re-adds them later.
+- **Mappings are verified against real exports.** `vocab check --against A.pdf
+  B.pdf` catches a mapping that *steals* a match — one where the other release
+  still prints the source label natively. That is exactly what a split parameter
+  looks like, and it is invisible to a check of the dictionaries alone.
+
 ### Cosmetic versus substantive
 
 Markers in the report: `~` changed, `-` only on the left, `+` only on the right,
@@ -202,8 +259,9 @@ PDF in, JSON out, in five stages (`pipeline.py`):
 5. **Assembly** (`model.py`, `flatten.py`) — build the scans, attach header
    metadata, compute the flattened view, serialize.
 
-Comparison sits on top of that output: `diff.py` classifies differences and
-`report.py` renders them.
+Comparison sits on top of that output: `diff.py` classifies differences,
+`vocabulary/` maps each release's labels onto standard names, `vocabsuggest.py`
+proposes and verifies those mappings, and `report.py` renders the result.
 
 ### Things that are easy to get wrong
 
@@ -313,7 +371,12 @@ fire: 8pt raster text mis-reads characters (`Auto`→`Auio`) and loses spacing
 
 * A numeric normalization layer splitting value and unit (`{"value": 2530.0,
   "unit": "ms"}`), kept separate from the raw string capture.
-* Extending `diff`'s abbreviation table as new releases arrive; each entry
-  should be confirmed against a matched pair before being added, since a wrong
-  one hides a real difference.
+* Extending the abbreviation table and the per-release vocabularies as new
+  releases arrive. Confirm each entry against a matched pair and run
+  `vocab check --against` before committing it, since a wrong entry hides a
+  real difference.
+* Value vocabularies. Renaming reaches parameter labels but not their values:
+  VE11C's `Confirm freq. adjustment: Off` is XA60's `Confirm Frequency: Never`,
+  and `Coil Select Mode`'s values were recoded wholesale. Those currently
+  report as changed, which is honest but noisy.
 * Per-version fixtures and profiles as new releases arrive.

@@ -1,0 +1,27 @@
+{
+  "version": "VE11C",
+  "description": "VE11C parameter labels that later releases renamed. Only one-to-one renames belong here. A parameter that a later release split into two, or merged with another, is not a rename and is better left visible as an add plus a remove.",
+  "aliases": {
+    "B0 Shim mode": "b0_shim",
+    "B1 Shim mode": "b1_shim",
+    "Coil Combine Mode": "coil_combination",
+    "Coil Select Mode": "coil_selection",
+    "Confirm freq. adjustment": "confirm_frequency",
+    "Img. Scale Cor.": "image_scaling",
+    "Load images to viewer": "load_images_to_viewer",
+    "PAT mode": "acceleration_mode",
+    "Special sat.": "special_saturation"
+  },
+  "notes": {
+    "B0 Shim mode": "Values agree exactly (Standard, Tune up). Not to be confused with XA60's separate Adjustment Strategy.",
+    "Coil Select Mode": "Same setting, but the value vocabulary was recoded (Off - All -> Auto Coil Select / Manual), so values still report as changed.",
+    "Confirm freq. adjustment": "Value vocabulary recoded (Off -> Never).",
+    "Load images to viewer": "The viewer itself was renamed to MR View&GO.",
+    "PAT mode": "XA60 renames parallel acceleration to Acc/Acceleration. Values agree exactly (GRAPPA, None)."
+  },
+  "rejected": {
+    "Reference scan mode -> Reference Scans": "Not a rename: XA60 keeps 'Reference scan mode' for Single-shot and adds 'Reference Scans' for the rest. Mapping it steals the exact match that already works for the larger group.",
+    "Prescan Normalize -> Normalize": "Not a rename: XA60 merged VE11C's separate 'Normalize' and 'Prescan Normalize' into one parameter whose 'Prescan' value covers the old 'Prescan Normalize: On'.",
+    "Fat suppr. -> Fat-Water Contrast": "Related but not one to one: 110 readings against 66, and XA60 also carries a separate 'Fat Saturation'. Left visible rather than guessed at."
+  }
+}

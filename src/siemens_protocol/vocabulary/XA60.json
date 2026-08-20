@@ -1,0 +1,22 @@
+{
+  "version": "XA60",
+  "description": "XA60 parameter labels that differ from earlier releases beyond case, punctuation and the shared abbreviation table.",
+  "aliases": {
+    "Acceleration Mode": "acceleration_mode",
+    "B0 Shim": "b0_shim",
+    "B1 Shim": "b1_shim",
+    "Coil Combination": "coil_combination",
+    "Coil Selection": "coil_selection",
+    "Confirm Frequency": "confirm_frequency",
+    "Image Scaling": "image_scaling",
+    "Load Images to MR View&GO": "load_images_to_viewer",
+    "Special Saturation": "special_saturation"
+  },
+  "notes": {
+    "B0 Shim": "XA60 also has a separate Adjustment Strategy, which is NOT the same parameter."
+  },
+  "rejected": {
+    "Normalize <- Prescan Normalize": "XA60 merged two VE11C parameters into this one; see the VE11C vocabulary.",
+    "Reference Scans <- Reference scan mode": "XA60 split the VE11C parameter; see the VE11C vocabulary."
+  }
+}

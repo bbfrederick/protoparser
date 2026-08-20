@@ -21,6 +21,8 @@ from .pipeline import (
 )
 from .profiles import REGISTRY
 from .report import render_protocol, render_scan
+from .vocabsuggest import suggest_aliases, verify_aliases
+from .vocabulary import available, check, load_vocabulary
 
 #: Suffixes treated as PDFs when walking a directory.
 PDF_SUFFIXES = (".pdf", ".PDF")
@@ -116,6 +118,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="do not match relabeled keys; compare key spellings literally",
     )
     diff_cmd.add_argument(
+        "--no-vocabulary",
+        action="store_true",
+        help="ignore the per-release vocabularies that map renamed parameters",
+    )
+    diff_cmd.add_argument(
+        "--vocabulary",
+        metavar="DIR",
+        help="a directory of vocabulary JSON files overlaying the shipped ones",
+    )
+    diff_cmd.add_argument(
         "--show-cosmetic",
         action="store_true",
         help="list relabeled, recased and reformatted differences individually",
@@ -125,6 +137,50 @@ def build_parser() -> argparse.ArgumentParser:
     )
     diff_cmd.add_argument("--json", action="store_true", help="emit the comparison as JSON")
     diff_cmd.add_argument("--out", help="write the report here instead of stdout")
+
+    vocab_cmd = sub.add_parser(
+        "vocab",
+        help="inspect the per-release parameter vocabularies",
+        description=(
+            "Vocabularies map each release's parameter labels onto shared canonical "
+            "names, so a parameter the vendor renamed is still recognized as the "
+            "same one. They are curated by hand: an incorrect entry hides a real "
+            "difference, so 'suggest' proposes candidates with evidence rather than "
+            "applying them."
+        ),
+    )
+    vocab_action = vocab_cmd.add_subparsers(dest="vocab_command", required=True)
+
+    vocab_list = vocab_action.add_parser("list", help="show the mappings for a release")
+    vocab_list.add_argument("version", nargs="?", help="a release name; omit for all")
+    vocab_list.add_argument(
+        "--canonical", metavar="NAME", help="show what each release calls this canonical name"
+    )
+    vocab_list.add_argument("--vocabulary", metavar="DIR", help="an overlay directory")
+
+    vocab_check = vocab_action.add_parser(
+        "check", help="validate the vocabularies against each other and against real exports"
+    )
+    vocab_check.add_argument("--vocabulary", metavar="DIR", help="an overlay directory")
+    vocab_check.add_argument(
+        "--against",
+        nargs=2,
+        metavar=("LEFT", "RIGHT"),
+        help="two exports of one protocol from different releases, to check mappings against",
+    )
+
+    vocab_suggest = vocab_action.add_parser(
+        "suggest", help="propose candidate mappings from a matched pair of exports"
+    )
+    vocab_suggest.add_argument("left", help="an export of one release")
+    vocab_suggest.add_argument("right", help="the same protocol from another release")
+    vocab_suggest.add_argument(
+        "--min-support",
+        type=int,
+        default=8,
+        help="ignore candidates seen in fewer scans than this (default: 8)",
+    )
+    vocab_suggest.add_argument("--vocabulary", metavar="DIR", help="an overlay directory")
 
     versions_cmd = sub.add_parser("versions", help="list the known version profiles")
     versions_cmd.set_defaults(command="versions")
@@ -384,10 +440,18 @@ def _run_diff(args: argparse.Namespace) -> int:
         if wanted:
             name_left = wanted[0]
             name_right = wanted[1] if len(wanted) == 2 else wanted[0]
+            vocabularies = (None, None)
+            if normalize and not args.no_vocabulary:
+                vocabularies = (
+                    load_vocabulary(left.get("software_version") or "", args.vocabulary),
+                    load_vocabulary(right.get("software_version") or "", args.vocabulary),
+                )
             scan = diff_scans(
                 _select_scan(left, name_left, args.left),
                 _select_scan(right, name_right, args.right or args.left),
                 normalize=normalize,
+                vocabulary_left=vocabularies[0],
+                vocabulary_right=vocabularies[1],
             )
             payload = scan.to_dict()
             text = "\n".join(
@@ -400,7 +464,13 @@ def _run_diff(args: argparse.Namespace) -> int:
             )
             differences = len(scan.substantive)
         else:
-            result = diff_protocols(left, right, normalize=normalize)
+            result = diff_protocols(
+                left,
+                right,
+                normalize=normalize,
+                use_vocabulary=not args.no_vocabulary,
+                extra_vocabulary_dir=args.vocabulary,
+            )
             payload = result.to_dict()
             text = render_protocol(
                 result,
@@ -426,6 +496,133 @@ def _run_diff(args: argparse.Namespace) -> int:
     return 1 if differences else 0
 
 
+def _run_vocab(args: argparse.Namespace) -> int:
+    """Run the ``vocab`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` when a check found problems or an input could
+        not be read.
+    """
+    extra = getattr(args, "vocabulary", None)
+    if args.vocab_command == "list":
+        return _vocab_list(args, extra)
+    if args.vocab_command == "check":
+        problems = check(available(extra), extra)
+        if args.against:
+            try:
+                problems += verify_aliases(
+                    _load_protocol(args.against[0], "auto"),
+                    _load_protocol(args.against[1], "auto"),
+                    extra,
+                )
+            except (OSError, ValueError) as exc:
+                print(f"{exc}", file=sys.stderr)
+                return 1
+        for problem in problems:
+            print(problem, file=sys.stderr)
+        if not problems:
+            print(f"{len(available(extra))} vocabularies, no problems found")
+        return 1 if problems else 0
+    return _vocab_suggest(args, extra)
+
+
+def _vocab_list(args: argparse.Namespace, extra: str | None) -> int:
+    """Print vocabulary mappings.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments, read for ``version`` and ``canonical``.
+    extra : str or None
+        An overlay directory.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` if a named release has no vocabulary.
+    """
+    versions = [args.version] if args.version else available(extra)
+    if args.version and args.version not in available(extra):
+        print(
+            f"no vocabulary for {args.version!r}; have {', '.join(available(extra))}",
+            file=sys.stderr,
+        )
+        return 1
+
+    if args.canonical:
+        print(f"{args.canonical}:")
+        for version in versions:
+            labels = load_vocabulary(version, extra).labels(args.canonical)
+            print(f"  {version:8s} {', '.join(labels) if labels else '(no mapping)'}")
+        return 0
+
+    for version in versions:
+        vocabulary = load_vocabulary(version, extra)
+        print(f"{version} ({len(vocabulary.aliases)} mappings)")
+        for label, canonical in sorted(vocabulary.aliases.items()):
+            note = vocabulary.notes.get(label, "")
+            print(f"  {label:34s} -> {canonical}")
+            if note:
+                print(f"  {'':34s}    note: {note}")
+    return 0
+
+
+def _vocab_suggest(args: argparse.Namespace, extra: str | None) -> int:
+    """Propose candidate vocabulary entries from a matched pair of exports.
+
+    Candidates are printed with the evidence behind them and are never
+    applied. Co-occurrence alone is weak evidence: any two parameters that
+    exist in only one release and sit in the same section co-occur perfectly,
+    which is how a naive pass proposes nonsense like ``Save uncombined`` ->
+    ``Radial Sorting``. Read the value columns before accepting anything.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments, read for the two inputs and ``min_support``.
+    extra : str or None
+        An overlay directory.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` if an input could not be read.
+    """
+    try:
+        left = _load_protocol(args.left, "auto")
+        right = _load_protocol(args.right, "auto")
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    candidates = suggest_aliases(left, right, min_support=args.min_support, extra_dir=extra)
+    if not candidates:
+        print("no candidates above the support threshold")
+        return 0
+
+    print(
+        f"# candidates for {left.get('software_version')} -> "
+        f"{right.get('software_version')}, strongest first."
+    )
+    print("# Evidence only. Check the values agree in meaning before accepting one.\n")
+    for c in candidates:
+        print(f"{c.left_label!r} -> {c.right_label!r}")
+        print(
+            f"    seen in {c.support} scans | same section {c.section_ratio:.0%} "
+            f"| same value {c.value_ratio:.0%}"
+        )
+        print(f"    {left.get('software_version')}: {c.left_values}")
+        print(f"    {right.get('software_version')}: {c.right_values}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the command line interface.
 
@@ -447,6 +644,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "diff":
         return _run_diff(args)
+
+    if args.command == "vocab":
+        return _run_vocab(args)
 
     targets = _inputs(args.input)
     if not targets:
