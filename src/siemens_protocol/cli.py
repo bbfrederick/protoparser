@@ -19,6 +19,7 @@ from .pipeline import (
     ParseResult,
     parse_document,
 )
+from .policy import PolicyError, PolicyReport, check_protocol, load_policy
 from .profiles import REGISTRY
 from .report import render_protocol, render_scan
 from .vocabsuggest import suggest_aliases, verify_aliases
@@ -137,6 +138,42 @@ def build_parser() -> argparse.ArgumentParser:
     )
     diff_cmd.add_argument("--json", action="store_true", help="emit the comparison as JSON")
     diff_cmd.add_argument("--out", help="write the report here instead of stdout")
+
+    check_cmd = sub.add_parser(
+        "check",
+        help="check a protocol's parameters against preferred values",
+        description=(
+            "Check each scan against a policy of preferred values. A rule applies "
+            "only where its parameter is present, so a rule about multiband "
+            "excitation stays silent on scans that never had the setting."
+        ),
+    )
+    check_cmd.add_argument("input", help="a PDF, a parsed JSON file, or a directory of PDFs")
+    check_cmd.add_argument(
+        "--policy",
+        default="default",
+        metavar="NAME",
+        help="a policy name or a path to a policy JSON file (default: default)",
+    )
+    check_cmd.add_argument(
+        "--policy-dir",
+        metavar="DIR",
+        help="a directory of policies searched before the shipped ones",
+    )
+    check_cmd.add_argument(
+        "--version",
+        default="auto",
+        choices=["auto", *REGISTRY.names()],
+        help="force a version profile for any PDF input (default: auto)",
+    )
+    check_cmd.add_argument(
+        "--warnings-ok",
+        action="store_true",
+        help="exit zero when only warnings were found",
+    )
+    check_cmd.add_argument("--json", action="store_true", help="emit the findings as JSON")
+    check_cmd.add_argument("--out", help="write the report here instead of stdout")
+    check_cmd.add_argument("--quiet", action="store_true", help="print only violations")
 
     vocab_cmd = sub.add_parser(
         "vocab",
@@ -496,6 +533,118 @@ def _run_diff(args: argparse.Namespace) -> int:
     return 1 if differences else 0
 
 
+def _render_policy_report(report: PolicyReport, quiet: bool) -> str:
+    """Render a policy report as text.
+
+    Parameters
+    ----------
+    report : PolicyReport
+        The findings for one protocol.
+    quiet : bool
+        Whether to omit the passing summary lines.
+
+    Returns
+    -------
+    str
+        The report.
+    """
+    lines: list[str] = []
+    name = os.path.basename(report.source_file) or report.source_file
+    header = f"{name} ({report.software_version}) against policy {report.policy!r}"
+    lines.append(header)
+    if not report.violations:
+        if not quiet:
+            lines.append(f"  {report.checked} readings checked, all within preference")
+    else:
+        by_scan: dict[tuple, list] = {}
+        for violation in report.violations:
+            by_scan.setdefault((violation.scan_index, violation.scan_name), []).append(violation)
+        for (index, scan_name), found in sorted(by_scan.items()):
+            lines.append(f"  scan {index}: {scan_name}")
+            for violation in found:
+                mark = "!" if violation.severity == "error" else "?"
+                lines.append(
+                    f"    {mark} {violation.key} = {violation.value!r} "
+                    f"[{violation.section}] -- prefer {violation.expected}"
+                )
+                if violation.detail:
+                    lines.append(f"        {violation.detail}")
+                if violation.reason:
+                    lines.append(f"        {violation.reason}")
+    if report.unused_rules and not quiet:
+        lines.append(
+            "  rules that matched nothing: " + ", ".join(repr(r) for r in report.unused_rules)
+        )
+    if not quiet or report.violations:
+        errors = len(report.errors)
+        warnings = len(report.violations) - errors
+        lines.append(f"  {report.checked} readings checked, {errors} errors, {warnings} warnings")
+    return "\n".join(lines)
+
+
+def _run_check(args: argparse.Namespace) -> int:
+    """Run the ``check`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` when nothing failed, ``1`` when a violation was found or an
+        input could not be read. Warnings alone pass with ``--warnings-ok``.
+    """
+    try:
+        policy = load_policy(args.policy, args.policy_dir)
+    except PolicyError as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    targets = _inputs(args.input)
+    if not targets:
+        print(f"no PDFs found under {args.input}", file=sys.stderr)
+        return 1
+
+    reports = []
+    failures = 0
+    for target in targets:
+        try:
+            protocol = _load_protocol(target, args.version)
+        except (OSError, ValueError) as exc:
+            print(f"{exc}", file=sys.stderr)
+            failures += 1
+            continue
+        vocabulary = load_vocabulary(protocol.get("software_version") or "")
+        report = check_protocol(protocol, policy, vocabulary)
+        report.source_file = report.source_file or target
+        reports.append(report)
+
+    if args.json:
+        rendered = json.dumps([r.to_dict() for r in reports], indent=2, ensure_ascii=False)
+    else:
+        rendered = "\n\n".join(_render_policy_report(r, args.quiet) for r in reports)
+
+    try:
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as handle:
+                handle.write(rendered + "\n")
+        else:
+            print(rendered)
+    except OSError as exc:
+        print(f"could not write the report: {exc}", file=sys.stderr)
+        return 1
+
+    errors = sum(len(r.errors) for r in reports)
+    warnings = sum(len(r.violations) - len(r.errors) for r in reports)
+    if failures or errors:
+        return 1
+    if warnings and not args.warnings_ok:
+        return 1
+    return 0
+
+
 def _run_vocab(args: argparse.Namespace) -> int:
     """Run the ``vocab`` subcommand.
 
@@ -644,6 +793,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "diff":
         return _run_diff(args)
+
+    if args.command == "check":
+        return _run_check(args)
 
     if args.command == "vocab":
         return _run_vocab(args)

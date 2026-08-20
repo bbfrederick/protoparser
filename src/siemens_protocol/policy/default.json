@@ -1,0 +1,19 @@
+{
+  "name": "default",
+  "description": "Site preferences for Siemens MR protocols. A rule fires only when the parameter it names is actually present, so rules for one sequence type do not report against scans that never had the setting.",
+  "rules": [
+    {
+      "parameter": "MB RF phase scramble",
+      "section": "Sequence - Special",
+      "equals": "On",
+      "reason": "Phase scrambling reduces peak RF amplitude in multiband excitation; leaving it off risks SAR limiting and slice leakage."
+    },
+    {
+      "parameter": "Excite pulse duration",
+      "section": "Sequence - Special",
+      "min": 3000,
+      "unit": "us",
+      "reason": "Shorter excitation pulses raise peak B1 and narrow the slice profile; keep at or above 3000 us."
+    }
+  ]
+}

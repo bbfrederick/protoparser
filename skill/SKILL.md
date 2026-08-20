@@ -70,6 +70,27 @@ count, page count, and the number of cross-section conflicts.
 * Values are raw strings, units included (`"2530.0 ms"`). Parse them yourself
   if arithmetic is needed.
 
+## Checking against preferred values
+
+```sh
+siemens-protocol check protocol.pdf          # exit 1 if anything deviates
+siemens-protocol check DIR/ --quiet          # every PDF beneath a directory
+siemens-protocol check protocol.pdf --json
+```
+
+Reports parameters that depart from a site policy, with the reason for each
+preference. `!` is an error, `?` a warning. A rule only fires where its
+parameter is present, so silence means the setting was either correct or not
+applicable — not that it went unchecked. The trailing count says how many
+readings were actually examined.
+
+Use this alongside `diff` before a protocol rebuild: the diff says what moved
+between versions, the check says what is wrong regardless of version.
+
+To add a preference, write a rule in a JSON policy file and pass
+`--policy-dir`. See the README for the fields. One rule covers every release,
+because parameters match on canonical name.
+
 ## Comparing protocols and scans
 
 ```sh

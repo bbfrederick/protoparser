@@ -26,6 +26,9 @@ siemens-protocol parse examples/XA60/R01StressDynXA60.pdf
 siemens-protocol parse examples/ --out parsed/          # batch a directory
 siemens-protocol versions                               # list version profiles
 
+# check a protocol against preferred values
+siemens-protocol check protocol.pdf
+
 # compare two protocols scan by scan
 siemens-protocol diff old.pdf new.pdf
 
@@ -114,6 +117,73 @@ lose real readings, so second and later occurrences are suffixed positionally:
 { "Slice Group": "1", "Slices": "5",
   "Slice Group #2": "2", "Slices #2": "1" }
 ```
+
+## Checking against preferred values
+
+`check` reports parameters that depart from a site's preferences, which is the
+other half of a rebuild: the diff says what moved, this says what is wrong.
+
+```sh
+siemens-protocol check protocol.pdf
+siemens-protocol check examples/ --quiet          # every PDF beneath a directory
+siemens-protocol check protocol.pdf --json
+```
+
+```
+NOCICEPT_Ph2MRI515_Second.pdf (VE11C) against policy 'default'
+  scan 15: dMRI_dir99_AP
+    ! MB RF phase scramble = 'Off' [Sequence - Special] -- prefer 'On'
+        Phase scrambling reduces peak RF amplitude in multiband excitation;
+        leaving it off risks SAR limiting and slice leakage.
+  22 readings checked, 2 errors, 0 warnings
+```
+
+Exit status is `1` when anything was found, `0` when nothing was; `!` marks an
+error and `?` a warning, and `--warnings-ok` passes on warnings alone.
+
+### Writing a policy
+
+A policy is a JSON file of rules. Shipped ones live in
+`src/siemens_protocol/policy/`; `--policy-dir DIR` searches your own first, and
+`--policy` takes either a name or a path.
+
+```json
+{
+  "name": "default",
+  "rules": [
+    { "parameter": "MB RF phase scramble", "section": "Sequence - Special",
+      "equals": "On", "reason": "..." },
+    { "parameter": "Excite pulse duration", "section": "Sequence - Special",
+      "min": 3000, "unit": "us", "reason": "...", "severity": "warning" }
+  ]
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `parameter` | The parameter to check. Required. |
+| `section` | Restrict to one section. Optional; otherwise checked wherever it appears. |
+| `equals` / `one_of` / `not_equals` | Value preferences, compared case-insensitively. |
+| `min` / `max` | Inclusive numeric bounds against the reading's leading number. |
+| `unit` | Expected unit for a bound. A reading in another unit is reported, not compared. |
+| `reason` | Why the preference exists. Shown in the report. |
+| `severity` | `error` (default) or `warning`. |
+
+Four things worth knowing:
+
+- **A rule fires only where its parameter is present.** A localizer that never
+  prints a multiband setting is not in violation of a multiband rule. Rules
+  that matched nothing at all are listed separately, since a persistent one is
+  usually stale.
+- **One rule covers every release.** Parameters match on canonical name via the
+  vocabularies, so a rule written as `PAT mode` also checks XA60's
+  `Acceleration Mode`, and the report quotes whichever label that release
+  actually printed.
+- **Units are not assumed.** A bound of `3000 us` against a reading of `3 ms`
+  is reported as a unit mismatch rather than silently passing.
+- **A malformed rule fails at load.** A rule with no constraint, a non-numeric
+  bound or an unknown severity is an error, not a rule that quietly never
+  matches.
 
 ## Comparing protocols
 
@@ -259,7 +329,8 @@ PDF in, JSON out, in five stages (`pipeline.py`):
 5. **Assembly** (`model.py`, `flatten.py`) — build the scans, attach header
    metadata, compute the flattened view, serialize.
 
-Comparison sits on top of that output: `diff.py` classifies differences,
+Two layers sit on top of that output. `policy/` checks a protocol against
+preferred values. For comparison, `diff.py` classifies differences,
 `vocabulary/` maps each release's labels onto standard names, `vocabsuggest.py`
 proposes and verifies those mappings, and `report.py` renders the result.
 
@@ -375,6 +446,8 @@ fire: 8pt raster text mis-reads characters (`Auto`→`Auio`) and loses spacing
   releases arrive. Confirm each entry against a matched pair and run
   `vocab check --against` before committing it, since a wrong entry hides a
   real difference.
+* Conditional policy rules, so a preference can apply only to certain sequence
+  types rather than wherever the parameter appears.
 * Value vocabularies. Renaming reaches parameter labels but not their values:
   VE11C's `Confirm freq. adjustment: Off` is XA60's `Confirm Frequency: Never`,
   and `Coil Select Mode`'s values were recoded wholesale. Those currently
