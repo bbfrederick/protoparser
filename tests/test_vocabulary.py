@@ -17,6 +17,7 @@ import pytest
 from conftest import ParseFixture, find_example, requires_examples
 from siemens_protocol.cli import main
 from siemens_protocol.diff import ProtocolDiff, canonical_key, diff_protocols, normalize_key
+from siemens_protocol.profiles import REGISTRY
 from siemens_protocol.vocabsuggest import suggest_aliases, verify_aliases
 from siemens_protocol.vocabulary import (
     VOCABULARY_DIR,
@@ -33,13 +34,39 @@ SHIPPED = available()
 
 
 def test_every_known_release_has_a_vocabulary() -> None:
-    """Both current releases ship a dictionary.
+    """Every registered version profile ships a dictionary.
+
+    Tied to the profile registry rather than a hardcoded list, so adding a
+    release without its vocabulary fails here instead of silently leaving
+    that release's renames unmapped.
 
     Returns
     -------
     None
     """
-    assert {"VE11C", "XA60"} <= set(SHIPPED)
+    assert set(REGISTRY.names()) <= set(SHIPPED)
+
+
+def test_the_numaris_x_releases_agree_on_canonical_names() -> None:
+    """XA30 and XA60 must not invent different standard names.
+
+    The two releases share nearly every label, so a canonical name present in
+    one and spelled differently in the other would split one parameter into
+    two in a diff -- the exact failure vocabularies exist to prevent.
+
+    Returns
+    -------
+    None
+    """
+    xa30, xa60 = load_vocabulary("XA30"), load_vocabulary("XA60")
+    shared = set(xa30.aliases.values()) & set(xa60.aliases.values())
+    assert shared, "the Numaris/X vocabularies share no canonical names at all"
+    for label, canonical in xa30.aliases.items():
+        other = xa60.canonical(label, normalize_key)
+        assert other in (
+            None,
+            canonical,
+        ), f"XA30 maps {label!r} to {canonical!r} but XA60 maps it to {other!r}"
 
 
 @pytest.mark.parametrize("version", SHIPPED)
@@ -117,6 +144,7 @@ def test_forward_mapping() -> None:
     """
     assert load_vocabulary("VE11C").canonical("PAT mode") == "acceleration_mode"
     assert load_vocabulary("XA60").canonical("Acceleration Mode") == "acceleration_mode"
+    assert load_vocabulary("XA30").canonical("Acceleration mode") == "acceleration_mode"
 
 
 def test_reverse_mapping() -> None:
@@ -128,6 +156,7 @@ def test_reverse_mapping() -> None:
     """
     assert load_vocabulary("VE11C").labels("acceleration_mode") == ["PAT mode"]
     assert load_vocabulary("XA60").labels("acceleration_mode") == ["Acceleration Mode"]
+    assert load_vocabulary("XA30").labels("acceleration_mode") == ["Acceleration mode"]
 
 
 def test_reverse_mapping_of_an_unknown_name_is_empty() -> None:

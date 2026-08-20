@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 from .extract.spans import Page, Span, join_spans
+from .layout.rows import cluster_by_overlap
 from .profiles.base import LayoutConfig, VersionProfile
 
 #: The summary line is the reliable anchor: it is the only line in these
@@ -72,7 +73,12 @@ def _rows_in_region(spans: Sequence[Span], layout: LayoutConfig) -> list[list[Sp
     """Cluster header-region spans into full-page-width rows.
 
     The box straddles both table columns, so unlike the body it must not be
-    column-split before rows are formed.
+    column-split before rows are formed. Lines are formed by the same
+    vertical-overlap rule as the body: a protocol path may contain a hyphen
+    (``\\Research\\Investigators - validated on FIT\\...``), and under OCR that
+    hyphen sits low enough to fall outside a top-edge tolerance. Split onto
+    its own line it would be appended to the scan name, because path lines
+    are concatenated with no separator to repair mid-word wraps.
 
     Parameters
     ----------
@@ -87,13 +93,7 @@ def _rows_in_region(spans: Sequence[Span], layout: LayoutConfig) -> list[list[Sp
         Rows in top-to-bottom order, each ordered left to right.
     """
     region = [s for s in spans if layout.page_header_max_y <= s.y0 <= layout.header_box_max_y]
-    rows: list[list[Span]] = []
-    for span in sorted(region, key=lambda s: (s.y0, s.x0)):
-        if rows and abs(span.y0 - rows[-1][0].y0) <= layout.row_tolerance:
-            rows[-1].append(span)
-        else:
-            rows.append([span])
-    return rows
+    return cluster_by_overlap(region, layout)
 
 
 def _header_label_hits(text: str, profile: VersionProfile) -> int:

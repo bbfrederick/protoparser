@@ -9,9 +9,10 @@ upgrade faster and less error-prone, and to give a machine-readable record
 that can be diffed across software versions.
 
 The tool must handle more than one Siemens software version. The first two
-targets are VE11C and XA60. The design keeps the version-specific logic small
-and isolated so that VE11E, XA31, and later releases can be added without
-reworking the core.
+targets were VE11C and XA60; XA30 has since been added and validated the
+design — it needed a discriminator, a vocabulary file and no core changes at
+all. The design keeps the version-specific logic small and isolated so that
+VE11E, XA31, and later releases can be added without reworking the core.
 
 ## Why this is not a plain text extraction job
 
@@ -112,6 +113,7 @@ key/value pairs, a flattened view, and the source page numbers.
       "header": {
         "ta": "6:02 min",
         "voxel_size_mm": "1.0x1.0x1.0",
+        // spectroscopy prints "voi_mm" here instead, from a "VoI:" label
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tfl_me",
@@ -169,12 +171,21 @@ with `--version` available to force a choice. Adding a new version means
 writing a profile and, if its layout differs, adjusting a threshold or two. The
 core extraction, layout, splitting, and output code stays shared.
 
-Detection signals for the current two:
+Detection signals for the current three:
 
-- XA60: the header contains `Numaris/X` and a `VA__` build string, and the page
-  body has no usable native text (OCR needed).
+- XA60: the header contains `Numaris/X` and a `VA60` build string.
+- XA30: the header contains `Numaris/X` and a `VA30` build string.
 - VE11C: the header names the scanner (`Prisma`) without the Numaris/X build
   string, and the page body has a native Helvetica text layer.
+
+The build string must be matched exactly, not as `VA__`. A pattern loose
+enough to cover a sibling release makes that release detect as this one at
+high confidence rather than ambiguously — the failure is silent, because
+Numaris/X releases share a header grammar and parse fine under the wrong
+profile while reporting the wrong version and selecting the wrong vocabulary.
+
+In practice every example of every release carries a usable native text layer,
+so the OCR expectation below has never fired; see the note in `README.md`.
 
 Treat detection as best-effort and always allow the override. The examples
 folder layout below also gives the test harness a ground-truth label per file.
@@ -207,10 +218,13 @@ folder layout below also gives the test harness a ground-truth label per file.
     profiles/
       __init__.py
       base.py           # VersionProfile base class + registry
+      numaris_x.py      # header grammar shared by XA30 and XA60
       ve11c.py
+      xa30.py
       xa60.py
   examples/
     VE11C/*.pdf
+    XA30/*.pdf
     XA60/*.pdf
   tests/
     test_*.py
@@ -225,7 +239,7 @@ siemens-protocol parse FILE.pdf [options]
 siemens-protocol parse DIR/     [options]   # batch over a directory
 
 --out PATH            write JSON here (default: alongside input, .json)
---version {auto,VE11C,XA60}   force a version profile (default: auto)
+--version {auto,VE11C,XA30,XA60}  force a version profile (default: auto)
 --ocr {auto,always,never}     control OCR fallback (default: auto)
 --dpi N               rasterization DPI for OCR pages (default: 300)
 --flatten             include the flattened per-scan view (on by default)
@@ -245,7 +259,7 @@ which is what the `examples/` tree is set up for.
 ## Testing
 
 The example files live under `examples/VERSIONNUMBER/`, for instance
-`examples/VE11C/` and `examples/XA60/`. The parent folder name is the expected
+`examples/VE11C/`, `examples/XA30/` and `examples/XA60/`. The parent folder name is the expected
 software version for each file, which gives the test harness a ground-truth
 label for free and lets it check auto-detection at the same time.
 

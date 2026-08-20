@@ -42,7 +42,7 @@ siemens-protocol diff protocol.pdf --scan SpinEchoFieldMap_AP --scan SpinEchoFie
 | Option | Meaning |
 | --- | --- |
 | `--out PATH` | Write JSON here. Alongside the input as `.json` by default; a directory in batch mode. |
-| `--version {auto,VE11C,XA60}` | Force a version profile. Default `auto`. |
+| `--version {auto,VE11C,XA30,XA60}` | Force a version profile. Default `auto`. |
 | `--ocr {auto,always,never}` | Control the OCR fallback. Default `auto`. |
 | `--dpi N` | Rasterization DPI for OCR pages. Default 300. |
 | `--no-flatten` | Omit the flattened per-scan view (included by default). |
@@ -373,26 +373,64 @@ header summary line, any header field recovered from a parameter instead, and
 layout thresholds worth nudging. Profiles self-register; auto-detection scores
 each against the first pages and `--version` always overrides.
 
-The two current releases differ mainly in that header grammar:
+The releases differ mainly in that header grammar:
 
 ```
 VE11C  TA: 6:02 PM: REF Voxel size: 1.0×1.0×1.0 mmPAT: 2 Rel. SNR: 1.00 : tfl_me
+XA30   TA: 9 sec Coil Selection: Auto Voxel Size: 1.2×1.2×5.0 mm³ Acc:: None Rel. SNR: 1.00
 XA60   TA: 6:02 min Coil Selection: Manual Voxel Size: 1.0×1.0×1.0 mm³ Acc:: 2 Rel. SNR: 1.00
 ```
 
 Note `mmPAT:` with no space and `Acc::` with two colons. Rather than one
 brittle regex per release, a profile lists its field labels in order and the
 parser takes the text between each label and the next — spacing quirks stop
-mattering. XA60 omits the sequence binary from the box, so its profile
-recovers it from the `Sequence Name` parameter via `param_fallbacks`.
+mattering. The Numaris/X releases omit the sequence binary from the box, so
+their profiles recover it from the `Sequence Name` parameter via
+`param_fallbacks`.
+
+Spectroscopy prints a *volume of interest* where imaging prints a voxel size,
+in every release:
+
+```
+VE11C  TA: 0:36 PM: REF VoI: 25 ×25 ×40 mmRel. SNR: 1.00 : svs_se
+XA60   TA: 12 sec Coil Selection: Manual VoI: 25×25×22 mm³ Rel. SNR: 1.00
+```
+
+It is kept as its own `voi_mm` field rather than folded into
+`voxel_size_mm`: a 25×25×22 mm acquisition volume and a 1×1×1 mm imaging
+resolution are different quantities, and merging them would report a changed
+voxel size whenever the acquisition type changed.
+
+**Every label a release prints must be declared.** Because each field takes
+the text running to the *next declared label*, an undeclared one is absorbed
+by the field before it, along with everything after it. Undeclared `VoI:` did
+not produce an empty field — it silently swallowed the SNR and the sequence
+binary into `pm`. Two tests guard the class: no parsed header value may
+contain a stray `:`, and every scan must report either a voxel size or a VoI.
+
+XA30 and XA60 are both Numaris/X and share that grammar *verbatim*, so it is
+declared once in `profiles/numaris_x.py` and each release module adds only its
+version discriminator. They still differ in parameter vocabulary, which is
+expressed in `vocabulary/*.json` rather than in the profile.
+
+**Discriminators must be exact.** XA60 originally required `VA\d\d`, which also
+matches `VA30A-03GR`; every XA30 export therefore detected as XA60 at *high*
+confidence. Nothing failed loudly — the grammars are identical — but the
+reported version was wrong and the wrong vocabulary was selected. Every profile
+that scores at all is a detection candidate, so match the exact release number.
 
 ### Adding a release
 
-1. Copy `profiles/xa60.py`, give it a name, `require`/`reject` patterns and
-   its `header_labels`.
+1. Copy `profiles/xa30.py`, give it a name and `require`/`reject` patterns. If
+   it shares an existing family's header grammar, import that family's labels;
+   otherwise declare its own `header_labels`.
 2. Import it in `profiles/__init__.py`.
-3. Drop example PDFs in `examples/<VERSION>/` — the folder name is the
+3. Add `vocabulary/<VERSION>.json`, even if it only repeats a sibling release —
+   a test asserts every registered profile ships one.
+4. Drop example PDFs in `examples/<VERSION>/` — the folder name is the
    ground-truth label the tests use.
+5. Add hand-checked scan counts to `tests/test_scans.py` and generate snapshots
+   with `SIEMENS_PROTOCOL_REGEN=1`.
 4. Run `siemens-protocol parse FILE --emit-debug geometry.json` and check the
    reported `value_x`, `row_pitch` and column bounds against the file. Adjust
    `LayoutConfig` on the profile only if they are off.
@@ -430,13 +468,18 @@ Two are worth calling out:
 ## Note on OCR
 
 The design anticipated that XA60 exports render in a scrambled CID font and
-would need OCR throughout. The seven example files here — both releases,
-header boxes included — carry a clean native text layer, so none of them
-takes the OCR path, and all values are exact. The fallback is built, tested
-and wired to the printable-ratio check, and `--ocr always` exercises it; it
-simply is not needed by these files. Expect degraded fidelity when it does
-fire: 8pt raster text mis-reads characters (`Auto`→`Auio`) and loses spacing
-(`A >> P`→`A>>P`), though section and scan structure survive intact.
+would need OCR throughout. All nineteen example files — every release, header
+boxes included — carry a clean native text layer at a printable ratio of 1.0,
+so none of them takes the OCR path, and all values are exact. The fallback is
+built, tested and wired to the printable-ratio check, and `--ocr always`
+exercises it; it simply is not needed by these files.
+
+Expect degraded fidelity when it does fire: 8pt raster text mis-reads
+characters (`Auto`→`Auio`) and loses spacing (`A >> P`→`A>>P`). Scan splitting
+survives, but names do not always: on an XA30 file under forced OCR, 12 of 14
+scan names come back exact and 2 are lost because tesseract fails to read the
+protocol path at all. Section *sets* also drift under OCR on every release,
+since title detection leans on geometry the raster round trip perturbs.
 
 ## Future work
 

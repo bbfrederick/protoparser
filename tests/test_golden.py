@@ -24,6 +24,28 @@ from siemens_protocol.model import Protocol
 REGENERATE = os.environ.get("SIEMENS_PROTOCOL_REGEN") == "1"
 
 
+def _snapshot_name(pdf: str) -> str:
+    """The snapshot file name for one example, qualified by its release.
+
+    Base names are not unique across the example tree: the same protocol
+    exported from two software versions keeps its name in both folders, and
+    keying on the base name alone made the two overwrite each other's
+    snapshot -- silently, since whichever regenerated last simply won.
+
+    Parameters
+    ----------
+    pdf : str
+        Path to the example PDF.
+
+    Returns
+    -------
+    str
+        ``"<VERSION>-<stem>.json"``, using the parent folder as the version.
+    """
+    version = os.path.basename(os.path.dirname(pdf))
+    return f"{version}-{os.path.splitext(os.path.basename(pdf))[0]}.json"
+
+
 def _snapshot(protocol: Protocol) -> dict:
     """Serialize a protocol in the form stored on disk.
 
@@ -62,7 +84,7 @@ def test_golden_snapshot(parsed: ParseFixture, pdf: str, _version: str) -> None:
     None
     """
     snapshot = _snapshot(parsed(pdf).protocol)
-    path = os.path.join(GOLDEN, os.path.splitext(os.path.basename(pdf))[0] + ".json")
+    path = os.path.join(GOLDEN, _snapshot_name(pdf))
 
     if REGENERATE:
         os.makedirs(GOLDEN, exist_ok=True)

@@ -303,9 +303,14 @@ def test_cli_batch_writes_one_json_per_pdf(tmp_path: Path) -> None:
     """
     out = tmp_path / "batch"
     assert main(["parse", EXAMPLES, "--out", str(out), "--quiet"]) == 0
-    written = sorted(p.name for p in out.glob("*.json"))
-    expected = sorted(os.path.splitext(os.path.basename(p))[0] + ".json" for p, _ in EXAMPLE_FILES)
+    # The tree's shape is mirrored, not flattened: two releases of the same
+    # protocol share a base name, and flattening silently dropped one.
+    written = sorted(str(p.relative_to(out)) for p in out.rglob("*.json"))
+    expected = sorted(
+        os.path.splitext(os.path.relpath(p, EXAMPLES))[0] + ".json" for p, _ in EXAMPLE_FILES
+    )
     assert written == expected
+    assert len(written) == len(EXAMPLE_FILES), "a file was overwritten by a same-named one"
 
 
 @requires_examples
@@ -348,3 +353,41 @@ def test_cli_versions_lists_profiles(capsys: pytest.CaptureFixture) -> None:
     printed = capsys.readouterr().out
     for name in REGISTRY.names():
         assert name in printed
+
+
+@requires_examples
+def test_batch_does_not_overwrite_same_named_files_in_different_folders(
+    tmp_path: Path,
+) -> None:
+    """Two releases of one protocol both survive a batch parse.
+
+    The example tree holds ``Keto MRS 20240709.pdf`` under both ``VE11C`` and
+    ``XA60``. Flattening the output onto base names wrote one over the other,
+    losing a file with no error and no warning.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    shared = [
+        p
+        for p, _ in EXAMPLE_FILES
+        if sum(1 for q, _ in EXAMPLE_FILES if os.path.basename(q) == os.path.basename(p)) > 1
+    ]
+    if not shared:
+        pytest.skip("no two examples share a base name")
+
+    out = tmp_path / "batch"
+    assert main(["parse", EXAMPLES, "--out", str(out), "--quiet"]) == 0
+    for pdf in shared:
+        expected = out / (os.path.splitext(os.path.relpath(pdf, EXAMPLES))[0] + ".json")
+        assert expected.exists(), f"{pdf} produced no output of its own"
+        payload = json.loads(expected.read_text(encoding="utf-8"))
+        # and each one really is the file it claims to be
+        assert os.path.basename(payload["source_file"]) == os.path.basename(pdf)
+        assert payload["software_version"] == os.path.basename(os.path.dirname(pdf))

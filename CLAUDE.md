@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `siemens-protocol` parses Siemens MR protocol PDF exports into hierarchical JSON
 (one entry per scan, sections of key/value parameters, plus a flattened view that
-flags parameters printed inconsistently across sections). Supports VE11C and XA60.
+flags parameters printed inconsistently across sections). Supports VE11C, XA30 and XA60.
 See `Design.md` for the design and `README.md` for usage.
 
 ### Environment
@@ -75,9 +75,26 @@ pip install .
 
 ## Key Design Patterns
 
-- `Design.md` says XA60 exports are scrambled CID needing OCR. All 7 current examples
-  (both releases) have a clean native text layer, so none takes the OCR path. The
-  fallback is built and tested; exercise it with `--ocr always`, not by "fixing" it.
+- `Design.md` says XA60 exports are scrambled CID needing OCR. Every current example
+  (all three releases, 19 files) has a clean native text layer with a printable ratio
+  of 1.0, so none takes the OCR path. The fallback is built and tested; exercise it
+  with `--ocr always`, not by "fixing" it. Under forced OCR it recovers most but not
+  all scan names — tesseract sometimes fails to read a protocol path outright.
+- Version discriminators must match the exact release number (`VA30`, `VA60`), not
+  `VA\d\d`. Every profile that scores at all is a detection candidate, so an
+  overlapping pattern yields a *confident* wrong answer rather than an ambiguous one.
+- XA30 and XA60 are both Numaris/X and share a header grammar verbatim; it lives in
+  `profiles/numaris_x.py`, and each release module supplies only its discriminator.
+- Every header label a release prints must be declared in `header_labels`. Each field
+  takes the text up to the *next declared label*, so an undeclared one is absorbed by
+  the field before it together with everything after it — a silent corruption, not an
+  empty field. Spectroscopy's `VoI:` swallowed the SNR and sequence binary this way.
+- Watch for labels with no preceding word boundary. VE11C prints `mmPAT:` *and*
+  `mmRel. SNR:`, so neither pattern may start with `\b`. This has now bitten twice.
+- Batch output mirrors the input tree rather than flattening it: `examples/` holds the
+  same protocol under two release folders, and flattening onto base names silently
+  overwrote one with the other. Golden snapshots are keyed `<VERSION>-<stem>.json` for
+  the same reason.
 - Font size/weight are trustworthy only on native pages (`Row.has_font_metrics`).
   Section titles are detected by x-outdent, which survives OCR; row gaps do not.
 

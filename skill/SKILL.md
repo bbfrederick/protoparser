@@ -1,6 +1,6 @@
 ---
 name: siemens-protocol
-description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged — and diff two protocols or two scans, separating real parameter changes from cosmetic relabeling. Use whenever the user provides a Siemens MR protocol printout (VE11C, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
+description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged — and diff two protocols or two scans, separating real parameter changes from cosmetic relabeling. Use whenever the user provides a Siemens MR protocol printout (VE11C, XA30, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
 ---
 
 # Siemens protocol PDF parser
@@ -30,7 +30,7 @@ siemens-protocol parse DIR/ --out parsed/     # every PDF in a directory
 
 Useful options:
 
-* `--version {auto,VE11C,XA60}` — force a profile when auto-detection is
+* `--version {auto,VE11C,XA30,XA60}` — force a profile when auto-detection is
   wrong or the file is from an unsupported release. Default `auto`.
 * `--ocr {auto,always,never}` — the OCR fallback for exports without a usable
   text layer. Default `auto`, which OCRs only pages that need it.
@@ -50,6 +50,8 @@ count, page count, and the number of cross-section conflicts.
     "name": "T1_MEMPRAGE_64ch",
     "header": { "ta": "6:02 min", "voxel_size_mm": "1.0×1.0×1.0",
                 "pat": "2", "rel_snr": "1.00", "sequence": "tfl_me" },
+    // spectroscopy scans carry "voi_mm" (volume of interest) in place of
+    // "voxel_size_mm"; the two are deliberately distinct fields
     "sections": { "Contrast - Common": { "TR": "2530.0 ms", "TI": "1100 ms" } },
     "flat": { "TR": { "value": "2530.0 ms",
                       "sections": ["Routine", "Contrast - Common"],

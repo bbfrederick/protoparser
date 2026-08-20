@@ -1,0 +1,24 @@
+{
+  "version": "XA30",
+  "description": "XA30 parameter labels that differ from earlier releases beyond case, punctuation and the shared abbreviation table. XA30 and XA60 are both Numaris/X and agree on almost every label, so this file is close to a copy of the XA60 one; it is kept separate rather than aliased because the releases are free to diverge and a shared file would hide it when they do.",
+  "aliases": {
+    "Acceleration mode": "acceleration_mode",
+    "B0 Shim": "b0_shim",
+    "B1 Shim": "b1_shim",
+    "Coil Combination": "coil_combination",
+    "Coil Selection": "coil_selection",
+    "Confirm Frequency": "confirm_frequency",
+    "Image Scaling": "image_scaling",
+    "Load Images to MR View&GO": "load_images_to_viewer",
+    "Special Saturation": "special_saturation"
+  },
+  "notes": {
+    "Acceleration mode": "XA30 prints a lowercase 'mode' where XA60 prints 'Mode'; both also print an abbreviated 'Accel. Mode'. Case and abbreviation are folded by the normalizer, so the entry is recorded in the spelling XA30 actually uses.",
+    "B0 Shim": "As in XA60, distinct from the separate Adjustment Strategy parameter.",
+    "Load Images to MR View&GO": "Same viewer rename as XA60; VE11C called it 'Load images to viewer'."
+  },
+  "rejected": {
+    "Normalize <- Prescan Normalize": "Inherited from XA60: the Numaris/X releases merged two VE11C parameters into this one; see the VE11C vocabulary.",
+    "Reference Scans <- Reference scan mode": "Inherited from XA60: Numaris/X split the VE11C parameter; see the VE11C vocabulary."
+  }
+}

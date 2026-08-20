@@ -249,7 +249,39 @@ def _inputs(target: str) -> list[str]:
     return [target]
 
 
-def _output_path(pdf: str, out: str | None, batch: bool) -> str:
+def _batch_relative_name(pdf: str, root: str | None) -> str:
+    """The output file name for one PDF of a batch, relative to the out dir.
+
+    The walked tree's shape is preserved rather than flattened. Flattening
+    loses files outright: an ``examples/`` tree holding the same protocol
+    exported from two software versions has the same base name in two
+    subdirectories, and one silently overwrote the other. For a flat input
+    directory this returns exactly the base name, so nothing changes there.
+
+    Parameters
+    ----------
+    pdf : str
+        Path of the PDF being parsed.
+    root : str or None
+        The directory the batch is walking. ``None`` falls back to the base
+        name alone.
+
+    Returns
+    -------
+    str
+        A relative path ending in ``.json``, using the platform separator.
+    """
+    if root:
+        try:
+            relative = os.path.relpath(pdf, root)
+        except ValueError:  # different drives on Windows
+            relative = os.path.basename(pdf)
+        if not relative.startswith(os.pardir):
+            return os.path.splitext(relative)[0] + ".json"
+    return os.path.splitext(os.path.basename(pdf))[0] + ".json"
+
+
+def _output_path(pdf: str, out: str | None, batch: bool, root: str | None = None) -> str:
     """Where one file's JSON should be written.
 
     Parameters
@@ -260,15 +292,20 @@ def _output_path(pdf: str, out: str | None, batch: bool) -> str:
         The ``--out`` value: a file in single mode, a directory in batch mode.
     batch : bool
         Whether this run is over a directory.
+    root : str or None, optional
+        In batch mode, the directory being walked, so the tree's shape is
+        mirrored under ``out``. Defaults to ``None``.
 
     Returns
     -------
     str
-        The destination path. Creates the output directory in batch mode.
+        The destination path. Creates the output directory in batch mode,
+        including any subdirectory the mirrored tree needs.
     """
     if out and batch:
-        os.makedirs(out, exist_ok=True)
-        return os.path.join(out, os.path.splitext(os.path.basename(pdf))[0] + ".json")
+        destination = os.path.join(out, _batch_relative_name(pdf, root))
+        os.makedirs(os.path.dirname(destination) or out, exist_ok=True)
+        return destination
     if out:
         return out
     return os.path.splitext(pdf)[0] + ".json"
@@ -302,7 +339,13 @@ def _summarize(protocol: Protocol, path: str) -> str:
     return " | ".join(parts) + f" -> {path}"
 
 
-def _write_outputs(result: ParseResult, args: argparse.Namespace, pdf: str, batch: bool) -> str:
+def _write_outputs(
+    result: ParseResult,
+    args: argparse.Namespace,
+    pdf: str,
+    batch: bool,
+    root: str | None = None,
+) -> str:
     """Write one file's JSON, and its debug dump when asked for.
 
     Parameters
@@ -315,6 +358,8 @@ def _write_outputs(result: ParseResult, args: argparse.Namespace, pdf: str, batc
         Path of the PDF that was parsed.
     batch : bool
         Whether this run is over a directory.
+    root : str or None, optional
+        In batch mode, the directory being walked. Defaults to ``None``.
 
     Returns
     -------
@@ -331,7 +376,7 @@ def _write_outputs(result: ParseResult, args: argparse.Namespace, pdf: str, batc
         print(payload)
         out_path = "<stdout>"
     else:
-        out_path = _output_path(pdf, args.out, batch)
+        out_path = _output_path(pdf, args.out, batch, root)
         with open(out_path, "w", encoding="utf-8") as handle:
             handle.write(payload + "\n")
 
@@ -339,9 +384,9 @@ def _write_outputs(result: ParseResult, args: argparse.Namespace, pdf: str, batc
         debug_path = args.emit_debug
         if batch:
             os.makedirs(debug_path, exist_ok=True)
-            debug_path = os.path.join(
-                debug_path, os.path.splitext(os.path.basename(pdf))[0] + ".debug.json"
-            )
+            relative = _batch_relative_name(pdf, root)
+            debug_path = os.path.join(debug_path, relative[: -len(".json")] + ".debug.json")
+            os.makedirs(os.path.dirname(debug_path), exist_ok=True)
         write_debug(debug_path, result)
     return out_path
 
@@ -826,7 +871,7 @@ def main(argv: list[str] | None = None) -> int:
             continue
 
         try:
-            out_path = _write_outputs(result, args, pdf, batch)
+            out_path = _write_outputs(result, args, pdf, batch, args.input if batch else None)
         except OSError as exc:
             failures += 1
             print(f"could not write output for {pdf}: {exc}", file=sys.stderr)

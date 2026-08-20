@@ -162,32 +162,30 @@ class Row:
         }
 
 
-def build_rows(column: Column, layout: LayoutConfig) -> list[Row]:
-    """Cluster a column's spans into rows, then into label and value cells.
+def cluster_by_overlap(spans: Sequence[Span], layout: LayoutConfig) -> list[list[Span]]:
+    """Group spans into lines by vertical overlap rather than by top edge.
+
+    A top-edge test breaks on the OCR path, where a word box hugs the ink:
+    the hyphen in ``Contrast - Common`` starts several points below the
+    letters around it and would be split off into a line of its own. Overlap
+    relative to the shorter span keeps small, vertically centred glyphs with
+    their line while still separating a wrapped label, whose box only clips
+    the line above it.
 
     Parameters
     ----------
-    column : Column
-        A column produced by :func:`~siemens_protocol.layout.columns.split_columns`.
+    spans : sequence of Span
+        The spans to group. Order does not matter; they are sorted here.
     layout : LayoutConfig
-        Geometry thresholds for the release being parsed.
+        Geometry thresholds, read for ``row_overlap_ratio`` and
+        ``row_tolerance``.
 
     Returns
     -------
-    list of Row
-        Rows in top-to-bottom order, with indent levels and gaps filled in.
+    list of list of Span
+        Lines in top-to-bottom order, each ordered left to right.
     """
-    ordered = sorted(column.spans, key=lambda s: (s.y0, s.x0))
-    if not ordered:
-        return []
-
-    # Rows are formed by vertical *overlap*, not by matching top edges. A
-    # top-edge test breaks on the OCR path, where a word box hugs the ink:
-    # the hyphen in "Contrast - Common" starts several points below the
-    # letters around it and would be split off into a row of its own.
-    # Overlap relative to the shorter span keeps small, vertically centred
-    # glyphs with their line while still separating a wrapped label, whose
-    # box only clips the line above it.
+    ordered = sorted(spans, key=lambda s: (s.y0, s.x0))
     clusters: list[list[Span]] = []
     bounds: list[list[float]] = []
     for span in ordered:
@@ -203,6 +201,29 @@ def build_rows(column: Column, layout: LayoutConfig) -> list[Row]:
                 continue
         clusters.append([span])
         bounds.append([span.y0, span.y1])
+    for cluster in clusters:
+        cluster.sort(key=lambda s: s.x0)
+    return clusters
+
+
+def build_rows(column: Column, layout: LayoutConfig) -> list[Row]:
+    """Cluster a column's spans into rows, then into label and value cells.
+
+    Parameters
+    ----------
+    column : Column
+        A column produced by :func:`~siemens_protocol.layout.columns.split_columns`.
+    layout : LayoutConfig
+        Geometry thresholds for the release being parsed.
+
+    Returns
+    -------
+    list of Row
+        Rows in top-to-bottom order, with indent levels and gaps filled in.
+    """
+    clusters = cluster_by_overlap(column.spans, layout)
+    if not clusters:
+        return []
 
     rows: list[Row] = []
     for cluster in clusters:

@@ -13,6 +13,34 @@ import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
+#: Header fields holding a spatial extent, whose trailing unit is dropped.
+#: The field name already carries the unit, and keeping it would make ``mm3``
+#: and ``mm³`` compare unequal in a diff across releases.
+SIZE_FIELDS: tuple[str, ...] = ("voxel_size_mm", "voi_mm")
+
+#: Trailing volume unit, superscript or not.
+_SIZE_UNIT_RE = re.compile(r"\s*mm[³²]?\s*$")
+
+
+def strip_size_units(fields: dict[str, str]) -> dict[str, str]:
+    """Drop the trailing ``mm`` unit from every spatial-extent field.
+
+    Parameters
+    ----------
+    fields : dict of str to str
+        Parsed header fields, modified in place.
+
+    Returns
+    -------
+    dict of str to str
+        The same mapping, with :data:`SIZE_FIELDS` unit-stripped.
+    """
+    for key in SIZE_FIELDS:
+        value = fields.get(key)
+        if value:
+            fields[key] = _SIZE_UNIT_RE.sub("", value).strip()
+    return fields
+
 
 @dataclass
 class LayoutConfig:

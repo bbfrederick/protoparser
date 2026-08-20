@@ -20,6 +20,13 @@
       "min": 3000,
       "unit": "us",
       "reason": "Shorter excitation pulses raise peak B1 and narrow the slice profile; keep at or above 3000 us."
+    },
+    {
+      "parameter": "Refocus pulse duration",
+      "section": "Sequence - Special",
+      "min": 6000,
+      "unit": "us",
+      "reason": "Shorter refocusing pulses raise peak B1 and narrow the slice profile; keep at or above 6000 us."
     }
   ]
 }

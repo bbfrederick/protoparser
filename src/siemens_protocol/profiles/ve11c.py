@@ -4,22 +4,28 @@ Header summary looks like::
 
     TA: 0:19 PM: REF Voxel size: 0.5x0.5x10.0 mmPAT: Off Rel. SNR: 1.00 : fl
 
-Note there is no space before ``PAT:``, and the sequence binary name is
-appended after a bare colon at the end of the line.
+Spectroscopy scans substitute a volume of interest for the voxel size, and
+omit ``PAT:`` entirely, which runs ``mm`` into the next label instead::
+
+    TA: 0:36 PM: REF VoI: 25 ×25 ×40 mmRel. SNR: 1.00 : svs_se
+
+Note there is no space before ``PAT:`` or, in that second form, before
+``Rel.``; the sequence binary name is appended after a bare colon at the end
+of the line.
 """
 
 from __future__ import annotations
 
 import re
 
-from .base import REGISTRY, LayoutConfig, VersionProfile
+from .base import REGISTRY, LayoutConfig, VersionProfile, strip_size_units
 
 
 class VE11CProfile(VersionProfile):
     """VE11C header grammar."""
 
     def postprocess_header(self, fields: dict[str, str], line: str) -> dict[str, str]:
-        """Split the sequence binary off the SNR field and trim the voxel unit.
+        """Split the sequence binary off the SNR field and trim size units.
 
         VE11C hangs the sequence name on the end of the line after a bare
         colon, so it lands inside the SNR field when the labels are split.
@@ -34,18 +40,15 @@ class VE11CProfile(VersionProfile):
         Returns
         -------
         dict of str to str
-            Fields with ``sequence`` separated out and ``voxel_size_mm``
-            stripped of its trailing unit.
+            Fields with ``sequence`` separated out and the spatial-extent
+            fields stripped of their trailing unit.
         """
         snr = fields.get("rel_snr", "")
         match = re.match(r"^(?P<snr>[^:]*?)\s*:\s*(?P<seq>\S+)\s*$", snr)
         if match:
             fields["rel_snr"] = match.group("snr").strip()
             fields["sequence"] = match.group("seq").strip()
-        voxel = fields.get("voxel_size_mm")
-        if voxel:
-            fields["voxel_size_mm"] = re.sub(r"\s*mm\s*$", "", voxel).strip()
-        return fields
+        return strip_size_units(fields)
 
 
 PROFILE = REGISTRY.register(
@@ -57,10 +60,21 @@ PROFILE = REGISTRY.register(
             ("ta", r"\bTA\s*:"),
             ("pm", r"\bPM\s*:"),
             ("voxel_size_mm", r"\bVoxel\s+size\s*:"),
+            # Spectroscopy prints a volume of interest instead of a voxel
+            # size. Kept as its own field: a 33x25x22 mm VoI is one
+            # acquisition volume, not an imaging resolution, and folding the
+            # two together would report a "changed" voxel size whenever the
+            # acquisition type changed.
+            ("voi_mm", r"\bVoI\s*:"),
             # No \b before PAT: VE11C prints "...1.0 mmPAT: 2" with no
             # separating space, so there is no word boundary to anchor to.
             ("pat", r"PAT\s*:"),
-            ("rel_snr", r"\bRel\.?\s*SNR\s*:"),
+            # Same trap, and it bites whenever PAT is absent: the line then
+            # reads "...25 ×22 mmRel. SNR: 1.00", and "m" to "R" is not a word
+            # boundary. With \b here the field was silently never found, so
+            # the whole tail -- SNR and sequence binary alike -- was absorbed
+            # into the preceding field.
+            ("rel_snr", r"Rel\.?\s*SNR\s*:"),
         ],
         # VE11C prints neither a coil selection nor a sequence name as an
         # ordinary parameter; the sequence binary comes out of the header line.

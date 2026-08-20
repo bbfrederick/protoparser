@@ -72,23 +72,93 @@ def test_forcing_the_wrong_version_warns() -> None:
     assert any("version forced" in w for w in protocol.warnings)
 
 
-def test_detection_scoring_separates_the_two_releases() -> None:
-    """The Numaris/X build string is what tells the two releases apart.
+#: A running page header from each release, as printed. The trailing group is
+#: a site build tag and varies between exports of the same release.
+RUNNING_HEADERS = {
+    "VE11C": "SIEMENS MAGNETOM Prisma",
+    "XA30": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA30A-03GR",
+    "XA60": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",
+}
 
-    Both name a MAGNETOM scanner, so the rejection pattern carries the
-    distinction rather than the requirement.
+
+@pytest.mark.parametrize("version,header", sorted(RUNNING_HEADERS.items()))
+def test_each_running_header_scores_for_exactly_one_release(version: str, header: str) -> None:
+    """A page header must match its own release and no other.
+
+    Scoring "well enough" is not sufficient: every profile that scores at all
+    is a detection candidate, so an overlapping pattern silently produces a
+    confident wrong answer rather than an ambiguous one.
+
+    Parameters
+    ----------
+    version : str
+        The release the header came from.
+    header : str
+        The running page header as printed.
 
     Returns
     -------
     None
     """
-    ve11c, xa60 = REGISTRY.get("VE11C"), REGISTRY.get("XA60")
-    ve_header = "SIEMENS MAGNETOM Prisma"
-    xa_header = "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N"
-    assert ve11c.match_score(ve_header) > 0
-    assert xa60.match_score(ve_header) == 0
-    assert ve11c.match_score(xa_header) == 0
-    assert xa60.match_score(xa_header) > 0
+    scoring = {
+        name: REGISTRY.get(name).match_score(header)
+        for name in REGISTRY.names()
+        if REGISTRY.get(name).match_score(header) > 0
+    }
+    assert list(scoring) == [version], f"{header!r} also scored for {set(scoring) - {version}}"
+
+
+@pytest.mark.parametrize("version,header", sorted(RUNNING_HEADERS.items()))
+def test_detection_is_confident_about_each_release(version: str, header: str) -> None:
+    """Detection returns the right release with high confidence.
+
+    Parameters
+    ----------
+    version : str
+        The release the header came from.
+    header : str
+        The running page header as printed.
+
+    Returns
+    -------
+    None
+    """
+    profile, info = REGISTRY.detect(header)
+    assert profile is not None and profile.name == version
+    assert info["confidence"] == "high"
+
+
+@pytest.mark.parametrize("build", ["VA30A-03GR", "VA30A-03MV", "VA30A-03DZ"])
+def test_xa30_site_build_tags_all_detect(build: str) -> None:
+    """The build suffix varies by site and must not affect detection.
+
+    Parameters
+    ----------
+    build : str
+        A build tag observed in the example exports.
+
+    Returns
+    -------
+    None
+    """
+    profile, _info = REGISTRY.detect(f"SIEMENS MAGNETOM 3.0T XR Numaris/X {build}")
+    assert profile is not None and profile.name == "XA30"
+
+
+def test_a_release_number_is_not_matched_by_prefix() -> None:
+    r"""XA60's pattern must not match VA30, and vice versa.
+
+    This is the regression: XA60 originally required only ``VA\d\d``, so
+    every XA30 export detected as XA60 at high confidence. Nothing failed
+    loudly -- the grammars are identical -- but the version was wrong in the
+    output and selected the wrong parameter vocabulary.
+
+    Returns
+    -------
+    None
+    """
+    assert REGISTRY.get("XA60").match_score(RUNNING_HEADERS["XA30"]) == 0
+    assert REGISTRY.get("XA30").match_score(RUNNING_HEADERS["XA60"]) == 0
 
 
 def test_unknown_document_is_reported_not_guessed() -> None:

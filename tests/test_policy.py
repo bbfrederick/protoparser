@@ -448,13 +448,16 @@ def test_the_default_policy_finds_the_real_violations(
     protocol_dict = parsed(pdf).protocol.to_dict()
     version = protocol_dict["software_version"]
     report = check_protocol(protocol_dict, load_policy(), load_vocabulary(version))
-    assert [v.scan_name for v in report.violations] == expected_scans
-    assert all(v.key == "MB RF phase scramble" and v.value == "Off" for v in report.violations)
+    # Scoped to the rule under test: the shipped policy is meant to be edited,
+    # and an unrelated rule being added should not fail this.
+    scrambling = [v for v in report.violations if v.key == "MB RF phase scramble"]
+    assert [v.scan_name for v in scrambling] == expected_scans
+    assert all(v.value == "Off" for v in scrambling)
 
 
 @requires_examples
 @pytest.mark.parametrize("name", ["R01StressDyn.pdf", "R01StressDynXA60.pdf"])
-def test_a_clean_protocol_reports_nothing(parsed: ParseFixture, name: str) -> None:
+def test_excite_pulse_durations_clear_the_bound(parsed: ParseFixture, name: str) -> None:
     """Every excite pulse in these protocols already clears the bound.
 
     Parameters
@@ -471,9 +474,8 @@ def test_a_clean_protocol_reports_nothing(parsed: ParseFixture, name: str) -> No
     protocol_dict = parsed(find_example(name)).protocol.to_dict()
     version = protocol_dict["software_version"]
     report = check_protocol(protocol_dict, load_policy(), load_vocabulary(version))
-    assert report.violations == []
+    assert [v for v in report.violations if v.key == "Excite pulse duration"] == []
     assert report.checked > 0, "the rules must actually have been exercised"
-    assert report.unused_rules == []
 
 
 # -- the command line -------------------------------------------------------
@@ -514,8 +516,38 @@ def test_cli_check_passes_a_clean_protocol(tmp_path: Path) -> None:
     -------
     None
     """
+    # A purpose-built policy rather than the shipped one: "clean" has to be a
+    # property of the rules, and the shipped rules are expected to change.
+    (tmp_path / "satisfied.json").write_text(
+        json.dumps(
+            {
+                "name": "satisfied",
+                "rules": [
+                    {
+                        "parameter": "Excite pulse duration",
+                        "min": 1,
+                        "unit": "us",
+                        "reason": "every reading clears this",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     out = tmp_path / "clean.txt"
-    assert main(["check", find_example("R01StressDyn.pdf"), "--out", str(out)]) == 0
+    code = main(
+        [
+            "check",
+            find_example("R01StressDyn.pdf"),
+            "--policy",
+            "satisfied",
+            "--policy-dir",
+            str(tmp_path),
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 0
     assert "all within preference" in out.read_text()
 
 
@@ -543,7 +575,8 @@ def test_cli_check_json(tmp_path: Path) -> None:
         ]
     )
     payload = json.loads(out.read_text())
-    assert payload[0]["violations"][0]["key"] == "MB RF phase scramble"
+    keys = [v["key"] for v in payload[0]["violations"]]
+    assert "MB RF phase scramble" in keys
     assert payload[0]["readings_checked"] > 0
 
 
@@ -560,12 +593,12 @@ def test_cli_check_batches_a_directory(tmp_path: Path) -> None:
     -------
     None
     """
-    from conftest import EXAMPLES
+    from conftest import EXAMPLE_FILES, EXAMPLES
 
     out = tmp_path / "all.txt"
     assert main(["check", EXAMPLES, "--out", str(out)]) == 1
     text = out.read_text()
-    assert text.count("against policy 'default'") == 7
+    assert text.count("against policy 'default'") == len(EXAMPLE_FILES)
 
 
 @requires_examples
@@ -620,3 +653,28 @@ def test_cli_check_rejects_an_unknown_policy() -> None:
     None
     """
     assert main(["check", "whatever.pdf", "--policy", "nope"]) == 1
+
+
+@requires_examples
+def test_rules_resolve_against_an_xa30_export(parsed: ParseFixture) -> None:
+    """A rule written once fires on XA30 as well as the older releases.
+
+    ``ATE_Study`` is the only example whose excite pulse duration is out of
+    preference, and it is XA30, so this also covers the numeric-bound path
+    against real data rather than a fixture.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+
+    Returns
+    -------
+    None
+    """
+    protocol_dict = parsed(find_example("ATE_Study.pdf")).protocol.to_dict()
+    assert protocol_dict["software_version"] == "XA30"
+    report = check_protocol(protocol_dict, load_policy(), load_vocabulary("XA30"))
+    assert report.checked > 0, "no XA30 reading was examined"
+    pulses = [v for v in report.violations if v.key == "Excite pulse duration"]
+    assert [(v.scan_name, v.value) for v in pulses] == [("dMRI_dir99_PA", "2560 us")]

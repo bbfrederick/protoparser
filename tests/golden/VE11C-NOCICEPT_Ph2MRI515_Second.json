@@ -2606,7 +2606,9 @@
       "header": {
         "ta": "1:07",
         "pm": "FIX",
-        "voxel_size_mm": "3.2×3.2×2.0 mmRel. SNR: 1.00 : fm_r"
+        "voxel_size_mm": "3.2×3.2×2.0",
+        "rel_snr": "1.00",
+        "sequence": "fm_r"
       },
       "sections": {
         "Properties": {
