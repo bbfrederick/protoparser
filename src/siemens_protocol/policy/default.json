@@ -9,6 +9,12 @@
       "reason": "Phase scrambling reduces peak RF amplitude in multiband excitation; leaving it off risks SAR limiting and slice leakage."
     },
     {
+      "parameter": "Suppress 16-bit DICOM",
+      "section": "Sequence - Special",
+      "equals": "On",
+      "reason": "There seem to be some slowdown issues when 16-bit DICOM files are produced.  For the time being, do not produce 16-bit DICOMs."
+    },
+    {
       "parameter": "Excite pulse duration",
       "section": "Sequence - Special",
       "min": 3000,
