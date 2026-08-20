@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "siemens-protocol"
+version = "0.1.0"
+description = "Parse Siemens MR protocol PDF exports into hierarchical JSON"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "pymupdf>=1.24",
+    "pytesseract>=0.3.10",
+    "pillow>=9.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+dev = ["pytest>=7", "black>=24", "isort>=5"]
+
+[project.scripts]
+siemens-protocol = "siemens_protocol.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 99
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 99
+src_paths = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
