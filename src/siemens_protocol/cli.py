@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 
 from .debug import write_debug
+from .diff import diff_protocols, diff_scans
 from .flatten import conflicts
 from .model import Protocol
 from .pipeline import (
@@ -18,6 +20,7 @@ from .pipeline import (
     parse_document,
 )
 from .profiles import REGISTRY
+from .report import render_protocol, render_scan
 
 #: Suffixes treated as PDFs when walking a directory.
 PDF_SUFFIXES = (".pdf", ".PDF")
@@ -76,6 +79,52 @@ def build_parser() -> argparse.ArgumentParser:
         "--stdout", action="store_true", help="write JSON to stdout instead of a file"
     )
     parse_cmd.add_argument("--quiet", action="store_true", help="suppress the summary")
+
+    diff_cmd = sub.add_parser(
+        "diff",
+        help="compare two protocols, or two scans",
+        description=(
+            "Compare two protocols scan by scan, or compare two individual scans. "
+            "Give one input plus two --scan names to compare scans within one "
+            "protocol; give two inputs to compare across files."
+        ),
+    )
+    diff_cmd.add_argument("left", help="a PDF or a previously parsed JSON file")
+    diff_cmd.add_argument(
+        "right",
+        nargs="?",
+        help="a second PDF or JSON; omit to compare two scans within LEFT",
+    )
+    diff_cmd.add_argument(
+        "--scan",
+        action="append",
+        metavar="NAME",
+        help=(
+            "scan to compare, by name or zero-based index; give once to use the "
+            "same name on both sides, or twice for the left and right scans"
+        ),
+    )
+    diff_cmd.add_argument(
+        "--version",
+        default="auto",
+        choices=["auto", *REGISTRY.names()],
+        help="force a version profile for any PDF input (default: auto)",
+    )
+    diff_cmd.add_argument(
+        "--exact-keys",
+        action="store_true",
+        help="do not match relabeled keys; compare key spellings literally",
+    )
+    diff_cmd.add_argument(
+        "--show-cosmetic",
+        action="store_true",
+        help="list relabeled, recased and reformatted differences individually",
+    )
+    diff_cmd.add_argument(
+        "--show-identical", action="store_true", help="include scans with no differences"
+    )
+    diff_cmd.add_argument("--json", action="store_true", help="emit the comparison as JSON")
+    diff_cmd.add_argument("--out", help="write the report here instead of stdout")
 
     versions_cmd = sub.add_parser("versions", help="list the known version profiles")
     versions_cmd.set_defaults(command="versions")
@@ -219,6 +268,164 @@ def _list_versions() -> int:
     return 0
 
 
+def _load_protocol(path: str, version: str) -> dict:
+    """Load a protocol from a PDF, or from JSON this tool wrote earlier.
+
+    Accepting JSON means a protocol can be parsed once and compared many
+    times, which matters because parsing dominates the runtime.
+
+    Parameters
+    ----------
+    path : str
+        A ``.pdf`` to parse, or a ``.json`` file to read.
+    version : str
+        Version profile to force for a PDF, or ``"auto"``.
+
+    Returns
+    -------
+    dict
+        The serialized protocol, always with the flattened view present,
+        since that is what the comparison reads.
+
+    Raises
+    ------
+    ValueError
+        If a JSON input carries no flattened view.
+    """
+    if path.lower().endswith(".json"):
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        for scan in payload.get("scans", []):
+            if "flat" not in scan:
+                raise ValueError(
+                    f"{path} was written with --no-flatten; diff needs the flattened view"
+                )
+        return payload
+    result = parse_document(path, ParseOptions(version=version))
+    return result.protocol.to_dict(include_flat=True)
+
+
+def _select_scan(protocol: dict, wanted: str, label: str) -> dict:
+    """Find one scan of a protocol by name or index.
+
+    Parameters
+    ----------
+    protocol : dict
+        A serialized protocol.
+    wanted : str
+        A scan name, or a zero-based index.
+    label : str
+        Which side this is, for the error message.
+
+    Returns
+    -------
+    dict
+        The serialized scan.
+
+    Raises
+    ------
+    ValueError
+        If no scan matches, listing what is available.
+    """
+    scans = protocol.get("scans", [])
+    if wanted.isdigit():
+        index = int(wanted)
+        if 0 <= index < len(scans):
+            return scans[index]
+        raise ValueError(f"{label}: no scan at index {index}; the file has {len(scans)}")
+    for scan in scans:
+        if scan.get("name") == wanted:
+            return scan
+    matches = [s.get("name", "") for s in scans if wanted.lower() in s.get("name", "").lower()]
+    hint = f"; did you mean {matches[0]!r}?" if matches else ""
+    raise ValueError(f"{label}: no scan named {wanted!r}{hint}")
+
+
+def _run_diff(args: argparse.Namespace) -> int:
+    """Run the ``diff`` subcommand.
+
+    Two modes. With two inputs the protocols are compared scan by scan, or a
+    single named scan from each when ``--scan`` is given. With one input and
+    two ``--scan`` names, two scans of that protocol are compared against
+    each other.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` when no substantive difference was found, ``1`` when there were
+        differences or the request could not be satisfied.
+    """
+    wanted = args.scan or []
+    if len(wanted) > 2:
+        print("--scan may be given at most twice", file=sys.stderr)
+        return 1
+    if args.right is None and len(wanted) != 2:
+        print(
+            "comparing within one file needs two --scan names; "
+            "pass a second file to compare protocols",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        left = _load_protocol(args.left, args.version)
+        right = left if args.right is None else _load_protocol(args.right, args.version)
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    normalize = not args.exact_keys
+    try:
+        if wanted:
+            name_left = wanted[0]
+            name_right = wanted[1] if len(wanted) == 2 else wanted[0]
+            scan = diff_scans(
+                _select_scan(left, name_left, args.left),
+                _select_scan(right, name_right, args.right or args.left),
+                normalize=normalize,
+            )
+            payload = scan.to_dict()
+            text = "\n".join(
+                [
+                    f"--- {args.left}: {scan.name_left}",
+                    f"+++ {args.right or args.left}: {scan.name_right}",
+                    "",
+                    *render_scan(scan, show_cosmetic=args.show_cosmetic, note_rename=False),
+                ]
+            )
+            differences = len(scan.substantive)
+        else:
+            result = diff_protocols(left, right, normalize=normalize)
+            payload = result.to_dict()
+            text = render_protocol(
+                result,
+                show_cosmetic=args.show_cosmetic,
+                show_identical=args.show_identical,
+            )
+            differences = result.substantive_count
+    except ValueError as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    rendered = json.dumps(payload, indent=2, ensure_ascii=False) if args.json else text
+    try:
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as handle:
+                handle.write(rendered + "\n")
+        else:
+            print(rendered)
+    except OSError as exc:
+        print(f"could not write the report: {exc}", file=sys.stderr)
+        return 1
+
+    return 1 if differences else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the command line interface.
 
@@ -237,6 +444,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "versions":
         return _list_versions()
+
+    if args.command == "diff":
+        return _run_diff(args)
 
     targets = _inputs(args.input)
     if not targets:

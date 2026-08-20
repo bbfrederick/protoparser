@@ -270,12 +270,15 @@ PDF) and how to call the CLI, sitting next to the installed script. Once the
 skill is in the Claude skills directory, handing Claude a protocol PDF triggers
 the parser and returns the JSON.
 
+## Diff command
+
+Implemented; see `README.md`. Compares two protocols scan by scan, or two
+individual scans within or across protocols, separating substantive parameter
+differences from cosmetic relabeling between releases.
+
 ## Future work
 
 - Numeric normalization layer that splits value and unit and coerces types,
   kept separate from the raw string capture.
-- A diff command that compares two parsed protocols scan by scan and reports
-  substantive parameter differences, ignoring cosmetic relabeling between
-  versions.
 - Per-version fixtures added as new software releases arrive, each with its own
   profile and golden snapshots.

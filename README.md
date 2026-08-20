@@ -25,6 +25,15 @@ The OCR fallback additionally needs the `tesseract` binary on `PATH`
 siemens-protocol parse examples/XA60/R01StressDynXA60.pdf
 siemens-protocol parse examples/ --out parsed/          # batch a directory
 siemens-protocol versions                               # list version profiles
+
+# compare two protocols scan by scan
+siemens-protocol diff old.pdf new.pdf
+
+# compare one scan across two protocols
+siemens-protocol diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
+
+# compare two scans within one protocol
+siemens-protocol diff protocol.pdf --scan SpinEchoFieldMap_AP --scan SpinEchoFieldMap_PA
 ```
 
 | Option | Meaning |
@@ -106,6 +115,76 @@ lose real readings, so second and later occurrences are suffixed positionally:
   "Slice Group #2": "2", "Slices #2": "1" }
 ```
 
+## Comparing protocols
+
+`diff` answers the question a rebuild actually poses: what really changed, as
+opposed to what Siemens merely renamed. It has two modes.
+
+**Protocol against protocol.** Scans are aligned by *sequence*, not by name — a
+protocol can print the same name twice (two field maps), and a release can
+rename one scan while leaving its position alone. An inserted or deleted scan is
+reported as such instead of shifting everything after it out of step.
+
+**Scan against scan.** Give one file and two `--scan` names to compare two scans
+within it, or two files and a `--scan` to compare the same scan across releases.
+Scans are selected by name or by zero-based index. Comparing the two field maps
+of one protocol is a good check that they differ only where they should:
+
+```
+$ siemens-protocol diff R01StressDyn.pdf --scan SpinEchoFieldMap_AP --scan SpinEchoFieldMap_PA
+SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
+  parameters
+    ~ Invert RO/PE polarity: Off  |  On
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--scan NAME` | Scan to compare, by name or index. Once for both sides, twice for left and right. |
+| `--exact-keys` | Compare key spellings literally; do not match relabeled keys. |
+| `--show-cosmetic` | List relabeled, recased and reformatted differences instead of counting them. |
+| `--show-identical` | Include scans that have no differences. |
+| `--json` | Emit the comparison as JSON. |
+| `--out PATH` | Write the report to a file instead of stdout. |
+
+Either input may be a PDF or JSON this tool wrote earlier, so a protocol can be
+parsed once and compared many times. The exit status is `1` when any substantive
+difference was found, `0` when none was, which makes it usable in a check.
+
+### Cosmetic versus substantive
+
+Markers in the report: `~` changed, `-` only on the left, `+` only on the right,
+`R` relabeled, `c` recased, `f` reformatted. The first three are substantive and
+are listed in full; the last three are cosmetic and are summarized unless you
+pass `--show-cosmetic`.
+
+Keys are matched after folding case, punctuation and a **short table of
+confirmed abbreviations** (`Dist.`→`Distance`, `Accel.`→`Acceleration`,
+`Corr.`→`Correction`, `enc.`→`encoding`, `Ref.`→`Reference`,
+`suppr.`→`Suppression`). Values are compared likewise: `Single shot` versus
+`Single Shot` is recased, `1` versus `1.00` is reformatted.
+
+Two rules keep this honest, and both matter more than they look:
+
+- **Nothing is silently merged.** A relabeled key is reported with *both*
+  spellings, and if its value also changed it stays substantive. `Distortion
+  Corr.: Off` versus `Distortion Correction: 3D` is a real change that happens
+  to be wearing a new name.
+- **Only provable equivalences are folded.** The table is deliberately short
+  rather than a similarity threshold. `Fat sat. mode` and `Fast Mode` are one
+  letter apart and are entirely different parameters; a fuzzy matcher would pair
+  them and invent a value change. Semantic renames like `Coil Select Mode` →
+  `Coil Selection` are left as an add plus a remove for you to judge, because
+  the tool cannot know they are the same thing.
+
+Use `--exact-keys` to switch normalization off entirely and see the raw picture.
+On the matched VE11C/XA60 examples that roughly doubles the reported count, which
+is a fair measure of how much of a cross-version diff is pure relabeling.
+
+A parameter that repeats within a scan (`Slice Group`, `Slice Group #2`) is
+compared as a *group* rather than position by position, because the two releases
+do not always print such a group in the same order and pairing `#2` against `#2`
+would invent misleading matches.
+
 ## How it works
 
 PDF in, JSON out, in five stages (`pipeline.py`):
@@ -122,6 +201,9 @@ PDF in, JSON out, in five stages (`pipeline.py`):
    each scan and cut the page stream on it.
 5. **Assembly** (`model.py`, `flatten.py`) — build the scans, attach header
    metadata, compute the flattened view, serialize.
+
+Comparison sits on top of that output: `diff.py` classifies differences and
+`report.py` renders them.
 
 ### Things that are easy to get wrong
 
@@ -231,7 +313,7 @@ fire: 8pt raster text mis-reads characters (`Auto`→`Auio`) and loses spacing
 
 * A numeric normalization layer splitting value and unit (`{"value": 2530.0,
   "unit": "ms"}`), kept separate from the raw string capture.
-* A `diff` command comparing two parsed protocols scan by scan, ignoring
-  cosmetic relabeling between versions (`Dist. factor` vs `Distance Factor`,
-  `PAT` vs `Acc`) — the example tree has matched pairs to build it against.
+* Extending `diff`'s abbreviation table as new releases arrive; each entry
+  should be confirmed against a matched pair before being added, since a wrong
+  one hides a real difference.
 * Per-version fixtures and profiles as new releases arrive.

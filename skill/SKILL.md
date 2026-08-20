@@ -1,6 +1,6 @@
 ---
 name: siemens-protocol
-description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged. Use whenever the user provides a Siemens MR protocol printout (VE11C, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
+description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged — and diff two protocols or two scans, separating real parameter changes from cosmetic relabeling. Use whenever the user provides a Siemens MR protocol printout (VE11C, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
 ---
 
 # Siemens protocol PDF parser
@@ -70,13 +70,42 @@ count, page count, and the number of cross-section conflicts.
 * Values are raw strings, units included (`"2530.0 ms"`). Parse them yourself
   if arithmetic is needed.
 
-## Comparing two protocols
+## Comparing protocols and scans
 
-There is no `diff` subcommand yet. Parse both files and compare the `flat`
-views scan by scan, matching scans by `name`. Expect cosmetic relabeling
-between releases — VE11C's `Dist. factor` is XA60's `Distance Factor`, and
-`PAT` becomes `Acc` — so match on normalized key names before reporting a
-difference, and report those renames separately from real parameter changes.
+```sh
+siemens-protocol diff old.pdf new.pdf                       # whole protocol
+siemens-protocol diff old.pdf new.pdf --scan T1_MEMPRAGE    # one scan, both files
+siemens-protocol diff protocol.pdf --scan AP --scan PA      # two scans, one file
+```
+
+Either input may be a PDF or JSON produced by `parse`, so parse once and diff
+many times. Add `--json` for a machine-readable comparison. Exit status is `1`
+when a substantive difference was found, `0` when none was.
+
+Report markers: `~` changed, `-` only on the left, `+` only on the right, and
+`R`/`c`/`f` for relabeled, recased and reformatted. The first three are real
+changes and are listed in full; the last three are cosmetic and are summarized
+unless you pass `--show-cosmetic`.
+
+**Report the substantive differences; do not present the cosmetic ones as
+findings.** Siemens recapitalizes and re-abbreviates freely between releases —
+VE11C's `Dist. factor` is XA60's `Distance Factor`, its `Single shot` is
+`Single Shot` — and the tool already separates that churn out for you.
+
+Two things to carry into your summary:
+
+* A relabeled key whose value *also* changed is substantive and is shown with
+  both spellings (`Distortion Corr. -> Distortion Correction: Off | 3D`). Do
+  not dismiss it as a rename.
+* An add plus a remove may be a semantic rename the tool refuses to guess at,
+  such as `Coil Select Mode` disappearing while `Coil Selection` appears. Say
+  so rather than reporting a parameter as lost. The tool is deliberately
+  conservative here: `Fat sat. mode` and `Fast Mode` look similar and are
+  unrelated, so it never matches on similarity alone.
+
+Scans align by sequence, not by name, so a renamed scan is flagged
+`(scan renamed)` and an inserted or deleted one is listed separately rather
+than knocking the rest out of step.
 
 ## Caveats
 
