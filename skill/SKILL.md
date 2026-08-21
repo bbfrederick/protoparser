@@ -26,6 +26,7 @@ it targets the Siemens PDF export specifically.
 ```sh
 siemens-protocol parse PROTOCOL.pdf --out protocol.json
 siemens-protocol parse DIR/ --out parsed/     # every PDF in a directory
+siemens-protocol list PROTOCOL.pdf            # scans, sequences, times, total
 ```
 
 Useful options:

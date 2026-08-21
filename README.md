@@ -26,6 +26,9 @@ siemens-protocol parse examples/XA60/R01StressDynXA60.pdf
 siemens-protocol parse examples/ --out parsed/          # batch a directory
 siemens-protocol versions                               # list version profiles
 
+# inventory one protocol: scans, sequences, times, and the total
+siemens-protocol list protocol.pdf
+
 # check a protocol against preferred values
 siemens-protocol check protocol.pdf
 
@@ -48,6 +51,48 @@ siemens-protocol diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan 
 | `--no-flatten` | Omit the flattened per-scan view (included by default). |
 | `--emit-debug PATH` | Dump per-span geometry for tuning a new version. |
 | `--stdout` | Write JSON to stdout instead of a file (single file only). |
+
+## Listing a protocol
+
+`list` inventories one protocol in acquisition order — index, scan name,
+sequence binary and acquisition time — and totals the scan time:
+
+```
+$ siemens-protocol list examples/XA60/ELS2_20210802XA60.pdf
+ #  scan                                   sequence         TA
+--  -------------------------------------  --------  ---------
+ 0  localizer                              fl           19 sec
+ 1  AAHScout                               fl           17 sec
+ 2  T1_MEMPRAGE_64ch                       tfl_me     6:02 min
+ 3  slice_positioning 22 degree angle CCF  epfid        10 sec
+ 4  rfMRI_REST_AP_CCF                      epfid     10:10 min
+ 5  rfMRI_REST_PA_CCF_distortion           epfid        18 sec
+ 6  SpinEchoFieldMap AP CCF                epse          8 sec
+ 7  VOC_run1_AP_CCF                        epfid      4:10 min
+ 8  VOC_run2_AP_CCF                        epfid      4:10 min
+ 9  VOC_run3_AP_CCF                        epfid      4:10 min
+10  VOC_run4_AP_CCF                        epfid      4:10 min
+11  EmotionConflict_AP_CCF                 epfid     13:24 min
+12  t2_tse_dark-fluid_tra                  tir        4:14 min
+13  pd+t2_tse_tra                          tse        2:11 min
+14  resolve_4scan_trace_tra_p2_192         resolve    1:55 min
+--  -------------------------------------  --------  ---------
+    total (15 scans)                                     55:48
+```
+
+Times are shown exactly as the export prints them, which is not consistent:
+VE11C writes `6:02` and `8.0 s`, the Numaris/X releases write `6:02 min` and
+`9 sec`. All four are understood, and the total is normalized to `M:SS`, or
+`H:MM:SS` past an hour.
+
+A time the parser cannot read is marked `?` and left out of the total, with a
+count printed underneath. It is never counted as zero — a total that quietly
+omits a scan reads as though it covered everything.
+
+`--json` emits the same data with each duration in seconds plus a
+`total_seconds`, for scripting. The input may be a PDF or a JSON file from
+`parse`, including one written with `--no-flatten`, since only scan headers
+are read.
 
 ## Output
 

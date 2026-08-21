@@ -261,12 +261,24 @@ def parse_document(path: str, options: ParseOptions | None = None) -> ParseResul
 
     Raises
     ------
+    OSError
+        If the file is missing, unreadable or not a PDF.
     ValueError
         If the software version cannot be detected and none was forced.
     """
     options = options or ParseOptions()
     warnings: list[str] = []
-    doc = pymupdf.open(path)
+    try:
+        doc = pymupdf.open(path)
+    except (pymupdf.FileDataError, pymupdf.FileNotFoundError) as exc:
+        # PyMuPDF's exceptions derive from RuntimeError, and its
+        # FileNotFoundError is *not* the builtin one despite the name, so they
+        # slip straight through an OSError handler. Translated at this
+        # boundary so callers can treat a bad file like any other IO failure
+        # instead of importing pymupdf to catch it.
+        # PyMuPDF names the file in every one of these messages, so nothing
+        # is added here beyond the exception type the callers expect.
+        raise OSError(str(exc)) from exc
     try:
         profile, detection = _resolve_profile(doc, options, warnings)
         pages = acquire_pages(doc, profile, options, warnings)

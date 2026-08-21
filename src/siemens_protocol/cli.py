@@ -10,6 +10,7 @@ import sys
 from .debug import write_debug
 from .diff import diff_protocols, diff_scans
 from .flatten import conflicts
+from .listing import build_listing, render_listing
 from .model import Protocol
 from .pipeline import (
     OCR_ALWAYS,
@@ -186,6 +187,26 @@ def build_parser() -> argparse.ArgumentParser:
     check_cmd.add_argument("--json", action="store_true", help="emit the findings as JSON")
     check_cmd.add_argument("--out", help="write the report here instead of stdout")
     check_cmd.add_argument("--quiet", action="store_true", help="print only violations")
+
+    list_cmd = sub.add_parser(
+        "list",
+        help="list a protocol's scans with their acquisition times",
+        description=(
+            "List one protocol's scans in acquisition order -- index, name, "
+            "sequence and acquisition time -- and total the scan time. Times "
+            "are shown as the export prints them, which differs by release; "
+            "the total is normalized."
+        ),
+    )
+    list_cmd.add_argument("input", help="a PDF, or a previously parsed JSON file")
+    list_cmd.add_argument(
+        "--version",
+        default="auto",
+        choices=["auto", *REGISTRY.names()],
+        help="force a version profile for a PDF input (default: auto)",
+    )
+    list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
+    list_cmd.add_argument("--out", help="write the listing here instead of stdout")
 
     vocab_cmd = sub.add_parser(
         "vocab",
@@ -418,11 +439,11 @@ def _list_versions() -> int:
     return 0
 
 
-def _load_protocol(path: str, version: str) -> dict:
+def _load_protocol(path: str, version: str, need_flat: bool = True) -> dict:
     """Load a protocol from a PDF, or from JSON this tool wrote earlier.
 
-    Accepting JSON means a protocol can be parsed once and compared many
-    times, which matters because parsing dominates the runtime.
+    Accepting JSON means a protocol can be parsed once and used many times,
+    which matters because parsing dominates the runtime.
 
     Parameters
     ----------
@@ -430,26 +451,31 @@ def _load_protocol(path: str, version: str) -> dict:
         A ``.pdf`` to parse, or a ``.json`` file to read.
     version : str
         Version profile to force for a PDF, or ``"auto"``.
+    need_flat : bool, optional
+        Whether the caller reads the flattened view. Comparison and policy
+        checking do; listing reads only the scan headers, so it accepts JSON
+        written with ``--no-flatten``. Default ``True``.
 
     Returns
     -------
     dict
-        The serialized protocol, always with the flattened view present,
-        since that is what the comparison reads.
+        The serialized protocol.
 
     Raises
     ------
     ValueError
-        If a JSON input carries no flattened view.
+        If ``need_flat`` and a JSON input carries no flattened view.
     """
     if path.lower().endswith(".json"):
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
-        for scan in payload.get("scans", []):
-            if "flat" not in scan:
-                raise ValueError(
-                    f"{path} was written with --no-flatten; diff needs the flattened view"
-                )
+        if need_flat:
+            for scan in payload.get("scans", []):
+                if "flat" not in scan:
+                    raise ValueError(
+                        f"{path} was written with --no-flatten; "
+                        "this command needs the flattened view"
+                    )
         return payload
     result = parse_document(path, ParseOptions(version=version))
     return result.protocol.to_dict(include_flat=True)
@@ -549,6 +575,46 @@ def _scan_selection(args: argparse.Namespace) -> tuple[str | None, str | None]:
     if len(repeated) == 1:
         return repeated[0], None
     return repeated[0], repeated[1]
+
+
+def _run_list(args: argparse.Namespace) -> int:
+    """Run the ``list`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` when the input could not be read.
+    """
+    try:
+        protocol = _load_protocol(args.input, args.version, need_flat=False)
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    rows = build_listing(protocol)
+    if args.json:
+        payload = {
+            "source_file": protocol.get("source_file", ""),
+            "software_version": protocol.get("software_version", ""),
+            "scans": [row.to_dict() for row in rows],
+            "total_seconds": round(sum(r.seconds for r in rows if r.seconds is not None), 3),
+            "unreadable": sum(1 for r in rows if r.seconds is None),
+        }
+        text = json.dumps(payload, indent=2, ensure_ascii=False)
+    else:
+        text = render_listing(protocol, rows)
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+    else:
+        print(text)
+    return 0
 
 
 def _run_diff(args: argparse.Namespace) -> int:
@@ -932,6 +998,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "check":
         return _run_check(args)
+
+    if args.command == "list":
+        return _run_list(args)
 
     if args.command == "vocab":
         return _run_vocab(args)

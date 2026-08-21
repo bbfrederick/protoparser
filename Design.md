@@ -237,6 +237,7 @@ folder layout below also gives the test harness a ground-truth label per file.
 ```
 siemens-protocol parse FILE.pdf [options]
 siemens-protocol parse DIR/     [options]   # batch over a directory
+siemens-protocol list  FILE.pdf [options]   # scan inventory with total TA
 
 --out PATH            write JSON here (default: alongside input, .json)
 --version {auto,VE11C,XA30,XA60}  force a version profile (default: auto)
