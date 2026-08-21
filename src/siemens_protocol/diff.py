@@ -28,6 +28,13 @@ from .vocabulary import Vocabulary, load_vocabulary
 #: because collapsing those would hide a genuine change of meaning.
 ABBREVIATIONS = {
     "accel": "acceleration",
+    # VE11C's "Flow comp." is XA30/XA60's "Flow Compensation": same section
+    # in every release, and no release prints both spellings. Expanded here
+    # rather than mapped in a vocabulary because it is a pure abbreviation,
+    # which also covers the numbered variants ("Flow comp. 1") for free.
+    # Only a bare "comp" token is expanded, so "Inline Composing" and
+    # "Compensate T2 Decay" are untouched.
+    "comp": "compensation",
     "corr": "correction",
     "dist": "distance",
     "enc": "encoding",

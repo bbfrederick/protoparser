@@ -31,7 +31,7 @@ from siemens_protocol.diff import (
     diff_scans,
     normalize_key,
 )
-from siemens_protocol.report import render_protocol, render_scan
+from siemens_protocol.report import name_mismatch_note, render_protocol, render_scan
 
 
 def flat(**pairs: str) -> dict[str, dict]:
@@ -80,6 +80,10 @@ def as_flat(mapping: dict[str, str]) -> dict[str, dict]:
         ("Ref. lines PE", "Reference Lines PE"),
         ("Base resolution", "Base Resolution"),
         ("Dist. factor #2", "Distance Factor #2"),
+        ("Flow comp.", "Flow Compensation"),
+        # the numbered variants come along for free, which is why this is an
+        # abbreviation rather than one vocabulary entry per spelling
+        ("Flow comp. 1", "Flow Compensation 1"),
     ],
 )
 def test_cosmetic_relabeling_is_matched(left: str, right: str) -> None:
@@ -107,6 +111,9 @@ def test_cosmetic_relabeling_is_matched(left: str, right: str) -> None:
         ("Load images to viewer", "Load Images to MR View&GO"),
         ("Reference scan mode", "Reference Scans"),
         ("TE", "TR"),
+        # "comp" expands only as a bare token, so these stay distinct
+        ("Inline Composing", "Flow Compensation"),
+        ("Compensate T2 Decay", "Flow Compensation"),
     ],
 )
 def test_semantic_renames_are_not_merged(left: str, right: str) -> None:
@@ -517,7 +524,13 @@ def test_cli_diff_two_protocols(tmp_path: Path) -> None:
     assert code == 1, "differences must be signalled in the exit status"
     text = out.read_text()
     assert "scans compared" in text
-    assert "(scan renamed)" in text
+    # Aligned by sequence, so a pair can match with different names; the
+    # report must say which name belongs to which side.
+    assert "Names do not match exactly" in text
+    assert (
+        "Names do not match exactly - rfMRI_REST_ME_PA_distortion (left) "
+        "corresponds to rfMRI_REST1_ME_PA_distortion (right)"
+    ) in text
 
 
 @requires_examples
@@ -580,8 +593,15 @@ def test_cli_diff_two_scans_within_one_file(tmp_path: Path) -> None:
     assert code == 1
     text = out.read_text()
     assert "Invert RO/PE polarity" in text
-    # Two deliberately different scans are not a rename.
+    # Two deliberately chosen scans are not a rename, but the report still
+    # states which name is which, on the first line rather than in the block.
     assert "(scan renamed)" not in text
+    note = (
+        "Names do not match exactly - SpinEchoFieldMap_AP (left) "
+        "corresponds to SpinEchoFieldMap_PA (right)"
+    )
+    assert note in text
+    assert text.splitlines().index(note) == 2, "the note must lead the report"
 
 
 @requires_examples
@@ -969,3 +989,176 @@ def test_cli_diff_a_scan_against_itself_reports_nothing(tmp_path: Path) -> None:
     )
     assert code == 0, "no differences must exit zero"
     assert json.loads(out.read_text())["parameters"] == []
+
+
+@requires_examples
+def test_flow_compensation_is_matched_across_releases(tmp_path: Path) -> None:
+    """VE11C's ``Flow comp.`` pairs with the Numaris/X ``Flow Compensation``.
+
+    The two are the same setting in the same section, and no release prints
+    both spellings. Their values were recoded (``No``/``Yes`` became
+    ``None``/``On``), so they report as changed rather than equal -- which is
+    the intended outcome: the parameter is recognized, the value difference
+    stays visible.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "flow.json"
+    assert (
+        main(
+            [
+                "diff",
+                find_example("R01StressDyn.pdf"),
+                find_example("R01StressDynXA60.pdf"),
+                "--json",
+                "--out",
+                str(out),
+            ]
+        )
+        == 1
+    )
+    payload = json.loads(out.read_text())
+    found = [
+        p
+        for scan in payload["scans"]
+        for p in scan["parameters"]
+        if "flow comp" in (p.get("key") or "").lower()
+    ]
+    assert found, "no flow compensation parameter appeared in the diff"
+
+    # The VE11C spelling must never survive as an unmatched entry.
+    assert not [p for p in found if p["status"] == "only_left"]
+    # The base label and the first numbered slot pair up...
+    paired = {(p.get("key_left"), p.get("key_right")) for p in found if p["status"] == "changed"}
+    assert ("Flow comp.", "Flow Compensation") in paired
+    assert ("Flow comp. 1", "Flow Compensation 1") in paired
+    # ...while slots 2 to 4 exist only on the Numaris/X side, which is a real
+    # structural difference rather than a matching failure.
+    unmatched = sorted(p["key"] for p in found if p["status"] == "only_right")
+    assert unmatched == ["Flow Compensation 2", "Flow Compensation 3", "Flow Compensation 4"]
+
+
+# -- the name-mismatch note -------------------------------------------------
+
+
+def test_name_mismatch_note_wording() -> None:
+    """The note names both spellings and says which side each belongs to.
+
+    Returns
+    -------
+    None
+    """
+    assert name_mismatch_note("AP_old", "AP_new") == (
+        "Names do not match exactly - AP_old (left) corresponds to AP_new (right)"
+    )
+
+
+def test_name_mismatch_note_is_absent_when_the_names_agree() -> None:
+    """Identical names produce no note at all.
+
+    Returns
+    -------
+    None
+    """
+    assert name_mismatch_note("localizer", "localizer") is None
+
+
+@requires_examples
+def test_cli_diff_scan_mode_leads_with_the_note(tmp_path: Path) -> None:
+    """In scan mode the note is the first line after the file headers.
+
+    The two scans were named separately here, so which name belongs to which
+    file is the first thing the reader needs.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "note.txt"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDynXA60.pdf"),
+            "--left-scan",
+            "localizer",
+            "--right-scan",
+            "AAHScout",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    lines = out.read_text().splitlines()
+    assert lines[0].startswith("---")
+    assert lines[1].startswith("+++")
+    assert lines[2] == (
+        "Names do not match exactly - localizer (left) corresponds to AAHScout (right)"
+    )
+
+
+@requires_examples
+def test_cli_diff_scan_mode_omits_the_note_when_names_agree(tmp_path: Path) -> None:
+    """Comparing like-named scans across two files needs no note.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "quiet.txt"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDynXA60.pdf"),
+            "--scan",
+            "localizer",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    assert "Names do not match exactly" not in out.read_text()
+
+
+@requires_examples
+def test_protocol_diff_notes_every_mismatched_pair(parsed: ParseFixture) -> None:
+    """Every aligned pair with differing names carries its own note.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+
+    Returns
+    -------
+    None
+    """
+    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
+    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    result = diff_protocols(left, right)
+    mismatched = [s for s in result.scans if s.name_left != s.name_right]
+    assert mismatched, "this pair is expected to contain a renamed scan"
+
+    text = render_protocol(result)
+    for scan in mismatched:
+        note = name_mismatch_note(scan.name_left, scan.name_right)
+        assert note is not None and note in text
+    assert text.count("Names do not match exactly") == len(mismatched)

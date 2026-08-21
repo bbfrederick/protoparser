@@ -36,6 +36,32 @@ _COSMETIC_LABEL = {
 }
 
 
+def name_mismatch_note(name_left: str, name_right: str) -> str | None:
+    """A note naming both spellings when two matched scans differ in name.
+
+    Scans are aligned by their position in the acquisition sequence rather
+    than by name, so a pair can be matched and still be spelled differently.
+    Saying which side is which makes the rest of the report readable: without
+    it a reader has to infer from the parameter lines which protocol they are
+    looking at.
+
+    Parameters
+    ----------
+    name_left, name_right : str
+        The scan name on each side.
+
+    Returns
+    -------
+    str or None
+        The note, or ``None`` when the names are identical.
+    """
+    if name_left == name_right:
+        return None
+    return (
+        f"Names do not match exactly - {name_left} (left) " f"corresponds to {name_right} (right)"
+    )
+
+
 def _values(values: list[str]) -> str:
     """Render a parameter's readings.
 
@@ -115,8 +141,11 @@ def render_scan(
     title = scan.name_left
     if scan.renamed_scan:
         title = f"{scan.name_left} -> {scan.name_right}"
-    header_note = " (scan renamed)" if scan.renamed_scan and note_rename else ""
-    lines.append(f"{indent}{title}{header_note}")
+    lines.append(f"{indent}{title}")
+    if note_rename:
+        note = name_mismatch_note(scan.name_left, scan.name_right)
+        if note is not None:
+            lines.append(f"{indent}  ! {note}")
 
     if scan.header:
         lines.append(f"{indent}  header")

@@ -21,7 +21,7 @@ from .pipeline import (
 )
 from .policy import PolicyError, PolicyReport, check_protocol, load_policy
 from .profiles import REGISTRY
-from .report import render_protocol, render_scan
+from .report import name_mismatch_note, render_protocol, render_scan
 from .vocabsuggest import suggest_aliases, verify_aliases
 from .vocabulary import available, check, load_vocabulary
 
@@ -622,10 +622,15 @@ def _run_diff(args: argparse.Namespace) -> int:
                 vocabulary_right=vocabularies[1],
             )
             payload = scan.to_dict()
+            # The note leads the report here rather than sitting inside the
+            # scan block: in this mode the two scans were named separately, so
+            # which name belongs to which file is the first thing to state.
+            note = name_mismatch_note(scan.name_left, scan.name_right)
             text = "\n".join(
                 [
                     f"--- {args.left}: {scan.name_left}",
                     f"+++ {args.right or args.left}: {scan.name_right}",
+                    *([note] if note is not None else []),
                     "",
                     *render_scan(scan, show_cosmetic=args.show_cosmetic, note_rename=False),
                 ]

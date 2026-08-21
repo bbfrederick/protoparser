@@ -201,6 +201,17 @@ of that file. The names need not match, which is the point — a scan the site o
 vendor renamed still has a counterpart. Naming only one side uses the same name on
 the other. Scans are selected by name or by zero-based index.
 
+Because scans are aligned by sequence rather than by name, a matched pair can still
+be spelled differently on each side. Whenever that happens the report says so
+explicitly, rather than leaving you to infer it:
+
+```
+Names do not match exactly - rfMRI_REST_ME_PA_distortion (left) corresponds to rfMRI_REST1_ME_PA_distortion (right)
+```
+
+In a whole-protocol comparison the note leads the affected scan's block; when you
+named the two scans yourself it leads the report.
+
 Naming the same file on both sides is the same request as giving it once, and costs
 one parse rather than two:
 
@@ -298,9 +309,16 @@ pass `--show-cosmetic`.
 
 Keys are matched after folding case, punctuation and a **short table of
 confirmed abbreviations** (`Dist.`→`Distance`, `Accel.`→`Acceleration`,
-`Corr.`→`Correction`, `enc.`→`encoding`, `Ref.`→`Reference`,
-`suppr.`→`Suppression`). Values are compared likewise: `Single shot` versus
-`Single Shot` is recased, `1` versus `1.00` is reformatted.
+`comp.`→`Compensation`, `Corr.`→`Correction`, `enc.`→`encoding`,
+`Ref.`→`Reference`, `suppr.`→`Suppression`). Values are compared likewise:
+`Single shot` versus `Single Shot` is recased, `1` versus `1.00` is reformatted.
+
+Only a bare token is expanded, never a prefix, which is what keeps `comp.` from
+touching `Inline Composing` or `Compensate T2 Decay`. Expanding an abbreviation
+also covers a label's numbered variants for free — `Flow comp. 1` pairs with
+`Flow Compensation 1` — where a vocabulary entry would need one line per
+spelling. That is the test for which mechanism a difference belongs in: a pure
+abbreviation goes in the table, a genuine rename goes in a vocabulary.
 
 Two rules keep this honest, and both matter more than they look:
 
