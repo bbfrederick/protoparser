@@ -13,6 +13,9 @@ both. Two things are unavoidably weaker on this path:
 from __future__ import annotations
 
 import io
+import os
+import shutil
+import sys
 from types import ModuleType
 
 import pymupdf
@@ -28,34 +31,182 @@ _NOISE_CONF = 75.0
 _SIZE_FROM_EXTENT = 1.25
 
 
+#: Environment variable naming the tesseract binary, for installs that leave
+#: it off ``PATH``. The Windows installer is the usual case: it drops the
+#: binary under Program Files and adds nothing to ``PATH``.
+TESSERACT_ENV = "SIEMENS_PROTOCOL_TESSERACT"
+
+#: Install locations searched when the binary is not on ``PATH``, per
+#: platform. Expanded with :func:`os.path.expandvars` before use, so entries
+#: may name environment variables.
+WELL_KNOWN_TESSERACT: dict[str, tuple[str, ...]] = {
+    "win32": (
+        r"%ProgramFiles%\Tesseract-OCR\tesseract.exe",
+        r"%ProgramFiles(x86)%\Tesseract-OCR\tesseract.exe",
+        r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe",
+        r"%LOCALAPPDATA%\Tesseract-OCR\tesseract.exe",
+    ),
+    "darwin": (
+        "/opt/homebrew/bin/tesseract",  # Homebrew on Apple silicon
+        "/usr/local/bin/tesseract",  # Homebrew on Intel
+        "/opt/local/bin/tesseract",  # MacPorts
+    ),
+    "linux": (
+        "/usr/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/snap/bin/tesseract",
+    ),
+}
+
+#: How to install tesseract, quoted back when it is missing. A reader on one
+#: platform is not helped by the other two platforms' package managers.
+INSTALL_HINT: dict[str, str] = {
+    "win32": "winget install UB-Mannheim.TesseractOCR (or: choco install tesseract)",
+    "darwin": "brew install tesseract",
+    "linux": "apt install tesseract-ocr (or: dnf install tesseract)",
+}
+
+
 class OCRUnavailable(RuntimeError):
     """Raised when the tesseract binary or its Python binding is missing."""
 
 
-def _require_tesseract() -> ModuleType:
-    """Import pytesseract and confirm the binary is reachable.
+def platform_key() -> str:
+    """Which set of platform-specific defaults applies here.
 
     Returns
     -------
-    ModuleType
-        The imported ``pytesseract`` module.
+    str
+        ``"win32"``, ``"darwin"``, or ``"linux"``. Every other Unix falls
+        back to the Linux entries, whose paths are the usual ones there too.
+    """
+    if sys.platform.startswith("win"):
+        return "win32"
+    if sys.platform == "darwin":
+        return "darwin"
+    return "linux"
+
+
+def install_hint() -> str:
+    """The install command to suggest on this platform.
+
+    Returns
+    -------
+    str
+        A package-manager command line.
+    """
+    return INSTALL_HINT[platform_key()]
+
+
+def _executable(path: str) -> str | None:
+    """Accept a candidate path only if it names a runnable file.
+
+    Parameters
+    ----------
+    path : str
+        A candidate binary path, possibly containing environment variables.
+
+    Returns
+    -------
+    str or None
+        The expanded path, or ``None`` if it is not a runnable file.
+    """
+    # An unset variable is left verbatim by expandvars rather than emptied,
+    # so an unexpanded candidate simply fails the isfile check below.
+    expanded = os.path.expandvars(os.path.expanduser(path))
+    if os.path.isfile(expanded) and os.access(expanded, os.X_OK):
+        return expanded
+    return None
+
+
+def find_tesseract(explicit: str | None = None) -> str | None:
+    """Locate the tesseract binary on this machine.
+
+    Searched in order: the path given here, the ``SIEMENS_PROTOCOL_TESSERACT``
+    environment variable, ``PATH``, then the platform's usual install
+    locations. The last step is what makes a stock Windows install work: its
+    installer puts tesseract under Program Files and adds nothing to ``PATH``.
+
+    Parameters
+    ----------
+    explicit : str or None, optional
+        A path or command name given by the caller, which takes precedence
+        over everything else. Default ``None``.
+
+    Returns
+    -------
+    str or None
+        The binary to run, or ``None`` to leave pytesseract's own default in
+        place.
 
     Raises
     ------
     OCRUnavailable
-        If the binding is not installed or the binary is not on ``PATH``.
+        If ``explicit`` was given and names nothing runnable. A bad explicit
+        path is a mistake worth reporting, not a reason to quietly run some
+        other binary.
+    """
+    if explicit:
+        found = _executable(explicit) or shutil.which(explicit)
+        if found is None:
+            raise OCRUnavailable(f"no tesseract binary at {explicit!r}")
+        return found
+
+    from_env = os.environ.get(TESSERACT_ENV)
+    if from_env:
+        found = _executable(from_env) or shutil.which(from_env)
+        if found is None:
+            raise OCRUnavailable(f"{TESSERACT_ENV} is set to {from_env!r}, which is not runnable")
+        return found
+
+    on_path = shutil.which("tesseract")
+    if on_path is not None:
+        return on_path
+
+    for candidate in WELL_KNOWN_TESSERACT[platform_key()]:
+        found = _executable(candidate)
+        if found is not None:
+            return found
+    return None
+
+
+def _require_tesseract(tesseract: str | None = None) -> ModuleType:
+    """Import pytesseract, point it at a binary, and confirm it runs.
+
+    Parameters
+    ----------
+    tesseract : str or None, optional
+        An explicit binary to use, overriding discovery. Default ``None``.
+
+    Returns
+    -------
+    ModuleType
+        The imported ``pytesseract`` module, with its ``tesseract_cmd``
+        already set when discovery found a binary off ``PATH``.
+
+    Raises
+    ------
+    OCRUnavailable
+        If the binding is not installed, or no binary could be found or run.
     """
     try:
         import pytesseract
     except ImportError as exc:  # pragma: no cover - depends on environment
         raise OCRUnavailable(
-            "pytesseract is not installed; install it or pass --ocr never"
+            "pytesseract is not installed; install the OCR extra with "
+            "pip install 'siemens-protocol[ocr]', or pass --ocr never"
         ) from exc
+
+    command = find_tesseract(tesseract)
+    if command is not None:
+        pytesseract.pytesseract.tesseract_cmd = command
     try:
         pytesseract.get_tesseract_version()
     except Exception as exc:  # pragma: no cover - depends on environment
         raise OCRUnavailable(
-            "the tesseract binary was not found on PATH; install tesseract or pass --ocr never"
+            "the tesseract binary was not found; install it with "
+            f"{install_hint()}, or set {TESSERACT_ENV} to its path, "
+            "or pass --ocr never"
         ) from exc
     return pytesseract
 
@@ -66,6 +217,7 @@ def ocr_page(
     dpi: int = 300,
     lang: str = "eng",
     psm: int = 6,
+    tesseract: str | None = None,
 ) -> Page:
     """Rasterize a page and return OCR-derived spans.
 
@@ -81,6 +233,9 @@ def ocr_page(
         Tesseract language pack. Default ``"eng"``.
     psm : int, optional
         Tesseract page segmentation mode. Default 6, a uniform text block.
+    tesseract : str or None, optional
+        Path to the tesseract binary, overriding discovery. Default ``None``,
+        which searches as :func:`find_tesseract` describes.
 
     Returns
     -------
@@ -92,7 +247,7 @@ def ocr_page(
     OCRUnavailable
         If tesseract or its Python binding is unavailable.
     """
-    pytesseract = _require_tesseract()
+    pytesseract = _require_tesseract(tesseract)
     from PIL import Image
 
     pdf_page = doc[number]

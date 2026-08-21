@@ -238,8 +238,14 @@ def test_missing_tesseract_is_a_clear_error(monkeypatch: pytest.MonkeyPatch) -> 
     """
     import siemens_protocol.extract.ocr as ocr_module
 
-    def boom() -> None:
+    def boom(tesseract: str | None = None) -> None:
         """Stand in for a failed tesseract lookup.
+
+        Parameters
+        ----------
+        tesseract : str or None, optional
+            The explicit binary path the caller asked for. Ignored. Default
+            ``None``.
 
         Returns
         -------

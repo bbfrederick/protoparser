@@ -10,6 +10,7 @@ from typing import Mapping, Sequence
 
 from .debug import write_debug
 from .diff import diff_protocols, diff_scans, normalize_section, section_groups
+from .extract import TESSERACT_ENV
 from .flatten import conflicts
 from .listing import build_listing, render_listing
 from .model import Protocol
@@ -61,6 +62,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="control the OCR fallback (default: auto)",
     )
     parse_cmd.add_argument("--dpi", type=int, default=300, help="rasterization DPI for OCR pages")
+    parse_cmd.add_argument(
+        "--tesseract",
+        metavar="PATH",
+        help=(
+            "path to the tesseract binary for the OCR fallback. Only needed "
+            "where it is installed off PATH, as the Windows installer leaves "
+            f"it; the {TESSERACT_ENV} environment variable does the same"
+        ),
+    )
     flat = parse_cmd.add_mutually_exclusive_group()
     flat.add_argument(
         "--flatten",
@@ -1052,6 +1062,30 @@ def _vocab_suggest(args: argparse.Namespace, extra: str | None) -> int:
     return 0
 
 
+def use_utf8_output() -> None:
+    """Make standard output carry the characters these protocols contain.
+
+    Values printed from a protocol routinely include multiplication signs,
+    superscripts, degree and micro signs. Windows leaves a *redirected*
+    stdout on the legacy code page, so a report that renders fine in a
+    console raises ``UnicodeEncodeError`` the moment it is piped to a file.
+    JSON output is already written as UTF-8 explicitly, so this only brings
+    the human-readable output in line with it.
+
+    Returns
+    -------
+    None
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:  # a replaced stream, under capture or a pipe
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (OSError, ValueError):  # pragma: no cover - depends on stream
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the command line interface.
 
@@ -1066,6 +1100,7 @@ def main(argv: list[str] | None = None) -> int:
         ``0`` on success, ``1`` if any file failed. A batch run continues
         past a failing file and reports at the end.
     """
+    use_utf8_output()
     args = build_parser().parse_args(argv)
 
     if args.command == "versions":
@@ -1093,6 +1128,7 @@ def main(argv: list[str] | None = None) -> int:
         version=args.version,
         ocr=args.ocr,
         dpi=args.dpi,
+        tesseract=args.tesseract,
         include_flat=args.flatten,
         debug=bool(args.emit_debug),
     )

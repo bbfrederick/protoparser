@@ -7,7 +7,7 @@ PDF points, so layout reconstruction is identical for either source.
 from __future__ import annotations
 
 from .native import extract_page, is_usable, printable_ratio
-from .ocr import OCRUnavailable, ocr_page
+from .ocr import TESSERACT_ENV, OCRUnavailable, find_tesseract, install_hint, ocr_page
 from .spans import Page, Span, join_spans, sort_reading_order, x_bounds
 
 __all__ = [
@@ -18,6 +18,9 @@ __all__ = [
     "printable_ratio",
     "ocr_page",
     "OCRUnavailable",
+    "TESSERACT_ENV",
+    "find_tesseract",
+    "install_hint",
     "join_spans",
     "sort_reading_order",
     "x_bounds",

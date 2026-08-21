@@ -247,6 +247,7 @@ siemens-protocol list  FILE.pdf [options]   # scan inventory with total TA
 --version {auto,VB17A,VE11C,XA30,XA60}  force a profile (default: auto)
 --ocr {auto,always,never}     control OCR fallback (default: auto)
 --dpi N               rasterization DPI for OCR pages (default: 300)
+--tesseract PATH      tesseract binary, when installed off PATH
 --flatten             include the flattened per-scan view (on by default)
 --emit-debug PATH     dump per-span geometry for tuning a new version
 ```
@@ -256,10 +257,39 @@ which is what the `examples/` tree is set up for.
 
 ## Dependencies
 
-- PyMuPDF for native extraction and rasterization.
-- pytesseract plus the tesseract binary for the OCR path (tesseract already
-  installed).
-- Pillow for image handling on the OCR path.
+- PyMuPDF for native extraction and rasterization. The only hard dependency,
+  and it publishes wheels for Linux, macOS and Windows.
+- pytesseract and Pillow for the OCR path, behind an `ocr` extra rather than in
+  the core dependencies. The extra also needs a native tesseract binary, which
+  is the one thing pip cannot supply on any platform; since no example file of
+  any release takes the OCR path, requiring it would put a system package in
+  front of every user for a fallback none of them reaches.
+
+Everything else is standard library, so the wheel is `py3-none-any`.
+
+## Portability
+
+The parser has no platform-specific logic, but three things are
+platform-dependent and each is handled at one place:
+
+- **Finding tesseract.** Searched in order: `--tesseract`, the
+  `SIEMENS_PROTOCOL_TESSERACT` variable, `PATH`, then the platform's usual
+  install directory. The last step is what makes a stock Windows install work
+  at all: its installer writes to Program Files and adds nothing to `PATH`, so
+  a `PATH`-only lookup reports tesseract missing on a machine that has it. The
+  error message quotes that platform's install command, not all three.
+- **Output encoding.** Values routinely contain multiplication signs,
+  superscripts and the minus sign. A Windows console reports UTF-8 but a
+  *redirected* stream falls back to the legacy code page, which has no `×` or
+  `³` in cp437 and no `−` in cp1252. The CLI therefore puts stdout and stderr
+  on UTF-8 before doing anything else, matching what the JSON writer already
+  does. The failure it prevents depends on redirection rather than on content,
+  which makes it hard to attribute.
+- **Path separators.** Paths are used through `os.path` throughout, which is
+  portable. The one place that matters is a path *written into a file*: the
+  golden snapshots record a repo-relative source path and compare it across
+  machines, so it is normalized to POSIX form. Without that, a Windows run
+  fails every snapshot on the separator before comparing a parameter.
 
 ## Testing
 

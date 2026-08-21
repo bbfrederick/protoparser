@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `siemens-protocol` parses Siemens MR protocol PDF exports into hierarchical JSON
 (one entry per scan, sections of key/value parameters, plus a flattened view that
 flags parameters printed inconsistently across sections). Supports VB17A, VE11C, XA30 and XA60.
-See `Design.md` for the design and `README.md` for usage.
+Runs on Linux, macOS and Windows; the package is pure Python and PyMuPDF ships
+wheels for all three. See `Design.md` for the design and `README.md` for usage.
 
 ### Environment
 
@@ -17,7 +18,24 @@ See `Design.md` for the design and `README.md` for usage.
 ```
 
 - `import pymupdf`, not `import fitz` (deprecated alias, emits a warning)
-- OCR path needs the `tesseract` binary on PATH (`brew install tesseract`)
+- OCR is an optional extra (`pip install -e ".[ocr]"`) plus a native tesseract
+  binary: `brew install tesseract`, `apt install tesseract-ocr`, or
+  `winget install UB-Mannheim.TesseractOCR`. Found on PATH, else in the
+  platform's usual install directory, else via `SIEMENS_PROTOCOL_TESSERACT`
+  or `--tesseract`. Keep it out of the core dependencies: no example of any
+  release takes the OCR path, so requiring it would put a non-pip step in
+  front of every user.
+
+### Cross-platform rules
+
+- Never `open()` without `encoding=`; the default differs by platform.
+- Any path written *into a file* (golden snapshots) must be normalized to `/`,
+  or every snapshot fails on Windows on the separator alone.
+- `cli.use_utf8_output()` runs first in `main()`. Windows leaves a redirected
+  stdout on the legacy code page, which cannot encode the `×` and `³` these
+  protocols print — so the failure appears only when output is piped.
+- `tests/test_portability.py` covers all three from any machine. CI is the
+  real check: Linux, macOS and Windows against Python 3.10 and 3.14.
 
 ### Testing
 

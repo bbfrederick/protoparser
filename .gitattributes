@@ -1,2 +1,12 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The example PDFs are fixtures compared byte for byte by the parser. Content
+# detection already classifies them as binary, but saying so removes any
+# chance of a CRLF rewrite corrupting one on a Windows checkout, which would
+# surface as an unreadable PDF rather than as a line-ending problem.
+*.pdf binary
+
+# Golden snapshots are regenerated and diffed by hand across platforms, so
+# pin them to LF rather than leaving it to the checkout setting.
+*.json text eol=lf

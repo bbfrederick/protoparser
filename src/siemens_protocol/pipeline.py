@@ -31,6 +31,9 @@ class ParseOptions:
         ``"auto"``, ``"always"`` or ``"never"``.
     dpi : int
         Rasterization resolution for OCR pages.
+    tesseract : str or None
+        Path to the tesseract binary, overriding discovery. ``None`` searches
+        ``PATH`` and the platform's usual install locations.
     include_flat : bool
         Whether serialized scans carry the flattened view.
     debug : bool
@@ -40,6 +43,7 @@ class ParseOptions:
     version: str = "auto"
     ocr: str = OCR_AUTO
     dpi: int = 300
+    tesseract: str | None = None
     include_flat: bool = True
     debug: bool = False
 
@@ -142,7 +146,7 @@ def acquire_pages(
     profile : VersionProfile
         The release profile, read for its printable-ratio threshold.
     options : ParseOptions
-        Run options, read for ``ocr`` and ``dpi``.
+        Run options, read for ``ocr``, ``dpi`` and ``tesseract``.
     warnings : list of str
         Appended to when a page is left unusable.
 
@@ -163,7 +167,7 @@ def acquire_pages(
         need_ocr = options.ocr == OCR_ALWAYS or (options.ocr == OCR_AUTO and not native_ok)
         if need_ocr:
             try:
-                page = ocr_page(doc, number, dpi=options.dpi)
+                page = ocr_page(doc, number, dpi=options.dpi, tesseract=options.tesseract)
             except OCRUnavailable as exc:
                 if options.ocr == OCR_ALWAYS:
                     raise

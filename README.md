@@ -13,9 +13,23 @@ See [Design.md](Design.md) for the design this implements.
 
 ## Install
 
+Linux, macOS and Windows, on Python 3.10 through 3.14. The package is pure
+Python and its one dependency, PyMuPDF, ships wheels for all three, so nothing
+is compiled and no system package is needed.
+
+On Linux or macOS:
+
 ```sh
 python -m venv .venv
-source .venv/bin/activate          # zsh/bash; .venv\Scripts\activate on Windows
+source .venv/bin/activate
+pip install -e .
+```
+
+On Windows, in PowerShell:
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -e .
 ```
 
@@ -23,9 +37,9 @@ The command is spelled **`siemens-protocol`**, with a hyphen. `siemens_protocol`
 with an underscore is the import name of the Python package, not the name of the
 executable — `import siemens_protocol`, but `siemens-protocol parse ...`.
 
-Installing puts that executable in `.venv/bin/`, which is only on `PATH` while
-the environment is activated. Activating is what the examples below assume. To
-skip activation, call it by its full path instead:
+Installing puts that executable in `.venv/bin/` (`.venv\Scripts\` on Windows),
+which is only on `PATH` while the environment is activated. Activating is what
+the examples below assume. To skip activation, call it by its full path instead:
 
 ```sh
 .venv/bin/siemens-protocol parse protocol.pdf
@@ -38,8 +52,39 @@ standalone tool, which puts it in a directory that is already on `PATH`:
 uv tool install .        # or: pipx install .
 ```
 
-The OCR fallback additionally needs the `tesseract` binary on `PATH`
-(`brew install tesseract`). Everything else is pure Python.
+### The OCR extra
+
+The OCR fallback is the only part that needs anything outside Python, so it is
+an optional extra rather than a dependency. Installing it is a two-step job: the
+Python binding, then the tesseract binary itself.
+
+```sh
+pip install -e ".[ocr]"
+```
+
+| Platform | Install tesseract with |
+| --- | --- |
+| macOS | `brew install tesseract` |
+| Debian, Ubuntu | `sudo apt install tesseract-ocr` |
+| Fedora, RHEL | `sudo dnf install tesseract` |
+| Windows | `winget install UB-Mannheim.TesseractOCR`, or `choco install tesseract` |
+
+You almost certainly do not need this. Every example file of every supported
+release carries a clean native text layer, so none of them takes the OCR path;
+see [Note on OCR](#note-on-ocr). Without the extra, `--ocr never` and the
+default `--ocr auto` both work normally, and only `--ocr always` fails, saying
+so.
+
+The tool finds the binary on `PATH`, and failing that in the usual install
+location for the platform — which is what makes a stock Windows install work,
+since its installer writes to `C:\Program Files\Tesseract-OCR` and adds nothing
+to `PATH`. If yours is somewhere else, name it:
+
+```sh
+siemens-protocol parse protocol.pdf --ocr always --tesseract /opt/local/bin/tesseract
+```
+
+or set `SIEMENS_PROTOCOL_TESSERACT` to the same path once and leave it set.
 
 ## Use
 
@@ -73,6 +118,7 @@ siemens-protocol diff old.pdf new.pdf --filter contrast
 | `--version {auto,VB17A,VE11C,XA30,XA60}` | Force a version profile. Default `auto`. |
 | `--ocr {auto,always,never}` | Control the OCR fallback. Default `auto`. |
 | `--dpi N` | Rasterization DPI for OCR pages. Default 300. |
+| `--tesseract PATH` | Path to the tesseract binary, when it is installed off `PATH`. Same as `SIEMENS_PROTOCOL_TESSERACT`. |
 | `--no-flatten` | Omit the flattened per-scan view (included by default). |
 | `--emit-debug PATH` | Dump per-span geometry for tuning a new version. |
 | `--stdout` | Write JSON to stdout instead of a file (single file only). |
@@ -628,6 +674,15 @@ Two are worth calling out:
 
   Snapshots omit the flattened view, which is a pure function of `sections`
   and is tested directly, so the diffs stay about what changed.
+* **Portability** (`test_portability.py`) covers the three things that differ
+  by platform, without needing the platform: where the tesseract binary is
+  found, what a redirected stdout can encode, and path separators anywhere a
+  path is written into a file rather than merely used. Each drives the
+  platform-dependent code through the seam the real platform would.
+
+CI runs the suite on Linux, macOS and Windows against Python 3.10 and 3.14,
+with tesseract installed on all three so the OCR fallback is exercised
+everywhere rather than only on a developer's machine.
 
 ## Note on OCR
 

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,15 +8,26 @@ version = "0.1.0"
 description = "Parse Siemens MR protocol PDF exports into hierarchical JSON"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+# Pure Python plus PyMuPDF, which publishes wheels for Linux, macOS and
+# Windows. The OCR fallback needs a native tesseract binary, so it is an
+# extra rather than a dependency: no example of any release has ever taken
+# that path, and requiring it would put a non-pip install step in front of
+# every user on every platform.
 dependencies = [
     "pymupdf>=1.24",
-    "pytesseract>=0.3.10",
-    "pillow>=9.0",
 ]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
-dev = ["pytest>=7", "black>=24", "isort>=5"]
+ocr = ["pytesseract>=0.3.10", "pillow>=9.0"]
+test = ["pytest>=7", "pytesseract>=0.3.10", "pillow>=9.0"]
+dev = ["pytest>=7", "pytesseract>=0.3.10", "pillow>=9.0", "black>=24", "isort>=5"]
 
 [project.scripts]
 siemens-protocol = "siemens_protocol.cli:main"

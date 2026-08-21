@@ -58,10 +58,13 @@ def _snapshot(protocol: Protocol) -> dict:
     -------
     dict
         The document without its flattened view, and with a repo-relative
-        source path so snapshots are not machine-specific.
+        source path, in POSIX form, so snapshots are neither machine- nor
+        platform-specific. Without the separator normalization every
+        snapshot would fail on Windows on its path alone.
     """
     payload = protocol.to_dict(include_flat=False)
-    payload["source_file"] = os.path.relpath(protocol.source_file, REPO_ROOT)
+    relative = os.path.relpath(protocol.source_file, REPO_ROOT)
+    payload["source_file"] = relative.replace(os.sep, "/")
     return payload
 
 
