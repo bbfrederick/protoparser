@@ -1,0 +1,13 @@
+# The build context is sent to the daemon and COPY . bakes it into a layer,
+# so anything here is both slower to build and larger to ship. .venv alone is
+# 114M of macOS-specific binaries that would be wrong inside a Linux image.
+.venv/
+.git/
+build/
+dist/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+.idea/
