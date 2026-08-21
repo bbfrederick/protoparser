@@ -1,7 +1,8 @@
 # siemens-protocol
 
-Turn a Siemens MR protocol PDF — the human-readable export of a full exam
-protocol — into hierarchical JSON describing every scan and every parameter.
+A tool to convert Siemens MR protocol PDF's — the human-readable export of a full exam
+protocol — into hierarchical JSON describing every scan and every parameter, in order to do
+useful work (analyzing and comparing protocols, etc.)
 
 The point is to make protocol rebuilds after a software upgrade faster and
 less error-prone, and to leave a machine-readable record that can be diffed
