@@ -15,7 +15,27 @@ See [Design.md](Design.md) for the design this implements.
 
 ```sh
 python -m venv .venv
-.venv/bin/pip install -e .
+source .venv/bin/activate          # zsh/bash; .venv\Scripts\activate on Windows
+pip install -e .
+```
+
+The command is spelled **`siemens-protocol`**, with a hyphen. `siemens_protocol`
+with an underscore is the import name of the Python package, not the name of the
+executable — `import siemens_protocol`, but `siemens-protocol parse ...`.
+
+Installing puts that executable in `.venv/bin/`, which is only on `PATH` while
+the environment is activated. Activating is what the examples below assume. To
+skip activation, call it by its full path instead:
+
+```sh
+.venv/bin/siemens-protocol parse protocol.pdf
+```
+
+To have the command everywhere without activating anything, install it as a
+standalone tool, which puts it in a directory that is already on `PATH`:
+
+```sh
+uv tool install .        # or: pipx install .
 ```
 
 The OCR fallback additionally needs the `tesseract` binary on `PATH`
