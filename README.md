@@ -36,7 +36,7 @@ siemens-protocol diff old.pdf new.pdf
 siemens-protocol diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
 
 # compare two scans within one protocol
-siemens-protocol diff protocol.pdf --scan SpinEchoFieldMap_AP --scan SpinEchoFieldMap_PA
+siemens-protocol diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
 ```
 
 | Option | Meaning |
@@ -195,13 +195,23 @@ protocol can print the same name twice (two field maps), and a release can
 rename one scan while leaving its position alone. An inserted or deleted scan is
 reported as such instead of shifting everything after it out of step.
 
-**Scan against scan.** Give one file and two `--scan` names to compare two scans
-within it, or two files and a `--scan` to compare the same scan across releases.
-Scans are selected by name or by zero-based index. Comparing the two field maps
+**Scan against scan.** Name a scan per side with `--left-scan` and `--right-scan`.
+With two files that compares one scan of each; with one file it compares two scans
+of that file. The names need not match, which is the point — a scan the site or the
+vendor renamed still has a counterpart. Naming only one side uses the same name on
+the other. Scans are selected by name or by zero-based index.
+
+Naming the same file on both sides is the same request as giving it once, and costs
+one parse rather than two:
+
+```
+siemens-protocol diff p.pdf        --left-scan AP --right-scan PA   # identical
+siemens-protocol diff p.pdf p.pdf  --left-scan AP --right-scan PA   # to this
+``` Comparing the two field maps
 of one protocol is a good check that they differ only where they should:
 
 ```
-$ siemens-protocol diff R01StressDyn.pdf --scan SpinEchoFieldMap_AP --scan SpinEchoFieldMap_PA
+$ siemens-protocol diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
 SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
   parameters
     ~ Invert RO/PE polarity: Off  |  On
@@ -209,7 +219,9 @@ SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
 
 | Option | Meaning |
 | --- | --- |
-| `--scan NAME` | Scan to compare, by name or index. Once for both sides, twice for left and right. |
+| `--left-scan NAME` | Scan to take from the left input, by name or zero-based index. |
+| `--right-scan NAME` | Scan to take from the right input. Omit either to reuse the other's name. |
+| `--scan NAME` | Shorthand: once for both sides, twice for left then right. |
 | `--exact-keys` | Compare key spellings literally; do not match relabeled keys. |
 | `--show-cosmetic` | List relabeled, recased and reformatted differences instead of counting them. |
 | `--show-identical` | Include scans that have no differences. |

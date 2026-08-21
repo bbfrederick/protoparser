@@ -88,8 +88,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="compare two protocols, or two scans",
         description=(
             "Compare two protocols scan by scan, or compare two individual scans. "
-            "Give one input plus two --scan names to compare scans within one "
-            "protocol; give two inputs to compare across files."
+            "Name a scan per side with --left-scan and --right-scan: with two "
+            "inputs that compares one scan of each file, and with one input it "
+            "compares two scans of that file. Naming only one side uses the same "
+            "name on the other. With neither, two inputs are compared in full."
         ),
     )
     diff_cmd.add_argument("left", help="a PDF or a previously parsed JSON file")
@@ -99,12 +101,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="a second PDF or JSON; omit to compare two scans within LEFT",
     )
     diff_cmd.add_argument(
+        "--left-scan",
+        metavar="NAME",
+        help="scan to take from LEFT, by name or zero-based index",
+    )
+    diff_cmd.add_argument(
+        "--right-scan",
+        metavar="NAME",
+        help="scan to take from RIGHT, by name or zero-based index",
+    )
+    diff_cmd.add_argument(
         "--scan",
         action="append",
         metavar="NAME",
         help=(
-            "scan to compare, by name or zero-based index; give once to use the "
-            "same name on both sides, or twice for the left and right scans"
+            "shorthand for the pair above: give once to use the same name on "
+            "both sides, or twice for the left and right scans"
         ),
     )
     diff_cmd.add_argument(
@@ -479,13 +491,75 @@ def _select_scan(protocol: dict, wanted: str, label: str) -> dict:
     raise ValueError(f"{label}: no scan named {wanted!r}{hint}")
 
 
+def _same_file(left: str, right: str) -> bool:
+    """Whether two command-line paths name the same file on disk.
+
+    Compared by resolved path rather than by string, so ``./a.pdf`` and
+    ``a.pdf`` are recognized as one file.
+
+    Parameters
+    ----------
+    left, right : str
+        Paths as given on the command line.
+
+    Returns
+    -------
+    bool
+        ``True`` when both resolve to the same existing file.
+    """
+    try:
+        return os.path.samefile(left, right)
+    except OSError:  # one of them does not exist; let the loader report it
+        return False
+
+
+def _scan_selection(args: argparse.Namespace) -> tuple[str | None, str | None]:
+    """Which scan was requested for each side, before any defaulting.
+
+    ``None`` on a side means no scan was named for it, which is what
+    distinguishes "compare the whole protocols" from "compare one scan
+    against a scan of the same name".
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments, read for ``scan``, ``left_scan`` and
+        ``right_scan``.
+
+    Returns
+    -------
+    tuple
+        ``(left, right)``, each a scan name, an index, or ``None``.
+
+    Raises
+    ------
+    ValueError
+        If the two spellings are mixed, or ``--scan`` is given too often.
+    """
+    repeated = list(args.scan or [])
+    explicit = (args.left_scan, args.right_scan)
+    if repeated and any(name is not None for name in explicit):
+        raise ValueError("--scan cannot be combined with --left-scan or --right-scan")
+    if any(name is not None for name in explicit):
+        return explicit
+    if len(repeated) > 2:
+        raise ValueError("--scan may be given at most twice")
+    if not repeated:
+        return None, None
+    if len(repeated) == 1:
+        return repeated[0], None
+    return repeated[0], repeated[1]
+
+
 def _run_diff(args: argparse.Namespace) -> int:
     """Run the ``diff`` subcommand.
 
-    Two modes. With two inputs the protocols are compared scan by scan, or a
-    single named scan from each when ``--scan`` is given. With one input and
-    two ``--scan`` names, two scans of that protocol are compared against
-    each other.
+    Two modes, chosen by whether any scan was named. With two inputs and no
+    scan named, the protocols are compared scan by scan. Naming a scan for
+    either side compares single scans instead: one from each input, or two
+    from the same input when only one is given. ``--left-scan`` and
+    ``--right-scan`` say which side each name belongs to; ``--scan`` is the
+    positional shorthand for the same thing.
 
     Parameters
     ----------
@@ -498,30 +572,42 @@ def _run_diff(args: argparse.Namespace) -> int:
         ``0`` when no substantive difference was found, ``1`` when there were
         differences or the request could not be satisfied.
     """
-    wanted = args.scan or []
-    if len(wanted) > 2:
-        print("--scan may be given at most twice", file=sys.stderr)
+    try:
+        name_left, name_right = _scan_selection(args)
+    except ValueError as exc:
+        print(f"{exc}", file=sys.stderr)
         return 1
-    if args.right is None and len(wanted) != 2:
+
+    if args.right is None and (name_left is None or name_right is None):
         print(
-            "comparing within one file needs two --scan names; "
+            "comparing within one file needs a scan for each side: "
+            "--left-scan NAME --right-scan NAME; "
             "pass a second file to compare protocols",
             file=sys.stderr,
         )
         return 1
 
+    # A side left unnamed takes the other side's name, so naming one scan
+    # compares it against its counterpart without repeating the name.
+    if name_left is not None or name_right is not None:
+        name_left = name_left if name_left is not None else name_right
+        name_right = name_right if name_right is not None else name_left
+
     try:
         left = _load_protocol(args.left, args.version)
-        right = left if args.right is None else _load_protocol(args.right, args.version)
+        # Naming the same file on both sides is the same request as omitting
+        # the second one, so it costs one parse rather than two.
+        if args.right is None or _same_file(args.left, args.right):
+            right = left
+        else:
+            right = _load_protocol(args.right, args.version)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
 
     normalize = not args.exact_keys
     try:
-        if wanted:
-            name_left = wanted[0]
-            name_right = wanted[1] if len(wanted) == 2 else wanted[0]
+        if name_left is not None:
             vocabularies = (None, None)
             if normalize and not args.no_vocabulary:
                 vocabularies = (

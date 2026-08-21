@@ -98,7 +98,9 @@ because parameters match on canonical name.
 ```sh
 siemens-protocol diff old.pdf new.pdf                       # whole protocol
 siemens-protocol diff old.pdf new.pdf --scan T1_MEMPRAGE    # one scan, both files
-siemens-protocol diff protocol.pdf --scan AP --scan PA      # two scans, one file
+siemens-protocol diff protocol.pdf --left-scan AP --right-scan PA   # two scans, one file
+siemens-protocol diff old.pdf new.pdf \
+    --left-scan rfMRI_REST_AP --right-scan rfMRI_REST1_ME_AP        # renamed counterpart
 ```
 
 Either input may be a PDF or JSON produced by `parse`, so parse once and diff

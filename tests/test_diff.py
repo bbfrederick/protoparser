@@ -9,6 +9,8 @@ comparison classifies differences correctly and never manufactures agreement.
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 import pytest
@@ -545,8 +547,6 @@ def test_cli_diff_one_scan_across_two_files(tmp_path: Path) -> None:
         ]
     )
     assert code == 1
-    import json
-
     payload = json.loads(out.read_text())
     assert payload["name_left"] == payload["name_right"] == "T1_MEMPRAGE_64ch"
 
@@ -663,3 +663,309 @@ def test_cli_diff_reports_an_unknown_scan_name() -> None:
     None
     """
     assert main(["diff", find_example("SYNCT.pdf"), "--scan", "nope", "--scan", "alsonope"]) == 1
+
+
+# -- naming a scan per side -------------------------------------------------
+
+
+@requires_examples
+def test_cli_diff_names_a_scan_for_each_side(tmp_path: Path) -> None:
+    """``--left-scan`` and ``--right-scan`` pick one scan from each file.
+
+    The names need not match: this is what compares a scan against its
+    counterpart in another protocol, where the vendor or the site renamed it.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "pair.json"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDynXA60.pdf"),
+            "--left-scan",
+            "T1_MEMPRAGE_64ch",
+            "--right-scan",
+            "localizer",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    payload = json.loads(out.read_text())
+    assert payload["name_left"] == "T1_MEMPRAGE_64ch"
+    assert payload["name_right"] == "localizer"
+
+
+@requires_examples
+@pytest.mark.parametrize("side", ["--left-scan", "--right-scan"])
+def test_cli_diff_one_named_side_uses_that_name_on_the_other(tmp_path: Path, side: str) -> None:
+    """Naming one side compares against the same name on the other.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+    side : str
+        Which side to name.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "one.json"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDynXA60.pdf"),
+            side,
+            "T1_MEMPRAGE_64ch",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    payload = json.loads(out.read_text())
+    assert payload["name_left"] == payload["name_right"] == "T1_MEMPRAGE_64ch"
+
+
+@requires_examples
+def test_cli_diff_names_two_scans_within_one_file(tmp_path: Path) -> None:
+    """One input plus a name per side compares two scans of that protocol.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "within.json"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            "--left-scan",
+            "T1_MEMPRAGE_64ch",
+            "--right-scan",
+            "localizer",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    payload = json.loads(out.read_text())
+    assert payload["name_left"] == "T1_MEMPRAGE_64ch"
+    assert payload["name_right"] == "localizer"
+
+
+@requires_examples
+def test_cli_diff_accepts_an_index_per_side(tmp_path: Path) -> None:
+    """The per-side options take a zero-based index as well as a name.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "byindex.json"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            "--left-scan",
+            "0",
+            "--right-scan",
+            "2",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    payload = json.loads(out.read_text())
+    assert payload["name_left"] != payload["name_right"]
+
+
+def test_cli_diff_refuses_to_mix_the_two_spellings() -> None:
+    """``--scan`` and the per-side options select the same thing two ways.
+
+    Combining them has no unambiguous reading, so it is refused rather than
+    resolved by a precedence rule nobody would remember.
+
+    Returns
+    -------
+    None
+    """
+    assert main(["diff", "a.pdf", "b.pdf", "--scan", "X", "--left-scan", "Y"]) == 1
+
+
+@requires_examples
+def test_cli_diff_within_one_file_needs_both_sides_named() -> None:
+    """One input and one named side would compare a scan with itself.
+
+    Returns
+    -------
+    None
+    """
+    assert main(["diff", find_example("R01StressDyn.pdf"), "--left-scan", "localizer"]) == 1
+
+
+@requires_examples
+def test_cli_diff_within_one_file_given_twice_matches_giving_it_once(
+    tmp_path: Path,
+) -> None:
+    """Naming one file on both sides is the same request as omitting it.
+
+    Both spellings are natural for "compare two scans of this protocol", so
+    they must agree; the two-input form is also the one that generalizes to
+    two different files, which is how people arrive at it.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    pdf = find_example("R01StressDyn.pdf")
+    names = ["--left-scan", "SpinEchoFieldMap_AP", "--right-scan", "SpinEchoFieldMap_PA"]
+
+    once = tmp_path / "once.json"
+    twice = tmp_path / "twice.json"
+    assert main(["diff", pdf, *names, "--json", "--out", str(once)]) == 1
+    assert main(["diff", pdf, pdf, *names, "--json", "--out", str(twice)]) == 1
+
+    payload = json.loads(once.read_text())
+    assert json.loads(twice.read_text()) == payload
+    assert payload["name_left"] == "SpinEchoFieldMap_AP"
+    assert payload["name_right"] == "SpinEchoFieldMap_PA"
+    assert payload["parameters"], "these two scans do differ"
+
+
+@requires_examples
+def test_cli_diff_recognizes_one_file_spelled_two_ways(tmp_path: Path) -> None:
+    """``./a.pdf`` and ``a.pdf`` are one file, not two.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    pdf = find_example("R01StressDyn.pdf")
+    out = tmp_path / "spelling.json"
+    code = main(
+        [
+            "diff",
+            os.path.join(os.path.dirname(pdf), ".", os.path.basename(pdf)),
+            pdf,
+            "--left-scan",
+            "SpinEchoFieldMap_AP",
+            "--right-scan",
+            "SpinEchoFieldMap_PA",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    payload = json.loads(out.read_text())
+    assert payload["name_left"] == "SpinEchoFieldMap_AP"
+    assert payload["name_right"] == "SpinEchoFieldMap_PA"
+
+
+@requires_examples
+def test_cli_diff_two_scans_of_one_file_finds_the_known_difference(
+    tmp_path: Path,
+) -> None:
+    """The AP and PA field maps of one protocol differ only in polarity.
+
+    A real expectation rather than a structural one: if scan selection ever
+    silently compared a scan with itself, this would report no differences.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "fieldmaps.json"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            "--left-scan",
+            "SpinEchoFieldMap_AP",
+            "--right-scan",
+            "SpinEchoFieldMap_PA",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1
+    payload = json.loads(out.read_text())
+    changed = [p for p in payload["parameters"] if p["status"] == "changed"]
+    assert [p["key"] for p in changed] == ["Invert RO/PE polarity"]
+    assert changed[0]["values_left"] == ["Off"]
+    assert changed[0]["values_right"] == ["On"]
+
+
+@requires_examples
+def test_cli_diff_a_scan_against_itself_reports_nothing(tmp_path: Path) -> None:
+    """Comparing one scan with itself is legal and finds no difference.
+
+    It is the degenerate case of the same-file mode, and exiting zero is what
+    distinguishes "no differences" from "the request failed".
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    out = tmp_path / "self.json"
+    code = main(
+        [
+            "diff",
+            find_example("R01StressDyn.pdf"),
+            "--left-scan",
+            "localizer",
+            "--right-scan",
+            "localizer",
+            "--json",
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 0, "no differences must exit zero"
+    assert json.loads(out.read_text())["parameters"] == []
