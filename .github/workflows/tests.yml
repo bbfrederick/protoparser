@@ -61,7 +61,9 @@ jobs:
           from siemens_protocol.extract.ocr import find_tesseract
           found = find_tesseract()
           print('discovered:', found)
-          sys.exit(0 if found else 'tesseract is installed but discovery did not find it')
+          if not found:
+              print('::error::tesseract was installed but discovery did not find it')
+              sys.exit(1)
           "
           python -m pytest tests/test_pipeline.py -k test_ocr_ -q | tee ocr.log
           if grep -q skipped ocr.log; then

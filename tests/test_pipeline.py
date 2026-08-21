@@ -18,7 +18,7 @@ from conftest import (
     requires_examples,
 )
 from siemens_protocol.cli import main
-from siemens_protocol.extract.ocr import OCRUnavailable
+from siemens_protocol.extract.ocr import OCRUnavailable, _require_tesseract
 from siemens_protocol.pipeline import ParseOptions, parse_document
 from siemens_protocol.profiles import REGISTRY
 from siemens_protocol.split import body_spans, find_header_box
@@ -27,17 +27,22 @@ from siemens_protocol.split import body_spans, find_header_box
 def _tesseract_available() -> bool:
     """Whether the OCR path can run in this environment.
 
+    Asked through the same discovery the tool itself uses. Probing
+    pytesseract directly instead answers a narrower question -- it looks only
+    on ``PATH`` -- so on Windows, where the installer leaves the binary in
+    Program Files and adds no ``PATH`` entry, these tests skipped on a
+    machine where they would have passed. A skip reads like a pass in the
+    summary, so that went unnoticed until CI asserted otherwise.
+
     Returns
     -------
     bool
-        ``True`` when pytesseract imports and finds its binary.
+        ``True`` when pytesseract imports and a usable binary is found.
     """
     try:
-        import pytesseract
-
-        pytesseract.get_tesseract_version()
+        _require_tesseract()
         return True
-    except Exception:
+    except OCRUnavailable:
         return False
 
 
