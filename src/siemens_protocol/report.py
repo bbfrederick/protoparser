@@ -7,6 +7,9 @@ summarized rather than hidden, and can be shown in full on request.
 
 from __future__ import annotations
 
+from itertools import groupby
+from typing import Sequence
+
 from .diff import (
     CHANGED,
     ONLY_LEFT,
@@ -62,6 +65,28 @@ def name_mismatch_note(name_left: str, name_right: str) -> str | None:
     )
 
 
+def section_filter_note(sections: Sequence[str] | None) -> str | None:
+    """A note naming the sections a report was restricted to.
+
+    Filtering changes what the totals count, so the report has to say it was
+    filtered. Without the note a reader would take "3 substantive
+    differences" for the whole protocol.
+
+    Parameters
+    ----------
+    sections : sequence of str or None
+        The normalized card names in force, or ``None`` when unrestricted.
+
+    Returns
+    -------
+    str or None
+        The note, or ``None`` when nothing was filtered out.
+    """
+    if not sections:
+        return None
+    return "showing only sections: " + ", ".join(sections)
+
+
 def _values(values: list[str]) -> str:
     """Render a parameter's readings.
 
@@ -82,13 +107,16 @@ def _values(values: list[str]) -> str:
     return "[" + ", ".join(v or "<empty>" for v in values) + "]"
 
 
-def _line(diff: ParameterDiff) -> str:
+def _line(diff: ParameterDiff, pad: str = "    ") -> str:
     """Render one parameter difference as a single line.
 
     Parameters
     ----------
     diff : ParameterDiff
         The difference to render.
+    pad : str, optional
+        Indentation before the status marker. Default ``"    "``; parameters
+        listed under a section label take one level more.
 
     Returns
     -------
@@ -97,16 +125,41 @@ def _line(diff: ParameterDiff) -> str:
     """
     mark = _MARK.get(diff.status, "?")
     if diff.status == ONLY_LEFT:
-        return f"    {mark} {diff.key_left}: {_values(diff.values_left)}"
+        return f"{pad}{mark} {diff.key_left}: {_values(diff.values_left)}"
     if diff.status == ONLY_RIGHT:
-        return f"    {mark} {diff.key_right}: {_values(diff.values_right)}"
+        return f"{pad}{mark} {diff.key_right}: {_values(diff.values_right)}"
     name = diff.key_left or ""
     if diff.renamed:
         name = f"{diff.key_left} -> {diff.key_right}"
     body = f"{_values(diff.values_left)}  |  {_values(diff.values_right)}"
     if diff.status == RENAMED:
-        return f"    {mark} {name}: {_values(diff.values_left)}"
-    return f"    {mark} {name}: {body}"
+        return f"{pad}{mark} {name}: {_values(diff.values_left)}"
+    return f"{pad}{mark} {name}: {body}"
+
+
+def _by_section(diffs: Sequence[ParameterDiff], indent: str) -> list[str]:
+    """Render parameter differences beneath the section each belongs to.
+
+    Parameters
+    ----------
+    diffs : sequence of ParameterDiff
+        Differences already ordered by section, as
+        :func:`~siemens_protocol.diff.diff_parameters` returns them. Grouping
+        is by adjacency, so the order is what decides the grouping.
+    indent : str
+        Prefix applied to every line.
+
+    Returns
+    -------
+    list of str
+        A label line per section, each followed by that section's
+        differences.
+    """
+    lines: list[str] = []
+    for section, group in groupby(diffs, key=lambda d: d.section):
+        lines.append(f"{indent}    {section or '(no section)'}")
+        lines.extend(_line(diff, pad=f"{indent}      ") for diff in group)
+    return lines
 
 
 def render_scan(
@@ -135,7 +188,9 @@ def render_scan(
     Returns
     -------
     list of str
-        Report lines, without trailing newlines.
+        Report lines, without trailing newlines. Parameters are listed under
+        the section that prints them in the right-hand protocol, which is the
+        one being edited.
     """
     lines: list[str] = []
     title = scan.name_left
@@ -157,13 +212,11 @@ def render_scan(
 
     if substantive:
         lines.append(f"{indent}  parameters")
-        for diff in substantive:
-            lines.append(indent + _line(diff))
+        lines.extend(_by_section(substantive, indent))
 
     if cosmetic and show_cosmetic:
         lines.append(f"{indent}  cosmetic")
-        for diff in cosmetic:
-            lines.append(indent + _line(diff))
+        lines.extend(_by_section(cosmetic, indent))
     elif cosmetic:
         counts: dict[str, int] = {}
         for diff in cosmetic:
@@ -182,6 +235,7 @@ def render_protocol(
     result: ProtocolDiff,
     show_cosmetic: bool = False,
     show_identical: bool = False,
+    sections: Sequence[str] | None = None,
 ) -> str:
     """Render a whole-protocol comparison.
 
@@ -194,6 +248,10 @@ def render_protocol(
     show_identical : bool, optional
         Whether to include scans with no differences at all. Default
         ``False``.
+    sections : sequence of str or None, optional
+        The section filter the comparison was run under, named in the report
+        so the counts are not read as covering the whole protocol. Default
+        ``None``.
 
     Returns
     -------
@@ -202,7 +260,8 @@ def render_protocol(
     """
     left = f"{result.left_file} ({result.left_version})"
     right = f"{result.right_file} ({result.right_version})"
-    lines = [f"--- {left}", f"+++ {right}", ""]
+    note = section_filter_note(sections)
+    lines = [f"--- {left}", f"+++ {right}", *([note] if note is not None else []), ""]
 
     shown = 0
     for scan in result.scans:

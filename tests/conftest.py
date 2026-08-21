@@ -50,23 +50,28 @@ requires_examples = pytest.mark.skipif(not EXAMPLE_FILES, reason="no example PDF
 ParseFixture = Callable[..., ParseResult]
 
 
-def find_example(name: str) -> str:
+def find_example(name: str, version: str | None = None) -> str:
     """Locate one example PDF by file name, skipping the test if it is absent.
 
     Parameters
     ----------
     name : str
         Base file name, such as ``"R01StressDyn.pdf"``.
+    version : str or None, optional
+        The release folder to take it from. Needed where the same protocol
+        was exported from more than one release under the same file name, as
+        ``R01_Mindfulness.pdf`` was. Default ``None``, the first match.
 
     Returns
     -------
     str
         The full path to the example.
     """
-    for path, _version in EXAMPLE_FILES:
-        if os.path.basename(path) == name:
+    for path, folder in EXAMPLE_FILES:
+        if os.path.basename(path) == name and version in (None, folder):
             return path
-    pytest.skip(f"{name} not available")
+    wanted = f"{version}/{name}" if version else name
+    pytest.skip(f"{wanted} not available")
 
 
 @pytest.fixture(scope="session")

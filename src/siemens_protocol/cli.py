@@ -6,9 +6,10 @@ import argparse
 import json
 import os
 import sys
+from typing import Mapping, Sequence
 
 from .debug import write_debug
-from .diff import diff_protocols, diff_scans
+from .diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .flatten import conflicts
 from .listing import build_listing, render_listing
 from .model import Protocol
@@ -22,7 +23,7 @@ from .pipeline import (
 )
 from .policy import PolicyError, PolicyReport, check_protocol, load_policy
 from .profiles import REGISTRY
-from .report import name_mismatch_note, render_protocol, render_scan
+from .report import name_mismatch_note, render_protocol, render_scan, section_filter_note
 from .vocabsuggest import suggest_aliases, verify_aliases
 from .vocabulary import available, check, load_vocabulary
 
@@ -140,6 +141,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--vocabulary",
         metavar="DIR",
         help="a directory of vocabulary JSON files overlaying the shipped ones",
+    )
+    diff_cmd.add_argument(
+        "--filter",
+        action="append",
+        dest="sections",
+        metavar="SECTION",
+        help=(
+            "report only differences in this top-level section -- properties, "
+            "routine, contrast, resolution, geometry, header and so on. Repeat "
+            "the option or give a comma-separated list for several; a full "
+            "section name such as 'Contrast - Common' is accepted and folded "
+            "to its top level"
+        ),
     )
     diff_cmd.add_argument(
         "--show-cosmetic",
@@ -617,6 +631,55 @@ def _run_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def _section_filter(requested: Sequence[str] | None, *protocols: Mapping) -> list[str] | None:
+    """Resolve ``--filter`` against the sections these files actually print.
+
+    Validating against the loaded files rather than a fixed list keeps the
+    error message honest as releases come and go: VB17A prints ``Angio`` and
+    ``Perf`` where XA60 prints neither, so what can be asked for depends on
+    what is being compared.
+
+    Parameters
+    ----------
+    requested : sequence of str or None
+        The raw option values, each possibly a comma-separated list.
+    *protocols : mapping
+        The loaded protocols whose sections bound the request.
+
+    Returns
+    -------
+    list of str or None
+        Normalized card names in the order asked for, without repeats, or
+        ``None`` when no filter was requested.
+
+    Raises
+    ------
+    ValueError
+        If a name matches no section in any of the protocols.
+    """
+    if not requested:
+        return None
+    available: list[str] = []
+    for protocol in protocols:
+        for name in section_groups(protocol):
+            if name not in available:
+                available.append(name)
+
+    wanted: list[str] = []
+    for value in requested:
+        for part in value.split(","):
+            name = normalize_section(part)
+            if not name:
+                continue
+            if name not in available:
+                raise ValueError(
+                    f"no section named {name!r}; these files have: " + ", ".join(sorted(available))
+                )
+            if name not in wanted:
+                wanted.append(name)
+    return wanted
+
+
 def _run_diff(args: argparse.Namespace) -> int:
     """Run the ``diff`` subcommand.
 
@@ -671,6 +734,12 @@ def _run_diff(args: argparse.Namespace) -> int:
         print(f"{exc}", file=sys.stderr)
         return 1
 
+    try:
+        sections = _section_filter(args.sections, left, right)
+    except ValueError as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
     normalize = not args.exact_keys
     try:
         if name_left is not None:
@@ -686,17 +755,20 @@ def _run_diff(args: argparse.Namespace) -> int:
                 normalize=normalize,
                 vocabulary_left=vocabularies[0],
                 vocabulary_right=vocabularies[1],
+                sections=sections,
             )
             payload = scan.to_dict()
             # The note leads the report here rather than sitting inside the
             # scan block: in this mode the two scans were named separately, so
             # which name belongs to which file is the first thing to state.
             note = name_mismatch_note(scan.name_left, scan.name_right)
+            scoped = section_filter_note(sections)
             text = "\n".join(
                 [
                     f"--- {args.left}: {scan.name_left}",
                     f"+++ {args.right or args.left}: {scan.name_right}",
                     *([note] if note is not None else []),
+                    *([scoped] if scoped is not None else []),
                     "",
                     *render_scan(scan, show_cosmetic=args.show_cosmetic, note_rename=False),
                 ]
@@ -709,18 +781,24 @@ def _run_diff(args: argparse.Namespace) -> int:
                 normalize=normalize,
                 use_vocabulary=not args.no_vocabulary,
                 extra_vocabulary_dir=args.vocabulary,
+                sections=sections,
             )
             payload = result.to_dict()
             text = render_protocol(
                 result,
                 show_cosmetic=args.show_cosmetic,
                 show_identical=args.show_identical,
+                sections=sections,
             )
             differences = result.substantive_count
     except ValueError as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
 
+    if sections is not None:
+        # The counts in the payload describe the filtered view, so the
+        # filter travels with them.
+        payload["sections"] = sections
     rendered = json.dumps(payload, indent=2, ensure_ascii=False) if args.json else text
     try:
         if args.out:

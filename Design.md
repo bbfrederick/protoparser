@@ -295,6 +295,14 @@ Implemented; see `README.md`. Compares two protocols scan by scan, or two
 individual scans within or across protocols, separating substantive parameter
 differences from cosmetic relabeling between releases.
 
+Differences are grouped under the section that prints them in the right-hand
+protocol, in that file's printed section order, because the right-hand side is
+the one being edited. The section provenance comes free from the flattened
+view, which already records it to detect cross-section conflicts. `--filter`
+restricts the report to one top-level section; it applies after the two sides
+are paired, so a parameter that moved between cards is still matched rather
+than reported as an addition on one side and a removal on the other.
+
 ## Future work
 
 - Numeric normalization layer that splits value and unit and coerces types,

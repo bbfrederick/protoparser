@@ -42,6 +42,9 @@ siemens-protocol diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
 
 # compare two scans within one protocol
 siemens-protocol diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
+
+# narrow a comparison to one section of the scanner's tabs
+siemens-protocol diff old.pdf new.pdf --filter contrast
 ```
 
 | Option | Meaning |
@@ -272,14 +275,65 @@ of one protocol is a good check that they differ only where they should:
 $ siemens-protocol diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
 SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
   parameters
-    ~ Invert RO/PE polarity: Off  |  On
+    Sequence - Special
+      ~ Invert RO/PE polarity: Off  |  On
 ```
+
+### Where a difference lives
+
+A difference is only useful if you can find the control that produces it, so
+each one is listed under the section that prints it — and specifically the
+section in the **right-hand** protocol, since that is the one being edited.
+Sections come out in the order the right-hand file prints them, and within a
+section the parameters keep their printed order too, so reading the report
+top to bottom is the same walk you make through the scanner's own tabs.
+
+A parameter the right-hand release no longer prints has no section there, so it
+is filed under the one it had on the left. A section only the left-hand file
+has is slotted in beside its own card rather than dumped at the end: VB17A's
+single `Contrast` lands next to VE11C's `Contrast - Common`, not pages away
+from it.
+
+`--filter` narrows the report to one card. Names are the top-level section,
+lower-cased — `properties`, `routine`, `contrast`, `resolution`, `geometry`,
+`system`, `sequence`, and so on — so one name covers all of that card's tabs:
+`contrast` brings both `Contrast - Common` and `Contrast - Dynamic`. A full
+section name is accepted and folded to its card, so a name pasted out of the
+report works. `header` selects the scan's header box, which is not a card but
+can be asked for the same way. Give several by repeating the option or with a
+comma-separated list, and a name no section matches is an error that lists the
+ones these two files do have.
+
+```
+$ siemens-protocol diff VE11C/R01_Mindfulness.pdf XA60/R01_Mindfulness.pdf --scan AAHScout_64ch --filter geometry
+--- VE11C/R01_Mindfulness.pdf: AAHScout_64ch
++++ XA60/R01_Mindfulness.pdf: AAHScout_64ch
+showing only sections: geometry
+
+AAHScout_64ch
+  parameters
+    Geometry - Tim Planning Suite
+      + Set-n-Go Protocol: Off
+      ~ Table position -> Table Position: [H, 0 mm]  |  [0 mm, H]
+      + Inline Composing: Off
+  cosmetic: 1 relabeled (use --show-cosmetic to list)
+```
+
+Filtering happens *after* the two sides are paired, never before. Siemens moves
+parameters between cards across releases, and restricting each side's keys
+first would leave a moved parameter matched against nothing — reported as an
+addition that never happened. Because the filter only ever hides a difference
+that was already classified, running every section in turn reproduces the
+unfiltered report exactly, each difference once. The counts it prints describe
+the filtered view, which is why the report says which sections it was
+restricted to.
 
 | Option | Meaning |
 | --- | --- |
 | `--left-scan NAME` | Scan to take from the left input, by name or zero-based index. |
 | `--right-scan NAME` | Scan to take from the right input. Omit either to reuse the other's name. |
 | `--scan NAME` | Shorthand: once for both sides, twice for left then right. |
+| `--filter SECTION` | Report only this top-level section. Repeatable, or comma-separated. |
 | `--exact-keys` | Compare key spellings literally; do not match relabeled keys. |
 | `--show-cosmetic` | List relabeled, recased and reformatted differences instead of counting them. |
 | `--show-identical` | Include scans that have no differences. |

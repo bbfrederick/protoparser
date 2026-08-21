@@ -18,7 +18,7 @@ from __future__ import annotations
 import difflib
 import re
 from dataclasses import dataclass, field
-from typing import Mapping, Sequence
+from typing import Collection, Mapping, Sequence
 
 from .vocabulary import Vocabulary, load_vocabulary
 
@@ -59,6 +59,84 @@ RECASED = "recased"
 SUBSTANTIVE = (CHANGED, ONLY_LEFT, ONLY_RIGHT)
 #: Differences that are presentation only.
 COSMETIC = (RENAMED, REFORMATTED, RECASED)
+
+#: Separator between a section's card and its tab, as every release prints it.
+_SECTION_SPLIT = " - "
+#: Pseudo-section for the header box, so it can be named like any other.
+HEADER_SECTION = "header"
+
+
+def normalize_section(name: str) -> str:
+    """Reduce a section name to the top-level card it belongs to.
+
+    Siemens nests sections exactly one level deep: ``Contrast - Common`` and
+    ``Contrast - Dynamic`` are two tabs of the same ``Contrast`` card, and
+    VB17A prints the card on its own. Folding to the card is what makes a
+    section name portable across releases, and short enough to type.
+
+    Parameters
+    ----------
+    name : str
+        A section name as printed, such as ``"Resolution - iPAT"``.
+
+    Returns
+    -------
+    str
+        The lower-cased card name, such as ``"resolution"``. An empty name
+        comes back empty.
+    """
+    return name.split(_SECTION_SPLIT, 1)[0].strip().lower()
+
+
+def merge_section_order(right: Sequence[str], left: Sequence[str]) -> list[str]:
+    """Order two scans' sections the way the right-hand one prints them.
+
+    The right-hand protocol is the one being edited, so its printed order is
+    the order to report in. A section only the left-hand scan has -- a card a
+    release dropped, or split differently -- is slotted in after the last
+    right-hand section of the same card, so VB17A's ``Contrast`` lands beside
+    VE11C's ``Contrast - Common`` rather than drifting to the end.
+
+    Parameters
+    ----------
+    right, left : sequence of str
+        Section names in printed order, right-hand scan first.
+
+    Returns
+    -------
+    list of str
+        Every section name from either side, each once.
+    """
+    order = list(dict.fromkeys(right))
+    for name in left:
+        if name in order:
+            continue
+        card = normalize_section(name)
+        kin = [i for i, seen in enumerate(order) if normalize_section(seen) == card]
+        order.insert(kin[-1] + 1 if kin else len(order), name)
+    return order
+
+
+def section_groups(protocol: Mapping) -> list[str]:
+    """The section names a protocol offers to a filter.
+
+    Parameters
+    ----------
+    protocol : mapping
+        A serialized protocol.
+
+    Returns
+    -------
+    list of str
+        Normalized card names, sorted, led by the header pseudo-section.
+    """
+    names = {
+        normalize_section(section)
+        for scan in protocol.get("scans", [])
+        for section in scan.get("sections", {})
+    }
+    names.discard("")
+    return [HEADER_SECTION, *sorted(names)]
 
 
 def base_key(key: str) -> str:
@@ -174,6 +252,10 @@ class ParameterDiff:
         Whether the two sides were matched through key normalization.
     conflict_left, conflict_right : bool
         Whether the reading conflicted across sections on that side.
+    sections_left, sections_right : list of str
+        The sections that printed the parameter on each side, in printed
+        order. More than one when a release repeats a parameter across cards,
+        which it does often -- TR and FoV are printed in several.
     """
 
     key_left: str | None
@@ -184,6 +266,37 @@ class ParameterDiff:
     renamed: bool = False
     conflict_left: bool = False
     conflict_right: bool = False
+    sections_left: list[str] = field(default_factory=list)
+    sections_right: list[str] = field(default_factory=list)
+
+    @property
+    def section(self) -> str:
+        """The section this difference is reported under.
+
+        Returns
+        -------
+        str
+            The first section that printed the parameter on the right-hand
+            side, since that is the protocol being edited; the left-hand
+            section for a parameter the right no longer prints; ``""`` when
+            neither side recorded one.
+        """
+        if self.sections_right:
+            return self.sections_right[0]
+        if self.sections_left:
+            return self.sections_left[0]
+        return ""
+
+    @property
+    def section_group(self) -> str:
+        """The card :attr:`section` belongs to, as a filter names it.
+
+        Returns
+        -------
+        str
+            The normalized top-level section name.
+        """
+        return normalize_section(self.section)
 
     @property
     def key(self) -> str:
@@ -213,9 +326,17 @@ class ParameterDiff:
         Returns
         -------
         dict
-            Keys, values, status and flags, omitting empty sides.
+            Keys, values, sections, status and flags, omitting empty sides.
+            Section lists appear only where a side printed the parameter in
+            more than one, the single case being implied by ``section``.
         """
         out: dict = {"status": self.status, "key": self.key}
+        if self.section:
+            out["section"] = self.section
+        if len(self.sections_left) > 1:
+            out["sections_left"] = self.sections_left
+        if len(self.sections_right) > 1:
+            out["sections_right"] = self.sections_right
         if self.key_left != self.key_right:
             out["key_left"] = self.key_left
             out["key_right"] = self.key_right
@@ -379,7 +500,31 @@ class ProtocolDiff:
         }
 
 
-def _flat_groups(flat: Mapping[str, dict]) -> dict[str, tuple[list[str], bool]]:
+@dataclass
+class _Group:
+    """One base key's readings within a single scan.
+
+    Attributes
+    ----------
+    values : list of str
+        The readings, in printed order, one per repeat of the key.
+    conflict : bool
+        Whether any reading disagreed across the sections that printed it.
+    sections : list of str
+        The sections the key was printed in, in printed order, each once.
+    rank : int
+        Where the key first appears in the scan's flattened view, which is
+        its printed position. Lets a section's parameters be listed in the
+        order the scanner shows them rather than alphabetically.
+    """
+
+    values: list[str] = field(default_factory=list)
+    conflict: bool = False
+    sections: list[str] = field(default_factory=list)
+    rank: int = 0
+
+
+def _flat_groups(flat: Mapping[str, dict]) -> dict[str, _Group]:
     """Group a scan's flattened view by base key.
 
     Repeats of one key (``Slice Group``, ``Slice Group #2``) collapse into an
@@ -393,19 +538,23 @@ def _flat_groups(flat: Mapping[str, dict]) -> dict[str, tuple[list[str], bool]]:
     Returns
     -------
     dict
-        Base key to ``(values, conflict)``.
+        Base key to its :class:`_Group`.
     """
-    groups: dict[str, tuple[list[str], bool]] = {}
-    for key, entry in flat.items():
+    groups: dict[str, _Group] = {}
+    for rank, (key, entry) in enumerate(flat.items()):
         name = base_key(key)
-        values, conflict = groups.get(name, ([], False))
+        group = groups.get(name)
+        if group is None:
+            group = groups[name] = _Group(rank=rank)
         if entry.get("conflict"):
             distinct = sorted(set(entry.get("values", {}).values()))
-            values.append("<conflict: " + " / ".join(distinct) + ">")
-            conflict = True
+            group.values.append("<conflict: " + " / ".join(distinct) + ">")
+            group.conflict = True
         else:
-            values.append(entry.get("value", ""))
-        groups[name] = (values, conflict)
+            group.values.append(entry.get("value", ""))
+        for section in entry.get("sections", ()):
+            if section not in group.sections:
+                group.sections.append(section)
     return groups
 
 
@@ -439,6 +588,8 @@ def diff_parameters(
     normalize: bool = True,
     vocabulary_left: Vocabulary | None = None,
     vocabulary_right: Vocabulary | None = None,
+    section_order: Sequence[str] | None = None,
+    sections: Collection[str] | None = None,
 ) -> tuple[list[ParameterDiff], int]:
     """Compare two flattened parameter views.
 
@@ -454,12 +605,23 @@ def diff_parameters(
     vocabulary_left, vocabulary_right : Vocabulary or None, optional
         Each side's release vocabulary, for parameters the vendor renamed
         outright rather than merely respelled.
+    section_order : sequence of str or None, optional
+        Section names in the order to report them, as
+        :func:`merge_section_order` returns them. Without one, sections are
+        reported in the order their names sort.
+    sections : collection of str or None, optional
+        Normalized card names to restrict the comparison to, as
+        :func:`normalize_section` spells them. Filtering happens after the
+        two sides are paired, never before: dropping a key from one side
+        first would report its surviving twin as an addition. The unchanged
+        count is restricted too, so it keeps describing what was reported.
 
     Returns
     -------
     tuple
         ``(differences, unchanged count)``. Differences are ordered
-        substantive first, then cosmetic, each alphabetically.
+        substantive first, then cosmetic; within each, by section and then by
+        printed position, which is where a reader will look for them.
     """
     groups_left = _flat_groups(left)
     groups_right = _flat_groups(right)
@@ -485,49 +647,57 @@ def diff_parameters(
 
     index_left = index(groups_left, vocabulary_left)
     index_right = index(groups_right, vocabulary_right)
-    diffs: list[ParameterDiff] = []
+    section_rank = {name: i for i, name in enumerate(section_order or ())}
+    ranked: list[tuple[tuple, ParameterDiff]] = []
     unchanged = 0
 
     for form in sorted(set(index_left) | set(index_right)):
         key_left = index_left.get(form)
         key_right = index_right.get(form)
-        if key_left is None:
-            values, conflict = groups_right[key_right]
-            diffs.append(
-                ParameterDiff(None, key_right, [], values, ONLY_RIGHT, conflict_right=conflict)
-            )
-            continue
-        if key_right is None:
-            values, conflict = groups_left[key_left]
-            diffs.append(
-                ParameterDiff(key_left, None, values, [], ONLY_LEFT, conflict_left=conflict)
-            )
-            continue
+        group_left = groups_left[key_left] if key_left is not None else _Group()
+        group_right = groups_right[key_right] if key_right is not None else _Group()
 
-        values_left, conflict_left = groups_left[key_left]
-        values_right, conflict_right = groups_right[key_right]
-        renamed = key_left != key_right
-        status = _pair_status(values_left, values_right)
+        renamed = key_left is not None and key_right is not None and key_left != key_right
+        if key_left is None:
+            status = ONLY_RIGHT
+        elif key_right is None:
+            status = ONLY_LEFT
+        else:
+            status = _pair_status(group_left.values, group_right.values)
+
+        diff = ParameterDiff(
+            key_left,
+            key_right,
+            list(group_left.values),
+            list(group_right.values),
+            RENAMED if status == "equal" else status,
+            renamed=renamed,
+            conflict_left=group_left.conflict,
+            conflict_right=group_right.conflict,
+            sections_left=list(group_left.sections),
+            sections_right=list(group_right.sections),
+        )
+        if sections is not None and diff.section_group not in sections:
+            continue
         if status == "equal" and not renamed:
             unchanged += 1
             continue
-        if status == "equal":
-            status = RENAMED
-        diffs.append(
-            ParameterDiff(
-                key_left,
-                key_right,
-                values_left,
-                values_right,
-                status,
-                renamed=renamed,
-                conflict_left=conflict_left,
-                conflict_right=conflict_right,
+        printed = group_right.rank if key_right is not None else group_left.rank
+        ranked.append(
+            (
+                (
+                    0 if diff.substantive else 1,
+                    section_rank.get(diff.section, len(section_rank)),
+                    diff.section,
+                    printed,
+                    diff.key.lower(),
+                ),
+                diff,
             )
         )
 
-    diffs.sort(key=lambda d: (0 if d.substantive else 1, d.key.lower()))
-    return diffs, unchanged
+    ranked.sort(key=lambda item: item[0])
+    return [diff for _, diff in ranked], unchanged
 
 
 def _header_view(header: Mapping[str, str]) -> dict[str, dict]:
@@ -542,8 +712,13 @@ def _header_view(header: Mapping[str, str]) -> dict[str, dict]:
     -------
     dict
         The same fields, wrapped so the parameter comparison can reuse them.
+        Each is filed under the :data:`HEADER_SECTION` pseudo-section, so the
+        header can be named in a section filter like any card.
     """
-    return {key: {"value": value, "conflict": False} for key, value in header.items()}
+    return {
+        key: {"value": value, "conflict": False, "sections": [HEADER_SECTION]}
+        for key, value in header.items()
+    }
 
 
 def diff_scans(
@@ -552,6 +727,7 @@ def diff_scans(
     normalize: bool = True,
     vocabulary_left: Vocabulary | None = None,
     vocabulary_right: Vocabulary | None = None,
+    sections: Collection[str] | None = None,
 ) -> ScanDiff:
     """Compare two scans.
 
@@ -567,6 +743,9 @@ def diff_scans(
         Whether to match keys through :func:`canonical_key`. Default ``True``.
     vocabulary_left, vocabulary_right : Vocabulary or None, optional
         Each side's release vocabulary.
+    sections : collection of str or None, optional
+        Normalized card names to restrict the comparison to. The header
+        answers to :data:`HEADER_SECTION`.
 
     Returns
     -------
@@ -577,6 +756,7 @@ def diff_scans(
         _header_view(left.get("header", {})),
         _header_view(right.get("header", {})),
         normalize=normalize,
+        sections=sections,
     )
     parameters, unchanged = diff_parameters(
         left.get("flat", {}),
@@ -584,6 +764,10 @@ def diff_scans(
         normalize=normalize,
         vocabulary_left=vocabulary_left,
         vocabulary_right=vocabulary_right,
+        section_order=merge_section_order(
+            list(right.get("sections", {})), list(left.get("sections", {}))
+        ),
+        sections=sections,
     )
     return ScanDiff(
         name_left=left.get("name", ""),
@@ -643,6 +827,7 @@ def diff_protocols(
     normalize: bool = True,
     use_vocabulary: bool = True,
     extra_vocabulary_dir: str | None = None,
+    sections: Collection[str] | None = None,
 ) -> ProtocolDiff:
     """Compare two protocols scan by scan.
 
@@ -658,6 +843,9 @@ def diff_protocols(
         ``True``.
     extra_vocabulary_dir : str or None, optional
         A directory of additional dictionaries overlaying the shipped ones.
+    sections : collection of str or None, optional
+        Normalized card names to restrict every scan's comparison to, as
+        :func:`section_groups` lists them.
 
     Returns
     -------
@@ -694,6 +882,7 @@ def diff_protocols(
                     normalize=normalize,
                     vocabulary_left=vocabulary_left,
                     vocabulary_right=vocabulary_right,
+                    sections=sections,
                 )
             )
     return result
