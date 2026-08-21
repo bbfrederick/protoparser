@@ -227,6 +227,35 @@ def _is_gap_title(row: Row, pitch: float, layout: LayoutConfig) -> bool:
     return pitch > 0 and row.gap_above >= pitch * layout.title_gap_ratio
 
 
+def _continues_label(row: Row, layout: LayoutConfig) -> bool:
+    """Whether a label-only row continues the label above it, by its wording.
+
+    Some releases set a wrapped label at the same pitch as an ordinary row,
+    so the gap says nothing. What does say something is capitalization: these
+    exports capitalize the first word of every label, so a row opening with a
+    lower-case word is the tail of a phrase rather than a label of its own.
+    Across the example corpus the only rows this matches are genuine
+    continuations, and the releases that do set continuations tighter produce
+    none at all.
+
+    Parameters
+    ----------
+    row : Row
+        A row carrying a label and no value.
+    layout : LayoutConfig
+        Geometry thresholds, read for ``lowercase_continues_label``.
+
+    Returns
+    -------
+    bool
+        ``True`` when the row should be appended to the preceding label.
+    """
+    if not layout.lowercase_continues_label:
+        return False
+    label = row.label.strip()
+    return bool(label) and label[:1].islower()
+
+
 def parse_column(
     column: Column,
     layout: LayoutConfig,
@@ -344,7 +373,7 @@ def parse_column(
             ):
                 open_section(row.label, row)
                 continue
-            if tight and last_record is not None:
+            if (tight or _continues_label(row, layout)) and last_record is not None:
                 last_record.key = f"{last_record.key} {row.label}".strip()
                 last_was_title = False
                 continue

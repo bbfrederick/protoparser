@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `siemens-protocol` parses Siemens MR protocol PDF exports into hierarchical JSON
 (one entry per scan, sections of key/value parameters, plus a flattened view that
-flags parameters printed inconsistently across sections). Supports VE11C, XA30 and XA60.
+flags parameters printed inconsistently across sections). Supports VB17A, VE11C, XA30 and XA60.
 See `Design.md` for the design and `README.md` for usage.
 
 ### Environment
@@ -91,6 +91,14 @@ pip install .
   empty field. Spectroscopy's `VoI:` swallowed the SNR and sequence binary this way.
 - Watch for labels with no preceding word boundary. VE11C prints `mmPAT:` *and*
   `mmRel. SNR:`, so neither pattern may start with `\b`. This has now bitten twice.
+- The contents page is front matter *wherever it sits*: VE11C and Numaris/X lead with
+  it, VB17A appends it. Detect it by its "Table of contents" heading, never by position,
+  or a trailing one is read as the last scan's parameters.
+- VE11C prints no version string of its own, only the scanner model, so it is identified
+  by rejecting every other release. Adding a release means adding a rejection there too.
+- VB17A wraps a long label onto a second line at the *same* pitch as an ordinary row,
+  with the value on the first line, so no gap marks the continuation. Capitalization
+  does (`lowercase_continues_label`), since these exports capitalize a label's first word.
 - Batch output mirrors the input tree rather than flattening it: `examples/` holds the
   same protocol under two release folders, and flattening onto base names silently
   overwrote one with the other. Golden snapshots are keyed `<VERSION>-<stem>.json` for

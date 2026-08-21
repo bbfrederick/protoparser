@@ -69,6 +69,37 @@ class HeaderBox:
         return {"path": self.path, "summary": self.summary, "name": self.name}
 
 
+#: The heading a contents page carries. Every release prints one, but not in
+#: the same place: VE11C and the Numaris/X releases lead with it, VB17A
+#: appends it. Recognizing it by its heading rather than by its position is
+#: what keeps a trailing one from being read as the last scan's parameters.
+_CONTENTS_HEADING = "table of contents"
+
+
+def is_contents_page(page: Page, layout: LayoutConfig) -> bool:
+    """Whether a page is the protocol's contents listing rather than a scan.
+
+    Parameters
+    ----------
+    page : Page
+        A page with its spans acquired.
+    layout : LayoutConfig
+        Geometry thresholds, used to skip the running page header.
+
+    Returns
+    -------
+    bool
+        ``True`` when the page's first line of body text is the contents
+        heading.
+    """
+    body = [s for s in page.spans if layout.page_header_max_y <= s.y0 <= layout.page_footer_min_y]
+    if not body:
+        return False
+    top = min(s.y0 for s in body)
+    first = [s for s in body if s.y0 <= top + layout.row_tolerance]
+    return join_spans(first).strip().casefold() == _CONTENTS_HEADING
+
+
 def _rows_in_region(spans: Sequence[Span], layout: LayoutConfig) -> list[list[Span]]:
     """Cluster header-region spans into full-page-width rows.
 
@@ -165,8 +196,41 @@ def find_header_box(page: Page, layout: LayoutConfig, profile: VersionProfile) -
     return None
 
 
+#: A horizontal rule drawn as a run of dashes. VB17A separates groups of
+#: parameters with one, and because it spans most of the page width it drags
+#: the column's right edge with it -- which moves the label/value boundary,
+#: since that boundary is a fraction of the column's content width. Values of
+#: three to five dashes ("---") are printed by every release and mean "not
+#: set", so the threshold sits well above them: the rules run to 84.
+_RULE_MIN_DASHES = 20
+
+
+def is_decorative_rule(text: str) -> bool:
+    """Whether a span is a drawn separator rather than content.
+
+    Parameters
+    ----------
+    text : str
+        A span's text.
+
+    Returns
+    -------
+    bool
+        ``True`` for a long run of dashes and spaces, ``False`` for the short
+        ``---`` that releases use as a value.
+    """
+    stripped = text.strip()
+    return (
+        bool(stripped) and set(stripped) <= {"-", " "} and stripped.count("-") >= _RULE_MIN_DASHES
+    )
+
+
 def body_spans(page: Page, layout: LayoutConfig, header: HeaderBox | None) -> list[Span]:
     """Page spans with the running header, page number and any box removed.
+
+    Decorative dash rules are dropped here too, so that they neither become
+    records of their own nor distort the column geometry measured from the
+    spans that remain.
 
     Parameters
     ----------
@@ -180,10 +244,14 @@ def body_spans(page: Page, layout: LayoutConfig, header: HeaderBox | None) -> li
     Returns
     -------
     list of Span
-        Spans belonging to the two key/value tables.
+        Spans belonging to the page's key/value tables.
     """
     top = header.bottom_y + 1.0 if header else layout.page_header_max_y
-    return [s for s in page.spans if top <= s.y0 <= layout.page_footer_min_y]
+    return [
+        s
+        for s in page.spans
+        if top <= s.y0 <= layout.page_footer_min_y and not is_decorative_rule(s.text)
+    ]
 
 
 def running_header(page: Page, layout: LayoutConfig) -> str:

@@ -196,13 +196,26 @@ def test_ocr_recovers_the_header_box() -> None:
     """
     import pymupdf
 
-    from siemens_protocol.extract import ocr_page
+    from siemens_protocol.extract import extract_page, ocr_page
 
     pdf, version = EXAMPLE_FILES[0]
     profile = REGISTRY.get(version)
     doc = pymupdf.open(pdf)
     try:
-        page = ocr_page(doc, 1, dpi=300)
+        # Whichever page opens a scan natively -- not a fixed index. Which
+        # page that is depends on the file, and a continuation page has no
+        # banner to recover.
+        opening = next(
+            (
+                number
+                for number in range(len(doc))
+                if find_header_box(extract_page(doc, number), profile.layout, profile)
+            ),
+            None,
+        )
+        assert opening is not None, "no page in this example opens a scan"
+
+        page = ocr_page(doc, opening, dpi=300)
         header = find_header_box(page, profile.layout, profile)
         assert header is not None
         assert header.name

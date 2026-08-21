@@ -15,6 +15,12 @@ from siemens_protocol.profiles.base import (
 )
 
 VE11C_LINE = "TA: 6:02 PM: REF Voxel size: 1.0×1.0×1.0 mmPAT: 2 Rel. SNR: 1.00 : tfl_me"
+#: VB17A pads its fields with runs of spaces, has no PM, puts PAT before the
+#: voxel size, and names the sequence's owner rather than using a bare colon.
+VB17A_LINE = (
+    "TA: 1:08       PAT: Off      Voxel size: 2.2×1.1×10.0 mm     "
+    "Rel. SNR: 1.00       SIEMENS: gre  "
+)
 XA60_LINE = (
     "TA: 6:02 min Coil Selection: Manual Voxel Size: 1.0×1.0×1.0 mm³ Acc:: 2 Rel. SNR: 1.00"
 )
@@ -98,7 +104,12 @@ def test_numaris_x_releases_agree_on_the_header_grammar() -> None:
 
 @pytest.mark.parametrize(
     "name,line",
-    [("VE11C", VE11C_LINE), ("XA30", XA30_LINE), ("XA60", XA60_LINE)],
+    [
+        ("VB17A", VB17A_LINE),
+        ("VE11C", VE11C_LINE),
+        ("XA30", XA30_LINE),
+        ("XA60", XA60_LINE),
+    ],
 )
 def test_header_grammars_survive_ocr_spacing(name: str, line: str) -> None:
     """OCR drops and doubles spaces; the label-splitting parser tolerates it.
@@ -271,6 +282,7 @@ def test_ve11c_finds_the_snr_when_no_pat_field_separates_it() -> None:
 #: Each profile paired with summary lines that release actually prints. A
 #: profile is only expected to parse its own release's lines.
 OWN_LINES = [
+    ("VB17A", VB17A_LINE),
     ("VE11C", VE11C_LINE),
     ("VE11C", VE11C_VOI_LINE),
     ("XA30", XA30_LINE),
@@ -323,3 +335,80 @@ def test_no_header_value_swallows_an_undeclared_label(name: str, line: str) -> N
     fields = REGISTRY.get(name).parse_header_summary(line)
     leaked = {k: v for k, v in fields.items() if ":" in v and k != "ta"}
     assert not leaked, f"{name} absorbed an undeclared label: {leaked}"
+
+
+# -- VB17A ------------------------------------------------------------------
+
+
+def test_vb17a_header_grammar() -> None:
+    """VB17A names the sequence's owner and omits PM entirely.
+
+    Returns
+    -------
+    None
+    """
+    fields = REGISTRY.get("VB17A").parse_header_summary(VB17A_LINE)
+    assert fields == {
+        "ta": "1:08",
+        "pat": "Off",
+        "voxel_size_mm": "2.2×1.1×10.0",
+        "rel_snr": "1.00",
+        "sequence": "gre",
+        "sequence_owner": "SIEMENS",
+    }
+
+
+def test_vb17a_records_a_user_built_sequence() -> None:
+    """``USER:`` marks a sequence built at the site rather than by Siemens.
+
+    This is the one place an export says so, so the provenance is kept rather
+    than discarded along with the label.
+
+    Returns
+    -------
+    None
+    """
+    line = (
+        "TA: 8:07       PAT: Off      Voxel size: 1.3×1.0×1.3 mm     "
+        "Rel. SNR: 1.00       USER: tfl_mgh_multiecho  "
+    )
+    fields = REGISTRY.get("VB17A").parse_header_summary(line)
+    assert fields["sequence"] == "tfl_mgh_multiecho"
+    assert fields["sequence_owner"] == "USER"
+
+
+def test_vb17a_tolerates_a_missing_pat_field() -> None:
+    """Some VB17A scans print no PAT at all.
+
+    Returns
+    -------
+    None
+    """
+    line = (
+        "TA: 4:20            Voxel size: 2.3×2.3×5.0 mm     "
+        "Rel. SNR: 1.00       SIEMENS: gre_field_mapping  "
+    )
+    fields = REGISTRY.get("VB17A").parse_header_summary(line)
+    assert "pat" not in fields
+    assert fields["sequence"] == "gre_field_mapping"
+
+
+def test_vb17a_strips_the_marker_between_snr_and_sequence() -> None:
+    """A "!" is printed before the sequence on some scans.
+
+    Its meaning is not documented in the exports, so it is kept out of the
+    SNR value rather than interpreted. The raw line survives in
+    ``header_summary`` either way.
+
+    Returns
+    -------
+    None
+    """
+    line = (
+        "TA: 1.5 s       PAT: Off      Voxel size: 1.2×1.2×1.8 mm     "
+        "Rel. SNR: 1.00        ! USER: ep2d_bold_MGH_tb  "
+    )
+    fields = REGISTRY.get("VB17A").parse_header_summary(line)
+    assert fields["rel_snr"] == "1.00"
+    assert fields["ta"] == "1.5 s"
+    assert fields["sequence"] == "ep2d_bold_MGH_tb"

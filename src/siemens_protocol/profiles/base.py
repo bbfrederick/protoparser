@@ -85,6 +85,11 @@ class LayoutConfig:
         Below this printable-character ratio a page is sent to OCR.
     indent_threshold : float
         Indentation past the column label origin that marks a sub-row.
+    lowercase_continues_label : bool
+        Whether a label-only row beginning with a lower-case word continues
+        the label above it. Needed only where wrapped labels are set at the
+        same pitch as ordinary rows, which leaves no geometric signal; see
+        the VB17A profile.
     """
 
     page_header_max_y: float = 45.0
@@ -101,6 +106,7 @@ class LayoutConfig:
     title_outdent_ratio: float = 0.4
     min_printable_ratio: float = 0.90
     indent_threshold: float = 5.0
+    lowercase_continues_label: bool = False
 
 
 @dataclass

@@ -1,0 +1,26 @@
+{
+  "version": "VB17A",
+  "description": "VB17A parameter labels that later releases renamed. VB17A shares much of its vocabulary with VE11C, so entries that VE11C also needs are repeated here rather than inherited: a lookup only ever consults the release's own dictionary.",
+  "aliases": {
+    "Auto Coil Select": "coil_selection",
+    "Coil Combine Mode": "coil_combination",
+    "Confirm freq. adjustment": "confirm_frequency",
+    "Load to viewer": "load_images_to_viewer",
+    "PAT mode": "acceleration_mode",
+    "Shim mode": "b0_shim",
+    "Special sat.": "special_saturation"
+  },
+  "notes": {
+    "Auto Coil Select": "Same setting as VE11C's 'Coil Select Mode', one per scan in both, and the values line up (Default, Off). Confusingly, XA30 and XA60 kept the phrase but demoted it to a *value* of 'Coil Selection'.",
+    "Load to viewer": "VE11C spells it 'Load images to viewer' and XA60 renamed the viewer itself to MR View&GO. Same section and same values (On) in all three.",
+    "Shim mode": "Maps to B0 specifically, not to shimming in general: the values are exactly VE11C's B0 Shim mode vocabulary (Standard, Tune up), whereas B1 Shim mode is always TrueForm.",
+    "PAT mode": "VB17A and VE11C agree on the label; XA30 and XA60 renamed it to Acceleration Mode."
+  },
+  "rejected": {
+    "Shim mode -> B1 Shim mode": "VB17A prints one shim parameter where VE11C prints two. It is mapped to B0 on the strength of its value vocabulary; B1 has no VB17A counterpart and is left as an add."
+  },
+  "absent": {
+    "b1_shim": "VB17A prints a single 'Shim mode', mapped to B0 on the strength of its value vocabulary. B1 shimming has no VB17A counterpart, so the later parameter is reported as an addition.",
+    "image_scaling": "No one-to-one equivalent. VB17A's 'Add. scale factor', 'FFT scale factor' and 'Scaling factor' are separate parameters, and guessing between them would hide a real difference."
+  }
+}

@@ -171,12 +171,14 @@ with `--version` available to force a choice. Adding a new version means
 writing a profile and, if its layout differs, adjusting a threshold or two. The
 core extraction, layout, splitting, and output code stays shared.
 
-Detection signals for the current three:
+Detection signals for the current four:
 
 - XA60: the header contains `Numaris/X` and a `VA60` build string.
 - XA30: the header contains `Numaris/X` and a `VA30` build string.
-- VE11C: the header names the scanner (`Prisma`) without the Numaris/X build
-  string, and the page body has a native Helvetica text layer.
+- VB17A: the header carries `syngo MR B17`.
+- VE11C: the header names the scanner (`Prisma`) with neither a Numaris/X build
+  string nor a `syngo MR B__`, and the page body has a native Helvetica text layer.
+  It prints no version string of its own, so it is identified by exclusion.
 
 The build string must be matched exactly, not as `VA__`. A pattern loose
 enough to cover a sibling release makes that release detect as this one at
@@ -219,10 +221,12 @@ folder layout below also gives the test harness a ground-truth label per file.
       __init__.py
       base.py           # VersionProfile base class + registry
       numaris_x.py      # header grammar shared by XA30 and XA60
+      vb17a.py
       ve11c.py
       xa30.py
       xa60.py
   examples/
+    VB17A/*.pdf
     VE11C/*.pdf
     XA30/*.pdf
     XA60/*.pdf
@@ -240,7 +244,7 @@ siemens-protocol parse DIR/     [options]   # batch over a directory
 siemens-protocol list  FILE.pdf [options]   # scan inventory with total TA
 
 --out PATH            write JSON here (default: alongside input, .json)
---version {auto,VE11C,XA30,XA60}  force a version profile (default: auto)
+--version {auto,VB17A,VE11C,XA30,XA60}  force a profile (default: auto)
 --ocr {auto,always,never}     control OCR fallback (default: auto)
 --dpi N               rasterization DPI for OCR pages (default: 300)
 --flatten             include the flattened per-scan view (on by default)
@@ -260,7 +264,7 @@ which is what the `examples/` tree is set up for.
 ## Testing
 
 The example files live under `examples/VERSIONNUMBER/`, for instance
-`examples/VE11C/`, `examples/XA30/` and `examples/XA60/`. The parent folder name is the expected
+`examples/VB17A/`, `examples/VE11C/`, `examples/XA30/` and `examples/XA60/`. The parent folder name is the expected
 software version for each file, which gives the test harness a ground-truth
 label for free and lets it check auto-detection at the same time.
 

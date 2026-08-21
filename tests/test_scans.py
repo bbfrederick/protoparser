@@ -18,6 +18,13 @@ from siemens_protocol.profiles.base import SIZE_FIELDS
 
 #: Hand-checked scan counts, one per example file.
 EXPECTED_SCAN_COUNT = {
+    # VB17A counts are cross-checked against the number of "TA:" summary
+    # lines in the raw text, which the splitter reaches by a different route.
+    "LiaCoilTest.pdf": 20,
+    "Multiband_development.pdf": 17,
+    "NIRS_CBV_connectome.pdf": 29,
+    "NIRS_CBV_toscan_old.pdf": 28,
+    "rtNIRS_12ch.pdf": 16,
     "ELS2_20210802.pdf": 15,
     "NOCICEPT_Ph2MRI515_Second.pdf": 18,
     "R01StressDyn.pdf": 21,
@@ -128,7 +135,8 @@ def test_pages_are_covered_once_and_in_order(
 ) -> None:
     """A scan runs to the next header box, so pages partition the document.
 
-    Only the table of contents sits outside a scan.
+    Only the contents page sits outside a scan, and it may sit at either end:
+    VE11C and the Numaris/X releases lead with it, VB17A appends it.
 
     Parameters
     ----------
@@ -150,7 +158,14 @@ def test_pages_are_covered_once_and_in_order(
         seen.extend(scan.pages)
     assert seen == sorted(seen), "scan pages are out of order"
     assert len(seen) == len(set(seen)), "a page was assigned to two scans"
-    assert set(range(min(seen), result.protocol.page_count + 1)) == set(seen)
+
+    front = set(result.protocol.front_matter_pages)
+    assert not front & set(seen), "a contents page was also given to a scan"
+    # Together they account for the whole document, with no page unclaimed...
+    every_page = set(range(1, result.protocol.page_count + 1))
+    assert set(seen) | front == every_page
+    # ...and the scans themselves form one unbroken run.
+    assert set(seen) == set(range(min(seen), max(seen) + 1))
 
 
 @requires_examples
@@ -202,17 +217,26 @@ def _table_of_contents(pdf: str) -> str | None:
     """
     document = pymupdf.open(pdf)
     try:
-        lines = [line.strip() for line in document[0].get_text().splitlines() if line.strip()]
+        pages = [
+            [line.strip() for line in page.get_text().splitlines() if line.strip()]
+            for page in document
+        ]
     finally:
         document.close()
-    if not lines or lines[0] != "Table of contents":
-        return None
-    entries: list[str] = []
-    for line in lines[1:]:
-        if line.startswith("SIEMENS MAGNETOM") or re.fullmatch(r"-\s*\d+\s*-", line):
-            break
-        entries.append(line)
-    return " ".join(entries)
+
+    # The heading may lead the document or trail it: VE11C and the Numaris/X
+    # releases put it first, VB17A last. It is never the running page header,
+    # so allow it to be the first or second line of the page.
+    for lines in pages:
+        if "Table of contents" not in lines[:2]:
+            continue
+        entries: list[str] = []
+        for line in lines[lines.index("Table of contents") + 1 :]:
+            if line.startswith("SIEMENS MAGNETOM") or re.fullmatch(r"-\s*\d+\s*-", line):
+                break
+            entries.append(line)
+        return " ".join(entries)
+    return None
 
 
 @requires_examples
@@ -315,3 +339,115 @@ def test_every_scan_reports_a_spatial_extent(
         if not any(scan.header.get(key) for key in SIZE_FIELDS)
     ]
     assert not missing, f"scans with neither a voxel size nor a VoI: {missing}"
+
+
+@requires_examples
+@pytest.mark.parametrize("pdf,_version", EXAMPLE_FILES, ids=EXAMPLE_IDS)
+def test_a_contents_page_never_becomes_scan_data(
+    parsed: ParseFixture, pdf: str, _version: str
+) -> None:
+    """The contents listing is front matter wherever it appears.
+
+    VB17A appends its contents page instead of leading with it, so treating
+    front matter as "whatever precedes the first scan" handed that page to
+    the last scan and turned a list of protocol names into parameters.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+    pdf : str
+        Path to the example.
+    _version : str
+        Version from the folder name. Unused here.
+
+    Returns
+    -------
+    None
+    """
+    protocol = parsed(pdf).protocol
+    contents = _table_of_contents(pdf)
+    if contents is None:
+        # No contents page: then nothing may be classed as front matter.
+        assert protocol.front_matter_pages == []
+        return
+    assert protocol.front_matter_pages, "the contents page was read as scan data"
+    for scan in protocol.scans:
+        assert not set(scan.pages) & set(protocol.front_matter_pages)
+
+
+@requires_examples
+def test_a_trailing_contents_page_is_recognized(parsed: ParseFixture) -> None:
+    """VB17A's contents page sits at the end, and is still front matter.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+
+    Returns
+    -------
+    None
+    """
+    protocol = parsed(find_example("LiaCoilTest.pdf")).protocol
+    assert protocol.front_matter_pages == [protocol.page_count]
+    assert protocol.scans[-1].pages[-1] == protocol.page_count - 1
+
+
+@requires_examples
+def test_a_label_wrapped_onto_a_second_line_is_rejoined(parsed: ParseFixture) -> None:
+    """VB17A wraps two Properties labels, and both must come back whole.
+
+    VB17A sets a continuation at the same pitch as an ordinary row and puts
+    the value on the first line, so the usual gap test cannot see it. Getting
+    this wrong leaves a truncated key plus an empty record, and the truncated
+    key then fails to match the same parameter in any other release.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+
+    Returns
+    -------
+    None
+    """
+    scan = parsed(find_example("LiaCoilTest.pdf")).protocol.scans[0]
+    keys = {getattr(record, "key", "") for record in scan.records}
+    assert "Load images to graphic segments" in keys
+    assert "Start measurement without further preparation" in keys
+    # ...and the fragments are gone rather than left behind as empty records.
+    assert "segments" not in keys
+    assert "further preparation" not in keys
+
+
+@requires_examples
+@pytest.mark.parametrize("pdf,_version", EXAMPLE_FILES, ids=EXAMPLE_IDS)
+def test_no_label_is_left_as_a_lower_case_fragment(
+    parsed: ParseFixture, pdf: str, _version: str
+) -> None:
+    """A label-only record starting lower-case is an unjoined continuation.
+
+    These exports capitalize the first word of every label, so such a record
+    is the tail of a wrapped phrase that was not rejoined.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+    pdf : str
+        Path to the example.
+    _version : str
+        Version from the folder name. Unused here.
+
+    Returns
+    -------
+    None
+    """
+    fragments = [
+        record.key
+        for scan in parsed(pdf).protocol.scans
+        for record in scan.records
+        if getattr(record, "key", "") and not record.value and record.key[:1].islower()
+    ]
+    assert not fragments, f"labels left unjoined: {sorted(set(fragments))}"

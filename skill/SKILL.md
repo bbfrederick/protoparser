@@ -1,6 +1,6 @@
 ---
 name: siemens-protocol
-description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged — and diff two protocols or two scans, separating real parameter changes from cosmetic relabeling. Use whenever the user provides a Siemens MR protocol printout (VE11C, XA30, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
+description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged — and diff two protocols or two scans, separating real parameter changes from cosmetic relabeling. Use whenever the user provides a Siemens MR protocol printout (VB17A, VE11C, XA30, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
 ---
 
 # Siemens protocol PDF parser
@@ -31,7 +31,7 @@ siemens-protocol list PROTOCOL.pdf            # scans, sequences, times, total
 
 Useful options:
 
-* `--version {auto,VE11C,XA30,XA60}` — force a profile when auto-detection is
+* `--version {auto,VB17A,VE11C,XA30,XA60}` — force a profile when auto-detection is
   wrong or the file is from an unsupported release. Default `auto`.
 * `--ocr {auto,always,never}` — the OCR fallback for exports without a usable
   text layer. Default `auto`, which OCRs only pages that need it.

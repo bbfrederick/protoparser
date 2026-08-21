@@ -45,7 +45,7 @@ siemens-protocol diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan 
 | Option | Meaning |
 | --- | --- |
 | `--out PATH` | Write JSON here. Alongside the input as `.json` by default; a directory in batch mode. |
-| `--version {auto,VE11C,XA30,XA60}` | Force a version profile. Default `auto`. |
+| `--version {auto,VB17A,VE11C,XA30,XA60}` | Force a version profile. Default `auto`. |
 | `--ocr {auto,always,never}` | Control the OCR fallback. Default `auto`. |
 | `--dpi N` | Rasterization DPI for OCR pages. Default 300. |
 | `--no-flatten` | Omit the flattened per-scan view (included by default). |
@@ -451,6 +451,7 @@ each against the first pages and `--version` always overrides.
 The releases differ mainly in that header grammar:
 
 ```
+VB17A  TA: 1:08   PAT: Off   Voxel size: 2.2×1.1×10.0 mm   Rel. SNR: 1.00   SIEMENS: gre
 VE11C  TA: 6:02 PM: REF Voxel size: 1.0×1.0×1.0 mmPAT: 2 Rel. SNR: 1.00 : tfl_me
 XA30   TA: 9 sec Coil Selection: Auto Voxel Size: 1.2×1.2×5.0 mm³ Acc:: None Rel. SNR: 1.00
 XA60   TA: 6:02 min Coil Selection: Manual Voxel Size: 1.0×1.0×1.0 mm³ Acc:: 2 Rel. SNR: 1.00
@@ -488,6 +489,13 @@ declared once in `profiles/numaris_x.py` and each release module adds only its
 version discriminator. They still differ in parameter vocabulary, which is
 expressed in `vocabulary/*.json` rather than in the profile.
 
+VB17A, the oldest release, has no `PM:` field, puts `PAT:` before the voxel size, and
+introduces the sequence with a label naming its provenance — `SIEMENS:` for a stock
+sequence, `USER:` for one built at the site. That provenance is kept as
+`sequence_owner`, since it is the one place an export says whether a sequence is the
+vendor's. It also lays its left column out differently and separates groups of
+parameters with a drawn rule of dashes, so it carries its own `value_x_ratio`.
+
 **Discriminators must be exact.** XA60 originally required `VA\d\d`, which also
 matches `VA30A-03GR`; every XA30 export therefore detected as XA60 at *high*
 confidence. Nothing failed loudly — the grammars are identical — but the
@@ -496,7 +504,12 @@ that scores at all is a detection candidate, so match the exact release number.
 
 ### Adding a release
 
-1. Copy `profiles/xa30.py`, give it a name and `require`/`reject` patterns. If
+0. Check what the release actually prints before writing anything: the header
+   grammar, the column geometry, and where the contents page sits. VB17A differed
+   in all three, and none of it was guessable from the other releases.
+1. Copy `profiles/xa30.py`, give it a name and `require`/`reject` patterns. Add a
+   rejection to `profiles/ve11c.py` as well — VE11C prints no version string, so it
+   matches anything that merely names a MAGNETOM scanner. If
    it shares an existing family's header grammar, import that family's labels;
    otherwise declare its own `header_labels`.
 2. Import it in `profiles/__init__.py`.

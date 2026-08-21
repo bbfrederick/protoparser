@@ -44,6 +44,11 @@ class Vocabulary:
         Printed label to canonical name.
     notes : dict of str to str
         Why an entry is there, keyed by the same labels. Documentation only.
+    absent : dict of str to str
+        Canonical names this release genuinely has no label for, mapped to
+        the reason. Distinct from a name merely left unmapped: releases a
+        decade apart do not all have the same parameters, and saying so
+        explicitly is what lets :func:`check` tell a real gap from a typo.
     description : str
         What the file covers.
     """
@@ -51,6 +56,7 @@ class Vocabulary:
     version: str
     aliases: dict[str, str] = field(default_factory=dict)
     notes: dict[str, str] = field(default_factory=dict)
+    absent: dict[str, str] = field(default_factory=dict)
     description: str = ""
     _index_cache: dict = field(default_factory=dict, repr=False, compare=False)
 
@@ -175,8 +181,14 @@ def load_vocabulary(version: str, extra_dir: str | os.PathLike | None = None) ->
             isinstance(k, str) and isinstance(v, str) for k, v in aliases.items()
         ):
             raise ValueError(f"{path}: 'aliases' must map label strings to canonical strings")
+        absent = payload.get("absent", {})
+        if not isinstance(absent, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in absent.items()
+        ):
+            raise ValueError(f"{path}: 'absent' must map canonical names to reason strings")
         vocabulary.aliases.update(aliases)
         vocabulary.notes.update(payload.get("notes", {}))
+        vocabulary.absent.update(absent)
         vocabulary.description = payload.get("description", vocabulary.description)
     return vocabulary
 
@@ -205,6 +217,9 @@ def check(versions: list[str], extra_dir: str | os.PathLike | None = None) -> li
 
     A canonical name defined by only one release is the usual sign of a typo:
     the mapping exists on one side and so can never pair up with anything.
+    A release that genuinely lacks the parameter says so in its ``absent``
+    block, which is what separates a real gap from a mistake -- releases a
+    decade apart do not all have the same parameters.
 
     Parameters
     ----------
@@ -229,9 +244,19 @@ def check(versions: list[str], extra_dir: str | os.PathLike | None = None) -> li
                     f"{version}: canonical name {canonical!r} for {label!r} should be "
                     "lower-case snake_case"
                 )
+    for version, vocabulary in loaded.items():
+        for canonical in sorted(set(vocabulary.absent) & set(vocabulary.aliases.values())):
+            problems.append(
+                f"{version}: canonical name {canonical!r} is both mapped and declared absent"
+            )
+
     if len(loaded) > 1:
         for canonical, owners in sorted(by_canonical.items()):
-            missing = set(loaded) - owners
+            missing = {
+                version
+                for version in set(loaded) - owners
+                if canonical not in loaded[version].absent
+            }
             if missing:
                 problems.append(
                     f"canonical name {canonical!r} is defined by "

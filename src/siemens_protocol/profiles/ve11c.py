@@ -55,7 +55,11 @@ PROFILE = REGISTRY.register(
     VE11CProfile(
         name="VE11C",
         require=[r"SIEMENS\s+MAGNETOM"],
-        reject=[r"Numaris/X"],
+        # VE11C prints no version string of its own -- just the scanner
+        # model -- so it can only be identified by what it is not. Each
+        # rejection names one specific other release rather than all of
+        # "syngo MR", which a future VE11C export could legitimately print.
+        reject=[r"Numaris/X", r"syngo\s+MR\s+B\d\d"],
         header_labels=[
             ("ta", r"\bTA\s*:"),
             ("pm", r"\bPM\s*:"),

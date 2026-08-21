@@ -6,7 +6,7 @@ dropping a module in here and importing it below.
 
 from __future__ import annotations
 
-from . import ve11c, xa30, xa60  # noqa: F401  (imported for the registration side effect)
+from . import vb17a, ve11c, xa30, xa60  # noqa: F401  (imported for the registration side effect)
 from .base import REGISTRY, LayoutConfig, ProfileRegistry, VersionProfile
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "LayoutConfig",
     "ProfileRegistry",
     "VersionProfile",
+    "vb17a",
     "ve11c",
     "xa30",
     "xa60",

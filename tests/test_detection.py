@@ -75,6 +75,7 @@ def test_forcing_the_wrong_version_warns() -> None:
 #: A running page header from each release, as printed. The trailing group is
 #: a site build tag and varies between exports of the same release.
 RUNNING_HEADERS = {
+    "VB17A": "SIEMENS MAGNETOM TrioTim syngo MR B17",
     "VE11C": "SIEMENS MAGNETOM Prisma",
     "XA30": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA30A-03GR",
     "XA60": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",
@@ -159,6 +160,24 @@ def test_a_release_number_is_not_matched_by_prefix() -> None:
     """
     assert REGISTRY.get("XA60").match_score(RUNNING_HEADERS["XA30"]) == 0
     assert REGISTRY.get("XA30").match_score(RUNNING_HEADERS["XA60"]) == 0
+
+
+def test_ve11c_is_identified_by_what_it_is_not() -> None:
+    """VE11C prints no version string, so every other release must be rejected.
+
+    Its header names only the scanner model, which is why the profile carries
+    rejections rather than a positive pattern. Each new release therefore has
+    to be added to that list, and this is what fails when it is not: VB17A
+    exports otherwise detect as VE11C at high confidence.
+
+    Returns
+    -------
+    None
+    """
+    ve11c = REGISTRY.get("VE11C")
+    for version, header in RUNNING_HEADERS.items():
+        expected = version == "VE11C"
+        assert bool(ve11c.match_score(header)) is expected, f"VE11C mis-scores {version}"
 
 
 def test_unknown_document_is_reported_not_guessed() -> None:
