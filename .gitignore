@@ -9,3 +9,4 @@ dist/
 examples/**/*.json
 *.swp
 *.swo
+ocr.log

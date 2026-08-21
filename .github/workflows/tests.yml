@@ -46,6 +46,29 @@ jobs:
       - name: Check formatting
         run: python -m black --check . && python -m isort --check-only .
 
+      # The OCR tests skip themselves when tesseract is unusable, and a skip
+      # reads like a pass in the summary -- so a broken install would go
+      # unnoticed on the platform it broke on. Assert both halves instead:
+      # the binary must be discoverable, and those tests must actually run.
+      # Windows is the case this exists for: choco writes tesseract to
+      # Program Files without putting it on PATH, so a PATH-only lookup fails
+      # on a runner that has it installed.
+      - name: Tesseract must be discoverable and exercised
+        shell: bash
+        run: |
+          python -c "
+          import sys
+          from siemens_protocol.extract.ocr import find_tesseract
+          found = find_tesseract()
+          print('discovered:', found)
+          sys.exit(0 if found else 'tesseract is installed but discovery did not find it')
+          "
+          python -m pytest tests/test_pipeline.py -k test_ocr_ -q | tee ocr.log
+          if grep -q skipped ocr.log; then
+            echo "::error::the OCR tests skipped, so tesseract was not usable"
+            exit 1
+          fi
+
       - name: Test
         run: python -m pytest -q
 
