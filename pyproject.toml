@@ -64,5 +64,5 @@ testpaths = ["tests"]
 pythonpath = ["tests"]
 
 [tool.codespell]
-skip = "./examples,./tests/test_sections.py,./tests/golden"
+#skip = "./examples,./tests/test_sections.py,./tests/golden"
 ignore-words-list = "TE,TR"
