@@ -64,4 +64,4 @@ testpaths = ["tests"]
 pythonpath = ["tests"]
 
 [tool.codespell]
-skip = "./examples"
+skip = "./examples,./tests/test_sections.py"
