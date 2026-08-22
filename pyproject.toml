@@ -62,3 +62,6 @@ src_paths = ["src", "tests"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+
+[tool.codespell]
+skip = "./examples"
