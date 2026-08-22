@@ -24,9 +24,9 @@ it targets the Siemens PDF export specifically.
 ## Running it
 
 ```sh
-siemens-protocol parse PROTOCOL.pdf --out protocol.json
-siemens-protocol parse DIR/ --out parsed/     # every PDF in a directory
-siemens-protocol list PROTOCOL.pdf            # scans, sequences, times, total
+mr-protocol-tool parse PROTOCOL.pdf --out protocol.json
+mr-protocol-tool parse DIR/ --out parsed/     # every PDF in a directory
+mr-protocol-tool list PROTOCOL.pdf            # scans, sequences, times, total
 ```
 
 Useful options:
@@ -76,9 +76,9 @@ count, page count, and the number of cross-section conflicts.
 ## Checking against preferred values
 
 ```sh
-siemens-protocol check protocol.pdf          # exit 1 if anything deviates
-siemens-protocol check DIR/ --quiet          # every PDF beneath a directory
-siemens-protocol check protocol.pdf --json
+mr-protocol-tool check protocol.pdf          # exit 1 if anything deviates
+mr-protocol-tool check DIR/ --quiet          # every PDF beneath a directory
+mr-protocol-tool check protocol.pdf --json
 ```
 
 Reports parameters that depart from a site policy, with the reason for each
@@ -97,10 +97,10 @@ because parameters match on canonical name.
 ## Comparing protocols and scans
 
 ```sh
-siemens-protocol diff old.pdf new.pdf                       # whole protocol
-siemens-protocol diff old.pdf new.pdf --scan T1_MEMPRAGE    # one scan, both files
-siemens-protocol diff protocol.pdf --left-scan AP --right-scan PA   # two scans, one file
-siemens-protocol diff old.pdf new.pdf \
+mr-protocol-tool diff old.pdf new.pdf                       # whole protocol
+mr-protocol-tool diff old.pdf new.pdf --scan T1_MEMPRAGE    # one scan, both files
+mr-protocol-tool diff protocol.pdf --left-scan AP --right-scan PA   # two scans, one file
+mr-protocol-tool diff old.pdf new.pdf \
     --left-scan rfMRI_REST_AP --right-scan rfMRI_REST1_ME_AP        # renamed counterpart
 ```
 
@@ -139,7 +139,7 @@ than knocking the rest out of step.
 
 ### Standard parameter names
 
-`siemens-protocol vocab list --canonical NAME` answers what each release calls
+`mr-protocol-tool vocab list --canonical NAME` answers what each release calls
 a given parameter, and `vocab list VERSION` shows a release's whole mapping
 with the notes explaining each entry. Use it when the user asks what a
 parameter is called in another software version.

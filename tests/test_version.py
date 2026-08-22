@@ -61,11 +61,14 @@ def test_installed_metadata_agrees_with_the_module() -> None:
     """
     from importlib.metadata import version
 
+    # The distribution is still named siemens-protocol; only the command was
+    # renamed to mr-protocol-tool. Looking up the command name here would
+    # raise PackageNotFoundError.
     assert version("siemens-protocol") == siemens_protocol.__version__
 
 
 def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None:
-    """``siemens-protocol --version`` prints what the package reports.
+    """``mr-protocol-tool --version`` prints what the package reports.
 
     Parameters
     ----------
@@ -80,7 +83,26 @@ def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None
         main(["--version"])
     assert exc.value.code == 0
     printed = capsys.readouterr().out.strip()
-    assert printed == f"siemens-protocol {siemens_protocol.__version__}"
+    assert printed == f"mr-protocol-tool {siemens_protocol.__version__}"
+
+
+def test_the_command_and_distribution_names_are_distinct() -> None:
+    """The installed command is not the same string as the package name.
+
+    They are separate identifiers that happen to describe one project: you
+    ``pip install siemens-protocol``, you ``import siemens_protocol``, and
+    you run ``mr-protocol-tool``. Pinning it here means a future rename of
+    one cannot quietly half-rename the others.
+
+    Returns
+    -------
+    None
+    """
+    from importlib.metadata import distribution
+
+    scripts = distribution("siemens-protocol").entry_points
+    console = {e.name for e in scripts if e.group == "console_scripts"}
+    assert console == {"mr-protocol-tool"}
 
 
 def test_the_console_script_reports_a_version() -> None:

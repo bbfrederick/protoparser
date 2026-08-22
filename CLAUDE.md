@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`siemens-protocol` parses Siemens MR protocol PDF exports into hierarchical JSON
+`mr-protocol-tool` (the command; the package installs as `siemens-protocol` and
+imports as `siemens_protocol`) parses Siemens MR protocol PDF exports into hierarchical JSON
 (one entry per scan, sections of key/value parameters, plus a flattened view that
 flags parameters printed inconsistently across sections). Supports VB17A, VE11C, XA30 and XA60.
 Runs on Linux, macOS and Windows; the package is pure Python and PyMuPDF ships

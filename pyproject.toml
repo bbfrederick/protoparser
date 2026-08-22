@@ -29,8 +29,11 @@ ocr = ["pytesseract>=0.3.10", "pillow>=9.0"]
 test = ["pytest>=7", "pytesseract>=0.3.10", "pillow>=9.0"]
 dev = ["pytest>=7", "pytesseract>=0.3.10", "pillow>=9.0", "black>=24", "isort>=5"]
 
+# The command, which is deliberately not the distribution name above: the
+# package installs as siemens-protocol and is imported as siemens_protocol,
+# but the thing you type is mr-protocol-tool.
 [project.scripts]
-siemens-protocol = "siemens_protocol.cli:main"
+mr-protocol-tool = "siemens_protocol.cli:main"
 
 # The version comes from the git tag, so there is no number to keep in step
 # anywhere: no literal in this file, none in __init__, none in a VERSION file.
