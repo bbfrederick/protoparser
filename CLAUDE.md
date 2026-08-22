@@ -26,6 +26,17 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   release takes the OCR path, so requiring it would put a non-pip step in
   front of every user.
 
+### Versioning
+
+- The git tag is the only source. `pyproject.toml` declares `dynamic = ["version"]`;
+  never add a literal back to it or to `__init__.py`.
+- `src/siemens_protocol/_version.py` is generated at build time and gitignored.
+- Release with `git tag v0.2.0 && git push --tags`. Nothing else to edit.
+- Docker excludes `.git`, so the version is passed in as a build arg and
+  forwarded via `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`.
+- `--version` before a subcommand = the tool's version; `--release` after one
+  = the Siemens profile. `--version` survives as a hidden alias for the latter.
+
 ### Cross-platform rules
 
 - Never `open()` without `encoding=`; the default differs by platform.

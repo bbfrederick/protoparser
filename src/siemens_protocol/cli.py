@@ -8,6 +8,7 @@ import os
 import sys
 from typing import Mapping, Sequence
 
+from . import __version__
 from .debug import write_debug
 from .diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .extract import TESSERACT_ENV
@@ -32,6 +33,38 @@ from .vocabulary import available, check, load_vocabulary
 PDF_SUFFIXES = (".pdf", ".PDF")
 
 
+def add_release_option(parser: argparse.ArgumentParser, help_text: str) -> None:
+    """Add the flag that forces a Siemens release profile.
+
+    Spelled ``--release`` because ``--version`` on the top-level command
+    reports the tool's own version, and one word meaning two unrelated things
+    one level apart is a trap. ``--version`` stays as a hidden alias so
+    existing scripts and habits keep working.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The subcommand parser to add the flag to.
+    help_text : str
+        Help for the visible spelling.
+
+    Returns
+    -------
+    None
+    """
+    choices = ["auto", *REGISTRY.names()]
+    parser.add_argument(
+        "--release", dest="version", default="auto", choices=choices, help=help_text
+    )
+    parser.add_argument(
+        "--version",
+        dest="version",
+        default="auto",
+        choices=choices,
+        help=argparse.SUPPRESS,
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser.
 
@@ -44,17 +77,18 @@ def build_parser() -> argparse.ArgumentParser:
         prog="siemens-protocol",
         description="Parse Siemens MR protocol PDF exports into hierarchical JSON.",
     )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"siemens-protocol {__version__}",
+        help="show the tool's version and exit",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     parse_cmd = sub.add_parser("parse", help="parse a protocol PDF, or every PDF in a directory")
     parse_cmd.add_argument("input", help="a PDF file, or a directory of PDFs")
     parse_cmd.add_argument("--out", help="write JSON here (default: alongside the input, .json)")
-    parse_cmd.add_argument(
-        "--version",
-        default="auto",
-        choices=["auto", *REGISTRY.names()],
-        help="force a version profile (default: auto)",
-    )
+    add_release_option(parse_cmd, "force a Siemens release profile (default: auto)")
     parse_cmd.add_argument(
         "--ocr",
         default=OCR_AUTO,
@@ -131,11 +165,8 @@ def build_parser() -> argparse.ArgumentParser:
             "both sides, or twice for the left and right scans"
         ),
     )
-    diff_cmd.add_argument(
-        "--version",
-        default="auto",
-        choices=["auto", *REGISTRY.names()],
-        help="force a version profile for any PDF input (default: auto)",
+    add_release_option(
+        diff_cmd, "force a Siemens release profile for any PDF input (default: auto)"
     )
     diff_cmd.add_argument(
         "--exact-keys",
@@ -197,11 +228,8 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DIR",
         help="a directory of policies searched before the shipped ones",
     )
-    check_cmd.add_argument(
-        "--version",
-        default="auto",
-        choices=["auto", *REGISTRY.names()],
-        help="force a version profile for any PDF input (default: auto)",
+    add_release_option(
+        check_cmd, "force a Siemens release profile for any PDF input (default: auto)"
     )
     check_cmd.add_argument(
         "--warnings-ok",
@@ -223,12 +251,7 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     list_cmd.add_argument("input", help="a PDF, or a previously parsed JSON file")
-    list_cmd.add_argument(
-        "--version",
-        default="auto",
-        choices=["auto", *REGISTRY.names()],
-        help="force a version profile for a PDF input (default: auto)",
-    )
+    add_release_option(list_cmd, "force a Siemens release profile for a PDF input (default: auto)")
     list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
     list_cmd.add_argument("--out", help="write the listing here instead of stdout")
 

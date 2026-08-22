@@ -11,7 +11,20 @@ from .model import Protocol, Scan
 from .pipeline import ParseOptions, ParseResult, parse_document
 from .profiles import REGISTRY
 
-__version__ = "0.1.0"
+try:
+    # Written at build time by setuptools-scm from the git tag, so an
+    # installed copy reports its version without needing a git checkout.
+    from ._version import __version__
+except ImportError:  # pragma: no cover - only in a source tree never built
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        __version__ = version("siemens-protocol")
+    except PackageNotFoundError:
+        # Running straight from a source tree that was never installed. Say
+        # so rather than inventing a number that would later look like a
+        # real release in a bug report.
+        __version__ = "0.0.0+unknown"
 
 __all__ = [
     "Protocol",

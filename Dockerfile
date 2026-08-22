@@ -4,6 +4,9 @@ FROM python:3.14-bookworm
 # get build arguments
 ARG BUILD_TIME
 ARG BRANCH
+# Defaulted so a plain "docker build ." still produces a working image, marked
+# as the non-release it is rather than borrowing the last real version number.
+ARG VERSION=0.0.0.dev0+unknown
 ARG GITVERSION
 ARG GITSHA
 ARG GITDATE
@@ -53,6 +56,13 @@ RUN pip install uv
 # Copy protoparser into container
 COPY . /src/protoparser
 
+# The version comes from the git tag, but .git is excluded from the build
+# context (it is 5 MB of history the image has no use for), so setuptools-scm
+# has nothing to read here. Hand it the version the build was invoked with
+# instead; without this the image would silently report 0.1.dev0 no matter
+# which release it was built from.
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL=${VERSION}
+
 # Install the package with the OCR extra. tesseract-ocr above is the native
 # binary; the extra is the Python side (pytesseract, pillow). Both are needed
 # for --ocr always, and neither implies the other.
@@ -68,7 +78,6 @@ ENV RUNNING_IN_CONTAINER=1
 
 RUN cd /root; TZ=GMT date "+%Y-%m-%d %H:%M:%S" > buildtime
 
-ARG VERSION
 ARG BUILD_DATE
 ARG VCS_REF
 

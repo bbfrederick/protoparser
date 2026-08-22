@@ -167,7 +167,7 @@ only what differs between releases:
 
 Profiles register themselves in a small registry. Auto-detection tries each
 profile's recognizer against the first page or two and picks the best match,
-with `--version` available to force a choice. Adding a new version means
+with `--release` available to force a choice. Adding a new version means
 writing a profile and, if its layout differs, adjusting a threshold or two. The
 core extraction, layout, splitting, and output code stays shared.
 
@@ -244,7 +244,8 @@ siemens-protocol parse DIR/     [options]   # batch over a directory
 siemens-protocol list  FILE.pdf [options]   # scan inventory with total TA
 
 --out PATH            write JSON here (default: alongside input, .json)
---version {auto,VB17A,VE11C,XA30,XA60}  force a profile (default: auto)
+--release {auto,VB17A,VE11C,XA30,XA60}  force a profile (default: auto)
+--version             print the tool's own version and exit
 --ocr {auto,always,never}     control OCR fallback (default: auto)
 --dpi N               rasterization DPI for OCR pages (default: 300)
 --tesseract PATH      tesseract binary, when installed off PATH

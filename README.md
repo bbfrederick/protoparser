@@ -86,6 +86,38 @@ siemens-protocol parse protocol.pdf --ocr always --tesseract /opt/local/bin/tess
 
 or set `SIEMENS_PROTOCOL_TESSERACT` to the same path once and leave it set.
 
+## Versioning
+
+The version lives in exactly one place: the git tag. There is no number in
+`pyproject.toml`, none in `__init__.py`, and no `VERSION` file, so there is
+nothing to keep in step and nothing that can drift. Releasing is one command:
+
+```sh
+git tag v0.2.0
+git push --tags
+```
+
+Between tags, `setuptools-scm` derives a development version from the distance
+to the last one, which makes an unreleased build obvious on sight:
+
+```sh
+$ siemens-protocol --version
+siemens-protocol 0.2.1.dev3+g908a065      # 3 commits past v0.2.0
+```
+
+The same number reaches `siemens_protocol.__version__`, `pip show`, and the
+Docker image label. Note that `--version` before a subcommand reports the
+tool's version, while `--release` after one forces a Siemens release profile;
+these were both spelled `--version` until the tool grew a version of its own,
+and the old spelling still works but is no longer advertised.
+
+One wrinkle worth knowing: `.git` is excluded from the Docker build context,
+so `setuptools-scm` cannot read a tag there. `builddocker.sh` passes the
+version in as a build argument instead, and the Dockerfile hands it to
+`setuptools-scm` through `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`.
+A build that skips that argument is labelled `0.0.0.dev0+unknown` rather than
+borrowing the last real release number.
+
 ## Use
 
 ```sh
@@ -115,7 +147,7 @@ siemens-protocol diff old.pdf new.pdf --filter contrast
 | Option | Meaning |
 | --- | --- |
 | `--out PATH` | Write JSON here. Alongside the input as `.json` by default; a directory in batch mode. |
-| `--version {auto,VB17A,VE11C,XA30,XA60}` | Force a version profile. Default `auto`. |
+| `--release {auto,VB17A,VE11C,XA30,XA60}` | Force a Siemens release profile. Default `auto`. |
 | `--ocr {auto,always,never}` | Control the OCR fallback. Default `auto`. |
 | `--dpi N` | Rasterization DPI for OCR pages. Default 300. |
 | `--tesseract PATH` | Path to the tesseract binary, when it is installed off `PATH`. Same as `SIEMENS_PROTOCOL_TESSERACT`. |
@@ -568,7 +600,7 @@ Everything version-specific lives in a `VersionProfile` (`profiles/`), which
 declares only what differs: how to recognize the release, the grammar of the
 header summary line, any header field recovered from a parameter instead, and
 layout thresholds worth nudging. Profiles self-register; auto-detection scores
-each against the first pages and `--version` always overrides.
+each against the first pages and `--release` always overrides.
 
 The releases differ mainly in that header grammar:
 

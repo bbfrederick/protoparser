@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "siemens-protocol"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Parse Siemens MR protocol PDF exports into hierarchical JSON"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -31,6 +31,15 @@ dev = ["pytest>=7", "pytesseract>=0.3.10", "pillow>=9.0", "black>=24", "isort>=5
 
 [project.scripts]
 siemens-protocol = "siemens_protocol.cli:main"
+
+# The version comes from the git tag, so there is no number to keep in step
+# anywhere: no literal in this file, none in __init__, none in a VERSION file.
+# Between tags setuptools-scm derives a dev version from the distance to the
+# last one (0.1.1.dev3+g908a065), which makes an unreleased build obvious on
+# sight. The generated module is what lets an installed copy report its
+# version with no git checkout present.
+[tool.setuptools_scm]
+version_file = "src/siemens_protocol/_version.py"
 
 [tool.setuptools.packages.find]
 where = ["src"]

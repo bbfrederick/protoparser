@@ -17,7 +17,12 @@ jobs:
         python: ["3.10", "3.14"]
 
     steps:
+      # setuptools-scm derives the version from the tag history, and the
+      # default shallow clone has neither tags nor depth. Without this every
+      # CI build reports 0.1.dev1 and the version tests are meaningless.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v7
         with:
@@ -85,6 +90,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -92,3 +99,27 @@ jobs:
       - run: python -m build --wheel
       - name: The wheel must be pure Python
         run: ls dist/ | grep -- '-py3-none-any\.whl$'
+      # The build succeeds either way, so a version that lost its git history
+      # would ship silently. A shallow checkout yields "0.1.dev1" with no
+      # commit hash; anything derived from real history carries one, or is a
+      # clean release number matching the tag.
+      - name: The wheel must carry a version derived from git
+        run: |
+          wheel=$(ls dist/*.whl)
+          echo "built: $wheel"
+          version=$(basename "$wheel" | cut -d- -f2)
+          echo "version: $version"
+          described=$(git describe --tags --always --dirty | sed 's/^v//')
+          echo "git describes HEAD as: $described"
+          case "$version" in
+            *+g*) echo "ok: development version carries a commit hash" ;;
+            *)
+              # No local part, so this must be an exact tag.
+              if git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+                echo "ok: clean release version on a tagged commit"
+              else
+                echo "::error::version '$version' has no commit hash and HEAD is not tagged"
+                exit 1
+              fi
+              ;;
+          esac

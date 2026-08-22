@@ -10,3 +10,4 @@ examples/**/*.json
 *.swp
 *.swo
 ocr.log
+src/siemens_protocol/_version.py

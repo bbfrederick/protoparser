@@ -31,7 +31,7 @@ siemens-protocol list PROTOCOL.pdf            # scans, sequences, times, total
 
 Useful options:
 
-* `--version {auto,VB17A,VE11C,XA30,XA60}` — force a profile when auto-detection is
+* `--release {auto,VB17A,VE11C,XA30,XA60}` — force a profile when auto-detection is
   wrong or the file is from an unsupported release. Default `auto`.
 * `--ocr {auto,always,never}` — the OCR fallback for exports without a usable
   text layer. Default `auto`, which OCRs only pages that need it.
@@ -153,7 +153,7 @@ pairing that already worked.
 ## Caveats
 
 * Version auto-detection is best effort; it reads the scanner string in the
-  page header. If it picks wrong, pass `--version`.
+  page header. If it picks wrong, pass `--release`.
 * If a page has no usable text layer and tesseract is unavailable, the file
   still parses and the affected pages are listed in `warnings`. Check that
   field before trusting a result.
