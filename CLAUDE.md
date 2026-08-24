@@ -19,6 +19,12 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
 ```
 
 - `import pymupdf`, not `import fitz` (deprecated alias, emits a warning)
+- zsh aborts the **entire** command line on a failed glob (`--include=*.py`,
+  `rm -rf ... *.egg-info`). Quote globs: an unquoted one that matched nothing
+  made a `rm -rf .git` never run, so a "builds without git" test silently read
+  the real repo and passed for the wrong reason.
+- No `timeout` on macOS. Use the Bash tool's own timeout, or
+  `perl -e 'select(undef,undef,undef,20)'` to sleep.
 - OCR is an optional extra (`pip install -e ".[ocr]"`) plus a native tesseract
   binary: `brew install tesseract`, `apt install tesseract-ocr`, or
   `winget install UB-Mannheim.TesseractOCR`. Found on PATH, else in the
@@ -37,6 +43,10 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   forwarded via `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`.
 - `--version` before a subcommand = the tool's version; `--release` after one
   = the Siemens profile. `--version` survives as a hidden alias for the latter.
+- Never find-and-replace across the three names (command `mr-protocol-tool`,
+  distribution `siemens-protocol`, import `siemens_protocol`). `__version__`,
+  the OCR install hint and `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`
+  all key off the *distribution* name and break silently if it moves.
 
 ### Cross-platform rules
 
@@ -57,6 +67,13 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
 - Verify layout changes with the token-conservation test in `tests/test_pipeline.py`:
   every body token must land in exactly one key, value, or section title. It catches
   silent drops that spot-checking values does not.
+- A skip-guard must ask the same question the code asks. `_tesseract_available()`
+  probed pytesseract directly (PATH only) while `ocr_page` uses full discovery, so
+  the OCR tests skipped on Windows where the tool itself finds the binary --
+  invisibly, because a skip reads like a pass. CI now asserts they actually ran.
+- `gh` is not installed. Job logs need auth (403), but annotations do not:
+  `curl -s .../repos/OWNER/REPO/check-runs/<job_id>/annotations`. So have CI steps
+  emit `::error::<message>` -- that message is what makes a red job diagnosable here.
 
 ### Code Formatting
 
