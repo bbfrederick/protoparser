@@ -15,7 +15,9 @@ See [Design.md](Design.md) for the design this implements.
 
 Linux, macOS and Windows, on Python 3.10 through 3.14. The package is pure
 Python and its one dependency, PyMuPDF, ships wheels for all three, so nothing
-is compiled and no system package is needed.
+is compiled and no system package is needed. If you would rather install
+nothing at all, there is a container image — see
+[Running from a container](#running-from-a-container).
 
 On Linux or macOS:
 
@@ -94,6 +96,175 @@ siemens-protocol-tool parse protocol.pdf --ocr always --tesseract /opt/local/bin
 
 or set `SIEMENS_PROTOCOL_TESSERACT` to the same path once and leave it set.
 
+## Running from a container
+
+The tool is published to Docker Hub as `fredericklab/protoparser`, built for
+both `linux/amd64` and `linux/arm64`. The image carries the OCR extra *and* the
+tesseract binary, so the one part of this tool that needs something outside
+Python is already there — see [OCR needs no setup here](#ocr-needs-no-setup-here).
+
+```sh
+docker pull fredericklab/protoparser:latest
+```
+
+That is about 480 MB to fetch and about 1.9 GB unpacked.
+
+| Tag | What it is |
+| --- | --- |
+| `latest` | rebuilt from `main` or `dev` on every push |
+| `latest-release` | the most recently published GitHub release |
+| `0.2.0` | one release, pinned — use this when you need a reproducible result |
+
+Only `latest` exists at the moment. The other two are pushed by the workflow
+that fires when a GitHub release is published, and there has not been one yet.
+
+### Running a command
+
+The image sets no `ENTRYPOINT`, and its default command is `python3`, so
+`docker run fredericklab/protoparser:latest` on its own drops you at a Python
+prompt. Name the command you want:
+
+```sh
+docker run --rm fredericklab/protoparser:latest siemens-protocol-tool versions
+```
+
+The container starts out with none of your files. Mount the directory you are
+working in at `/data` and add `-w /data`, and the paths you type are then the
+same ones you would type outside:
+
+```sh
+docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
+    siemens-protocol-tool list examples/XA60/R01StressDyn.pdf
+```
+
+Every subcommand works that way; only the mount is new:
+
+```sh
+# parse one protocol, writing the JSON back out to the host
+docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
+    siemens-protocol-tool parse examples/XA60/R01StressDyn.pdf --out R01StressDyn.json
+
+# parse a whole tree; the output mirrors it, here as json/XA60/..., json/VE11C/...
+docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
+    siemens-protocol-tool parse examples --out json
+
+# compare one protocol across two scanner software versions
+docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
+    siemens-protocol-tool diff examples/VE11C/R01StressDyn.pdf examples/XA60/R01StressDyn.pdf
+```
+
+Anything outside the mount is invisible to the tool, which is worth remembering
+when a path that exists on your machine comes back as not found: `/data` is the
+only place the container can see. That cuts both ways for output — the
+directory form of `--out` creates its tree, but the single-file form does not
+create the directory above it, and a mount is the only place it could write to
+anyway.
+
+### OCR needs no setup here
+
+The two-step install described under [the OCR extra](#the-ocr-extra) — the
+Python binding and then a native tesseract — is already done in the image, so
+`--ocr always` runs with nothing else to install:
+
+```sh
+docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
+    siemens-protocol-tool parse examples/VB17A/rtNIRS_12ch.pdf --ocr always --stdout
+```
+
+Expect it to be slow — every page is rasterized at 300 DPI and read back —
+around 50 seconds for that 31-page export against under a second natively. You
+still will not need it for a normal PDF export; see [Note on OCR](#note-on-ocr).
+
+### Files it writes are owned by root
+
+Everything in the image is installed as root and the container runs as root, so
+on Linux the JSON that lands in your bind mount belongs to `root`. The reflex
+fix, `--user "$(id -u):$(id -g)"`, does not work here: `uv tool install` puts
+the command under `/root/.local/bin`, and `/root` is mode 0700, so a non-root
+user cannot even read it.
+
+```
+/root/.local/bin/siemens-protocol-tool: [Errno 13] Permission denied
+```
+
+Take ownership afterwards instead:
+
+```sh
+sudo chown -R "$(id -u):$(id -g)" json
+```
+
+On macOS and Windows this does not come up — Docker Desktop maps ownership
+through its VM and the files arrive belonging to you.
+
+### The graphical front end from a container
+
+Two of [the GUI's](#the-graphical-front-end) defaults have to change. It binds
+`127.0.0.1`, which inside a container is the *container's* loopback and is
+unreachable from your browser, so it needs `--host 0.0.0.0`; and it takes any
+free port, which cannot be published because you do not know the number in
+advance, so it needs a fixed `--port`:
+
+```sh
+docker run --rm -p 127.0.0.1:8080:8080 -v "$PWD":/data \
+    fredericklab/protoparser:latest \
+    siemens-protocol-tool gui --host 0.0.0.0 --port 8080 --dir /data
+```
+
+There is no browser in the container for it to open, so it prints the URL and
+waits:
+
+```
+siemens-protocol-tool GUI serving on http://0.0.0.0:8080/?token=VWgux4jOZB6aZv1hF7tk
+Press Ctrl-C to stop.
+```
+
+Open that with `localhost` in place of `0.0.0.0`, keeping the token — the
+server checks it on every request and mints a fresh one each run.
+
+Publishing as `-p 127.0.0.1:8080:8080` rather than the shorter `-p 8080:8080`
+is the point of that form: `--host 0.0.0.0` has widened the bind inside the
+container, and restricting the published port to the host's loopback is what
+keeps a server that runs commands from being offered to the rest of the
+network. `--dir` sets the directory the file picker opens in and that relative
+paths resolve against, so point it at the mount.
+
+### Building the image yourself
+
+```sh
+./builddocker.sh          # local, native architecture only
+PUSH=1 ./builddocker.sh   # both architectures, pushed to Docker Hub
+```
+
+A local build cannot be multi-architecture: `--load` writes into the local
+daemon, which holds one architecture per tag, so the full matrix is built only
+when publishing. The script also refuses to move `:latest` unless HEAD is a
+clean, tagged commit, so a test build cannot overwrite the tag other people
+pull; anything else is tagged with its `git describe` string alone.
+
+One consequence of the build worth knowing: `.git` is excluded from the build
+context, so `setuptools-scm` has no tag to read inside the image and the number
+must be passed in as `VERSION` (see [Versioning](#versioning)). This script and
+both GitHub Actions workflows get it by running `setuptools-scm` itself rather
+than by reshaping `git describe`, and that distinction is not cosmetic: only
+the first is PEP 440. An invalid version does not degrade to a fallback —
+`packaging` raises `InvalidVersion` inside the build backend, so the image
+simply fails to build.
+
+The tag and the version are also not the same string for an untagged build. A
+Docker tag may not contain `+`, which every development version carries, so the
+tag is that version with `+` swapped for `_`: `0.1.1.dev23+gabc1234` is pushed
+as `0.1.1.dev23_gabc1234`. A release has no `+` and keeps its bare number.
+
+Images built before this was sorted out report `0.0.0.dev0+unknown`, because
+nothing passed `VERSION` to them. The build stamp they carry says what they
+actually are:
+
+```sh
+docker run --rm fredericklab/protoparser:latest \
+    bash -lc 'echo "$GITVERSION $GITSHA $BUILD_TIME"'
+# v0.1.0+19.g52e11a89 52e11a8924727b12de3b119d181e281c2f27964d 2026-08-24T19:41:26+00:00
+```
+
 ## Versioning
 
 The version lives in exactly one place: the git tag. There is no number in
@@ -120,11 +291,15 @@ these were both spelled `--version` until the tool grew a version of its own,
 and the old spelling still works but is no longer advertised.
 
 One wrinkle worth knowing: `.git` is excluded from the Docker build context,
-so `setuptools-scm` cannot read a tag there. `builddocker.sh` passes the
-version in as a build argument instead, and the Dockerfile hands it to
-`setuptools-scm` through `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`.
-A build that skips that argument is labelled `0.0.0.dev0+unknown` rather than
-borrowing the last real release number.
+so `setuptools-scm` cannot read a tag there. `builddocker.sh` and the two
+Docker workflows work out the version before the build and pass it in as a
+build argument, which the Dockerfile hands to `setuptools-scm` through
+`SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`. They ask `setuptools-scm`
+for it rather than reformatting `git describe`, because only its answer is
+PEP 440 — a describe string such as `0.1.0-23-gabc1234` raises `InvalidVersion`
+in the build backend and fails the image build outright. A build that skips the
+argument is labelled `0.0.0.dev0+unknown` rather than borrowing the last real
+release number.
 
 ## Use
 
