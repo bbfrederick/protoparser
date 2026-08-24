@@ -74,13 +74,13 @@ def build_parser() -> argparse.ArgumentParser:
         A parser with the ``parse`` and ``versions`` subcommands.
     """
     parser = argparse.ArgumentParser(
-        prog="mr-protocol-tool",
+        prog="siemens-protocol-tool",
         description="Parse Siemens MR protocol PDF exports into hierarchical JSON.",
     )
     parser.add_argument(
         "--version",
         action="version",
-        version=f"mr-protocol-tool {__version__}",
+        version=f"siemens-protocol-tool {__version__}",
         help="show the tool's version and exit",
     )
     sub = parser.add_subparsers(dest="command", required=True)

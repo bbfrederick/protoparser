@@ -1,4 +1,4 @@
-"""A cross-platform graphical front end for ``mr-protocol-tool``.
+"""A cross-platform graphical front end for ``siemens-protocol-tool``.
 
 The GUI is a page served to the user's own browser by a small server bound to
 the loopback interface. That is what makes it cross-platform without adding a
@@ -14,7 +14,7 @@ running one spawns the CLI itself, so the two cannot disagree about what a
 flag does. The equivalent command line is shown for every run, which makes the
 GUI a way to learn the tool rather than a substitute for it.
 
-Start it with ``mr-protocol-gui``, with ``mr-protocol-tool gui``, or with
+Start it with ``siemens-protocol-gui``, with ``siemens-protocol-tool gui``, or with
 ``python -m siemens_protocol.gui``.
 """
 
@@ -37,9 +37,9 @@ def build_parser() -> argparse.ArgumentParser:
         A parser for the address to bind and whether to open a browser.
     """
     parser = argparse.ArgumentParser(
-        prog="mr-protocol-gui",
+        prog="siemens-protocol-gui",
         description=(
-            "Serve the graphical front end for mr-protocol-tool and open it in "
+            "Serve the graphical front end for siemens-protocol-tool and open it in "
             "the default browser."
         ),
     )

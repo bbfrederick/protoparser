@@ -37,11 +37,11 @@ Three names describe this one project, and they are deliberately different:
 
 | | Name | Where it appears |
 | --- | --- | --- |
-| The command | **`mr-protocol-tool`** | What you type: `mr-protocol-tool parse ...` |
+| The command | **`siemens-protocol-tool`** | What you type: `siemens-protocol-tool parse ...` |
 | The distribution | `siemens-protocol` | What you install: `pip install siemens-protocol` |
 | The import | `siemens_protocol` | What you import: `import siemens_protocol` |
 
-If a command is not found, check you are typing `mr-protocol-tool` — the
+If a command is not found, check you are typing `siemens-protocol-tool` — the
 package name is not the command name.
 
 Installing puts that executable in `.venv/bin/` (`.venv\Scripts\` on Windows),
@@ -49,7 +49,7 @@ which is only on `PATH` while the environment is activated. Activating is what
 the examples below assume. To skip activation, call it by its full path instead:
 
 ```sh
-.venv/bin/mr-protocol-tool parse protocol.pdf
+.venv/bin/siemens-protocol-tool parse protocol.pdf
 ```
 
 To have the command everywhere without activating anything, install it as a
@@ -88,7 +88,7 @@ since its installer writes to `C:\Program Files\Tesseract-OCR` and adds nothing
 to `PATH`. If yours is somewhere else, name it:
 
 ```sh
-mr-protocol-tool parse protocol.pdf --ocr always --tesseract /opt/local/bin/tesseract
+siemens-protocol-tool parse protocol.pdf --ocr always --tesseract /opt/local/bin/tesseract
 ```
 
 or set `SIEMENS_PROTOCOL_TESSERACT` to the same path once and leave it set.
@@ -108,8 +108,8 @@ Between tags, `setuptools-scm` derives a development version from the distance
 to the last one, which makes an unreleased build obvious on sight:
 
 ```sh
-$ mr-protocol-tool --version
-mr-protocol-tool 0.2.1.dev3+g908a065      # 3 commits past v0.2.0
+$ siemens-protocol-tool --version
+siemens-protocol-tool 0.2.1.dev3+g908a065      # 3 commits past v0.2.0
 ```
 
 The same number reaches `siemens_protocol.__version__`, `pip show`, and the
@@ -132,27 +132,27 @@ Everything here has a graphical equivalent — see
 the primary interface and what the rest of this document describes.
 
 ```sh
-mr-protocol-tool parse examples/XA60/R01StressDyn.pdf
-mr-protocol-tool parse examples/ --out parsed/          # batch a directory
-mr-protocol-tool versions                               # list version profiles
+siemens-protocol-tool parse examples/XA60/R01StressDyn.pdf
+siemens-protocol-tool parse examples/ --out parsed/          # batch a directory
+siemens-protocol-tool versions                               # list version profiles
 
 # inventory one protocol: scans, sequences, times, and the total
-mr-protocol-tool list protocol.pdf
+siemens-protocol-tool list protocol.pdf
 
 # check a protocol against preferred values
-mr-protocol-tool check protocol.pdf
+siemens-protocol-tool check protocol.pdf
 
 # compare two protocols scan by scan
-mr-protocol-tool diff old.pdf new.pdf
+siemens-protocol-tool diff old.pdf new.pdf
 
 # compare one scan across two protocols
-mr-protocol-tool diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
+siemens-protocol-tool diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
 
 # compare two scans within one protocol
-mr-protocol-tool diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
+siemens-protocol-tool diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
 
 # narrow a comparison to one section of the scanner's tabs
-mr-protocol-tool diff old.pdf new.pdf --filter contrast
+siemens-protocol-tool diff old.pdf new.pdf --filter contrast
 ```
 
 | Option | Meaning |
@@ -172,7 +172,7 @@ Everything below can also be driven from a window, for anyone who would rather
 not type it:
 
 ```sh
-mr-protocol-gui                 # or: mr-protocol-tool gui
+siemens-protocol-gui                 # or: siemens-protocol-tool gui
 ```
 
 That serves a page on the loopback interface and opens it in your default
@@ -197,8 +197,8 @@ line rather than a substitute for it — set up a run in the window, copy the
 line, and put it in a script.
 
 ```
-$ mr-protocol-gui
-mr-protocol-tool GUI serving on http://127.0.0.1:52413/?token=...
+$ siemens-protocol-gui
+siemens-protocol-tool GUI serving on http://127.0.0.1:52413/?token=...
 Press Ctrl-C to stop.
 ```
 
@@ -226,7 +226,7 @@ network.
 sequence binary and acquisition time — and totals the scan time:
 
 ```
-$ mr-protocol-tool list examples/XA60/ELS2_20210802XA60.pdf
+$ siemens-protocol-tool list examples/XA60/ELS2_20210802XA60.pdf
  #  scan                                   sequence         TA
 --  -------------------------------------  --------  ---------
  0  localizer                              fl           19 sec
@@ -337,9 +337,9 @@ lose real readings, so second and later occurrences are suffixed positionally:
 other half of a rebuild: the diff says what moved, this says what is wrong.
 
 ```sh
-mr-protocol-tool check protocol.pdf
-mr-protocol-tool check examples/ --quiet          # every PDF beneath a directory
-mr-protocol-tool check protocol.pdf --json
+siemens-protocol-tool check protocol.pdf
+siemens-protocol-tool check examples/ --quiet          # every PDF beneath a directory
+siemens-protocol-tool check protocol.pdf --json
 ```
 
 ```
@@ -429,13 +429,13 @@ Naming the same file on both sides is the same request as giving it once, and co
 one parse rather than two:
 
 ```
-mr-protocol-tool diff p.pdf        --left-scan AP --right-scan PA   # identical
-mr-protocol-tool diff p.pdf p.pdf  --left-scan AP --right-scan PA   # to this
+siemens-protocol-tool diff p.pdf        --left-scan AP --right-scan PA   # identical
+siemens-protocol-tool diff p.pdf p.pdf  --left-scan AP --right-scan PA   # to this
 ``` Comparing the two field maps
 of one protocol is a good check that they differ only where they should:
 
 ```
-$ mr-protocol-tool diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
+$ siemens-protocol-tool diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
 SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
   parameters
     Sequence - Special
@@ -468,7 +468,7 @@ comma-separated list, and a name no section matches is an error that lists the
 ones these two files do have.
 
 ```
-$ mr-protocol-tool diff VE11C/R01_Mindfulness.pdf XA60/R01_Mindfulness.pdf --scan AAHScout_64ch --filter geometry
+$ siemens-protocol-tool diff VE11C/R01_Mindfulness.pdf XA60/R01_Mindfulness.pdf --scan AAHScout_64ch --filter geometry
 --- VE11C/R01_Mindfulness.pdf: AAHScout_64ch
 +++ XA60/R01_Mindfulness.pdf: AAHScout_64ch
 showing only sections: geometry
@@ -529,9 +529,9 @@ The mapping works in both directions — `vocab list --canonical NAME` answers
 what each release calls a standard parameter:
 
 ```sh
-mr-protocol-tool vocab list --canonical acceleration_mode
-mr-protocol-tool vocab list VE11C          # every mapping, with its notes
-mr-protocol-tool vocab check               # validate the dictionaries
+siemens-protocol-tool vocab list --canonical acceleration_mode
+siemens-protocol-tool vocab list VE11C          # every mapping, with its notes
+siemens-protocol-tool vocab check               # validate the dictionaries
 ```
 
 A lookup that misses on the literal label is retried on its normalized form, so
@@ -738,7 +738,7 @@ that scores at all is a detection candidate, so match the exact release number.
    ground-truth label the tests use.
 5. Add hand-checked scan counts to `tests/test_scans.py` and generate snapshots
    with `SIEMENS_PROTOCOL_REGEN=1`.
-4. Run `mr-protocol-tool parse FILE --emit-debug geometry.json` and check the
+4. Run `siemens-protocol-tool parse FILE --emit-debug geometry.json` and check the
    reported `value_x`, `row_pitch` and column bounds against the file. Adjust
    `LayoutConfig` on the profile only if they are off.
 

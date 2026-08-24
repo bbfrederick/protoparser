@@ -325,7 +325,7 @@ def test_a_path_with_spaces_is_quoted_for_display() -> None:
     None
     """
     shown = display_command(build_argv("parse", {"input": "my protocols/scan 1.pdf"}))
-    assert shown == "mr-protocol-tool parse 'my protocols/scan 1.pdf'"
+    assert shown == "siemens-protocol-tool parse 'my protocols/scan 1.pdf'"
 
 
 # -- the output buffer ----------------------------------------------------
@@ -480,7 +480,7 @@ def test_the_preview_builds_the_same_command_that_would_run(server: Any) -> None
         {"command": "parse", "values": {"input": "examples", "ocr": "always"}},
     )
     assert status == 200
-    assert preview["display"] == "mr-protocol-tool parse examples --ocr always"
+    assert preview["display"] == "siemens-protocol-tool parse examples --ocr always"
     assert preview["argv"] == build_argv("parse", {"input": "examples", "ocr": "always"})
 
 
@@ -625,8 +625,8 @@ def test_starting_a_run_supersedes_the_previous_one(server: Any) -> None:
     None
     """
     runner = Runner(REPO_ROOT)
-    first = runner.start(["versions"], "mr-protocol-tool versions")
-    second = runner.start(["versions"], "mr-protocol-tool versions")
+    first = runner.start(["versions"], "siemens-protocol-tool versions")
+    second = runner.start(["versions"], "siemens-protocol-tool versions")
     assert runner.current() is second
     assert second.id != first.id
     deadline = time.monotonic() + 30
@@ -643,7 +643,7 @@ def test_a_run_can_be_stopped(server: Any) -> None:
     None
     """
     runner = Runner(REPO_ROOT)
-    job = runner.start(["parse", "examples"], "mr-protocol-tool parse examples")
+    job = runner.start(["parse", "examples"], "siemens-protocol-tool parse examples")
     time.sleep(0.5)
     assert runner.stop() is True
     deadline = time.monotonic() + 30
@@ -779,7 +779,7 @@ def test_the_runner_invokes_the_installed_package(server: Any) -> None:
     """Commands run through the module, not through a script on ``PATH``.
 
     The GUI must run the code it was installed beside, which is not
-    guaranteed to be what ``mr-protocol-tool`` resolves to in the shell.
+    guaranteed to be what ``siemens-protocol-tool`` resolves to in the shell.
 
     Returns
     -------

@@ -17,6 +17,6 @@ docker run \
     -it \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     fredericklab/protoparser:${VERSION} \
-    mr-protocol-tool \
+    siemens-protocol-tool \
         list \
         /data/examples/XA60/R01StressDyn.pdf

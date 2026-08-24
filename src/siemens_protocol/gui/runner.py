@@ -251,7 +251,7 @@ class Runner:
     def command_line(argv: Sequence[str]) -> list[str]:
         """Build the full command, interpreter included.
 
-        Invoking the module rather than the ``mr-protocol-tool`` script means
+        Invoking the module rather than the ``siemens-protocol-tool`` script means
         the GUI runs the code it was installed alongside, even in an
         environment whose scripts directory is not on ``PATH``.
 

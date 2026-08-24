@@ -155,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
     """Serves the page and the small JSON API behind it."""
 
     server: GuiServer  # narrowed from BaseHTTPRequestHandler's BaseServer
-    server_version = f"mr-protocol-gui/{__version__}"
+    server_version = f"siemens-protocol-gui/{__version__}"
     protocol_version = "HTTP/1.1"
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -526,7 +526,7 @@ def launch(
     # Flushed explicitly: with --no-browser this URL is the only way in, and
     # Python block-buffers a redirected stream, so piping the GUI to a log or
     # a pager would otherwise hold the line back until the server exits.
-    print(f"mr-protocol-tool GUI serving on {server.url}", flush=True)
+    print(f"siemens-protocol-tool GUI serving on {server.url}", flush=True)
     print("Press Ctrl-C to stop.", flush=True)
     if open_browser:
         webbrowser.open(server.url)

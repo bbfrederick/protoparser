@@ -239,9 +239,9 @@ folder layout below also gives the test harness a ground-truth label per file.
 ## Command line interface
 
 ```
-mr-protocol-tool parse FILE.pdf [options]
-mr-protocol-tool parse DIR/     [options]   # batch over a directory
-mr-protocol-tool list  FILE.pdf [options]   # scan inventory with total TA
+siemens-protocol-tool parse FILE.pdf [options]
+siemens-protocol-tool parse DIR/     [options]   # batch over a directory
+siemens-protocol-tool list  FILE.pdf [options]   # scan inventory with total TA
 
 --out PATH            write JSON here (default: alongside input, .json)
 --release {auto,VB17A,VE11C,XA30,XA60}  force a profile (default: auto)

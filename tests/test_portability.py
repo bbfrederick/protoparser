@@ -688,7 +688,7 @@ def test_the_gui_gives_its_child_an_encoding_windows_can_print_with() -> None:
 def test_the_gui_runs_the_package_it_was_installed_beside() -> None:
     """Commands go through the interpreter, not a script on ``PATH``.
 
-    ``mr-protocol-tool`` is only on ``PATH`` while the environment is
+    ``siemens-protocol-tool`` is only on ``PATH`` while the environment is
     activated, and on Windows it lands in ``Scripts`` rather than ``bin``.
     Invoking the module through ``sys.executable`` sidesteps both.
 

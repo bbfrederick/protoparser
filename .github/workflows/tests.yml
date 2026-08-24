@@ -108,7 +108,7 @@ jobs:
       # on Windows is where the legacy code page bites and a console does not.
       - name: Report to a redirected stream
         shell: bash
-        run: mr-protocol-tool list examples/XA60/R01_Mindfulness.pdf > report.txt
+        run: siemens-protocol-tool list examples/XA60/R01_Mindfulness.pdf > report.txt
 
   wheel:
     name: build a platform-independent wheel

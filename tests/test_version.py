@@ -62,13 +62,13 @@ def test_installed_metadata_agrees_with_the_module() -> None:
     from importlib.metadata import version
 
     # The distribution is still named siemens-protocol; only the command was
-    # renamed to mr-protocol-tool. Looking up the command name here would
+    # renamed to siemens-protocol-tool. Looking up the command name here would
     # raise PackageNotFoundError.
     assert version("siemens-protocol") == siemens_protocol.__version__
 
 
 def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None:
-    """``mr-protocol-tool --version`` prints what the package reports.
+    """``siemens-protocol-tool --version`` prints what the package reports.
 
     Parameters
     ----------
@@ -83,18 +83,23 @@ def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None
         main(["--version"])
     assert exc.value.code == 0
     printed = capsys.readouterr().out.strip()
-    assert printed == f"mr-protocol-tool {siemens_protocol.__version__}"
+    assert printed == f"siemens-protocol-tool {siemens_protocol.__version__}"
 
 
 def test_the_command_and_distribution_names_are_distinct() -> None:
-    """No installed command is spelled like the package or the import.
+    """The commands share the project's name without colliding with it.
 
-    They are separate identifiers that happen to describe one project: you
-    ``pip install siemens-protocol``, you ``import siemens_protocol``, and you
-    run ``mr-protocol-tool`` or ``mr-protocol-gui``. Pinning the set here means
-    a future rename of one cannot quietly half-rename the others, and pinning
-    it as a set rather than a single name means adding a command is a
-    deliberate edit to this list.
+    Four identifiers describe one project: you ``pip install
+    siemens-protocol``, you ``import siemens_protocol``, and you run
+    ``siemens-protocol-tool`` or ``siemens-protocol-gui``. The commands are
+    deliberately built from the distribution name -- that is the point of the
+    rename away from ``mr-protocol-*`` -- but neither may *be* it, or what
+    ``pip install`` names and what the shell resolves would read as the same
+    thing while behaving differently.
+
+    Pinning the set means a future rename of one cannot quietly half-rename
+    the others, and pinning it as a set rather than a single name means adding
+    a command is a deliberate edit to this list.
 
     Returns
     -------
@@ -104,9 +109,9 @@ def test_the_command_and_distribution_names_are_distinct() -> None:
 
     scripts = distribution("siemens-protocol").entry_points
     console = {entry.name for entry in scripts if entry.group == "console_scripts"}
-    assert console == {"mr-protocol-tool", "mr-protocol-gui"}
+    assert console == {"siemens-protocol-tool", "siemens-protocol-gui"}
     assert not console & {"siemens-protocol", "siemens_protocol"}
-    assert all(name.startswith("mr-protocol-") for name in console)
+    assert all(name.startswith("siemens-protocol-") for name in console)
 
 
 def test_every_console_script_points_at_something_callable() -> None:

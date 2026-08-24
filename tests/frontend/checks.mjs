@@ -410,7 +410,7 @@ async function main() {
    * checked against the server rather than against a pasted transcript. */
   const releases = parse.fields.find((field) => field.name === 'release').choices.filter(
     (name) => name !== 'auto');
-  const echoed = `$ mr-protocol-tool ${bare.name}`;
+  const echoed = `$ siemens-protocol-tool ${bare.name}`;
 
   await show(spec, bare.name);
   el('run').click();

@@ -70,7 +70,7 @@ async function start() {
     el('panel').innerHTML =
       '<p class="loading">Could not reach the server. ' +
       'If this page was reloaded from a bookmark, its session token is gone: ' +
-      'restart <code>mr-protocol-gui</code> and use the URL it prints.</p>';
+      'restart <code>siemens-protocol-gui</code> and use the URL it prints.</p>';
     return;
   }
 
@@ -285,7 +285,7 @@ async function sendPreview() {
   } catch (error) {
     /* A required field left empty is the usual reason, and saying so before
      * Run is pressed is more useful than refusing afterwards. */
-    el('command').textContent = `mr-protocol-tool ${command.argv.join(' ')} …`;
+    el('command').textContent = `siemens-protocol-tool ${command.argv.join(' ')} …`;
     setStatus(error.message, 'busy');
   }
 }
