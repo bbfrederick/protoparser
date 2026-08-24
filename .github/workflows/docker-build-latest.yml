@@ -44,6 +44,33 @@ jobs:
           GITDIRECTVERSION=`git describe --tags --dirty`
           echo "GITDIRECTVERSION=${GITDIRECTVERSION}" >> $GITHUB_ENV
 
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Determine package version
+        run: |
+          # .git is excluded from the Docker build context, and "Free disk
+          # space" below deletes it outright, so setuptools-scm has nothing to
+          # read inside the image and the version has to be handed in.
+          #
+          # Ask setuptools-scm itself rather than reshaping `git describe`.
+          # Its answer is PEP 440 ("0.1.1.dev23+g8c1eba1") and describe's is
+          # not ("0.1.0-23-g8c1eba1"), and an invalid version does not fall
+          # back to anything: packaging raises InvalidVersion, the build
+          # backend aborts, and the image fails to build outright. Asking the
+          # same tool the sdist uses is also what keeps the number in the
+          # image identical to the one a source install reports.
+          python -m pip install --quiet "setuptools-scm>=8"
+          VERSION=$(python -m setuptools_scm)
+          if [ -z "$VERSION" ]; then
+            echo "::error::could not determine a version from the checkout; fetch-depth must be 0 so the tags are present"
+            exit 1
+          fi
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version: ${VERSION}"
+
       - name: Display GitVersion outputs (step output)
         run: |
           GITSHA=${{ steps.gitversion.outputs.Sha }}
@@ -102,9 +129,12 @@ jobs:
           cache-to: type=gha,mode=max
           tags: fredericklab/protoparser:latest
           build-args: |
+            VERSION=${{ env.VERSION }}
             BRANCH=${{ env.BRANCH }}
             GITVERSION=${{ env.GITVERSION }}
             GITSHA=${{ env.GITSHA }}
             GITDATE=${{ env.GITDATE }}
             GITDIRECTVERSION=${{ env.GITDIRECTVERSION }}
             BUILD_TIME=${{ env.BUILD_TIME }}
+            BUILD_DATE=${{ env.BUILD_TIME }}
+            VCS_REF=${{ env.GITSHA }}

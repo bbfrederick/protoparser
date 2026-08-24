@@ -40,7 +40,14 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
 - `src/siemens_protocol/_version.py` is generated at build time and gitignored.
 - Release with `git tag v0.2.0 && git push --tags`. Nothing else to edit.
 - Docker excludes `.git`, so the version is passed in as a build arg and
-  forwarded via `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`.
+  forwarded via `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`. That
+  string must be PEP 440, so derive it with `python -m setuptools_scm`, never
+  from `git describe`: `0.1.0-23-gabc1234` raises `InvalidVersion` in the build
+  backend, so passing it did not make an unreleased-looking image, it made no
+  image at all. `builddocker.sh` did exactly that, and both Docker workflows
+  passed no version, which is why every published image reported
+  `0.0.0.dev0+unknown`. A Docker tag cannot hold the result verbatim either --
+  `+` is illegal in a tag, so `builddocker.sh` swaps it for `_`.
 - `--version` before a subcommand = the tool's version; `--release` after one
   = the Siemens profile. `--version` survives as a hidden alias for the latter.
 - Never find-and-replace across the three names (command `siemens-protocol-tool`,
