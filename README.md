@@ -76,7 +76,8 @@ pip install -e ".[ocr]"
 | Fedora, RHEL | `sudo dnf install tesseract` |
 | Windows | `winget install UB-Mannheim.TesseractOCR`, or `choco install tesseract` |
 
-You almost certainly do not need this. Every example file of every supported
+You almost certainly do not need this unless you have scans of paper copies of pdf's (and you might!).
+Every example file of every supported
 release carries a clean native text layer, so none of them takes the OCR path;
 see [Note on OCR](#note-on-ocr). Without the extra, `--ocr never` and the
 default `--ocr auto` both work normally, and only `--ocr always` fails, saying
