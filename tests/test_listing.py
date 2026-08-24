@@ -351,7 +351,7 @@ def test_cli_list_writes_a_table(tmp_path: Path) -> None:
     None
     """
     out = tmp_path / "list.txt"
-    assert main(["list", find_example("R01StressDyn.pdf"), "--out", str(out)]) == 0
+    assert main(["list", find_example("R01StressDyn.pdf", "VE11C"), "--out", str(out)]) == 0
     text = out.read_text()
     assert "scan" in text and "sequence" in text and "TA" in text
     assert "localizer" in text

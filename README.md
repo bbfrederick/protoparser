@@ -132,7 +132,7 @@ Everything here has a graphical equivalent — see
 the primary interface and what the rest of this document describes.
 
 ```sh
-mr-protocol-tool parse examples/XA60/R01StressDynXA60.pdf
+mr-protocol-tool parse examples/XA60/R01StressDyn.pdf
 mr-protocol-tool parse examples/ --out parsed/          # batch a directory
 mr-protocol-tool versions                               # list version profiles
 
@@ -266,7 +266,7 @@ are read.
 
 ```json
 {
-  "source_file": "examples/XA60/R01StressDynXA60.pdf",
+  "source_file": "examples/XA60/R01StressDyn.pdf",
   "software_version": "XA60",
   "detection": { "method": "header-string", "confidence": "high" },
   "scanner": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",

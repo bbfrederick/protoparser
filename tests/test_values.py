@@ -11,31 +11,36 @@ import pytest
 from conftest import EXAMPLE_FILES, EXAMPLE_IDS, ParseFixture, find_example, requires_examples
 from siemens_protocol.model import Scan
 
-#: ``(file, scan, section, key, value)`` -- the same acquisition in both
+#: The protocol exported from two releases. Both exports carry the same file
+#: name, so everything below names the release rather than the file.
+R01_STRESS_DYN = "R01StressDyn.pdf"
+
+#: ``(release, scan, section, key, value)`` -- the same acquisition in both
 #: releases, which also checks that a rebuild across versions is comparable.
 KNOWN_VALUES = [
-    ("R01StressDyn.pdf", "T1_MEMPRAGE_64ch", "Routine", "Slices per slab", "176"),
-    ("R01StressDyn.pdf", "T1_MEMPRAGE_64ch", "Contrast - Common", "TR", "2530.0 ms"),
-    ("R01StressDyn.pdf", "T1_MEMPRAGE_64ch", "Contrast - Common", "TI", "1100 ms"),
-    ("R01StressDyn.pdf", "localizer", "Contrast - Common", "TE", "5.00 ms"),
-    ("R01StressDyn.pdf", "localizer", "Routine", "Concatenations", "7"),
-    ("R01StressDynXA60.pdf", "T1_MEMPRAGE_64ch", "Routine", "Slices per Slab", "176"),
-    ("R01StressDynXA60.pdf", "T1_MEMPRAGE_64ch", "Contrast - Common", "TR", "2530.0 ms"),
-    ("R01StressDynXA60.pdf", "T1_MEMPRAGE_64ch", "Contrast - Common", "TI", "1100 ms"),
-    ("R01StressDynXA60.pdf", "localizer", "Contrast - Common", "TE", "5.00 ms"),
-    ("R01StressDynXA60.pdf", "localizer", "Routine", "Concatenations", "7"),
+    ("VE11C", "T1_MEMPRAGE_64ch", "Routine", "Slices per slab", "176"),
+    ("VE11C", "T1_MEMPRAGE_64ch", "Contrast - Common", "TR", "2530.0 ms"),
+    ("VE11C", "T1_MEMPRAGE_64ch", "Contrast - Common", "TI", "1100 ms"),
+    ("VE11C", "localizer", "Contrast - Common", "TE", "5.00 ms"),
+    ("VE11C", "localizer", "Routine", "Concatenations", "7"),
+    ("XA60", "T1_MEMPRAGE_64ch", "Routine", "Slices per Slab", "176"),
+    ("XA60", "T1_MEMPRAGE_64ch", "Contrast - Common", "TR", "2530.0 ms"),
+    ("XA60", "T1_MEMPRAGE_64ch", "Contrast - Common", "TI", "1100 ms"),
+    ("XA60", "localizer", "Contrast - Common", "TE", "5.00 ms"),
+    ("XA60", "localizer", "Routine", "Concatenations", "7"),
 ]
 
 
-def _scan(parsed: ParseFixture, name: str, scan_name: str) -> Scan:
-    """Locate one scan of one example by name.
+def _scan(parsed: ParseFixture, release: str, scan_name: str) -> Scan:
+    """Locate one scan of the R01StressDyn export from one release.
 
     Parameters
     ----------
     parsed : callable
         The session-scoped parse fixture.
-    name : str
-        Base file name of the example.
+    release : str
+        Release folder the export is taken from, such as ``"XA60"``. Both
+        exports share a file name, so the release is what picks one.
     scan_name : str
         Protocol name of the scan.
 
@@ -44,16 +49,16 @@ def _scan(parsed: ParseFixture, name: str, scan_name: str) -> Scan:
     Scan
         The matching scan. Fails the test if there is none.
     """
-    for scan in parsed(find_example(name)).protocol.scans:
+    for scan in parsed(find_example(R01_STRESS_DYN, release)).protocol.scans:
         if scan.name == scan_name:
             return scan
-    pytest.fail(f"{scan_name} not found in {name}")
+    pytest.fail(f"{scan_name} not found in the {release} export")
 
 
 @requires_examples
-@pytest.mark.parametrize("name,scan_name,section,key,value", KNOWN_VALUES)
+@pytest.mark.parametrize("release,scan_name,section,key,value", KNOWN_VALUES)
 def test_known_values(
-    parsed: ParseFixture, name: str, scan_name: str, section: str, key: str, value: str
+    parsed: ParseFixture, release: str, scan_name: str, section: str, key: str, value: str
 ) -> None:
     """A hand-checked reading comes through exactly, under the right section.
 
@@ -61,8 +66,8 @@ def test_known_values(
     ----------
     parsed : callable
         The session-scoped parse fixture.
-    name : str
-        Base file name of the example.
+    release : str
+        Release the export is taken from.
     scan_name : str
         Protocol name of the scan.
     section : str
@@ -76,24 +81,22 @@ def test_known_values(
     -------
     None
     """
-    sections = _scan(parsed, name, scan_name).sections()
+    sections = _scan(parsed, release, scan_name).sections()
     assert section in sections, f"missing section {section}"
     assert sections[section].get(key) == value
 
 
 @requires_examples
-@pytest.mark.parametrize(
-    "name,expected", [("R01StressDyn.pdf", "On"), ("R01StressDynXA60.pdf", "Off")]
-)
-def test_wrapped_label_is_rejoined(parsed: ParseFixture, name: str, expected: str) -> None:
+@pytest.mark.parametrize("release,expected", [("VE11C", "On"), ("XA60", "Off")])
+def test_wrapped_label_is_rejoined(parsed: ParseFixture, release: str, expected: str) -> None:
     """The label wraps onto a second line while its value stays on the first.
 
     Parameters
     ----------
     parsed : callable
         The session-scoped parse fixture.
-    name : str
-        Base file name of the example.
+    release : str
+        Release the export is taken from.
     expected : str
         The value printed beside the wrapped label.
 
@@ -101,7 +104,7 @@ def test_wrapped_label_is_rejoined(parsed: ParseFixture, name: str, expected: st
     -------
     None
     """
-    properties = _scan(parsed, name, "localizer").sections()["Properties"]
+    properties = _scan(parsed, release, "localizer").sections()["Properties"]
     key = "Start measurement without further preparation"
     assert key in properties, sorted(properties)
     assert properties[key] == expected
@@ -120,24 +123,26 @@ def test_wrapped_value_is_rejoined(parsed: ParseFixture) -> None:
     -------
     None
     """
-    routine = _scan(parsed, "R01StressDyn.pdf", "localizer").sections()["Routine"]
+    routine = _scan(parsed, "VE11C", "localizer").sections()["Routine"]
     assert routine["Filter"] == "Prescan Normalize, Elliptical filter"
 
 
 @requires_examples
 @pytest.mark.parametrize(
-    "name,key",
-    [("R01StressDyn.pdf", "Slice group"), ("R01StressDynXA60.pdf", "Slice Group")],
+    "release,key",
+    [("VE11C", "Slice group"), ("XA60", "Slice Group")],
 )
-def test_repeated_keys_are_kept_not_overwritten(parsed: ParseFixture, name: str, key: str) -> None:
+def test_repeated_keys_are_kept_not_overwritten(
+    parsed: ParseFixture, release: str, key: str
+) -> None:
     """Three slice groups print the same labels three times over.
 
     Parameters
     ----------
     parsed : callable
         The session-scoped parse fixture.
-    name : str
-        Base file name of the example.
+    release : str
+        Release the export is taken from.
     key : str
         The repeating label, spelled as that release prints it.
 
@@ -145,7 +150,7 @@ def test_repeated_keys_are_kept_not_overwritten(parsed: ParseFixture, name: str,
     -------
     None
     """
-    geometry = _scan(parsed, name, "localizer").sections()["Geometry - Common"]
+    geometry = _scan(parsed, release, "localizer").sections()["Geometry - Common"]
     assert geometry[key] == "1"
     assert geometry[f"{key} #2"] == "2"
     assert geometry[f"{key} #3"] == "3"

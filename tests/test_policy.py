@@ -456,22 +456,23 @@ def test_the_default_policy_finds_the_real_violations(
 
 
 @requires_examples
-@pytest.mark.parametrize("name", ["R01StressDyn.pdf", "R01StressDynXA60.pdf"])
-def test_excite_pulse_durations_clear_the_bound(parsed: ParseFixture, name: str) -> None:
+@pytest.mark.parametrize("release", ["VE11C", "XA60"])
+def test_excite_pulse_durations_clear_the_bound(parsed: ParseFixture, release: str) -> None:
     """Every excite pulse in these protocols already clears the bound.
 
     Parameters
     ----------
     parsed : ParseFixture
         The session-scoped parse fixture.
-    name : str
-        Base file name of the example.
+    release : str
+        Release the export is taken from. Both carry the same file name, so
+        the release is what picks one.
 
     Returns
     -------
     None
     """
-    protocol_dict = parsed(find_example(name)).protocol.to_dict()
+    protocol_dict = parsed(find_example("R01StressDyn.pdf", release)).protocol.to_dict()
     version = protocol_dict["software_version"]
     report = check_protocol(protocol_dict, load_policy(), load_vocabulary(version))
     assert [v for v in report.violations if v.key == "Excite pulse duration"] == []
@@ -538,7 +539,7 @@ def test_cli_check_passes_a_clean_protocol(tmp_path: Path) -> None:
     code = main(
         [
             "check",
-            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
             "--policy",
             "satisfied",
             "--policy-dir",
@@ -633,7 +634,7 @@ def test_cli_check_warnings_can_pass(tmp_path: Path) -> None:
     )
     args = [
         "check",
-        find_example("R01StressDyn.pdf"),
+        find_example("R01StressDyn.pdf", "VE11C"),
         "--policy",
         "advisory",
         "--policy-dir",

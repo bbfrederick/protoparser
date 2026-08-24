@@ -387,8 +387,8 @@ def test_matched_releases_align_scan_for_scan(parsed: ParseFixture) -> None:
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     result = diff_protocols(left, right)
     assert len(result.scans) == 21
     assert not result.only_left and not result.only_right
@@ -411,8 +411,8 @@ def test_normalization_reduces_noise_without_erasing_findings(parsed: ParseFixtu
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     normalized = diff_protocols(left, right, normalize=True).substantive_count
     literal = diff_protocols(left, right, normalize=False).substantive_count
     assert 0 < normalized < literal
@@ -450,7 +450,7 @@ def test_two_scans_within_one_protocol(parsed: ParseFixture) -> None:
     -------
     None
     """
-    protocol = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
+    protocol = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
     scans = {s["name"]: s for s in protocol["scans"]}
     result = diff_scans(scans["SpinEchoFieldMap_AP"], scans["SpinEchoFieldMap_PA"])
     changed = {d.key for d in result.substantive}
@@ -473,8 +473,8 @@ def test_report_leads_with_substantive_differences(parsed: ParseFixture) -> None
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     result = diff_protocols(left, right)
     brief = render_protocol(result)
     full = render_protocol(result, show_cosmetic=True)
@@ -515,8 +515,8 @@ def test_cli_diff_two_protocols(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
             "--out",
             str(out),
         ]
@@ -550,8 +550,8 @@ def test_cli_diff_one_scan_across_two_files(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
             "--scan",
             "T1_MEMPRAGE_64ch",
             "--json",
@@ -581,7 +581,7 @@ def test_cli_diff_two_scans_within_one_file(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
             "--scan",
             "SpinEchoFieldMap_AP",
             "--scan",
@@ -619,7 +619,16 @@ def test_cli_diff_accepts_a_scan_index(tmp_path: Path) -> None:
     """
     out = tmp_path / "byindex.txt"
     code = main(
-        ["diff", find_example("R01StressDyn.pdf"), "--scan", "0", "--scan", "0", "--out", str(out)]
+        [
+            "diff",
+            find_example("R01StressDyn.pdf", "VE11C"),
+            "--scan",
+            "0",
+            "--scan",
+            "0",
+            "--out",
+            str(out),
+        ]
     )
     assert code == 0
     assert "no differences" in out.read_text()
@@ -708,8 +717,8 @@ def test_cli_diff_names_a_scan_for_each_side(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
             "--left-scan",
             "T1_MEMPRAGE_64ch",
             "--right-scan",
@@ -745,8 +754,8 @@ def test_cli_diff_one_named_side_uses_that_name_on_the_other(tmp_path: Path, sid
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
             side,
             "T1_MEMPRAGE_64ch",
             "--json",
@@ -776,7 +785,7 @@ def test_cli_diff_names_two_scans_within_one_file(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
             "--left-scan",
             "T1_MEMPRAGE_64ch",
             "--right-scan",
@@ -809,7 +818,7 @@ def test_cli_diff_accepts_an_index_per_side(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
             "--left-scan",
             "0",
             "--right-scan",
@@ -845,7 +854,9 @@ def test_cli_diff_within_one_file_needs_both_sides_named() -> None:
     -------
     None
     """
-    assert main(["diff", find_example("R01StressDyn.pdf"), "--left-scan", "localizer"]) == 1
+    assert (
+        main(["diff", find_example("R01StressDyn.pdf", "VE11C"), "--left-scan", "localizer"]) == 1
+    )
 
 
 @requires_examples
@@ -867,7 +878,7 @@ def test_cli_diff_within_one_file_given_twice_matches_giving_it_once(
     -------
     None
     """
-    pdf = find_example("R01StressDyn.pdf")
+    pdf = find_example("R01StressDyn.pdf", "VE11C")
     names = ["--left-scan", "SpinEchoFieldMap_AP", "--right-scan", "SpinEchoFieldMap_PA"]
 
     once = tmp_path / "once.json"
@@ -895,7 +906,7 @@ def test_cli_diff_recognizes_one_file_spelled_two_ways(tmp_path: Path) -> None:
     -------
     None
     """
-    pdf = find_example("R01StressDyn.pdf")
+    pdf = find_example("R01StressDyn.pdf", "VE11C")
     out = tmp_path / "spelling.json"
     code = main(
         [
@@ -939,7 +950,7 @@ def test_cli_diff_two_scans_of_one_file_finds_the_known_difference(
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
             "--left-scan",
             "SpinEchoFieldMap_AP",
             "--right-scan",
@@ -977,7 +988,7 @@ def test_cli_diff_a_scan_against_itself_reports_nothing(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
             "--left-scan",
             "localizer",
             "--right-scan",
@@ -1015,8 +1026,8 @@ def test_flow_compensation_is_matched_across_releases(tmp_path: Path) -> None:
         main(
             [
                 "diff",
-                find_example("R01StressDyn.pdf"),
-                find_example("R01StressDynXA60.pdf"),
+                find_example("R01StressDyn.pdf", "VE11C"),
+                find_example("R01StressDyn.pdf", "XA60"),
                 "--json",
                 "--out",
                 str(out),
@@ -1090,8 +1101,8 @@ def test_cli_diff_scan_mode_leads_with_the_note(tmp_path: Path) -> None:
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
             "--left-scan",
             "localizer",
             "--right-scan",
@@ -1126,8 +1137,8 @@ def test_cli_diff_scan_mode_omits_the_note_when_names_agree(tmp_path: Path) -> N
     code = main(
         [
             "diff",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
             "--scan",
             "localizer",
             "--out",
@@ -1151,8 +1162,8 @@ def test_protocol_diff_notes_every_mismatched_pair(parsed: ParseFixture) -> None
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     result = diff_protocols(left, right)
     mismatched = [s for s in result.scans if s.name_left != s.name_right]
     assert mismatched, "this pair is expected to contain a renamed scan"

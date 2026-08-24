@@ -123,7 +123,7 @@ def test_a_multi_section_parameter_is_recorded_from_every_section(parsed: ParseF
     -------
     None
     """
-    pdf = find_example("R01StressDyn.pdf")
+    pdf = find_example("R01StressDyn.pdf", "VE11C")
     scan = next(s for s in parsed(pdf).protocol.scans if s.name == "localizer")
     entry = scan.to_dict()["flat"]["TR"]
     assert entry["conflict"] is False

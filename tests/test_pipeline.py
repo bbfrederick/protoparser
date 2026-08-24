@@ -150,7 +150,7 @@ def test_ocr_path_reconstructs_the_same_structure() -> None:
     from siemens_protocol.layout.columns import split_columns
     from siemens_protocol.layout.sections import SectionMarker, current_section, parse_column
 
-    pdf = find_example("R01StressDyn.pdf")
+    pdf = find_example("R01StressDyn.pdf", "VE11C")
     profile = REGISTRY.get("VE11C")
     layout = profile.layout
     doc = pymupdf.open(pdf)

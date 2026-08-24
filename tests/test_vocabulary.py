@@ -268,8 +268,8 @@ def test_shipped_vocabularies_hold_up_against_the_examples(parsed: ParseFixture)
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     assert verify_aliases(left, right) == []
 
 
@@ -300,8 +300,8 @@ def test_a_mapping_that_steals_a_match_is_caught(parsed: ParseFixture, tmp_path:
         payload["aliases"].update(alias)
         (tmp_path / f"{version}.json").write_text(json.dumps(payload), encoding="utf-8")
 
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     problems = verify_aliases(left, right, str(tmp_path))
     assert any("steals a match" in p for p in problems)
 
@@ -322,8 +322,8 @@ def test_the_vocabulary_resolves_renamed_parameters(parsed: ParseFixture) -> Non
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
 
     without = diff_protocols(left, right, use_vocabulary=False)
     with_vocab = diff_protocols(left, right, use_vocabulary=True)
@@ -369,8 +369,8 @@ def test_the_vocabulary_reduces_orphans_without_erasing_changes(parsed: ParseFix
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     without = diff_protocols(left, right, use_vocabulary=False)
     with_vocab = diff_protocols(left, right, use_vocabulary=True)
 
@@ -418,8 +418,8 @@ def test_suggestions_come_with_evidence_and_are_not_applied(parsed: ParseFixture
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     before = dict(load_vocabulary("VE11C").aliases)
     candidates = suggest_aliases(left, right, min_support=8)
     assert candidates, "the examples should offer some candidates"
@@ -444,8 +444,8 @@ def test_suggestions_skip_already_mapped_labels(parsed: ParseFixture) -> None:
     -------
     None
     """
-    left = parsed(find_example("R01StressDyn.pdf")).protocol.to_dict()
-    right = parsed(find_example("R01StressDynXA60.pdf")).protocol.to_dict()
+    left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
+    right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
     proposed = {c.left_label for c in suggest_aliases(left, right, min_support=8)}
     assert "PAT mode" not in proposed
     assert "Coil Combine Mode" not in proposed
@@ -532,8 +532,8 @@ def test_cli_vocab_check_against_examples() -> None:
             "vocab",
             "check",
             "--against",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
         ]
     )
     assert code == 0
@@ -556,8 +556,8 @@ def test_cli_vocab_suggest(capsys: pytest.CaptureFixture) -> None:
         [
             "vocab",
             "suggest",
-            find_example("R01StressDyn.pdf"),
-            find_example("R01StressDynXA60.pdf"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            find_example("R01StressDyn.pdf", "XA60"),
         ]
     )
     assert code == 0
@@ -580,7 +580,11 @@ def test_cli_diff_can_turn_the_vocabulary_off(tmp_path: Path) -> None:
     """
     on = tmp_path / "on.txt"
     off = tmp_path / "off.txt"
-    args = ["diff", find_example("R01StressDyn.pdf"), find_example("R01StressDynXA60.pdf")]
+    args = [
+        "diff",
+        find_example("R01StressDyn.pdf", "VE11C"),
+        find_example("R01StressDyn.pdf", "XA60"),
+    ]
     main(args + ["--show-cosmetic", "--out", str(on)])
     main(args + ["--no-vocabulary", "--show-cosmetic", "--out", str(off)])
     # Without the vocabulary the parameter appears twice, as an orphan on each

@@ -19,4 +19,4 @@ docker run \
     fredericklab/protoparser:${VERSION} \
     mr-protocol-tool \
         list \
-        /data/examples/XA60/R01StressDynXA60.pdf
+        /data/examples/XA60/R01StressDyn.pdf

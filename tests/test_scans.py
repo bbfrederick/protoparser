@@ -34,7 +34,6 @@ EXPECTED_SCAN_COUNT = {
     "R01_Mindfulness.pdf": 13,
     "ELS2_20210802XA60.pdf": 15,
     "NOCICEPT_Ph2MRI515_SecondXA60.pdf": 19,
-    "R01StressDynXA60.pdf": 21,
     # XA30 counts are cross-checked against each export's table of contents,
     # which lists every scan and which the parser never reads.
     "ATE_Study.pdf": 27,
@@ -85,22 +84,23 @@ def test_scan_count(parsed: ParseFixture, pdf: str, _version: str) -> None:
 
 
 @requires_examples
-@pytest.mark.parametrize("name", ["R01StressDyn.pdf", "R01StressDynXA60.pdf"])
-def test_scan_names_and_order(parsed: ParseFixture, name: str) -> None:
+@pytest.mark.parametrize("release", ["VE11C", "XA60"])
+def test_scan_names_and_order(parsed: ParseFixture, release: str) -> None:
     """The same protocol yields the same leading scans in both releases.
 
     Parameters
     ----------
     parsed : callable
         The session-scoped parse fixture.
-    name : str
-        Base file name of the example.
+    release : str
+        Release the export is taken from. Both carry the same file name, so
+        the release is what picks one.
 
     Returns
     -------
     None
     """
-    names = [s.name for s in parsed(find_example(name)).protocol.scans]
+    names = [s.name for s in parsed(find_example("R01StressDyn.pdf", release)).protocol.scans]
     assert names[: len(R01_FIRST_SCANS)] == R01_FIRST_SCANS
 
 
