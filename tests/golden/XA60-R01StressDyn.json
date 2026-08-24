@@ -201,7 +201,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -440,7 +440,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -662,7 +662,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -904,7 +904,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1138,7 +1138,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1375,7 +1375,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1436,7 +1436,7 @@
           "Force equal slice timing": "Off",
           "Online multi-band recon.": "Online",
           "FFT scale factor": "1.00",
-          "Physio recording": "Off",
+          "Physio recording": "DICOM",
           "Triggering scheme": "Standard"
         },
         "Sequence - Assistant": {
@@ -1489,7 +1489,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.5 mm",
           "TR": "8036.0 ms",
-          "TE": "59.00 ms",
+          "TE": "66.00 ms",
           "Averages": "1",
           "Multi-band accel. factor": "1",
           "AutoAlign": "Head > Brain",
@@ -1497,7 +1497,7 @@
         },
         "Contrast - Common": {
           "TR": "8036.0 ms",
-          "TE": "59.00 ms",
+          "TE": "66.00 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle": "90 deg",
@@ -1605,7 +1605,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1640,8 +1640,8 @@
           "RF Pulse Type": "Normal",
           "Gradient Mode": "Performance",
           "Bandwidth": "2290 Hz/Px",
-          "Echo Spacing": "0.52 ms",
-          "Free Echo Spacing": "Off",
+          "Echo Spacing": "0.58 ms",
+          "Free Echo Spacing": "On",
           "EPI Factor": "104"
         },
         "Sequence - Part 2": {
@@ -1826,7 +1826,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1861,8 +1861,8 @@
           "RF Pulse Type": "Normal",
           "Gradient Mode": "Performance",
           "Bandwidth": "2290 Hz/Px",
-          "Echo Spacing": "0.52 ms",
-          "Free Echo Spacing": "Off",
+          "Echo Spacing": "0.58 ms",
+          "Free Echo Spacing": "On",
           "EPI Factor": "104"
         },
         "Sequence - Part 2": {
@@ -2054,7 +2054,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2291,7 +2291,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2528,7 +2528,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2765,7 +2765,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3002,7 +3002,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3239,7 +3239,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3473,7 +3473,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3714,7 +3714,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3949,7 +3949,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4167,7 +4167,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4404,7 +4404,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4465,7 +4465,7 @@
           "Force equal slice timing": "Off",
           "Online multi-band recon.": "Online",
           "FFT scale factor": "1.00",
-          "Physio recording": "Off",
+          "Physio recording": "DICOM",
           "Triggering scheme": "Standard"
         },
         "Sequence - Assistant": {
@@ -4634,7 +4634,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4669,8 +4669,8 @@
           "RF Pulse Type": "Normal",
           "Gradient Mode": "Performance",
           "Bandwidth": "2290 Hz/Px",
-          "Echo Spacing": "0.52 ms",
-          "Free Echo Spacing": "Off",
+          "Echo Spacing": "0.58 ms",
+          "Free Echo Spacing": "On",
           "EPI Factor": "104"
         },
         "Sequence - Part 2": {
@@ -4855,7 +4855,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249516 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4890,8 +4890,8 @@
           "RF Pulse Type": "Normal",
           "Gradient Mode": "Performance",
           "Bandwidth": "2290 Hz/Px",
-          "Echo Spacing": "0.52 ms",
-          "Free Echo Spacing": "Off",
+          "Echo Spacing": "0.58 ms",
+          "Free Echo Spacing": "On",
           "EPI Factor": "104"
         },
         "Sequence - Part 2": {

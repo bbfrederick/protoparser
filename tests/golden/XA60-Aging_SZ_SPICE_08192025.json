@@ -6,7 +6,7 @@
     "confidence": "high"
   },
   "scanner": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",
-  "page_count": 56,
+  "page_count": 58,
   "front_matter_pages": [
     1
   ],
@@ -201,7 +201,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -440,7 +440,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -662,7 +662,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -904,7 +904,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -922,10 +922,27 @@
           "Model Transition States": "On",
           "Temp. Highpass Filter": "On",
           "Threshold": "4.00",
-          "Paradigm Size": "3",
+          "Paradigm Size": "20",
           "Meas[1]": "Baseline",
           "Meas[2]": "Baseline",
           "Meas[3]": "Active",
+          "Meas[4]": "Active",
+          "Meas[5]": "Active",
+          "Meas[6]": "Active",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Meas[13]": "Active",
+          "Meas[14]": "Active",
+          "Meas[15]": "Active",
+          "Meas[16]": "Active",
+          "Meas[17]": "Active",
+          "Meas[18]": "Active",
+          "Meas[19]": "Active",
+          "Meas[20]": "Active",
           "Motion Correction": "Off",
           "Spatial Filter": "Off",
           "Measurements": "1",
@@ -972,7 +989,8 @@
       },
       "pages": [
         10,
-        11
+        11,
+        12
       ]
     },
     {
@@ -1132,7 +1150,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1150,10 +1168,27 @@
           "Model Transition States": "On",
           "Temp. Highpass Filter": "On",
           "Threshold": "4.00",
-          "Paradigm Size": "3",
+          "Paradigm Size": "20",
           "Meas[1]": "Baseline",
           "Meas[2]": "Baseline",
           "Meas[3]": "Active",
+          "Meas[4]": "Active",
+          "Meas[5]": "Active",
+          "Meas[6]": "Active",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Meas[13]": "Active",
+          "Meas[14]": "Active",
+          "Meas[15]": "Active",
+          "Meas[16]": "Active",
+          "Meas[17]": "Active",
+          "Meas[18]": "Active",
+          "Meas[19]": "Active",
+          "Meas[20]": "Active",
           "Motion Correction": "Off",
           "Spatial Filter": "Off",
           "Measurements": "600",
@@ -1199,8 +1234,9 @@
         }
       },
       "pages": [
-        12,
-        13
+        13,
+        14,
+        15
       ]
     },
     {
@@ -1357,7 +1393,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1392,18 +1428,18 @@
         }
       },
       "pages": [
-        14,
-        15
+        16,
+        17
       ]
     },
     {
       "index": 6,
-      "name": "T2w_SPC_vNav",
-      "path": "\\\\Research\\Investigators\\FeiDu\\Aging_SZ_SPICE_08192025\\T2w_SPC_vNav",
+      "name": "T2w_SPACE_GSP_vNavTrk",
+      "path": "\\\\Research\\Investigators\\FeiDu\\Aging_SZ_SPICE_08192025\\T2w_SPACE_GSP_vNavTrk",
       "header": {
-        "ta": "6:35 min",
+        "ta": "3:13 min",
         "coil_selection": "Auto",
-        "voxel_size_mm": "1.0×1.0×1.0",
+        "voxel_size_mm": "1.2×1.2×1.0",
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "spc"
@@ -1433,18 +1469,18 @@
           "Slices per Slab": "176",
           "Phase Oversampling": "0 %",
           "Slice Oversampling": "0.0 %",
-          "FOV Read": "256 mm",
+          "FOV Read": "230 mm",
           "FOV Phase": "100.0 %",
           "Slice Thickness": "1.00 mm",
-          "TR": "3200.0 ms",
-          "TE": "565.00 ms",
+          "TR": "2800.0 ms",
+          "TE": "326.00 ms",
           "Averages": "1.0",
           "Concatenations": "1",
           "AutoAlign": "---"
         },
         "Contrast - Common": {
-          "TR": "3200.0 ms",
-          "TE": "565.00 ms",
+          "TR": "2800.0 ms",
+          "TE": "326.00 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle Mode": "T2 Var",
@@ -1461,10 +1497,10 @@
           "Reordering": "Linear"
         },
         "Resolution - Common": {
-          "FOV Read": "256 mm",
+          "FOV Read": "230 mm",
           "FOV Phase": "100.0 %",
           "Slice Thickness": "1.00 mm",
-          "Base Resolution": "256",
+          "Base Resolution": "192",
           "Phase Resolution": "100 %",
           "Slice Resolution": "100 %",
           "Interpolation": "Off"
@@ -1474,17 +1510,17 @@
           "Total Factor": "2",
           "Reference Scans": "Integrated",
           "Acceleration Factor PE": "2",
-          "Reference Lines PE": "32",
+          "Reference Lines PE": "24",
           "Acceleration Factor 3D": "1",
           "Phase Partial Fourier": "Allowed",
-          "Slice Partial Fourier": "Off",
-          "Elliptical Scanning": "On"
+          "Slice Partial Fourier": "6/8",
+          "Elliptical Scanning": "Off"
         },
         "Resolution - Filter": {
-          "Raw Filter": "Off",
+          "Raw Filter": "On",
           "Elliptical Filter": "Off",
-          "Distortion Correction": "2D",
-          "Normalize": "Image Based",
+          "Distortion Correction": "3D",
+          "Normalize": "Prescan",
           "Image Filter": "Off"
         },
         "Geometry - Common": {
@@ -1496,10 +1532,10 @@
           "Slices per Slab": "176",
           "Phase Oversampling": "0 %",
           "Slice Oversampling": "0.0 %",
-          "FOV Read": "256 mm",
+          "FOV Read": "230 mm",
           "FOV Phase": "100.0 %",
           "Slice Thickness": "1.00 mm",
-          "TR": "3200.0 ms",
+          "TR": "2800.0 ms",
           "Concatenations": "1"
         },
         "Geometry - AutoAlign": {
@@ -1549,8 +1585,8 @@
           "Position": "L0.0 A20.0 H0.0 mm",
           "Orientation": "Sagittal",
           "Rotation": "0.00 deg",
-          "A >> P": "256 mm",
-          "F >> H": "256 mm",
+          "A >> P": "230 mm",
+          "F >> H": "230 mm",
           "R >> L": "176 mm",
           "Reset": "Off"
         },
@@ -1559,7 +1595,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000",
@@ -1568,14 +1604,14 @@
         "Physio - Signal": {
           "1st Signal/Mode": "None",
           "Trigger Delay": "0 ms",
-          "TR": "3200.0 ms",
+          "TR": "2800.0 ms",
           "Concatenations": "1"
         },
         "Physio - Cardiac": {
           "Fat-Water Contrast": "Standard",
           "Magn. Preparation": "None",
           "Dark Blood": "Off",
-          "FOV Read": "256 mm",
+          "FOV Read": "230 mm",
           "FOV Phase": "100.0 %",
           "Phase Resolution": "100 %"
         },
@@ -1607,22 +1643,22 @@
           "Sequence Name": "spc",
           "Dimension": "3D",
           "Excitation": "Non-sel.",
-          "RF Pulse Type": "Fast",
+          "RF Pulse Type": "Normal",
           "Gradient Mode": "Fast",
           "Flow Compensation": "None",
           "Reordering": "Linear",
-          "Bandwidth": "241 Hz/Px",
-          "Echo Spacing": "6.28 ms",
-          "Turbo Factor": "200",
-          "Echo Train Duration": "1187 ms"
+          "Bandwidth": "651 Hz/Px",
+          "Echo Spacing": "3.66 ms",
+          "Turbo Factor": "212",
+          "Echo Train Duration": "710 ms"
         },
         "Sequence - Part 2": {
-          "Introduction": "On"
+          "Introduction": "Off"
         },
         "Sequence - Special": {
           "Include Nav.": "On",
-          "Apply moco to": "parent and nav",
-          "Remeasure": "18 TRs",
+          "Apply moco to": "nav only",
+          "Remeasure": "0 TRs",
           "Reacq. threshold": "0.50",
           "Feedback Delay": "80 ms",
           "Moco ref. image": "Use Temp Ref",
@@ -1636,9 +1672,9 @@
         }
       },
       "pages": [
-        16,
-        17,
-        18
+        18,
+        19,
+        20
       ]
     },
     {
@@ -1656,7 +1692,7 @@
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
-          "Wait for User to Start": "Off",
+          "Wait for User to Start": "On",
           "Start measurements": "Single Measurement",
           "Prio Recon": "Off",
           "Auto Open Inline Display": "Off",
@@ -1674,7 +1710,7 @@
           "Slices": "92",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "210 mm",
@@ -1725,7 +1761,7 @@
           "Slices": "92",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "210 mm",
@@ -1739,7 +1775,7 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "L0.0 P0.0 H2.0",
@@ -1747,7 +1783,7 @@
           "P": "0.0 mm",
           "H": "2.0 mm",
           "Initial Orientation": "T > C",
-          "T > C": "-16.00",
+          "T > C": "-20.00",
           "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
@@ -1783,7 +1819,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Rotation": "0.00 deg",
           "A >> P": "210 mm",
           "R >> L": "210 mm",
@@ -1795,7 +1831,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1873,9 +1909,9 @@
         }
       },
       "pages": [
-        19,
-        20,
-        21
+        21,
+        22,
+        23
       ]
     },
     {
@@ -1883,7 +1919,7 @@
       "name": "dMRI_dir64_MGH_AP_LongTE",
       "path": "\\\\Research\\Investigators\\FeiDu\\Aging_SZ_SPICE_08192025\\dMRI_dir64_MGH_AP_LongTE",
       "header": {
-        "ta": "3:48 min",
+        "ta": "1:46 min",
         "coil_selection": "Auto",
         "voxel_size_mm": "1.5×1.5×1.5",
         "pat": "None",
@@ -1893,7 +1929,7 @@
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
-          "Wait for User to Start": "Off",
+          "Wait for User to Start": "On",
           "Start measurements": "Single Measurement",
           "Prio Recon": "Off",
           "Auto Open Inline Display": "Off",
@@ -1911,20 +1947,20 @@
           "Slices": "92",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "210 mm",
           "FOV Phase": "100.0 %",
           "Slice Thickness": "1.5 mm",
-          "TR": "3230.0 ms",
-          "TE": "89.20 ms",
+          "TR": "4000.0 ms",
+          "TE": "120.00 ms",
           "Multi-band accel. factor": "4",
           "AutoAlign": "Head > Brain"
         },
         "Contrast - Common": {
-          "TR": "3230.0 ms",
-          "TE": "89.20 ms",
+          "TR": "4000.0 ms",
+          "TE": "120.00 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle": "78 deg",
@@ -1962,13 +1998,13 @@
           "Slices": "92",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "210 mm",
           "FOV Phase": "100.0 %",
           "Slice Thickness": "1.5 mm",
-          "TR": "3230.0 ms",
+          "TR": "4000.0 ms",
           "Multi-Slice Mode": "Interleaved",
           "Series": "Interleaved",
           "Multi-band accel. factor": "4"
@@ -1976,7 +2012,7 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "L0.0 P0.0 H2.0",
@@ -1984,7 +2020,7 @@
           "P": "0.0 mm",
           "H": "2.0 mm",
           "Initial Orientation": "T > C",
-          "T > C": "-16.00",
+          "T > C": "-20.00",
           "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
@@ -2020,7 +2056,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
+          "Orientation": "T > C-20.0",
           "Rotation": "0.00 deg",
           "A >> P": "210 mm",
           "R >> L": "210 mm",
@@ -2032,14 +2068,14 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
         },
         "Physio - Signal": {
           "1st Signal/Mode": "None",
-          "TR": "3230.0 ms",
+          "TR": "4000.0 ms",
           "Multi-band accel. factor": "4"
         },
         "Physio - PACE": {
@@ -2047,12 +2083,12 @@
           "Multi-band accel. factor": "4"
         },
         "Diff": {
-          "Diffusion Mode": "Free",
-          "Diff. Directions": "64",
+          "Diffusion Mode": "MDDW",
+          "Diff. Directions": "20",
           "Diffusion Scheme": "Monopolar",
           "Diff. Weightings": "2",
           "b-value 1": "0 s/mm²",
-          "b-value 2": "2000 s/mm²",
+          "b-value 2": "150 s/mm²",
           "Averages 1": "1",
           "Averages 2": "1",
           "Dynamic Field Correction": "Off",
@@ -2110,9 +2146,9 @@
         }
       },
       "pages": [
-        22,
-        23,
-        24
+        24,
+        25,
+        26
       ]
     },
     {
@@ -2130,7 +2166,7 @@
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
-          "Wait for User to Start": "Off",
+          "Wait for User to Start": "On",
           "Start measurements": "Single Measurement",
           "Prio Recon": "Off",
           "Auto Open Inline Display": "Off",
@@ -2146,7 +2182,7 @@
         "Routine": {
           "Slice Group": "1",
           "Slices": "60",
-          "Distance Factor": "0 %",
+          "Distance Factor": "10 %",
           "Position": "Isocenter",
           "Orientation": "Transversal",
           "Phase Encoding Dir.": "A >> P",
@@ -2155,7 +2191,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.3 mm",
           "TR": "8000.0 ms",
-          "TE": "54.00 ms",
+          "TE": "40.00 ms",
           "Averages": "1",
           "Multi-band accel. factor": "1",
           "AutoAlign": "Head > Brain",
@@ -2163,7 +2199,7 @@
         },
         "Contrast - Common": {
           "TR": "8000.0 ms",
-          "TE": "54.00 ms",
+          "TE": "40.00 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle": "90 deg",
@@ -2188,7 +2224,7 @@
         },
         "Resolution - Acceleration": {
           "Acceleration Mode": "None",
-          "Phase Partial Fourier": "Off"
+          "Phase Partial Fourier": "6/8"
         },
         "Resolution - Filter": {
           "Raw Filter": "Off",
@@ -2201,7 +2237,7 @@
         "Geometry - Common": {
           "Slice Group": "1",
           "Slices": "60",
-          "Distance Factor": "0 %",
+          "Distance Factor": "10 %",
           "Position": "Isocenter",
           "Orientation": "Transversal",
           "Phase Encoding Dir.": "A >> P",
@@ -2261,7 +2297,7 @@
           "Rotation": "0.00 deg",
           "A >> P": "215 mm",
           "R >> L": "215 mm",
-          "F >> H": "138 mm",
+          "F >> H": "152 mm",
           "Reset": "Off"
         },
         "System - pTx": {
@@ -2269,7 +2305,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -2316,6 +2352,7 @@
           "Delay before PC scans": "0 us",
           "SENSE1 coil combine": "Off",
           "Invert RO/PE polarity": "Off",
+          "PF omits higher k-space": "Off",
           "Force GPA balance": "Off",
           "Disable freq. update": "Off",
           "Suppress 16-bit DICOM": "On",
@@ -2329,8 +2366,8 @@
         }
       },
       "pages": [
-        25,
-        26
+        27,
+        28
       ]
     },
     {
@@ -2364,7 +2401,7 @@
         "Routine": {
           "Slice Group": "1",
           "Slices": "60",
-          "Distance Factor": "0 %",
+          "Distance Factor": "10 %",
           "Position": "Isocenter",
           "Orientation": "Transversal",
           "Phase Encoding Dir.": "A >> P",
@@ -2373,7 +2410,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.3 mm",
           "TR": "8000.0 ms",
-          "TE": "54.00 ms",
+          "TE": "40.00 ms",
           "Averages": "1",
           "Multi-band accel. factor": "1",
           "AutoAlign": "Head > Brain",
@@ -2381,7 +2418,7 @@
         },
         "Contrast - Common": {
           "TR": "8000.0 ms",
-          "TE": "54.00 ms",
+          "TE": "40.00 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle": "90 deg",
@@ -2406,7 +2443,7 @@
         },
         "Resolution - Acceleration": {
           "Acceleration Mode": "None",
-          "Phase Partial Fourier": "Off"
+          "Phase Partial Fourier": "6/8"
         },
         "Resolution - Filter": {
           "Raw Filter": "Off",
@@ -2419,7 +2456,7 @@
         "Geometry - Common": {
           "Slice Group": "1",
           "Slices": "60",
-          "Distance Factor": "0 %",
+          "Distance Factor": "10 %",
           "Position": "Isocenter",
           "Orientation": "Transversal",
           "Phase Encoding Dir.": "A >> P",
@@ -2479,7 +2516,7 @@
           "Rotation": "0.00 deg",
           "A >> P": "215 mm",
           "R >> L": "215 mm",
-          "F >> H": "138 mm",
+          "F >> H": "152 mm",
           "Reset": "Off"
         },
         "System - pTx": {
@@ -2487,7 +2524,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -2534,6 +2571,7 @@
           "Delay before PC scans": "0 us",
           "SENSE1 coil combine": "Off",
           "Invert RO/PE polarity": "On",
+          "PF omits higher k-space": "Off",
           "Force GPA balance": "Off",
           "Disable freq. update": "Off",
           "Suppress 16-bit DICOM": "On",
@@ -2547,8 +2585,8 @@
         }
       },
       "pages": [
-        27,
-        28
+        29,
+        30
       ]
     },
     {
@@ -2705,7 +2743,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2755,8 +2793,8 @@
         }
       },
       "pages": [
-        29,
-        30
+        31,
+        32
       ]
     },
     {
@@ -2766,7 +2804,7 @@
       "header": {
         "ta": "12:19 min",
         "coil_selection": "Auto",
-        "voxel_size_mm": "1.1×2.2×0.9",
+        "voxel_size_mm": "1.1×2.2×1.1",
         "rel_snr": "1.00"
       },
       "sections": {
@@ -2822,7 +2860,7 @@
           "FOV F >> H": "120 mm",
           "Scan Res. A >> P": "216",
           "Scan Res. R >> L": "110",
-          "Scan Res. F >> H": "128",
+          "Scan Res. F >> H": "108",
           "Interpol. Res. A >> P": "256",
           "Interpol. Res. R >> L": "128",
           "Interpol. Res. F >> H": "128",
@@ -2897,7 +2935,7 @@
         "System - pTx": {},
         "B1 Shim TrueForm": {},
         "System - Tx/Rx": {},
-        "Frequency 1H 123.249517 MHz": {
+        "Frequency 1H 123.249550 MHz": {
           "? Ref. Amplitude 1H 0.000 V": "",
           "Reset Off": "",
           "Image Scaling 1.000": ""
@@ -2925,7 +2963,7 @@
           "Mode: BipolNav": "1 #",
           "Mode: RFspoil": "0 #",
           "Ramping time (PE)": "120 us",
-          "Grad duration (PE)": "570 us",
+          "Grad duration (PE)": "500 us",
           "Blip ramp time (PE)": "60 us",
           "Blip ramp time (SL)": "60 us",
           "Jump ramp time (JP)": "170 us",
@@ -2957,8 +2995,8 @@
         }
       },
       "pages": [
-        31,
-        32
+        33,
+        34
       ]
     },
     {
@@ -3092,7 +3130,7 @@
         },
         "System - pTx": {},
         "System - Tx/Rx": {},
-        "Frequency 1H 123.249517 MHz": {
+        "Frequency 1H 123.249550 MHz": {
           "? Ref. Amplitude 1H 0.000 V": "",
           "Reset Off": "",
           "Image Scaling 1.000": ""
@@ -3147,14 +3185,14 @@
         }
       },
       "pages": [
-        33,
-        34
+        35,
+        36
       ]
     },
     {
       "index": 14,
-      "name": "ZPL_RG_EPSI_SE_v1b_FeiDu",
-      "path": "\\\\Research\\Investigators\\FeiDu\\Aging_SZ_SPICE_08192025\\ZPL_RG_EPSI_SE_v1b_FeiDu",
+      "name": "ZPL_RG_EPSI_SE_v1b_lowres_FeiDu",
+      "path": "\\\\Research\\Investigators\\FeiDu\\Aging_SZ_SPICE_08192025\\ZPL_RG_EPSI_SE_v1b_lowres_FeiDu",
       "header": {
         "ta": "1:23 min",
         "coil_selection": "Auto",
@@ -3269,7 +3307,7 @@
           "B0 Shim": "Advanced",
           "B1 Shim": "TrueForm",
           "Adjustment Tolerance": "Auto",
-          "Adjust with Body Coil": "Off",
+          "Adjust with Body Coil": "On",
           "Confirm Frequency": "Never",
           "Assume Silicone": "Off",
           "Adj. Water Suppr.": "Off"
@@ -3287,7 +3325,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3367,8 +3405,8 @@
         }
       },
       "pages": [
-        35,
-        36
+        37,
+        38
       ]
     },
     {
@@ -3539,7 +3577,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3617,9 +3655,9 @@
         }
       },
       "pages": [
-        37,
-        38,
-        39
+        39,
+        40,
+        41
       ]
     },
     {
@@ -3790,7 +3828,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3868,9 +3906,9 @@
         }
       },
       "pages": [
-        40,
-        41,
-        42
+        42,
+        43,
+        44
       ]
     },
     {
@@ -4041,7 +4079,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4119,9 +4157,9 @@
         }
       },
       "pages": [
-        43,
-        44,
-        45
+        45,
+        46,
+        47
       ]
     },
     {
@@ -4286,7 +4324,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4361,9 +4399,9 @@
         }
       },
       "pages": [
-        46,
-        47,
-        48
+        48,
+        49,
+        50
       ]
     },
     {
@@ -4529,7 +4567,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4604,9 +4642,9 @@
         }
       },
       "pages": [
-        49,
-        50,
-        51
+        51,
+        52,
+        53
       ]
     },
     {
@@ -4766,7 +4804,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4817,8 +4855,8 @@
         }
       },
       "pages": [
-        52,
-        53
+        54,
+        55
       ]
     },
     {
@@ -4975,7 +5013,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249517 MHz",
+          "Frequency 1H": "123.249550 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -5053,9 +5091,9 @@
         }
       },
       "pages": [
-        54,
-        55,
-        56
+        56,
+        57,
+        58
       ]
     }
   ]
