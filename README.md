@@ -777,9 +777,19 @@ Two are worth calling out:
   path is written into a file rather than merely used. Each drives the
   platform-dependent code through the seam the real platform would.
 
+* **The browser front end** (`test_frontend.py`) executes `app.js` itself. It
+  runs under `node:vm` against a small DOM in `tests/frontend/`, wired to a
+  real server on a free port, and is driven the way a person drives it:
+  clicking tabs, typing in fields, walking the file picker, pressing Run. What
+  the page renders is compared against what the server sent it rather than
+  against expectations written into the test, so adding a release or an example
+  folder does not touch it. There is nothing to install — the tests skip
+  without `node`, and CI fails if they do.
+
 CI runs the suite on Linux, macOS and Windows against Python 3.10 and 3.14,
 with tesseract installed on all three so the OCR fallback is exercised
-everywhere rather than only on a developer's machine.
+everywhere rather than only on a developer's machine, and with the front-end
+tests asserted to have run rather than skipped.
 
 ## Note on OCR
 

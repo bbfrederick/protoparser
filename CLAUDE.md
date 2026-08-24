@@ -122,10 +122,31 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   catch a hand-assembled `"/"` path on macOS, where the two are identical --
   drive the seam instead, the way the rest of `test_portability.py` does.
 - Headless Chrome hangs on this machine, even on a `data:` URL, so the front end
-  cannot be checked that way. `app.js` runs fine under `node:vm` against a small
-  DOM shim and a live server, which is how it was verified. There is no
-  committed JavaScript test: `tests/test_gui.py` covers the server, the spec,
-  the argument builder and the runner, and nothing covers the browser code.
+  cannot be checked that way. `tests/test_frontend.py` runs `app.js` under
+  `node:vm` against the DOM shim in `tests/frontend/dom.mjs` and a live server,
+  driving it the way a person would. No dependency to install; the tests skip
+  without `node`, and CI asserts they did not skip.
+- The front end's expectations come from the server, not from this file: tabs
+  are compared against the spec the page was sent, the picker's listing against
+  `/api/browse` for the same directory, the previewed line against
+  `/api/preview` for the values the page is holding. That is what keeps a new
+  release or a new example folder from editing a test. Reading the page's own
+  `state` needs `vm.runInContext` -- app.js declares it with `const`, which
+  lands in the context's lexical scope and never on the sandbox object.
+- Nothing in that harness sleeps for a fixed interval; every check polls its
+  own condition to a deadline. Two things this caught, both of which had a
+  check passing for the wrong reason first: a `<dialog>` keeps its contents
+  after `close()`, so waiting for a reopened picker to show a directory is
+  answered instantly by the previous session's entries -- drive the picker
+  once, and only between directories whose listings differ. And the long
+  subprocess timeout belongs on the one `settle` that waits for the run to
+  finish, not on the checks that follow it: give them all 180 s and a page
+  where Run never re-enables takes nine minutes to report instead of eight
+  seconds.
+- The shim records every `getElementById` that missed rather than returning
+  `null`. Renaming an id in `index.html` alone otherwise throws inside a
+  listener, which in a browser looks like a button that silently stopped
+  working.
 
 ### Code Formatting
 

@@ -84,6 +84,23 @@ jobs:
             exit 1
           fi
 
+      # app.js is executed under node:vm against a live server, so node is
+      # what makes those tests real -- and they skip themselves without it,
+      # which reads like a pass in the summary. Every GitHub-hosted runner
+      # ships node (actions/checkout is itself a node action), so a skip here
+      # means something else broke and should be loud. This is also the only
+      # place the front end is exercised on Windows, where the path separator
+      # the picker renders differs from the one it was written on.
+      - name: The browser front end must actually be exercised
+        shell: bash
+        run: |
+          node --version
+          python -m pytest tests/test_frontend.py -q | tee frontend.log
+          if grep -q skipped frontend.log; then
+            echo "::error::the front-end tests skipped, so app.js was never executed"
+            exit 1
+          fi
+
       - name: Test
         run: python -m pytest -q
 
