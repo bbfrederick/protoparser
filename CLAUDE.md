@@ -158,6 +158,35 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   listener, which in a browser looks like a button that silently stopped
   working.
 
+### Vocabularies
+
+Adding one alias is rarely one edit. `saturation_region` was added to VE11C and
+XA60 alone, turned four tests red, and had to be reverted; what re-landing it
+needs is below, and the same applies to any new canonical name.
+
+- **A canonical name must be accounted for by every release.** `check()` refuses
+  one that only some define, because a one-sided name can never pair with
+  anything and that is what a typo looks like. A release that genuinely lacks
+  the parameter says so in its `absent` block, with a written reason — that is
+  how `b1_shim` and `image_scaling` pass without VB17A defining them. `absent`
+  and `aliases` may not both claim the same name.
+- **Read the label off a real export, not off a sibling release.** VB17A prints
+  `Sat. region 1`, numbering the region in the label itself, where VE11C prints
+  `Sat. region` and lets the parser add `#2` for the repeat. Copying VE11C's key
+  into VB17A would map nothing. Grep `tests/golden/*.json` for the spelling: the
+  snapshots are every example's parsed output and are quicker to search than the
+  PDFs.
+- **A release with no example that prints the parameter is not evidence it lacks
+  one.** No XA30 example prints a saturation region — only `Saturation Mode`,
+  which is a different parameter — so `absent` there is a claim about XA30, not
+  about the examples, and needs to be true of the release.
+- `test_shipped_vocabularies_hold_up_against_the_examples` verifies every shipped
+  alias against **one pair**, R01StressDyn in VE11C and XA60, and reports a
+  mapping it does not see as "mapped but never printed in this export". A label
+  that appears only in other examples fails there while being perfectly correct.
+  Widen the check to every pair that prints the label rather than deleting the
+  mapping or adding an example to that one pair.
+
 ### Code Formatting
 
 ```bash
