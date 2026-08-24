@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import socketserver
 import threading
 import webbrowser
 from http import HTTPStatus
@@ -81,6 +82,26 @@ class GuiServer(ThreadingHTTPServer):
 
     daemon_threads = True
     allow_reuse_address = True
+
+    def server_bind(self) -> None:
+        """Bind the socket without asking the resolver to name us.
+
+        ``HTTPServer.server_bind`` fills ``server_name`` from
+        ``socket.getfqdn(host)`` so that CGI handlers can report it. There are
+        none here and nothing reads the attribute -- the ``Host`` check works
+        from ``server_address`` -- but the call is a reverse lookup, and on a
+        machine whose resolver has no answer for ``127.0.0.1`` it blocks until
+        it times out. It runs inside ``serve``, before ``launch`` prints the
+        URL, so the one line carrying the session token is held behind a DNS
+        timeout and the GUI looks hung with no way into it.
+
+        Returns
+        -------
+        None
+        """
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = self.server_address[0]
+        self.server_port = self.server_address[1]
 
     def __init__(self, address: tuple[str, int], handler: type, cwd: str) -> None:
         """Bind the server and mint this session's token.

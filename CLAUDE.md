@@ -143,6 +143,16 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   finish, not on the checks that follow it: give them all 180 s and a page
   where Run never re-enables takes nine minutes to report instead of eight
   seconds.
+- `GuiServer` overrides `server_bind` to skip `socket.getfqdn`. `HTTPServer`
+  calls it to fill `server_name` for CGI handlers; there are none here and
+  nothing reads it, but it is a *reverse DNS lookup* and it runs inside
+  `serve()` -- before `launch` prints the URL that carries the session token.
+  On a machine whose resolver has no answer for `127.0.0.1` the GUI therefore
+  looks hung with no way in. This is what failed on macOS CI while Windows
+  passed, and it was invisible locally, where the lookup returns in 6 ms. The
+  test removes the resolver rather than the platform: monkeypatch
+  `socket.getfqdn` to raise and assert binding never calls it.
+
 - The shim records every `getElementById` that missed rather than returning
   `null`. Renaming an id in `index.html` alone otherwise throws inside a
   listener, which in a browser looks like a button that silently stopped

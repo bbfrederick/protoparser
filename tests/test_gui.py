@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -669,6 +670,66 @@ def test_a_command_that_cannot_be_started_is_reported() -> None:
     assert snapshot["done"]
     assert snapshot["returncode"] == 127
     assert "could not start" in snapshot["lines"][0]
+
+
+def test_binding_never_waits_on_the_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The server binds without asking for a name it does not use.
+
+    ``HTTPServer.server_bind`` fills ``server_name`` from
+    ``socket.getfqdn(host)``. Nothing here reads it -- the ``Host`` check works
+    from ``server_address`` -- but it is a reverse lookup, and a machine whose
+    resolver has no answer for ``127.0.0.1`` blocks on it until it times out.
+    That happens inside ``serve``, before ``launch`` prints the URL carrying
+    the session token, so the GUI appears to hang with no way into it. macOS CI
+    is where this showed up; the resolver is the platform difference, so the
+    test removes the resolver instead of the platform.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Used to make any reverse lookup fail loudly rather than merely be slow.
+
+    Returns
+    -------
+    None
+    """
+    asked: list[tuple] = []
+
+    def refuse(*args: Any, **kwargs: Any) -> str:
+        """Stand in for a resolver, recording the call and refusing it.
+
+        Parameters
+        ----------
+        *args : Any
+            Whatever the caller passed; only that it was called matters.
+        **kwargs : Any
+            Likewise.
+
+        Returns
+        -------
+        str
+            Never returns.
+
+        Raises
+        ------
+        AssertionError
+            Always.
+        """
+        asked.append(args)
+        raise AssertionError(f"server_bind asked the resolver to name {args}")
+
+    monkeypatch.setattr(socket, "getfqdn", refuse)
+    running = serve(port=0, cwd=REPO_ROOT)
+    try:
+        assert not asked
+        host, port = running.server_address[0], running.server_address[1]
+        assert host == "127.0.0.1"
+        # The guard that actually needs a name still has one.
+        assert f"{host}:{port}" in running.allowed_hosts()
+    finally:
+        running.runner.stop()
+        running.shutdown()
+        running.server_close()
 
 
 def test_the_launcher_prints_its_url_before_it_exits() -> None:
