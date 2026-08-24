@@ -84,9 +84,17 @@ black .
 # Sort imports (configured to match black)
 isort .
 
+# Spelling; config in pyproject skips examples/ and the golden snapshots,
+# and allows TE and TR, which are parameter keys rather than typos
+codespell
+
 # Check specific file
 black --check src/siemens_protocol/layout/sections.py
 ```
+
+CI runs all three together under `shell: bash`. That is deliberate: a multi-line
+`run` block uses pwsh on Windows, where a native command sets `$LASTEXITCODE`
+without halting, so only the last line would decide the result.
 
 ### Building and Distribution
 

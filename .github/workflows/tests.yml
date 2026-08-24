@@ -48,8 +48,16 @@ jobs:
       - name: Install
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
 
+      # shell: bash matters here. A multi-line run block uses pwsh on Windows,
+      # where a native command sets $LASTEXITCODE without halting the script,
+      # so only the last line would decide the result and a black failure
+      # would be masked by a passing codespell. bash runs with -e everywhere.
       - name: Check formatting
-        run: python -m black --check . && python -m isort --check-only .
+        shell: bash
+        run: |
+          python -m black --check .
+          python -m isort --check-only .
+          python -m codespell_lib
 
       # The OCR tests skip themselves when tesseract is unusable, and a skip
       # reads like a pass in the summary -- so a broken install would go
