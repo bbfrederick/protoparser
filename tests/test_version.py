@@ -87,12 +87,14 @@ def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None
 
 
 def test_the_command_and_distribution_names_are_distinct() -> None:
-    """The installed command is not the same string as the package name.
+    """No installed command is spelled like the package or the import.
 
     They are separate identifiers that happen to describe one project: you
-    ``pip install siemens-protocol``, you ``import siemens_protocol``, and
-    you run ``mr-protocol-tool``. Pinning it here means a future rename of
-    one cannot quietly half-rename the others.
+    ``pip install siemens-protocol``, you ``import siemens_protocol``, and you
+    run ``mr-protocol-tool`` or ``mr-protocol-gui``. Pinning the set here means
+    a future rename of one cannot quietly half-rename the others, and pinning
+    it as a set rather than a single name means adding a command is a
+    deliberate edit to this list.
 
     Returns
     -------
@@ -101,8 +103,32 @@ def test_the_command_and_distribution_names_are_distinct() -> None:
     from importlib.metadata import distribution
 
     scripts = distribution("siemens-protocol").entry_points
-    console = {e.name for e in scripts if e.group == "console_scripts"}
-    assert console == {"mr-protocol-tool"}
+    console = {entry.name for entry in scripts if entry.group == "console_scripts"}
+    assert console == {"mr-protocol-tool", "mr-protocol-gui"}
+    assert not console & {"siemens-protocol", "siemens_protocol"}
+    assert all(name.startswith("mr-protocol-") for name in console)
+
+
+def test_every_console_script_points_at_something_callable() -> None:
+    """Each declared entry point resolves and can be called.
+
+    A typo in the target of a ``[project.scripts]`` line installs happily and
+    fails only when the user runs it, which is the worst place to find out.
+
+    Returns
+    -------
+    None
+    """
+    from importlib.metadata import distribution
+
+    scripts = [
+        entry
+        for entry in distribution("siemens-protocol").entry_points
+        if entry.group == "console_scripts"
+    ]
+    assert scripts
+    for entry in scripts:
+        assert callable(entry.load())
 
 
 def test_the_console_script_reports_a_version() -> None:

@@ -41,6 +41,10 @@ dev = [
 # but the thing you type is mr-protocol-tool.
 [project.scripts]
 mr-protocol-tool = "siemens_protocol.cli:main"
+# The GUI is a page served to the browser by a loopback server, so it needs
+# no toolkit and no extra dependency -- the same reasoning that keeps OCR out
+# of the core requirements. "mr-protocol-tool gui" launches the same thing.
+mr-protocol-gui = "siemens_protocol.gui:main"
 
 # The version comes from the git tag, so there is no number to keep in step
 # anywhere: no literal in this file, none in __init__, none in a VERSION file.
@@ -55,7 +59,12 @@ version_file = "src/siemens_protocol/_version.py"
 where = ["src"]
 
 [tool.setuptools.package-data]
-siemens_protocol = ["vocabulary/*.json", "policy/*.json", "py.typed"]
+siemens_protocol = [
+    "vocabulary/*.json",
+    "policy/*.json",
+    "gui/static/*",
+    "py.typed",
+]
 
 [tool.black]
 line-length = 99

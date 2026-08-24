@@ -127,6 +127,10 @@ borrowing the last real release number.
 
 ## Use
 
+Everything here has a graphical equivalent — see
+[the graphical front end](#the-graphical-front-end) — but the command line is
+the primary interface and what the rest of this document describes.
+
 ```sh
 mr-protocol-tool parse examples/XA60/R01StressDynXA60.pdf
 mr-protocol-tool parse examples/ --out parsed/          # batch a directory
@@ -161,6 +165,60 @@ mr-protocol-tool diff old.pdf new.pdf --filter contrast
 | `--no-flatten` | Omit the flattened per-scan view (included by default). |
 | `--emit-debug PATH` | Dump per-span geometry for tuning a new version. |
 | `--stdout` | Write JSON to stdout instead of a file (single file only). |
+
+## The graphical front end
+
+Everything below can also be driven from a window, for anyone who would rather
+not type it:
+
+```sh
+mr-protocol-gui                 # or: mr-protocol-tool gui
+```
+
+That serves a page on the loopback interface and opens it in your default
+browser. There is no toolkit to install and nothing extra to `pip install`:
+the server is standard library, and the part that differs between Linux, macOS
+and Windows is the browser, which you already have. It is the same reasoning
+that keeps OCR an optional extra — a GUI toolkit would have put a
+`brew install`, an `apt install` or a hundred-megabyte wheel in front of every
+user.
+
+| | |
+| --- | --- |
+| One tab per subcommand | `parse`, `diff`, `check`, `list`, `vocab` and `versions`, with every option the command line takes |
+| A file picker that returns real paths | The server browses the filesystem, so what you pick is a path the tool can open rather than an uploaded copy |
+| The command line, always visible | Every form shows the exact command it is about to run, with a button to copy it |
+| Live output | Standard output and standard error, interleaved as the tool produces them, with a Stop button |
+
+The command line shown is not a reconstruction: the form is generated from one
+description of the tool's options, and that same description builds the
+arguments that are actually passed. So the GUI is a way to *learn* the command
+line rather than a substitute for it — set up a run in the window, copy the
+line, and put it in a script.
+
+```
+$ mr-protocol-gui
+mr-protocol-tool GUI serving on http://127.0.0.1:52413/?token=...
+Press Ctrl-C to stop.
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--port N` | Serve on this port. Default is any free one. |
+| `--host ADDR` | Interface to bind. Default `127.0.0.1`, and see the warning below. |
+| `--dir DIR` | Directory commands run in, which relative paths resolve against. Default the current one. |
+| `--no-browser` | Print the URL instead of opening a browser. |
+
+**On security.** The server runs commands as you and can read any file you can,
+so it binds to the loopback interface and mints a random token per session.
+Every request must carry that token, requests naming an unexpected `Host` are
+refused, and no CORS header is ever sent — which together keep other pages in
+your browser, and anything using DNS rebinding, from reaching it. The token is
+in the URL that gets opened and is wiped from the address bar once the page has
+it, so a copied URL or a screenshot does not hand it over. Reloading from a
+bookmark therefore will not work; start the GUI again and use the URL it
+prints. Do not widen `--host` unless you have thought about who is on the
+network.
 
 ## Listing a protocol
 

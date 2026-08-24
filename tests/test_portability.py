@@ -16,8 +16,11 @@ things that actually differ between platforms are covered:
 
 from __future__ import annotations
 
+import inspect
 import io
+import ntpath
 import os
+import posixpath
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -35,6 +38,9 @@ from siemens_protocol.extract.ocr import (
     install_hint,
     platform_key,
 )
+from siemens_protocol.gui import browse as gui_browse
+from siemens_protocol.gui import runner as gui_runner
+from siemens_protocol.gui import server as gui_server
 from siemens_protocol.model import Protocol
 from siemens_protocol.pipeline import ParseOptions
 
@@ -485,6 +491,44 @@ def test_a_stream_that_cannot_be_reconfigured_is_left_alone(
     use_utf8_output()  # must not raise
 
 
+#: Calls that read as ``open(`` but open no file, so declare no encoding.
+#: ``subprocess.Popen`` is deliberately absent: it does choose an encoding for
+#: its pipes, and one that forgets to is exactly the bug this test is for.
+NOT_FILE_OPENS = ("pymupdf.open(", "Image.open(", "webbrowser.open(")
+
+
+def _whole_call(lines: list[str], start: int) -> str:
+    """Join a call that begins on one line and may end on a later one.
+
+    Checking a single line misses an argument list broken across several,
+    which is how ``subprocess.Popen`` is normally written and how a long
+    ``open`` ends up once the formatter has wrapped it.
+
+    Parameters
+    ----------
+    lines : list of str
+        Every line of the source file.
+    start : int
+        Zero-based index of the line the call begins on.
+
+    Returns
+    -------
+    str
+        The lines from ``start`` up to the one where the parentheses opened on
+        ``start`` are closed again, joined together. Falls back to the rest of
+        the file if they never balance, which cannot happen in source that
+        parses but keeps this from running off the end.
+    """
+    depth = 0
+    collected: list[str] = []
+    for line in lines[start:]:
+        collected.append(line)
+        depth += line.count("(") - line.count(")")
+        if depth <= 0:
+            break
+    return "".join(collected)
+
+
 def test_every_file_the_package_opens_declares_an_encoding() -> None:
     """No source file relies on the platform's default text encoding.
 
@@ -504,11 +548,13 @@ def test_every_file_the_package_opens_declares_an_encoding() -> None:
                 continue
             path = os.path.join(folder, name)
             with open(path, encoding="utf-8") as handle:
-                for number, line in enumerate(handle, start=1):
-                    if "open(" not in line or "pymupdf.open(" in line or "Image.open(" in line:
-                        continue
-                    if "encoding=" not in line and '"rb"' not in line:
-                        offenders.append(f"{path}:{number}")
+                lines = handle.readlines()
+            for number, line in enumerate(lines, start=1):
+                if "open(" not in line or any(known in line for known in NOT_FILE_OPENS):
+                    continue
+                call = _whole_call(lines, number - 1)
+                if "encoding=" not in call and '"rb"' not in call:
+                    offenders.append(f"{path}:{number}")
     assert offenders == []
 
 
@@ -542,6 +588,117 @@ def test_golden_snapshots_record_posix_paths(monkeypatch: pytest.MonkeyPatch) ->
     protocol = Protocol(source_file="C:\\work\\examples\\VE11C\\R01_Mindfulness.pdf")
     snapshot = test_golden._snapshot(protocol)
     assert snapshot["source_file"] == "examples/VE11C/R01_Mindfulness.pdf"
+
+
+# --------------------------------------------------------------------------
+# The GUI
+# --------------------------------------------------------------------------
+
+
+def test_the_picker_stops_climbing_at_a_root_on_either_platform() -> None:
+    """A root has no parent, whether it is ``/``, ``C:\\`` or a UNC share.
+
+    Getting this wrong is invisible on POSIX and confusing on Windows.
+    Stripping the trailing separator turns ``C:\\`` into ``C:``, which looks
+    like a parent -- and a bare ``C:`` is resolved relative to the current
+    directory *on that drive*, so the picker's Up button would jump somewhere
+    unrelated rather than stopping.
+
+    Returns
+    -------
+    None
+    """
+    assert gui_browse._parent("C:\\", ntpath) is None
+    assert gui_browse._parent("\\\\server\\share", ntpath) is None
+    assert gui_browse._parent("C:\\protocols", ntpath) == "C:\\"
+    assert gui_browse._parent("C:\\protocols\\XA30", ntpath) == "C:\\protocols"
+
+    assert gui_browse._parent("/", posixpath) is None
+    assert gui_browse._parent("/protocols", posixpath) == "/"
+    assert gui_browse._parent("/protocols/XA30/", posixpath) == "/protocols"
+
+
+def test_the_picker_reports_paths_the_current_platform_can_reopen() -> None:
+    """Every path a listing hands back can be listed again as it stands.
+
+    The browser sends a path straight back to be browsed or run, so a listing
+    that returned anything the platform could not resolve -- a mixed
+    separator, a relative fragment -- would break on the round trip.
+
+    Returns
+    -------
+    None
+    """
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    result = gui_browse.listing(os.path.join(root, "src"))
+
+    assert os.path.isabs(result["path"])
+    assert gui_browse.listing(result["parent"])["path"] == os.path.dirname(result["path"])
+    for entry in result["entries"]:
+        assert os.path.isabs(entry["path"])
+        assert os.path.exists(entry["path"])
+        if entry["dir"]:
+            assert gui_browse.listing(entry["path"])["path"] == entry["path"]
+
+
+def test_the_picker_offers_drive_letters_only_on_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows needs drive roots; a single ``/`` reaches everything elsewhere.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Used to present each platform to the same code.
+
+    Returns
+    -------
+    None
+    """
+    monkeypatch.setattr(gui_browse.os.path, "exists", lambda path: path in ("C:\\", "D:\\"))
+
+    monkeypatch.setattr(gui_browse.sys, "platform", "win32")
+    assert gui_browse._drive_roots() == ["C:\\", "D:\\"]
+
+    for platform in ("linux", "darwin"):
+        monkeypatch.setattr(gui_browse.sys, "platform", platform)
+        assert gui_browse._drive_roots() == []
+
+
+def test_the_gui_gives_its_child_an_encoding_windows_can_print_with() -> None:
+    """A command run from the GUI writes UTF-8 whatever the code page says.
+
+    The child's output is a pipe, which is the case where Windows leaves the
+    stream on the legacy code page -- and these protocols print multiplication
+    signs and superscripts that it cannot encode. ``use_utf8_output`` fixes the
+    child's own streams, but only once it is running; setting the variable is
+    what covers a failure before that, such as a traceback from argument
+    parsing.
+
+    Returns
+    -------
+    None
+    """
+    source = inspect.getsource(gui_runner.Job.start)
+    assert 'environment["PYTHONIOENCODING"] = "utf-8"' in source
+    assert 'encoding="utf-8"' in source
+    assert 'errors="replace"' in source
+
+
+def test_the_gui_runs_the_package_it_was_installed_beside() -> None:
+    """Commands go through the interpreter, not a script on ``PATH``.
+
+    ``mr-protocol-tool`` is only on ``PATH`` while the environment is
+    activated, and on Windows it lands in ``Scripts`` rather than ``bin``.
+    Invoking the module through ``sys.executable`` sidesteps both.
+
+    Returns
+    -------
+    None
+    """
+    command = gui_runner.Runner(".").command_line(["versions"])
+    assert command[0] == sys.executable
+    assert command[1:3] == ["-m", "siemens_protocol.cli"]
 
 
 # --------------------------------------------------------------------------

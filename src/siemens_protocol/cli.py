@@ -302,6 +302,40 @@ def build_parser() -> argparse.ArgumentParser:
     versions_cmd = sub.add_parser("versions", help="list the known version profiles")
     versions_cmd.set_defaults(command="versions")
 
+    gui_cmd = sub.add_parser(
+        "gui",
+        help="open the graphical front end in a browser",
+        description=(
+            "Serve the graphical front end and open it in the default browser. "
+            "It is a page rather than a window because that needs no toolkit "
+            "installed, and it runs these same subcommands: every form shows "
+            "the command line it is about to run."
+        ),
+    )
+    gui_cmd.add_argument(
+        "--port", type=int, default=0, help="port to serve on (default: any free port)"
+    )
+    gui_cmd.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help=(
+            "interface to bind (default: 127.0.0.1). Widening this exposes a "
+            "server that runs commands as you"
+        ),
+    )
+    gui_cmd.add_argument(
+        "--dir",
+        dest="cwd",
+        metavar="DIR",
+        help="directory commands run in, which relative paths resolve against",
+    )
+    gui_cmd.add_argument(
+        "--no-browser",
+        dest="open_browser",
+        action="store_false",
+        help="print the URL instead of opening a browser",
+    )
+
     return parser
 
 
@@ -469,6 +503,30 @@ def _write_outputs(
             os.makedirs(os.path.dirname(debug_path), exist_ok=True)
         write_debug(debug_path, result)
     return out_path
+
+
+def _run_gui(args: argparse.Namespace) -> int:
+    """Run the ``gui`` subcommand.
+
+    The GUI is imported here rather than at module scope so that the ordinary
+    command line pays nothing for a front end it does not use.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` once the server has stopped, ``1`` if ``--dir`` is not one.
+    """
+    from .gui import launch
+
+    if args.cwd is not None and not os.path.isdir(args.cwd):
+        print(f"not a directory: {args.cwd}", file=sys.stderr)
+        return 1
+    return launch(host=args.host, port=args.port, cwd=args.cwd, open_browser=args.open_browser)
 
 
 def _list_versions() -> int:
@@ -1128,6 +1186,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "versions":
         return _list_versions()
+
+    if args.command == "gui":
+        return _run_gui(args)
 
     if args.command == "diff":
         return _run_diff(args)

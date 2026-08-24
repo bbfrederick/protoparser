@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>MR Protocol Tool</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <h1>MR Protocol Tool</h1>
+    <span class="version" id="version"></span>
+  </div>
+  <div class="bar-right">
+    <span class="cwd" id="cwd" title="Relative paths resolve against this directory"></span>
+    <button type="button" class="ghost" id="quit" title="Stop the server and close the GUI">Quit</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+
+<main>
+  <section class="panel" id="panel">
+    <p class="loading">Loading&hellip;</p>
+  </section>
+
+  <section class="run">
+    <div class="command-line">
+      <code id="command">mr-protocol-tool</code>
+      <button type="button" class="ghost" id="copy" title="Copy this command line">Copy</button>
+    </div>
+    <div class="actions">
+      <button type="button" class="primary" id="run">Run</button>
+      <button type="button" class="ghost" id="stop" disabled>Stop</button>
+      <span class="status" id="status"></span>
+    </div>
+  </section>
+
+  <section class="output">
+    <div class="output-head">
+      <h2>Output</h2>
+      <div>
+        <label class="inline"><input type="checkbox" id="follow" checked> Follow</label>
+        <button type="button" class="ghost" id="clear">Clear</button>
+      </div>
+    </div>
+    <pre id="log" tabindex="0" aria-live="polite"></pre>
+  </section>
+</main>
+
+<dialog id="picker">
+  <form method="dialog">
+    <div class="picker-head">
+      <strong id="picker-title">Choose a file</strong>
+      <button type="submit" value="cancel" class="ghost">Close</button>
+    </div>
+    <div class="picker-body">
+      <aside id="picker-places"></aside>
+      <div class="picker-main">
+        <div class="picker-path">
+          <button type="button" class="ghost" id="picker-up" title="Go to the parent directory">Up</button>
+          <input type="text" id="picker-current" spellcheck="false" aria-label="Current directory">
+          <button type="button" class="ghost" id="picker-go">Go</button>
+        </div>
+        <ul id="picker-list" class="picker-list"></ul>
+        <div class="picker-foot">
+          <input type="text" id="picker-name" spellcheck="false" placeholder="File name" aria-label="File name">
+          <button type="button" class="primary" id="picker-choose">Choose</button>
+        </div>
+        <p class="picker-error" id="picker-error"></p>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script src="/app.js"></script>
+</body>
+</html>

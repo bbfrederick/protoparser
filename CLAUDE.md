@@ -75,6 +75,58 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   `curl -s .../repos/OWNER/REPO/check-runs/<job_id>/annotations`. So have CI steps
   emit `::error::<message>` -- that message is what makes a red job diagnosable here.
 
+### The GUI
+
+- It is a page served to the browser by a stdlib `http.server`, not a toolkit.
+  Tkinter was the obvious choice and is the wrong one: `_tkinter` is missing
+  from this machine's Homebrew Python 3.14 (only `python-tk@3.10` is installed),
+  and Debian needs `apt install python3-tk`. That is the same non-pip step the
+  OCR extra exists to avoid. PySide6 costs ~150 MB and LGPL. The browser is
+  already installed on all three platforms.
+- `gui/commands.py` is the single description of the CLI's surface. Forms are
+  generated from it *and* arguments are built from it, so a new CLI flag is one
+  entry there and nothing else. `tests/test_gui.py` fails if a subcommand is
+  added to `cli.py` and not exposed (`gui` itself is the one exclusion — running
+  it from inside itself would nest a second server).
+- The command line the page shows comes from `/api/preview`, which calls the
+  same `build_argv` the Run button does. Do not rebuild it in JavaScript; a
+  preview that drifts from what runs is worse than no preview.
+- Output is a subprocess (`python -m siemens_protocol.cli`), not an in-process
+  `cli.main()`. `main` writes to the process-global `sys.stdout`, which cannot
+  be captured safely while the server thread is live, and a thread cannot be
+  cancelled. stdout and stderr are merged deliberately: a `warning:` line is
+  only useful beside the file that produced it.
+- The browser polls with `since` = lines it has seen, which is *absolute*,
+  while the buffer's indices shift every time the cap trims its front. Indexing
+  the list with `since` directly makes the browser silently skip output. Track
+  lines dropped and subtract. `MAX_LINES` must also clear the biggest thing the
+  tool prints — `parse --stdout` on the largest example is 33 222 lines, and a
+  cap of 20 000 was cutting the JSON's own opening brace off.
+- A loopback bind is not a security boundary: any page in the user's browser can
+  reach it, and this server runs commands. Three guards, all tested — a
+  per-session token in a header, a `Host` check (DNS rebinding), and no CORS
+  header ever. Static files come from an explicit three-name map, not a path
+  join.
+- `subprocess.Popen(` contains the substring `open(`, so it trips
+  `test_every_file_the_package_opens_declares_an_encoding`. Do not add it to
+  that test's exclusions — `Popen` really does choose an encoding for its pipes,
+  and forgetting it breaks on Windows exactly as a bare `open()` would. The test
+  now balances parentheses to read the whole call, which also covers any
+  `open(...)` Black has wrapped across lines.
+- Path arithmetic in `browse._parent` takes the path module as an argument so
+  `ntpath` rules can be driven from macOS. That is not decoration: stripping a
+  trailing separator makes `C:\` look like it has a parent (`C:`), and a bare
+  `C:` on Windows resolves against the current directory *on that drive*, so
+  the picker's Up button would jump somewhere unrelated. Normalize, then
+  compare. A test asserting `entry["path"].startswith(dir + os.sep)` cannot
+  catch a hand-assembled `"/"` path on macOS, where the two are identical --
+  drive the seam instead, the way the rest of `test_portability.py` does.
+- Headless Chrome hangs on this machine, even on a `data:` URL, so the front end
+  cannot be checked that way. `app.js` runs fine under `node:vm` against a small
+  DOM shim and a live server, which is how it was verified. There is no
+  committed JavaScript test: `tests/test_gui.py` covers the server, the spec,
+  the argument builder and the runner, and nothing covers the browser code.
+
 ### Code Formatting
 
 ```bash
