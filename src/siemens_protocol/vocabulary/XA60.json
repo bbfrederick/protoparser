@@ -10,6 +10,7 @@
     "Confirm Frequency": "confirm_frequency",
     "Image Scaling": "image_scaling",
     "Load Images to MR View&GO": "load_images_to_viewer",
+    "Saturation Region": "saturation_region",
     "Special Saturation": "special_saturation"
   },
   "notes": {

@@ -10,6 +10,7 @@
     "Img. Scale Cor.": "image_scaling",
     "Load images to viewer": "load_images_to_viewer",
     "PAT mode": "acceleration_mode",
+    "Sat. region": "saturation_region",
     "Special sat.": "special_saturation"
   },
   "notes": {
