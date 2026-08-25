@@ -35,7 +35,8 @@ RUN apt-get update --fix-missing && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends tzdata && \
     apt-get install -y --no-install-recommends cgroup-tools && \
-    apt-get install -y --no-install-recommends tesseract-ocr
+    apt-get install -y --no-install-recommends tesseract-ocr && \
+    apt-get install -y --no-install-recommends epiphany-browser
 
 # Pull in the newest versions of packages to address any security issues
 RUN apt-get dist-upgrade -y 
