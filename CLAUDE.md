@@ -78,9 +78,12 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
   probed pytesseract directly (PATH only) while `ocr_page` uses full discovery, so
   the OCR tests skipped on Windows where the tool itself finds the binary --
   invisibly, because a skip reads like a pass. CI now asserts they actually ran.
-- `gh` is not installed. Job logs need auth (403), but annotations do not:
-  `curl -s .../repos/OWNER/REPO/check-runs/<job_id>/annotations`. So have CI steps
-  emit `::error::<message>` -- that message is what makes a red job diagnosable here.
+- `gh` is installed and authenticated, so CI is readable directly: `gh pr checks <n>`
+  for status (`--watch` blocks until they finish), `gh run list` to find a run, and
+  `gh run view <id> --log` or `--log-failed` for the output. Job logs 403 only without
+  auth, so the old `curl` route to a check-run's annotations is no longer needed.
+  Still have CI steps emit `::error::<message>`: `--log-failed` hands back the whole
+  step, and that one line is what says which of a few hundred assertions went red.
 
 ### The GUI
 
