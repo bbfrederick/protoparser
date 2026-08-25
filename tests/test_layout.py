@@ -7,7 +7,7 @@ each rule and to construct the cases the example files happen not to contain.
 from __future__ import annotations
 
 from siemens_protocol.extract.spans import Span
-from siemens_protocol.layout.columns import Column, split_columns
+from siemens_protocol.layout.columns import Column, split_columns, value_origin
 from siemens_protocol.layout.rows import build_rows, row_pitch
 from siemens_protocol.layout.sections import Record, SectionMarker, parse_column
 from siemens_protocol.model import build_sections
@@ -327,3 +327,98 @@ def test_a_section_split_across_a_page_break_merges() -> None:
         "Sequence Name": "tfl_me",
         "Bandwidth 1": "650 Hz/Px",
     }
+
+
+def spectroscopy_column(overhang: float) -> list[Span]:
+    """A parameter column whose last value overhangs the rest.
+
+    Modelled on the sampling-table file name a spectroscopy sequence prints
+    on its Special card, which runs far wider than the column's other values.
+
+    Parameters
+    ----------
+    overhang : float
+        Right edge of that one value, in points.
+
+    Returns
+    -------
+    list of Span
+        A title, six ordinary rows, and the over-wide row.
+    """
+    spans = [title("Sequence - Special", 100.0)]
+    for i in range(6):
+        y = 116.0 + i * 11.0
+        spans += [label(f"EPSI. Num {i}", y), value("16 #", y)]
+    y = 116.0 + 6 * 11.0
+    spans += [
+        label("PE Samp EPSI", y),
+        Span("SegsGS_216x108_Ry3B143_SyV60.dat", VALUE_X, y, overhang, y + 11.0, size=8.0),
+    ]
+    return spans
+
+
+def test_one_overhanging_value_does_not_move_the_value_boundary() -> None:
+    """The widest value in a column must not decide where values begin.
+
+    ``value_x_ratio`` is applied to ``x_max``, so a single value wide enough
+    to overhang the column would otherwise push the boundary right of the
+    value cell itself and leave every row on the page reading as label text.
+
+    Returns
+    -------
+    None
+    """
+    column = one_column(spectroscopy_column(341.5))
+    assert column.x_max == 341.5
+    assert column.value_x <= VALUE_X
+    rows = build_rows(column, LAYOUT)
+    assert all(r.has_value for r in rows if r.label.startswith(("EPSI", "PE Samp")))
+    pairs = {r.label: r.value for r in rows}
+    assert pairs["PE Samp EPSI"] == "SegsGS_216x108_Ry3B143_SyV60.dat"
+
+
+def test_the_value_origin_is_measured_off_the_column() -> None:
+    """The origin is where the values are set, whatever the widest one does.
+
+    Returns
+    -------
+    None
+    """
+    assert value_origin(spectroscopy_column(341.5), LAYOUT) == VALUE_X
+
+
+def test_an_indented_sub_row_is_not_read_as_the_value_origin() -> None:
+    """A repeating group indents its labels a few points, not half a column.
+
+    Those indented labels form the only other cluster of left edges in the
+    column, so nothing but the floor keeps them from being taken for the
+    value cell -- which would file every label of the group as a value.
+
+    Returns
+    -------
+    None
+    """
+    spans = [title("Geometry - Common", 100.0)]
+    for i in range(6):
+        y = 116.0 + i * 11.0
+        spans += [label("Slices", y, x=INDENT_X), value(str(i), y)]
+    spans += [label("Slice group", 182.0), value("1", 182.0)]
+    assert value_origin(spans, LAYOUT) == VALUE_X
+    column = one_column(spans)
+    assert all(r.has_label and r.has_value for r in build_rows(column, LAYOUT)[1:])
+
+
+def test_a_column_too_small_to_name_an_origin_falls_back_to_the_ratio() -> None:
+    """Two rows name no origin, and guessing one is worse than the ratio.
+
+    Returns
+    -------
+    None
+    """
+    spans = [label("Reset", 100.0), value("Off", 100.0)]
+    assert value_origin(spans, LAYOUT) is None
+    column = one_column(spans)
+    x_min = min(s.x0 for s in spans)
+    x_max = max(s.x1 for s in spans)
+    assert column.value_x == x_min + (x_max - x_min) * LAYOUT.value_x_ratio
+    assert build_rows(column, LAYOUT)[0].value == "Off"

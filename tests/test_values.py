@@ -207,3 +207,44 @@ def test_no_column_bleed(parsed: ParseFixture, pdf: str, _version: str) -> None:
         for section, entries in scan.sections().items():
             for key in entries:
                 assert not key.startswith("#"), (scan.name, section, key)
+
+
+#: A collapsed value column shows up as a flood of parameters printed with no
+#: value at all. Across the examples the worst healthy scan sits under 5%,
+#: while the spectroscopy scans that first exposed the fault ran to 21-30%.
+MAX_VALUELESS_SHARE = 0.15
+
+
+@requires_examples
+@pytest.mark.parametrize("pdf,_version", EXAMPLE_FILES, ids=EXAMPLE_IDS)
+def test_a_scan_is_not_mostly_parameters_without_a_value(
+    parsed: ParseFixture, pdf: str, _version: str
+) -> None:
+    """A scan whose values mostly vanished has lost its label/value boundary.
+
+    Siemens does print the occasional parameter with nothing beside it, so
+    the count cannot be zero. What cannot happen is a whole page of them:
+    that is a column whose boundary landed right of the value cell, which
+    leaves every reading glued onto its own key and unqueryable.
+
+    Parameters
+    ----------
+    parsed : callable
+        The session-scoped parse fixture.
+    pdf : str
+        Path to the example.
+    _version : str
+        Version from the folder name. Unused here.
+
+    Returns
+    -------
+    None
+    """
+    for scan in parsed(pdf).protocol.scans:
+        entries = [v for section in scan.sections().values() for v in section.values()]
+        if not entries:
+            continue
+        valueless = sum(1 for v in entries if not v)
+        assert (
+            valueless <= len(entries) * MAX_VALUELESS_SHARE
+        ), f"{scan.name}: {valueless} of {len(entries)} parameters have no value"

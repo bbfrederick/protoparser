@@ -2805,7 +2805,8 @@
         "ta": "12:19 min",
         "coil_selection": "Auto",
         "voxel_size_mm": "1.1×2.2×1.1",
-        "rel_snr": "1.00"
+        "rel_snr": "1.00",
+        "sequence": "ZPL_epsi_fid_v1h"
       },
       "sections": {
         "Properties": {
@@ -2908,55 +2909,59 @@
           "Coil Selection": "Auto Coil Select",
           "Radial Sorting": "Off",
           "MSMA": "S - C - T",
-          "Sagittal": "R >> L"
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H"
         },
-        "Coronal A >> P": {
-          "Transversal F >> H": ""
+        "System - Adjustments": {
+          "Adjustment Strategy": "Standard",
+          "B0 Shim": "Advanced",
+          "B1 Shim": "TrueForm",
+          "Adjustment Tolerance": "Auto",
+          "Adjust with Body Coil": "Off",
+          "Confirm Frequency": "Never",
+          "Assume Silicone": "Off",
+          "Adj. Water Suppr.": "Off"
         },
-        "System - Adjustments": {},
-        "Adjustment Strategy Standard": {
-          "B0 Shim Advanced": "",
-          "B1 Shim TrueForm": "",
-          "Adjustment Tolerance Auto": "",
-          "Adjust with Body Coil Off": "",
-          "Confirm Frequency Never": "",
-          "Assume Silicone Off": "",
-          "Adj. Water Suppr. Off": ""
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "240 mm",
+          "R >> L": "240 mm",
+          "F >> H": "100 mm",
+          "Reset": "Off"
         },
-        "System - Adjust Volume": {},
-        "Position Isocenter": {
-          "Orientation Transversal": "",
-          "Rotation 0.00 deg": "",
-          "A >> P 240 mm": "",
-          "R >> L 240 mm": "",
-          "F >> H 100 mm": "",
-          "Reset Off": ""
+        "System - pTx": {
+          "B1 Shim": "TrueForm"
         },
-        "System - pTx": {},
-        "B1 Shim TrueForm": {},
-        "System - Tx/Rx": {},
-        "Frequency 1H 123.249550 MHz": {
-          "? Ref. Amplitude 1H 0.000 V": "",
-          "Reset Off": "",
-          "Image Scaling 1.000": ""
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249550 MHz",
+          "? Ref. Amplitude 1H": "0.000 V",
+          "Reset": "Off",
+          "Image Scaling": "1.000"
         },
-        "Sequence - Common": {},
-        "Sequence Name ZPL_epsi_fid_v1h": {
-          "Preparation Scans 10": "",
-          "Delta Frequency -2.40 ppm": "",
-          "Dimension 3D": "",
-          "Save Uncombined Off": "",
-          "Bandwidth 167000 Hz": "",
-          "Acquisition Duration 0 ms": "",
-          "Remove Oversampling Off": ""
+        "Sequence - Common": {
+          "Sequence Name": "ZPL_epsi_fid_v1h",
+          "Preparation Scans": "10",
+          "Delta Frequency": "-2.40 ppm",
+          "Dimension": "3D",
+          "Save Uncombined": "Off",
+          "Bandwidth": "167000 Hz",
+          "Acquisition Duration": "0 ms",
+          "Remove Oversampling": "Off"
         },
-        "Sequence - Nuclei": {},
-        "TX/RX Nucleus 1H": {
-          "TX/RX Delta Frequency 0 Hz": "",
-          "TX Nucleus None": "",
-          "TX Delta Frequency 0 Hz": ""
+        "Sequence - Nuclei": {
+          "TX/RX Nucleus": "1H",
+          "TX/RX Delta Frequency": "0 Hz",
+          "TX Nucleus": "None",
+          "TX Delta Frequency": "0 Hz"
         },
         "Sequence - Special": {
+          "PE Samp EPSI": "SegsGS_216x108_Ry3B143_SyV60.dat",
+          "PE Samp EBSI": "No Customized Sampling Pattern",
+          "PE Samp DEPI": "No Customized Sampling Pattern",
+          "Mode: DEPInav": "0 #",
           "Mode: DEPIref": "0 #",
           "Mode: MotionNav": "60 #",
           "Mode: WatSupNav": "1 #",
@@ -2987,11 +2992,6 @@
           "Fnav. Read points": "100 #",
           "Fnav. Dwell time": "10 us",
           "Mnav. Echo Pair": "10 #"
-        },
-        "PE Samp EPSI SegsGS_216x108_Ry3B143_SyV60.dat": {
-          "PE Samp EBSI No Customized Sampling Pattern": "",
-          "PE Samp DEPI No Customized Sampling Pattern": "",
-          "Mode: DEPInav 0 #": ""
         }
       },
       "pages": [
@@ -3007,7 +3007,8 @@
         "ta": "1:32 min",
         "coil_selection": "Auto",
         "voxel_size_mm": "1.1×1.0×1.7",
-        "rel_snr": "1.00"
+        "rel_snr": "1.00",
+        "sequence": "ZPL_epsi_fid"
       },
       "sections": {
         "Properties": {
@@ -3110,49 +3111,61 @@
         },
         "System - Adjustments": {
           "Adjustment Strategy": "Standard",
-          "B0 Shim": "Advanced"
+          "B0 Shim": "Advanced",
+          "B1 Shim": "TrueForm",
+          "Adjustment Tolerance": "Auto",
+          "Adjust with Body Coil": "Off",
+          "Confirm Frequency": "Never",
+          "Assume Silicone": "Off",
+          "Adj. Water Suppr.": "Off"
         },
-        "B1 Shim TrueForm": {
-          "Adjustment Tolerance Auto": "",
-          "Adjust with Body Coil Off": "",
-          "Confirm Frequency Never": "",
-          "Assume Silicone Off": "",
-          "Adj. Water Suppr. Off": ""
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "240 mm",
+          "R >> L": "240 mm",
+          "F >> H": "100 mm",
+          "Reset": "Off"
         },
-        "System - Adjust Volume": {},
-        "Position Isocenter": {
-          "Orientation Transversal": "",
-          "Rotation 0.00 deg": "",
-          "A >> P 240 mm": "",
-          "R >> L 240 mm": "",
-          "F >> H 100 mm": "",
-          "Reset Off": ""
+        "System - pTx": {
+          "B1 Shim": "TrueForm"
         },
-        "System - pTx": {},
-        "System - Tx/Rx": {},
-        "Frequency 1H 123.249550 MHz": {
-          "? Ref. Amplitude 1H 0.000 V": "",
-          "Reset Off": "",
-          "Image Scaling 1.000": ""
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249550 MHz",
+          "? Ref. Amplitude 1H": "0.000 V",
+          "Reset": "Off",
+          "Image Scaling": "1.000"
         },
-        "Sequence - Common": {},
-        "Sequence Name ZPL_epsi_fid": {
-          "Preparation Scans 0": "",
-          "Delta Frequency 0.00 ppm": "",
-          "Dimension 3D": "",
-          "Save Uncombined Off": "",
-          "Acquisition Delay 2.30 ms": "",
-          "Bandwidth 167000 Hz": "",
-          "Acquisition Duration 0 ms": "",
-          "Remove Oversampling Off": ""
+        "Sequence - Common": {
+          "Sequence Name": "ZPL_epsi_fid",
+          "Preparation Scans": "0",
+          "Delta Frequency": "0.00 ppm",
+          "Dimension": "3D",
+          "Save Uncombined": "Off",
+          "Acquisition Delay": "2.30 ms",
+          "Bandwidth": "167000 Hz",
+          "Acquisition Duration": "0 ms",
+          "Remove Oversampling": "Off"
         },
-        "Sequence - Nuclei": {},
-        "TX/RX Nucleus 1H": {
-          "TX/RX Delta Frequency 0 Hz": "",
-          "TX Nucleus None": "",
-          "TX Delta Frequency 0 Hz": ""
+        "Sequence - Nuclei": {
+          "TX/RX Nucleus": "1H",
+          "TX/RX Delta Frequency": "0 Hz",
+          "TX Nucleus": "None",
+          "TX Delta Frequency": "0 Hz"
         },
         "Sequence - Special": {
+          "PE Samp EPSI": "SegsV2g_216x72_COy4Rz1SEGz2Prep9.dat",
+          "PE Samp Prep": "tablePrepV2e_5FA5TP_fa27.dat",
+          "Mode: T2-Prep": "9 #",
+          "Mode: MotionNav": "0 #",
+          "Mode: WatSupNav": "0 #",
+          "Mode: BipolNav": "1 #",
+          "Mode: RFspoil": "0 #",
+          "Ramping time (PE)": "130 us",
+          "Grad duration (PE)": "510 us",
+          "Blip ramp time (PE)": "60 us",
+          "Blip ramp time (SL)": "60 us",
           "Spoil duration (SP)": "4000 us",
           "EPSI. Num: Echo": "18 #",
           "EPSI. Echo: Shift": "0 #",
@@ -3170,18 +3183,6 @@
           "FOV Pos, Read": "0 um",
           "FOV Pos, Phase": "0 um",
           "FOV Pos, Slice": "0 um"
-        },
-        "PE Samp EPSI SegsV2g_216x72_COy4Rz1SEGz2Prep9.dat": {
-          "PE Samp Prep tablePrepV2e_5FA5TP_fa27.dat": "",
-          "Mode: T2-Prep 9 #": "",
-          "Mode: MotionNav 0 #": "",
-          "Mode: WatSupNav 0 #": "",
-          "Mode: BipolNav 1 #": "",
-          "Mode: RFspoil 0 #": "",
-          "Ramping time (PE) 130 us": "",
-          "Grad duration (PE) 510 us": "",
-          "Blip ramp time (PE) 60 us": "",
-          "Blip ramp time (SL) 60 us": ""
         }
       },
       "pages": [

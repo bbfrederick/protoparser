@@ -7,13 +7,14 @@ into an ordered stream of records and section markers.
 
 from __future__ import annotations
 
-from .columns import Column, split_columns
+from .columns import Column, split_columns, value_origin
 from .rows import Row, build_rows, row_pitch
 from .sections import UNSECTIONED, Record, SectionMarker, current_section, parse_column
 
 __all__ = [
     "Column",
     "split_columns",
+    "value_origin",
     "Row",
     "build_rows",
     "row_pitch",

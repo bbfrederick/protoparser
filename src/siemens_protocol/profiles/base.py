@@ -62,6 +62,19 @@ class LayoutConfig:
         Fraction of page width separating the left and right table columns.
     value_x_ratio : float
         Fraction of a column's content width separating labels from values.
+    value_origin_tolerance : float
+        Spans whose left edges differ by less than this share a cell origin.
+        Sets the tolerance for OCR jitter when the value cell's origin is
+        measured directly; see
+        :func:`~siemens_protocol.layout.columns.value_origin`.
+    value_origin_min_ratio : float
+        Fraction of the span between a column's leftmost and rightmost cell
+        origins that a measured value origin must sit right of, so that the
+        indented labels of a repeating group cannot be mistaken for the value
+        cell.
+    value_origin_min_share : float
+        Fraction of a column's spans that must share the measured origin
+        before it is trusted over ``value_x_ratio``.
     row_tolerance : float
         Spans whose ``y0`` differ by less than this belong to the same row.
     row_overlap_ratio : float
@@ -97,6 +110,9 @@ class LayoutConfig:
     header_box_max_y: float = 130.0
     column_split_ratio: float = 0.5
     value_x_ratio: float = 0.55
+    value_origin_tolerance: float = 2.0
+    value_origin_min_ratio: float = 0.25
+    value_origin_min_share: float = 0.15
     row_tolerance: float = 3.5
     row_overlap_ratio: float = 0.5
     continuation_gap_ratio: float = 0.9

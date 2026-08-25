@@ -279,6 +279,21 @@ pip install .
   the same reason.
 - Font size/weight are trustworthy only on native pages (`Row.has_font_metrics`).
   Section titles are detected by x-outdent, which survives OCR; row gaps do not.
+- The label/value boundary cannot be a fraction of `x_max`, because `x_max` is a
+  *maximum*. One value wide enough to overhang its column -- the sampling-table
+  file name a spectroscopy sequence prints on its Special card,
+  `PE Samp EPSI | SegsGS_216x108_...dat` -- pushed `value_x` right of the value
+  cell itself, and then every value on that page read as label text: the first
+  such row became a section title and the rest hung off it with empty values.
+  This is why `columns.value_origin` measures where the values actually start
+  (the densest cluster of left edges right of the labels) and caps the boundary
+  there. It affected VE11C and XA60 alike -- the difference the user saw was only
+  where the page break fell. The floor at `value_origin_min_ratio` is what keeps
+  a repeating group's indented labels from being read as the value cell.
+- A collapsed value column is invisible in a spot check, because every reading is
+  still *there*, glued onto its own key. What makes it visible is the valueless
+  rate: `test_a_scan_is_not_mostly_parameters_without_a_value` holds every scan
+  under 15%, where the healthy worst case is 4.7% and the broken scans ran 21-30%.
 
 
 ## Style Conventions
