@@ -23,6 +23,16 @@
         "sequence": "gre",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "gradient echo",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -192,6 +202,16 @@
         "sequence": "AALScout",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "AutoAlign scout -- the kernel under AAHead_Scout",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -320,6 +340,17 @@
         "rel_snr": "1.00",
         "sequence": "tfl_mgh_multiecho",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "MEMPRAGE -- multi-echo MPRAGE",
+        "signature": "memprage",
+        "evidence": [
+          "sequence binary 'tfl_mgh_multiecho'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -487,6 +518,16 @@
         "sequence": "tse",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo spin echo",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -637,6 +678,14 @@
         "rel_snr": "1.00",
         "sequence": "tse_crusher",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "family": "site-installed sequence (the export labels the binary USER, not SIEMENS)",
+        "evidence": [
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -791,6 +840,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -957,6 +1017,17 @@
         "sequence": "ep2d_se_VASO",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "Manus Donahue",
+        "family": "VASO spin-echo EPI",
+        "signature": "ep2d-se-vaso",
+        "evidence": [
+          "sequence binary 'ep2d_se_VASO'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1090,6 +1161,17 @@
         "rel_snr": "1.00",
         "sequence": "mjd_mclean_flipback",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "McLean Hospital",
+        "family": "VASO with flip-back recovery",
+        "signature": "mclean-vaso-flipback",
+        "evidence": [
+          "sequence binary 'mjd_mclean_flipback'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1233,6 +1315,17 @@
         "sequence": "mjd_mclean_flipback",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "McLean Hospital",
+        "family": "VASO with flip-back recovery",
+        "signature": "mclean-vaso-flipback",
+        "evidence": [
+          "sequence binary 'mjd_mclean_flipback'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1374,6 +1467,17 @@
         "rel_snr": "1.00",
         "sequence": "mjd_mclean_flipback",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "McLean Hospital",
+        "family": "VASO with flip-back recovery",
+        "signature": "mclean-vaso-flipback",
+        "evidence": [
+          "sequence binary 'mjd_mclean_flipback'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1517,6 +1621,17 @@
         "sequence": "mjd_mclean_flipback",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "McLean Hospital",
+        "family": "VASO with flip-back recovery",
+        "signature": "mclean-vaso-flipback",
+        "evidence": [
+          "sequence binary 'mjd_mclean_flipback'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1659,6 +1774,17 @@
         "sequence": "mjd_mclean_flipback",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "McLean Hospital",
+        "family": "VASO with flip-back recovery",
+        "signature": "mclean-vaso-flipback",
+        "evidence": [
+          "sequence binary 'mjd_mclean_flipback'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1800,6 +1926,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1966,6 +2103,17 @@
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2105,6 +2253,17 @@
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2238,6 +2397,17 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -2378,6 +2548,17 @@
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2516,6 +2697,17 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -2656,6 +2848,17 @@
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2795,6 +2998,17 @@
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2933,6 +3147,16 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_pace",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI with PACE prospective motion correction",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -3090,6 +3314,16 @@
         "sequence": "gre_field_mapping",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "gradient-echo field map",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -3209,6 +3443,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -3375,6 +3620,17 @@
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -3540,6 +3796,17 @@
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -3678,6 +3945,17 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_DE_pcasl_iPAT",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "unattributed (site-installed)",
+        "family": "dual-echo pseudo-continuous ASL",
+        "signature": "dual-echo-pcasl",
+        "evidence": [
+          "sequence binary 'ep2d_DE_pcasl_iPAT'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -3818,6 +4096,16 @@
         "rel_snr": "1.00",
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -3970,6 +4258,16 @@
         "rel_snr": "1.00",
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {

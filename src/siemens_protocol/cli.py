@@ -26,6 +26,11 @@ from .pipeline import (
 from .policy import PolicyError, PolicyReport, check_protocol, load_policy
 from .profiles import REGISTRY
 from .report import name_mismatch_note, render_protocol, render_scan, section_filter_note
+from .sequences import FLAGGED, SELECTORS, STOCK, THIRD_PARTY, UNRECOGNIZED
+from .sequences import check as check_catalog
+from .sequences import describe, identify_protocol, load_catalog
+from .sequences import render as render_sequences
+from .sequences import summarize
 from .vocabsuggest import suggest_aliases, verify_aliases
 from .vocabulary import available, check, load_vocabulary
 
@@ -254,6 +259,43 @@ def build_parser() -> argparse.ArgumentParser:
     add_release_option(list_cmd, "force a Siemens release profile for a PDF input (default: auto)")
     list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
     list_cmd.add_argument("--out", help="write the listing here instead of stdout")
+
+    sequences_cmd = sub.add_parser(
+        "sequences",
+        help="report which scans run third-party sequences",
+        description=(
+            "Say which of a protocol's scans run a sequence Siemens did not "
+            "supply. Siemens' own conversion handles stock sequences between "
+            "releases; a third-party sequence is what has to be rebuilt and "
+            "checked by hand, so this is the list of work a migration implies. "
+            "A scan the catalog cannot account for is reported as unrecognized "
+            "rather than guessed at in either direction."
+        ),
+    )
+    sequences_cmd.add_argument("input", help="a PDF, or a previously parsed JSON file")
+    add_release_option(
+        sequences_cmd, "force a Siemens release profile for a PDF input (default: auto)"
+    )
+    sequences_cmd.add_argument(
+        "--only",
+        choices=sorted(SELECTORS),
+        help=(
+            f"list only these scans; {FLAGGED!r} means third-party and unrecognized "
+            "together, which is the rebuild list. The counts always cover every scan"
+        ),
+    )
+    sequences_cmd.add_argument(
+        "--explain",
+        action="store_true",
+        help="show the evidence behind each identification, and the catalog's notes",
+    )
+    sequences_cmd.add_argument(
+        "--catalog",
+        metavar="DIR",
+        help="a directory of additional signature catalogs, overlaying the shipped one",
+    )
+    sequences_cmd.add_argument("--json", action="store_true", help="emit the findings as JSON")
+    sequences_cmd.add_argument("--out", help="write the report here instead of stdout")
 
     vocab_cmd = sub.add_parser(
         "vocab",
@@ -713,6 +755,65 @@ def _run_list(args: argparse.Namespace) -> int:
         text = json.dumps(payload, indent=2, ensure_ascii=False)
     else:
         text = render_listing(protocol, rows)
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+    else:
+        print(text)
+    return 0
+
+
+def _run_sequences(args: argparse.Namespace) -> int:
+    """Run the ``sequences`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` when the input or the catalog could not be
+        read. Finding third-party sequences is not a failure: they are the
+        expected result on a research protocol, and making them an exit code
+        would turn every such run into a scripted error.
+    """
+    try:
+        catalog = load_catalog(args.catalog)
+        protocol = _load_protocol(args.input, args.version, need_flat=False)
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    for problem in check_catalog(catalog):
+        # Reported rather than raised: a flawed overlay entry should not stop
+        # the shipped signatures from being useful.
+        print(f"catalog: {problem}", file=sys.stderr)
+
+    found = identify_protocol(protocol, catalog)
+    if args.json:
+        counts = summarize(found)
+        payload = {
+            "source_file": protocol.get("source_file", ""),
+            "software_version": protocol.get("software_version", ""),
+            "counts": counts,
+            "families": sorted({describe(i) for i in found if i.verdict == THIRD_PARTY}),
+            "scans": [
+                {
+                    "index": i.index,
+                    "name": i.name,
+                    "sequence": i.binary,
+                    **i.to_dict(include_note=args.explain),
+                }
+                for i in found
+                if i.verdict in SELECTORS.get(args.only, (THIRD_PARTY, UNRECOGNIZED, STOCK))
+            ],
+        }
+        text = json.dumps(payload, indent=2, ensure_ascii=False)
+    else:
+        text = render_sequences(protocol, found, explain=args.explain, only=args.only)
 
     if args.out:
         with open(args.out, "w", encoding="utf-8") as handle:
@@ -1198,6 +1299,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         return _run_list(args)
+
+    if args.command == "sequences":
+        return _run_sequences(args)
 
     if args.command == "vocab":
         return _run_vocab(args)

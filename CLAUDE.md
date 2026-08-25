@@ -194,6 +194,78 @@ needs is below, and the same applies to any new canonical name.
   Widen the check to every pair that prints the label rather than deleting the
   mapping or adding an example to that one pair.
 
+### Third-party sequence detection
+
+`sequences/catalog.json` names the customer sequences; `sequences/__init__.py`
+matches scans against it. The point of the feature is that Siemens' conversion
+handles stock sequences and third-party ones are what force a manual rebuild.
+
+- **Three detectors, each sufficient alone, never AND-ed.** The sequence binary,
+  the Special card, and VB17A's stated `sequence_owner`. An AND of the first two
+  finds *zero* third-party sequences on VB17A,
+  which prints no Special card in any of its 110 example scans -- the only
+  `Special` string in those PDFs is `Special sat.`, a Geometry parameter, which
+  is why the card is matched on the section *title* and not on a substring.
+  VB17A compensates by printing the sequence *file* name (`cmrr_mbep2d_bold`)
+  where Numaris/X prints only the kernel (`epfid`). Conversely one XA30 scan
+  (`T1w_MEMPR_vNav`) has no readable sequence field and only the card finds it.
+- **`base_binaries` gates the Special-card route only, never `binaries`.** It
+  exists to split one fingerprint across the kernels it rides on -- CMRR's MB
+  card is `epfid` for BOLD and `epse` for diffusion. Gating the binary route
+  with it would drop every VB17A match. An empty binary deliberately *fails* a
+  gate, so a kernel-less scan falls to a lower-priority entry that says the
+  base sequence is unknown rather than being handed BOLD or diffusion by sort
+  order.
+- **`priority`, not condition count, decides between two matches.** The CMRR
+  package entry names six labels; the multiband variant names two plus a
+  kernel. The variant is the narrower answer and the count says the opposite.
+- **`unrecognized` is a third verdict, not a soft "third-party".** On the
+  corpus every non-empty Special card *is* third party, but that is a fact
+  about 19 files, not a law: `resolve` is a Siemens product sequence that does
+  print a Special card on some builds. Calling it `stock` is the worse error --
+  it reports a protocol as converting cleanly when it may not. Keep the stock
+  kernel list conservative for the same reason: a missing kernel costs a look,
+  a wrong `stock` costs a rebuild.
+- Do not read `\\USER\` as a customer marker. It is the protocol tree root, and
+  `\\USER\...\localizer` is stock. `CustomerSeq` is the real marker and appears
+  in none of the shipped examples, so `path_markers` is supported but
+  unexercised by the corpus.
+- `Scan.to_dict` recomputes provenance on every serialization rather than
+  caching it, so a catalog fix reaches JSON parsed before the fix. `listing.py`
+  recomputes it too. Both read `sections`, never `flat`, so `--no-flatten` JSON
+  keeps working -- there is a test for that.
+- `test_sequences.py` asserts against the golden snapshots rather than a frozen
+  list, so a new example folder tightens it. It fails if a shipped signature
+  matches nothing in the examples: a signature no example exercises is one
+  nothing verifies. Widen the examples rather than deleting the signature.
+- **Most vendor attributions come from the protocol's owner, not the exports.**
+  No export names a sequence's author; the exports give a binary name, a
+  parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past
+  that -- CMRR, MGH, UIUC, Manus Donahue -- was supplied by the user and lives
+  in each signature's `note`. Do not "correct" one of these from a plausible
+  inference: the note says where it came from, and a guess overwriting a
+  confirmation is a silent regression. `dual-echo-pcasl` is deliberately left
+  `unattributed (site-installed)` because that one is genuinely unknown.
+- **`sequence_owner` is the export saying so, so it decides the verdict.** VB17A
+  introduces the binary with `SIEMENS:` or `USER:`; `profiles/vb17a.py` has
+  always parsed it and nothing consumed it until now. It partitions all 110
+  VB17A scans and agrees with both fingerprints everywhere, which is what
+  earns it precedence over `stock_binaries` -- a static list beaten by a
+  per-scan statement. A signature still supplies the *identity*: `USER` says
+  the sequence is not Siemens', not which one it is. Only VB17A prints it, so
+  it cannot replace the other two.
+- **A stated owner of SIEMENS contradicting a third-party signature yields
+  `unrecognized`, not a silent pick.** Two disagreeing signals is exactly a
+  scan a person should look at, which is what that verdict means. No shipped
+  example does it; the branch exists so a future one is visible rather than
+  quietly resolved.
+- The corpus is now fully accounted for -- 385 third-party, 204 stock, 0
+  unrecognized -- and `test_the_shipped_examples_are_now_fully_accounted_for`
+  pins that. `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so
+  reports third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is
+  also in `stock_binaries`. If a new example reintroduces an unaccounted scan,
+  relax that test deliberately -- do not loosen the catalog.
+
 ### Code Formatting
 
 ```bash

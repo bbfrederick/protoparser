@@ -23,6 +23,16 @@
         "rel_snr": "1.00",
         "sequence": "fl"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH -- spoiled gradient echo",
+        "evidence": [
+          "sequence binary 'fl' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "Off",
@@ -295,6 +305,16 @@
         "rel_snr": "1.00",
         "sequence": "fl"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH -- spoiled gradient echo",
+        "evidence": [
+          "sequence binary 'fl' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "Off",
@@ -504,6 +524,16 @@
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tfl_me"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "MEMPRAGE -- multi-echo MPRAGE",
+        "signature": "memprage",
+        "evidence": [
+          "Special card prints Gradient moment factor, Readout trajectory"
+        ],
+        "special_parameters": 5
       },
       "sections": {
         "Properties": {
@@ -759,6 +789,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -984,6 +1024,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
       },
       "sections": {
         "Properties": {
@@ -1211,6 +1261,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -1437,6 +1497,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 11
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "Off",
@@ -1656,6 +1726,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
       },
       "sections": {
         "Properties": {
@@ -1883,6 +1963,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -2108,6 +2198,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
       },
       "sections": {
         "Properties": {
@@ -2335,6 +2435,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -2561,6 +2671,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 18
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -2786,6 +2906,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "tir"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo inversion recovery",
+        "evidence": [
+          "sequence binary 'tir' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -3027,6 +3157,16 @@
         "rel_snr": "1.00",
         "sequence": "tse"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo spin echo",
+        "evidence": [
+          "sequence binary 'tse' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -3267,6 +3407,16 @@
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "resolve"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "RESOLVE -- readout-segmented diffusion",
+        "evidence": [
+          "sequence binary 'resolve' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {

@@ -385,6 +385,7 @@ def test_cli_list_json(tmp_path: Path) -> None:
         "sequence",
         "acquisition_time",
         "seconds",
+        "verdict",
     }
 
 

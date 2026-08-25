@@ -1,5 +1,11 @@
 """A one-line-per-scan inventory of a protocol, with the total scan time.
 
+Each line also carries the mark :mod:`~..sequences` gives the scan, so the
+inventory answers "how long is this protocol" and "how much of it will a
+release migration make me rebuild" in one pass. The mark is recomputed here
+rather than read from a stored verdict, so a listing of JSON parsed before a
+catalog correction reflects the correction.
+
 The acquisition time is printed differently by each release -- VE11C writes
 ``6:02`` and ``8.0 s``, the Numaris/X releases write ``6:02 min`` and
 ``9 sec`` -- so the durations have to be parsed before they can be added up.
@@ -13,6 +19,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Mapping
+
+from .sequences import STOCK, THIRD_PARTY, UNRECOGNIZED, default_catalog, identify
+
+#: Mark printed against each verdict, matching the ``sequences`` report so a
+#: reader moving between the two commands reads the same symbols.
+_VERDICT_MARK = {THIRD_PARTY: "*", UNRECOGNIZED: "?", STOCK: " "}
 
 #: ``6:02 min``, ``6:02``, and defensively ``1:02:03`` -- a colon-separated
 #: clock, optionally followed by a unit word that adds nothing.
@@ -108,6 +120,9 @@ class ScanRow:
         The acquisition time as printed, kept verbatim for display.
     seconds : float or None
         The parsed duration, or ``None`` when it could not be read.
+    verdict : str
+        One of :data:`~..sequences.VERDICTS`, saying whether the scan runs a
+        third-party sequence.
     """
 
     index: int
@@ -115,6 +130,7 @@ class ScanRow:
     sequence: str
     acquisition_time: str
     seconds: float | None
+    verdict: str = STOCK
 
     def to_dict(self) -> dict:
         """Serialize the row.
@@ -130,6 +146,7 @@ class ScanRow:
             "sequence": self.sequence,
             "acquisition_time": self.acquisition_time,
             "seconds": None if self.seconds is None else round(self.seconds, 3),
+            "verdict": self.verdict,
         }
 
 
@@ -137,8 +154,9 @@ def build_listing(protocol: Mapping) -> list[ScanRow]:
     """One row per scan, in acquisition order.
 
     Takes the serialized form rather than a :class:`~.model.Protocol` so a
-    previously parsed JSON file can be listed too. Only the scan header is
-    read, so JSON written with ``--no-flatten`` works as well.
+    previously parsed JSON file can be listed too. Only the scan header and
+    its sections are read -- never the flattened view -- so JSON written with
+    ``--no-flatten`` works as well.
 
     Parameters
     ----------
@@ -150,6 +168,7 @@ def build_listing(protocol: Mapping) -> list[ScanRow]:
     list of ScanRow
         The rows, ordered as the scans appear in the document.
     """
+    catalog = default_catalog()
     rows: list[ScanRow] = []
     for position, scan in enumerate(protocol.get("scans", [])):
         header = scan.get("header", {}) or {}
@@ -161,6 +180,7 @@ def build_listing(protocol: Mapping) -> list[ScanRow]:
                 sequence=header.get("sequence", ""),
                 acquisition_time=printed,
                 seconds=parse_acquisition_time(printed),
+                verdict=identify(scan, catalog).verdict,
             )
         )
     return rows
@@ -177,7 +197,8 @@ def _column_widths(rows: list[ScanRow]) -> tuple[int, int, int, int]:
     Returns
     -------
     tuple of int
-        Widths for the index, name, sequence and time columns.
+        Widths for the index, name, sequence and time columns. The verdict
+        mark is one character wide by construction and needs none.
     """
     return (
         max([len("#")] + [len(str(r.index)) for r in rows]),
@@ -210,21 +231,31 @@ def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
     lines = [
         heading,
         "",
-        f"{'#':>{w_index}}  {'scan':<{w_name}}  {'sequence':<{w_seq}}  {'TA':>{w_time}}",
-        f"{'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}",
+        f"  {'#':>{w_index}}  {'scan':<{w_name}}  {'sequence':<{w_seq}}  {'TA':>{w_time}}",
+        f"  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}",
     ]
     for row in rows:
         time = row.acquisition_time if row.seconds is not None else f"{row.acquisition_time}?"
         lines.append(
-            f"{row.index:>{w_index}}  {row.name:<{w_name}}  "
+            f"{_VERDICT_MARK[row.verdict]} {row.index:>{w_index}}  {row.name:<{w_name}}  "
             f"{row.sequence:<{w_seq}}  {time:>{w_time}}"
         )
 
     known = [r.seconds for r in rows if r.seconds is not None]
     total = format_duration(sum(known))
     label = f"total ({len(rows)} scans)"
-    lines.append(f"{'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}")
-    lines.append(f"{'':>{w_index}}  {label:<{w_name}}  {'':<{w_seq}}  {total:>{w_time}}")
+    lines.append(f"  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}")
+    lines.append(f"  {'':>{w_index}}  {label:<{w_name}}  {'':<{w_seq}}  {total:>{w_time}}")
+
+    marked = sum(1 for r in rows if r.verdict != STOCK)
+    if marked:
+        # Named here rather than only in the 'sequences' report, because the
+        # inventory is what a person reads when deciding whether a protocol
+        # is worth converting at all.
+        lines.append(
+            f"\n{marked} of {len(rows)} scans do not run a recognized Siemens sequence "
+            "(* third-party, ? not accounted for). Run 'sequences' for what they are."
+        )
 
     unread = len(rows) - len(known)
     if unread:

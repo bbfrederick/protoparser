@@ -315,6 +315,12 @@ siemens-protocol-tool versions                               # list version prof
 # inventory one protocol: scans, sequences, times, and the total
 siemens-protocol-tool list protocol.pdf
 
+# which scans run a sequence Siemens did not supply
+siemens-protocol-tool sequences protocol.pdf
+
+# just the ones a migration has to rebuild, with the evidence
+siemens-protocol-tool sequences protocol.pdf --only flagged --explain
+
 # check a protocol against preferred values
 siemens-protocol-tool check protocol.pdf
 
@@ -403,26 +409,37 @@ sequence binary and acquisition time — and totals the scan time:
 
 ```
 $ siemens-protocol-tool list examples/XA60/ELS2_20210802XA60.pdf
- #  scan                                   sequence         TA
---  -------------------------------------  --------  ---------
- 0  localizer                              fl           19 sec
- 1  AAHScout                               fl           17 sec
- 2  T1_MEMPRAGE_64ch                       tfl_me     6:02 min
- 3  slice_positioning 22 degree angle CCF  epfid        10 sec
- 4  rfMRI_REST_AP_CCF                      epfid     10:10 min
- 5  rfMRI_REST_PA_CCF_distortion           epfid        18 sec
- 6  SpinEchoFieldMap AP CCF                epse          8 sec
- 7  VOC_run1_AP_CCF                        epfid      4:10 min
- 8  VOC_run2_AP_CCF                        epfid      4:10 min
- 9  VOC_run3_AP_CCF                        epfid      4:10 min
-10  VOC_run4_AP_CCF                        epfid      4:10 min
-11  EmotionConflict_AP_CCF                 epfid     13:24 min
-12  t2_tse_dark-fluid_tra                  tir        4:14 min
-13  pd+t2_tse_tra                          tse        2:11 min
-14  resolve_4scan_trace_tra_p2_192         resolve    1:55 min
---  -------------------------------------  --------  ---------
-    total (15 scans)                                     55:48
+examples/XA60/ELS2_20210802XA60.pdf (XA60)
+
+   #  scan                                   sequence         TA
+  --  -------------------------------------  --------  ---------
+   0  localizer                              fl           19 sec
+   1  AAHScout                               fl           17 sec
+*  2  T1_MEMPRAGE_64ch                       tfl_me     6:02 min
+*  3  slice_positioning 22 degree angle CCF  epfid        10 sec
+*  4  rfMRI_REST_AP_CCF                      epfid     10:10 min
+*  5  rfMRI_REST_PA_CCF_distortion           epfid        18 sec
+*  6  SpinEchoFieldMap AP CCF                epse          8 sec
+*  7  VOC_run1_AP_CCF                        epfid      4:10 min
+*  8  VOC_run2_AP_CCF                        epfid      4:10 min
+*  9  VOC_run3_AP_CCF                        epfid      4:10 min
+* 10  VOC_run4_AP_CCF                        epfid      4:10 min
+* 11  EmotionConflict_AP_CCF                 epfid     13:24 min
+  12  t2_tse_dark-fluid_tra                  tir        4:14 min
+  13  pd+t2_tse_tra                          tse        2:11 min
+  14  resolve_4scan_trace_tra_p2_192         resolve    1:55 min
+  --  -------------------------------------  --------  ---------
+      total (15 scans)                                     55:48
+
+10 of 15 scans do not run a recognized Siemens sequence (* third-party, ? not
+accounted for). Run 'sequences' for what they are.
 ```
+
+The leading mark is the one thing here that is not copied off the page: `*`
+means the scan runs a sequence Siemens did not supply, `?` that the tool could
+not account for it either way. Ten of these fifteen scans are third-party, and
+that number rather than the 55:48 is what decides how much work a release
+migration is — see [third-party sequences](#third-party-sequences).
 
 Times are shown exactly as the export prints them, which is not consistent:
 VE11C writes `6:02` and `8.0 s`, the Numaris/X releases write `6:02 min` and
@@ -434,9 +451,199 @@ count printed underneath. It is never counted as zero — a total that quietly
 omits a scan reads as though it covered everything.
 
 `--json` emits the same data with each duration in seconds plus a
-`total_seconds`, for scripting. The input may be a PDF or a JSON file from
-`parse`, including one written with `--no-flatten`, since only scan headers
-are read.
+`total_seconds`, and each row's `verdict`, for scripting. The input may be a
+PDF or a JSON file from `parse`, including one written with `--no-flatten`:
+the mark is derived from scan headers and sections, never from the flattened
+view.
+
+## Third-party sequences
+
+This is the reason the tool exists. Siemens' own conversion moves *stock*
+sequences between releases reliably. What forces a manual rebuild — and a
+side-by-side comparison of two PDFs — is a third-party sequence: CMRR's
+multiband EPI, MGH's navigated MPRAGE, a site's own spectroscopy binary. The
+new release either has no equivalent installed or has one whose parameters do
+not line up. `sequences` says which scans those are.
+
+```
+$ siemens-protocol-tool sequences examples/XA60/ELS2_20210802XA60.pdf
+examples/XA60/ELS2_20210802XA60.pdf (XA60)
+
+10 third-party, 0 unrecognized, 5 stock, of 15 scans
+
+third-party sequences present:
+  - CMRR (University of Minnesota) -- EPI package (C2P), multiband off or not printed
+  - CMRR (University of Minnesota) -- multiband EPI, BOLD
+  - MGH / A. A. Martinos Center -- MEMPRAGE -- multi-echo MPRAGE
+
+   #  scan                                   sequence  identified as
+  --  -------------------------------------  --------  -------------
+   0  localizer                              fl        Siemens -- FLASH -- spoiled gradient echo
+   1  AAHScout                               fl        Siemens -- FLASH -- spoiled gradient echo
+*  2  T1_MEMPRAGE_64ch                       tfl_me    MGH / A. A. Martinos Center -- MEMPRAGE -- multi-echo MPRAGE
+*  3  slice_positioning 22 degree angle CCF  epfid     CMRR (University of Minnesota) -- multiband EPI, BOLD
+*  4  rfMRI_REST_AP_CCF                      epfid     CMRR (University of Minnesota) -- multiband EPI, BOLD
+   ...
+  12  t2_tse_dark-fluid_tra                  tir       Siemens -- turbo inversion recovery
+  13  pd+t2_tse_tra                          tse       Siemens -- turbo spin echo
+  14  resolve_4scan_trace_tra_p2_192         resolve   Siemens -- RESOLVE -- readout-segmented diffusion
+
+* rebuild and check by hand   ? not accounted for, check by hand
+```
+
+| Option | Meaning |
+| --- | --- |
+| `--only {third-party,unrecognized,stock,flagged}` | List only these scans. `flagged` is third-party and unrecognized together — the rebuild list. Counts always cover every scan. |
+| `--explain` | Show the evidence behind each identification, and the catalog's notes. |
+| `--catalog DIR` | A directory of signature catalogs overlaying the shipped one. |
+| `--release {auto,VB17A,VE11C,XA30,XA60}` | Force a release profile for a PDF input. |
+| `--json` | Emit the findings as JSON. |
+| `--out PATH` | Write the report here instead of stdout. |
+
+Finding third-party sequences is not an error exit. A research protocol is
+expected to be full of them, and an exit code would make every ordinary run
+look like a scripted failure.
+
+### The three signals
+
+None is always present, so all three are used, and each is sufficient alone.
+
+**The sequence binary.** `header.sequence` names the kernel. On VB17A this is
+the sequence *file* name — `cmrr_mbep2d_bold`, `mjd_mclean_flipback`,
+`tfl_mgh_multiecho` — and identifies the sequence outright. On the Numaris/X
+releases and VE11C it is only the kernel, so CMRR's multiband EPI and Siemens'
+stock `ep2d_bold` both report `epfid` and the name decides nothing.
+
+**The Special card.** `Sequence - Special` holds the parameters the sequence
+author added, so its labels were chosen by that author rather than by Siemens,
+and they are the same on every release the sequence was ported to. This is the
+detector that separates the two `epfid` cases. In the 30 shipped examples,
+169 scans print CMRR's `MB LeakBlock kernel` and `Online multi-band recon.`
+and every one of them is `epfid` or `epse`; no stock sequence prints either.
+
+**The stated owner.** VB17A, alone among the releases, introduces the binary
+with a label naming who owns it — `SIEMENS:` for a stock sequence, `USER:` for
+one built at the site — which the profile records as `sequence_owner`. That is
+not an inference from a fingerprint; it is the scanner saying so. It partitions
+all 110 VB17A example scans with no disagreement against the other two
+detectors, so where it is present it *decides* the verdict, while a signature
+still supplies the identity — `USER` says a sequence is not Siemens', not which
+one it is. The later releases stop printing it, so it cannot replace the others.
+
+The asymmetry is what forces all three: **VB17A prints no Special card at all** —
+110 scans across five exports, none of them with one. (The only "Special"
+string in those PDFs is `Special sat.`, a Geometry saturation parameter, which
+is why the card is matched by section title and not by substring.) Meanwhile
+one XA30 export prints a scan named `T1w_MEMPR_vNav` with no sequence field
+that could be read at all, and only the Special card identifies it.
+
+### Three verdicts, and why the third one exists
+
+| Verdict | Meaning |
+| --- | --- |
+| `third-party` | The catalog names the sequence, and it is not Siemens'. Rebuild and check it. |
+| `stock` | The export states Siemens as the owner, or the binary is a listed Siemens kernel — and either way the scan prints no sequence-specific parameters. |
+| `unrecognized` | No detector could account for it, or two of them disagreed. |
+
+`unrecognized` is deliberately not a finding of "third-party". Across the
+shipped corpus, every scan with a non-empty Special card does turn out to run
+a third-party sequence — but that is a fact about these 19 files, not a law.
+`resolve` is a Siemens product sequence and does print a Special card on some
+builds; a corpus that happens not to exercise it would let "non-empty card ⇒
+third-party" look universal right up until it reported a stock sequence as
+needing a rebuild. Nor is it a finding of "stock", which would be the worse
+error: it would report a protocol as converting cleanly when it may not.
+
+It means *check this by hand*, and `--explain` says what could not be accounted
+for — an unlisted kernel, or a Special card no signature matched.
+
+It is also what two disagreeing signals produce. If a scan matches a
+third-party signature but the export states its owner is `SIEMENS`, neither
+claim is quietly preferred: the scan is reported `unrecognized` with both
+statements shown, because a contradiction is exactly the case a person should
+look at. No scan in the shipped examples does this.
+
+For the same reason the stock kernel list is conservative. Leaving a genuine
+Siemens kernel off it produces an `unrecognized` verdict — a false alarm,
+which costs a look — rather than a wrong `stock` one, which costs a rebuild.
+As of the current catalog every scan in all 30 snapshots is accounted for:
+**385 third-party, 204 stock, 0 unrecognized.**
+
+### The catalog
+
+`src/siemens_protocol/sequences/catalog.json` is data, like the
+[vocabularies](#standard-parameter-names) and for the same reason: a wrong
+entry hides real work instead of merely failing to name it. Each signature
+carries a note recording the evidence behind it, printed by `--explain`.
+
+```json
+{
+  "id": "cmrr-mb-epi-bold",
+  "vendor": "CMRR (University of Minnesota)",
+  "family": "multiband EPI, BOLD",
+  "priority": 20,
+  "note": "The MB parameters are CMRR's own and appear on no Siemens kernel ...",
+  "match": {
+    "binaries": ["cmrr_mbep2d_bold"],
+    "base_binaries": ["epfid"],
+    "special_all": ["MB LeakBlock kernel", "Online multi-band recon."]
+  }
+}
+```
+
+* `binaries` — sequence binary names that identify this sequence on their own.
+* `special_all` / `special_any` — Special-card labels that must all, or any of
+  which must, be present.
+* `base_binaries` — kernels the *Special-card* route may apply to. This is what
+  splits one fingerprint across the kernels it rides on: CMRR's multiband card
+  appears on `epfid` for BOLD and `epse` for diffusion, and only the kernel
+  says which. It never gates `binaries`, because a vendor's own binary name is
+  a statement about the sequence rather than an inference from it.
+* `priority` — breaks ties when a scan matches more than one signature. Needed
+  because the number of conditions does not say which match is narrower: the
+  CMRR *package* entry names six labels, the *multiband variant* names two plus
+  a kernel, and the variant is the more specific answer.
+
+`third_party_owners` and `stock_owners` map the values of the header's
+`sequence_owner` field — `USER` and `SIEMENS` — onto what each means. This is
+what resolves the VB17A binaries no fingerprint could: `tse_crusher`
+(`Flair axial low SAR`) is labelled `USER` and `fl3d_rd` (`vessels_head`) is
+labelled `SIEMENS`, and the export is a better authority on that than any list
+here.
+
+`path_markers` holds substrings that mark a scan as site-installed regardless
+of any signature — Siemens writes `CustomerSeq` into the protocol path when it
+knows. That is a statement rather than an inference, so it yields `third-party`
+even when the catalog cannot name which sequence. None of the shipped examples
+carries one, so the path is supported but unexercised by the corpus. (The
+`\\USER\` prefix that *does* appear in several is the protocol tree root, not
+a sequence marker — `\\USER\...\localizer` is stock, and reading it as a
+signal would misreport every localizer in a research tree.)
+
+`--catalog DIR` overlays additional JSON files onto the shipped catalog, so a
+site can name the sequences only it runs without editing the installed package.
+A signature whose `id` already exists replaces the shipped one; anything else
+is appended. A flawed overlay entry is reported on stderr and skipped rather
+than raised, so one mistake does not cost the other sixteen signatures.
+
+### In the parsed JSON
+
+Every scan carries a `provenance` block, so anything reading the JSON gets the
+same answer as the report without re-deriving it:
+
+```json
+"provenance": {
+  "verdict": "third-party",
+  "vendor": "CMRR (University of Minnesota)",
+  "family": "multiband EPI, BOLD",
+  "signature": "cmrr-mb-epi-bold",
+  "evidence": ["Special card prints MB LeakBlock kernel, Online multi-band recon."],
+  "special_parameters": 20
+}
+```
+
+It is recomputed on every serialization rather than cached, so a catalog
+correction reaches JSON that was parsed before the correction was made.
 
 ## Output
 
@@ -459,6 +666,14 @@ are read.
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tfl_me"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "MEMPRAGE -- multi-echo MPRAGE",
+        "signature": "memprage",
+        "evidence": ["Special card prints Gradient moment factor, Readout trajectory"],
+        "special_parameters": 5
       },
       "sections": {
         "Routine": { "Slab Group": "1", "Slices per Slab": "176" },
@@ -796,8 +1011,9 @@ PDF in, JSON out, in five stages (`pipeline.py`):
    titles, and emit an ordered `(section, key, value)` stream.
 4. **Scan splitting** (`split.py`) — find the bordered header box that opens
    each scan and cut the page stream on it.
-5. **Assembly** (`model.py`, `flatten.py`) — build the scans, attach header
-   metadata, compute the flattened view, serialize.
+5. **Assembly** (`model.py`, `flatten.py`, `sequences/`) — build the scans,
+   attach header metadata, identify what sequence each one runs, compute the
+   flattened view, serialize.
 
 Two layers sit on top of that output. `policy/` checks a protocol against
 preferred values. For comparison, `diff.py` classifies differences,
@@ -952,6 +1168,15 @@ Two are worth calling out:
   found, what a redirected stdout can encode, and path separators anywhere a
   path is written into a file rather than merely used. Each drives the
   platform-dependent code through the seam the real platform would.
+
+* **Sequence identification** (`test_sequences.py`) asserts the catalog's
+  claims against every stored snapshot rather than against a frozen list, so
+  a new example folder tightens the tests instead of editing them. The two
+  that matter most are opposites: no scan printing a Special card is ever
+  called `stock`, and no bare `epfid`/`epse` scan — a stock `ep2d_bold` — is
+  ever claimed by CMRR. It also fails if a shipped signature matches nothing
+  in the examples, since a signature no example exercises is one nothing
+  verifies.
 
 * **The browser front end** (`test_frontend.py`) executes `app.js` itself. It
   runs under `node:vm` against a small DOM in `tests/frontend/`, wired to a

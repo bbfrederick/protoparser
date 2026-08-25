@@ -22,6 +22,7 @@ from typing import Any, Mapping, Sequence
 from ..pipeline import OCR_ALWAYS, OCR_AUTO, OCR_NEVER
 from ..policy import available as policy_available
 from ..profiles import REGISTRY
+from ..sequences import SELECTORS
 from ..vocabulary import available as vocabulary_available
 
 #: Field kinds the browser knows how to render.
@@ -575,6 +576,86 @@ def _list_command() -> Command:
     )
 
 
+def _sequences_command() -> Command:
+    """Describe the ``sequences`` subcommand.
+
+    Returns
+    -------
+    Command
+        The form and argument list for reporting third-party sequences.
+    """
+    return Command(
+        name="sequences",
+        group="Sequences",
+        title="Third-party sequences",
+        summary=(
+            "Say which of a protocol's scans run a sequence Siemens did not supply. "
+            "Siemens' own conversion handles stock sequences between releases; a "
+            "third-party sequence is what has to be rebuilt and checked by hand, so "
+            "this is the list of work a migration implies. A scan the catalog cannot "
+            "account for is reported as unrecognized rather than guessed at."
+        ),
+        argv=("sequences",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Input",
+                help="A PDF, or JSON this tool wrote earlier.",
+                picker="file",
+                accept=(".pdf", ".json"),
+                required=True,
+            ),
+            _release_field("Force a Siemens release profile for a PDF input."),
+            Field(
+                name="only",
+                kind="choice",
+                label="List only",
+                help=(
+                    "Restrict which scans the table lists. 'flagged' means third-party "
+                    "and unrecognized together, which is the rebuild list. The counts "
+                    "always cover every scan."
+                ),
+                flag="--only",
+                default="",
+                choices=("", *sorted(SELECTORS)),
+            ),
+            Field(
+                name="explain",
+                kind="flag",
+                label="Explain",
+                help="Show the evidence behind each identification, and the catalog's notes.",
+                flag="--explain",
+                default=False,
+            ),
+            Field(
+                name="catalog",
+                kind="path",
+                label="Catalog overlay",
+                help="A directory of signature catalogs overlaying the shipped one.",
+                flag="--catalog",
+                picker="dir",
+            ),
+            Field(
+                name="json",
+                kind="flag",
+                label="JSON output",
+                help="Emit the findings as JSON rather than a table.",
+                flag="--json",
+                default=False,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write report to",
+                help="Write the report here. Left empty, it appears in the pane below.",
+                flag="--out",
+                picker="save",
+            ),
+        ),
+    )
+
+
 def _vocab_commands() -> tuple[Command, ...]:
     """Describe the three ``vocab`` actions.
 
@@ -729,6 +810,7 @@ def command_specs() -> tuple[Command, ...]:
         _diff_command(),
         _check_command(),
         _list_command(),
+        _sequences_command(),
         *_vocab_commands(),
         _versions_command(),
     )

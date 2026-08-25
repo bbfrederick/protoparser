@@ -62,6 +62,7 @@ where = ["src"]
 siemens_protocol = [
     "vocabulary/*.json",
     "policy/*.json",
+    "sequences/*.json",
     "gui/static/*",
     "py.typed",
 ]

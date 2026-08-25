@@ -9,6 +9,7 @@ from typing import Sequence
 
 from .flatten import flatten_sections
 from .layout.sections import Record, SectionMarker
+from .sequences import default_catalog, identify
 
 #: Key used for a value whose label the layout could not recover.
 UNLABELED = "(unlabeled)"
@@ -71,6 +72,8 @@ class Scan:
         The full UNC-style path from the header box.
     header : dict of str to str
         Parsed header summary fields, plus any recovered from parameters.
+        ``sequence`` here is what identifies a third-party sequence on
+        VB17A, which prints no Special card.
     header_summary : str
         The raw ``TA: ...`` line, kept for debugging a new release.
     records : list
@@ -108,7 +111,8 @@ class Scan:
         Returns
         -------
         dict
-            Index, name, path, header, sections, optional flat view and pages.
+            Index, name, path, header, provenance, sections, optional flat
+            view and pages.
         """
         sections = self.sections()
         out: OrderedDict[str, object] = OrderedDict()
@@ -116,6 +120,22 @@ class Scan:
         out["name"] = self.name
         out["path"] = self.path
         out["header"] = OrderedDict(self.header)
+        # Recorded rather than left to the caller: whether a scan runs a
+        # third-party sequence is what decides how much of a release
+        # migration has to be rebuilt by hand, and anything reading this
+        # JSON needs it as much as the report does. Recomputed on every
+        # serialization, so a catalog correction reaches old parses too --
+        # see sequences.identify.
+        out["provenance"] = identify(
+            {
+                "index": self.index,
+                "name": self.name,
+                "path": self.path,
+                "header": self.header,
+                "sections": sections,
+            },
+            default_catalog(),
+        ).to_dict()
         out["sections"] = sections
         if include_flat:
             out["flat"] = flatten_sections(sections)

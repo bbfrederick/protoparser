@@ -23,6 +23,16 @@
         "rel_snr": "1.00",
         "sequence": "fl"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH -- spoiled gradient echo",
+        "evidence": [
+          "sequence binary 'fl' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -310,6 +320,17 @@
         "rel_snr": "1.00",
         "sequence": "ABCD"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "navigator setter -- establishes the baseline location for navigated scans",
+        "signature": "abcd-setter",
+        "evidence": [
+          "sequence binary 'ABCD'",
+          "Special card prints Protocol filename"
+        ],
+        "special_parameters": 1
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -496,6 +517,16 @@
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tfl_me"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "navigated MPRAGE (vNav prospective motion correction)",
+        "signature": "vnav-mprage",
+        "evidence": [
+          "Special card prints ABCD navigator, Moco ref. image, Reacq. threshold, K-space streaming"
+        ],
+        "special_parameters": 12
       },
       "sections": {
         "Properties": {
@@ -755,6 +786,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 14
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -973,6 +1014,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 14
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -1190,6 +1241,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
       },
       "sections": {
         "Properties": {
@@ -1416,6 +1477,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -1641,6 +1712,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 14
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -1864,6 +1945,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 14
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -2086,6 +2177,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epse"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, diffusion",
+        "signature": "cmrr-mb-epi-diffusion",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 24
       },
       "sections": {
         "Properties": {
@@ -2320,6 +2421,17 @@
         "rel_snr": "1.00",
         "sequence": "ABCD"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "navigator setter -- establishes the baseline location for navigated scans",
+        "signature": "abcd-setter",
+        "evidence": [
+          "sequence binary 'ABCD'",
+          "Special card prints Protocol filename"
+        ],
+        "special_parameters": 1
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -2506,6 +2618,16 @@
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "spc"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "navigated T2 SPACE (vNav prospective motion correction)",
+        "signature": "vnav-space",
+        "evidence": [
+          "Special card prints ABCD navigator, Moco ref. image, Reacq. threshold, K-space streaming"
+        ],
+        "special_parameters": 9
       },
       "sections": {
         "Properties": {
@@ -2751,6 +2873,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 14
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -2969,6 +3101,16 @@
         "rel_snr": "1.00",
         "sequence": "epse"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "EPI package (C2P), multiband off or not printed",
+        "signature": "cmrr-epi",
+        "evidence": [
+          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+        ],
+        "special_parameters": 14
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -3186,6 +3328,16 @@
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
       },
       "sections": {
         "Properties": {
@@ -3412,6 +3564,16 @@
         "rel_snr": "1.00",
         "sequence": "epfid"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -3636,6 +3798,16 @@
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tse"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo spin echo",
+        "evidence": [
+          "sequence binary 'tse' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -3883,6 +4055,16 @@
         "rel_snr": "1.00",
         "sequence": "tir"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo inversion recovery",
+        "evidence": [
+          "sequence binary 'tir' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Start measurement without further preparation": "On",
@@ -4126,6 +4308,16 @@
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "resolve"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "RESOLVE -- readout-segmented diffusion",
+        "evidence": [
+          "sequence binary 'resolve' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {

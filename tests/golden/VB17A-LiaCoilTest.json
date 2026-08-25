@@ -23,6 +23,16 @@
         "sequence": "gre",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "gradient echo",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -193,6 +203,16 @@
         "sequence": "AALScout",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "AutoAlign scout -- the kernel under AAHead_Scout",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -325,6 +345,17 @@
         "rel_snr": "1.00",
         "sequence": "tfl_mgh_multiecho",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "MEMPRAGE -- multi-echo MPRAGE",
+        "signature": "memprage",
+        "evidence": [
+          "sequence binary 'tfl_mgh_multiecho'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -499,6 +530,16 @@
         "sequence": "ep2d_pace",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI with PACE prospective motion correction",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -652,6 +693,16 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_bold",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -807,6 +858,16 @@
         "sequence": "ep2d_bold",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -960,6 +1021,16 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_bold",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1115,6 +1186,16 @@
         "sequence": "ep2d_bold",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1268,6 +1349,16 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_bold",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1423,6 +1514,16 @@
         "sequence": "ep2d_bold",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product BOLD EPI",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1576,6 +1677,16 @@
         "sequence": "gre_field_mapping",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "gradient-echo field map",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1692,6 +1803,16 @@
         "rel_snr": "1.00",
         "sequence": "fl3d_rd",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "3D FLASH, radial -- the kernel under VB17A's vessels_head angiography",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1831,6 +1952,16 @@
         "rel_snr": "1.00",
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1982,6 +2113,16 @@
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2131,6 +2272,16 @@
         "rel_snr": "1.00",
         "sequence": "fl_tof",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH time of flight",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -2285,6 +2436,16 @@
         "sequence": "fl_tof",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH time of flight",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2432,6 +2593,16 @@
         "rel_snr": "1.00",
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -2583,6 +2754,16 @@
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2733,6 +2914,16 @@
         "sequence": "fl_pc",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH phase contrast",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2882,6 +3073,17 @@
         "rel_snr": "1.00",
         "sequence": "ep2d_bold_MGH_tb",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "BOLD EPI, MGH variant",
+        "signature": "mgh-bold-tb",
+        "evidence": [
+          "sequence binary 'ep2d_bold_MGH_tb'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {

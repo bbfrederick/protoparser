@@ -38,6 +38,7 @@ from siemens_protocol.gui.commands import (
 )
 from siemens_protocol.gui.runner import MAX_LINES, Job, Runner
 from siemens_protocol.gui.server import serve
+from siemens_protocol.sequences import FLAGGED
 
 #: How long to wait for a spawned command before calling it hung.
 RUN_TIMEOUT = 180.0
@@ -612,6 +613,26 @@ def test_listing_a_protocol_works_through_the_gui(server: Any) -> None:
     snapshot, lines = run_command(server, "list", {"input": EXAMPLE_FILES[0][0]})
     assert snapshot["returncode"] == 0
     assert len(lines) > 2
+
+
+@requires_examples
+def test_reporting_third_party_sequences_works_through_the_gui(server: Any) -> None:
+    """The ``sequences`` command produces its report, filter and all.
+
+    Driven end to end rather than asserted against ``build_argv`` alone,
+    because the form contributes a ``--only`` value that the CLI has to
+    accept: a choice field whose options drift from the CLI's is exactly the
+    kind of disagreement the shared specification exists to prevent.
+
+    Returns
+    -------
+    None
+    """
+    snapshot, lines = run_command(
+        server, "sequences", {"input": EXAMPLE_FILES[0][0], "only": FLAGGED, "explain": True}
+    )
+    assert snapshot["returncode"] == 0
+    assert any("third-party" in line for line in lines)
 
 
 def test_starting_a_run_supersedes_the_previous_one(server: Any) -> None:

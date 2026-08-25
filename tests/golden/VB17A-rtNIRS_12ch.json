@@ -23,6 +23,16 @@
         "sequence": "gre",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "gradient echo",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -193,6 +203,16 @@
         "sequence": "AALScout",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "AutoAlign scout -- the kernel under AAHead_Scout",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -317,6 +337,17 @@
         "rel_snr": "1.00",
         "sequence": "tfl_mgh_multiecho",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "MGH / A. A. Martinos Center",
+        "family": "MEMPRAGE -- multi-echo MPRAGE",
+        "signature": "memprage",
+        "evidence": [
+          "sequence binary 'tfl_mgh_multiecho'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -484,6 +515,17 @@
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -648,6 +690,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -814,6 +867,17 @@
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -978,6 +1042,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1144,6 +1219,17 @@
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1308,6 +1394,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -1474,6 +1571,17 @@
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1639,6 +1747,16 @@
         "sequence": "ep2d_pasl",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "product pulsed ASL",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1786,6 +1904,16 @@
         "sequence": "gre_field_mapping",
         "sequence_owner": "SIEMENS"
       },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "gradient-echo field map",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -1905,6 +2033,17 @@
         "rel_snr": "1.00",
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
@@ -2071,6 +2210,17 @@
         "sequence": "cmrr_mbep2d_bold",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "sequence binary 'cmrr_mbep2d_bold'",
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2236,6 +2386,14 @@
         "sequence": "tse_crusher",
         "sequence_owner": "USER"
       },
+      "provenance": {
+        "verdict": "third-party",
+        "family": "site-installed sequence (the export labels the binary USER, not SIEMENS)",
+        "evidence": [
+          "the export states sequence owner 'USER'"
+        ],
+        "special_parameters": 0
+      },
       "sections": {
         "Properties": {
           "Prio Recon": "Off",
@@ -2386,6 +2544,16 @@
         "rel_snr": "1.00",
         "sequence": "tse",
         "sequence_owner": "SIEMENS"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo spin echo",
+        "evidence": [
+          "the export states sequence owner 'SIEMENS'",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
       },
       "sections": {
         "Properties": {
