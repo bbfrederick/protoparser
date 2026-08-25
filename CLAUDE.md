@@ -267,7 +267,14 @@ pip install .
   `mmRel. SNR:`, so neither pattern may start with `\b`. This has now bitten twice.
 - The contents page is front matter *wherever it sits*: VE11C and Numaris/X lead with
   it, VB17A appends it. Detect it by its "Table of contents" heading, never by position,
-  or a trailing one is read as the last scan's parameters.
+  or a trailing one is read as the last scan's parameters. It is also front matter for
+  *however many pages it runs*: a protocol with enough scans overruns the page and the
+  rest carry entries with no heading, so the heading alone is a rule about where the
+  listing starts, not where it ends. `in_contents_listing` runs it to the next header
+  box, since every scan opens with one and a page without one can only continue what
+  came before it. Ahead of the first scan a spill joins the front matter either way,
+  which is why the two VE11C exports that spill parse correctly and this hid; on VB17A
+  the spill is handed to the last scan, whose sections then include another scan's name.
 - VE11C prints no version string of its own, only the scanner model, so it is identified
   by rejecting every other release. Adding a release means adding a rejection there too.
 - VB17A wraps a long label onto a second line at the *same* pitch as an ordinary row,

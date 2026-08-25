@@ -14,7 +14,11 @@ import pymupdf
 import pytest
 
 from conftest import EXAMPLE_FILES, EXAMPLE_IDS, ParseFixture, find_example, requires_examples
+from siemens_protocol.extract.spans import Page, Span
+from siemens_protocol.pipeline import parse_document
+from siemens_protocol.profiles import REGISTRY
 from siemens_protocol.profiles.base import SIZE_FIELDS
+from siemens_protocol.split import HeaderBox, in_contents_listing
 
 #: Hand-checked scan counts, one per example file.
 EXPECTED_SCAN_COUNT = {
@@ -451,3 +455,102 @@ def test_no_label_is_left_as_a_lower_case_fragment(
         if getattr(record, "key", "") and not record.value and record.key[:1].islower()
     ]
     assert not fragments, f"labels left unjoined: {sorted(set(fragments))}"
+
+
+def contents_page(heading: bool, number: int = 0) -> Page:
+    """A page of contents entries, with or without the listing's heading.
+
+    Parameters
+    ----------
+    heading : bool
+        Whether to print ``Table of contents`` above the entries. Only the
+        first page of a listing carries it.
+    number : int, optional
+        Zero-based page index. Default ``0``.
+
+    Returns
+    -------
+    Page
+        A page carrying entries at the geometry these listings use.
+    """
+    spans: list[Span] = []
+    y = 54.3
+    if heading:
+        spans.append(Span("Table of contents", 258.2, y, 340.0, y + 13.8, size=11.0))
+        y += 44.7
+    for i in range(6):
+        spans.append(Span(f"ep2d_bold_{i}", 35.7, y, 120.0, y + 11.0, size=9.0))
+        spans.append(Span(str(20 + i), 548.0, y, 556.0, y + 11.0, size=9.0))
+        y += 10.8
+    return Page(number=number, width=596.0, height=842.0, spans=spans)
+
+
+def test_a_contents_listing_runs_from_its_heading_to_the_next_scan() -> None:
+    """Only the first page of a listing carries the heading.
+
+    A protocol with enough scans overruns the page, and the pages after the
+    first carry entries alone -- indistinguishable from a scan's parameters
+    by the heading test, which is what handed one to a scan.
+
+    Returns
+    -------
+    None
+    """
+    layout = REGISTRY.get("VB17A").layout
+    box = HeaderBox(path="\\\\USER\\localizer", summary="TA: 1:00", bottom_y=100.0)
+
+    opens = in_contents_listing(contents_page(heading=True), layout, None, False)
+    assert opens, "the heading did not open the listing"
+    assert in_contents_listing(
+        contents_page(heading=False), layout, None, opens
+    ), "the listing ended at the page that carried no heading of its own"
+    assert not in_contents_listing(
+        contents_page(heading=False), layout, box, opens
+    ), "a header box starts a scan and must end the listing"
+    # A page with no heading and no listing open is a scan's second page.
+    assert not in_contents_listing(contents_page(heading=False), layout, None, False)
+
+
+@requires_examples
+def test_a_trailing_contents_listing_that_spills_is_not_given_to_the_last_scan(
+    tmp_path: object,
+) -> None:
+    """VB17A appends its listing, so a spilled page lands on the last scan.
+
+    No example spills, so the case is built: a copy of a real export with one
+    more page of entries after its contents page. Before the run was tracked,
+    that page reached the last scan, whose sections then included another
+    scan's name.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Pytest's per-test temporary directory.
+
+    Returns
+    -------
+    None
+    """
+    source = find_example("LiaCoilTest.pdf", "VB17A")
+    spilled = os.path.join(str(tmp_path), "spilled.pdf")
+    doc = pymupdf.open(source)
+    try:
+        before = parse_document(source).protocol
+        page = doc.new_page(width=596, height=842)
+        page.insert_text(
+            (173.1, 32.0), "SIEMENS MAGNETOM TrioTim syngo MR B17", fontname="helv", fontsize=12
+        )
+        for i, name in enumerate(["PC_3D_sag_fast_mip", "vessels_head", "TOF_2D_obl"]):
+            y = 108.0 + i * 10.8
+            page.insert_text((35.7, y), name, fontname="helv", fontsize=9)
+            page.insert_text((548.0, y), str(30 + i), fontname="helv", fontsize=9)
+        doc.save(spilled)
+    finally:
+        doc.close()
+
+    after = parse_document(spilled).protocol
+    assert after.front_matter_pages == before.front_matter_pages + [before.page_count + 1]
+    assert len(after.scans) == len(before.scans)
+    last_before, last_after = before.scans[-1], after.scans[-1]
+    assert last_after.pages == last_before.pages, "the spilled page was given to the last scan"
+    assert last_after.sections() == last_before.sections()

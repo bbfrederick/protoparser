@@ -13,7 +13,7 @@ from .layout.sections import Record, SectionMarker, current_section, parse_colum
 from .model import Protocol, Scan
 from .profiles import REGISTRY
 from .profiles.base import VersionProfile
-from .split import HeaderBox, body_spans, find_header_box, is_contents_page, running_header
+from .split import HeaderBox, body_spans, find_header_box, in_contents_listing, running_header
 
 #: Values accepted by :attr:`ParseOptions.ocr`.
 OCR_AUTO, OCR_ALWAYS, OCR_NEVER = "auto", "always", "never"
@@ -299,16 +299,20 @@ def parse_document(path: str, options: ParseOptions | None = None) -> ParseResul
         debug_pages: list[dict] = []
         scans: list[Scan] = []
         section: str | None = None
+        contents = False
 
         for page in pages:
             header = find_header_box(page, profile.layout, profile)
             if not protocol.scanner:
                 protocol.scanner = running_header(page, profile.layout)
 
-            if header is None and is_contents_page(page, profile.layout):
-                # Front matter wherever it sits. VB17A appends its contents
-                # page, so position alone would hand it to the last scan as
-                # if it were that scan's parameters.
+            # Front matter wherever it sits, and for however many pages it
+            # runs. VB17A appends its contents listing, so position alone
+            # would hand it to the last scan as if it were that scan's
+            # parameters -- and a listing long enough to spill carries its
+            # heading on the first page only.
+            contents = in_contents_listing(page, profile.layout, header, contents)
+            if contents:
                 protocol.front_matter_pages.append(page.label)
                 if options.debug:
                     debug_pages.append(

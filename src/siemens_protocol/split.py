@@ -77,7 +77,11 @@ _CONTENTS_HEADING = "table of contents"
 
 
 def is_contents_page(page: Page, layout: LayoutConfig) -> bool:
-    """Whether a page is the protocol's contents listing rather than a scan.
+    """Whether a page *opens* the protocol's contents listing.
+
+    Only the first page of the listing carries the heading, so this answers
+    where the listing starts, not how far it runs; for that see
+    :func:`in_contents_listing`.
 
     Parameters
     ----------
@@ -98,6 +102,47 @@ def is_contents_page(page: Page, layout: LayoutConfig) -> bool:
     top = min(s.y0 for s in body)
     first = [s for s in body if s.y0 <= top + layout.row_tolerance]
     return join_spans(first).strip().casefold() == _CONTENTS_HEADING
+
+
+def in_contents_listing(
+    page: Page, layout: LayoutConfig, header: HeaderBox | None, open_run: bool
+) -> bool:
+    """Whether the contents listing is still in force at this page.
+
+    A protocol with enough scans to overrun one page prints the heading on
+    the first of them and nothing but more entries on the rest, so the
+    heading alone reads a spilled listing as a scan's parameters. What ends
+    the listing is not a count of pages but the next header box: every scan
+    opens with one, and a page without one can only continue whatever came
+    before it. So the listing runs from its heading up to the next box, which
+    is position-independent in the same way the heading test is -- it holds
+    for VB17A, which appends its listing, as well as for the releases that
+    lead with it.
+
+    Handling the spill matters most exactly where it is least visible. Ahead
+    of the first scan the extra pages join the front matter either way; a
+    listing appended after the last scan, as VB17A prints it, has its spill
+    handed to that scan as parameters instead.
+
+    Parameters
+    ----------
+    page : Page
+        A page with its spans acquired.
+    layout : LayoutConfig
+        Geometry thresholds, used to skip the running page header.
+    header : HeaderBox or None
+        The page's header box, or ``None`` when it has none.
+    open_run : bool
+        Whether the previous page was part of a contents listing.
+
+    Returns
+    -------
+    bool
+        ``True`` when this page belongs to the listing rather than to a scan.
+    """
+    if header is not None:
+        return False
+    return open_run or is_contents_page(page, layout)
 
 
 def _rows_in_region(spans: Sequence[Span], layout: LayoutConfig) -> list[list[Span]]:
