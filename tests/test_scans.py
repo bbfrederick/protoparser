@@ -36,6 +36,29 @@ EXPECTED_SCAN_COUNT = {
     "Keto MRS 20240709.pdf": 24,
     "MIND BASELINE 202603.pdf": 25,
     "R01_Mindfulness.pdf": 13,
+    # Keys may be "<VERSION>/<file>.pdf" as well as a bare file name. The same
+    # protocol is exported under two releases with one base name, and the two
+    # do not always hold the same number of scans: the XA60 copies of
+    # Irritability_PRR and Aging_SZ_SPICE each run one extra scan, which the
+    # contents page of each PDF confirms independently of the splitter. A
+    # bare-name table could not state both, so these are qualified. Counts
+    # for the pairs that do agree are cross-checked by that agreement -- two
+    # releases, two different header grammars, one answer.
+    "VE11C/Aging_SZ_SPICE_08192025.pdf": 21,
+    "XA60/Aging_SZ_SPICE_08192025.pdf": 22,
+    "VE11C/Irritability_PRR 1st.pdf": 13,
+    "XA60/Irritability_PRR 1st.pdf": 14,
+    "VE11C/Irritability_Posner 1st.pdf": 13,
+    "XA60/Irritability_Posner 1st.pdf": 13,
+    "VE11C/NSSI_ROUTINE.pdf": 12,
+    "XA60/NSSI_ROUTINE.pdf": 12,
+    "VE11C/Healthy Control NSSI HOOD.pdf": 18,
+    "XA60/Healthy Control NSSI HOOD.pdf": 18,
+    # Potpourri ships beside its own .exar1 export, so this count is not
+    # eyeballed off the printout: it is the number of measurement steps in
+    # the archive's program chain, reached by a route that shares no code
+    # with the PDF splitter. tests/test_exar.py asserts the names match too.
+    "Potpourri.pdf": 18,
     "ELS2_20210802XA60.pdf": 15,
     "NOCICEPT_Ph2MRI515_SecondXA60.pdf": 19,
     # XA30 counts are cross-checked against each export's table of contents,
@@ -68,6 +91,10 @@ R01_FIRST_SCANS = [
 def test_scan_count(parsed: ParseFixture, pdf: str, _version: str) -> None:
     """Each file splits into the hand-checked number of scans.
 
+    An expectation may be keyed by release and file name together, which is
+    what lets the two exports of one protocol state different counts when they
+    genuinely hold different numbers of scans. The bare name is the fallback.
+
     Parameters
     ----------
     parsed : callable
@@ -75,13 +102,14 @@ def test_scan_count(parsed: ParseFixture, pdf: str, _version: str) -> None:
     pdf : str
         Path to the example.
     _version : str
-        Version from the folder name. Unused here.
+        Version from the folder name, used to look up a qualified expectation.
 
     Returns
     -------
     None
     """
-    expected = EXPECTED_SCAN_COUNT.get(os.path.basename(pdf))
+    name = os.path.basename(pdf)
+    expected = EXPECTED_SCAN_COUNT.get(f"{_version}/{name}", EXPECTED_SCAN_COUNT.get(name))
     if expected is None:
         pytest.skip(f"no hand-checked expectation for {os.path.basename(pdf)}")
     assert len(parsed(pdf).protocol.scans) == expected

@@ -9,7 +9,9 @@ imports as `siemens_protocol`) parses Siemens MR protocol PDF exports into hiera
 (one entry per scan, sections of key/value parameters, plus a flattened view that
 flags parameters printed inconsistently across sections). Supports VB17A, VE11C, XA30 and XA60.
 Runs on Linux, macOS and Windows; the package is pure Python and PyMuPDF ships
-wheels for all three. See `Design.md` for the design and `README.md` for usage.
+wheels for all three. `siemens_protocol.exar` additionally reads and rewrites
+XA `.exar1` protocol archives -- see [The .exar1 archives](#the-exar1-archives).
+See `Design.md` for the design and `README.md` for usage.
 
 ### Environment
 
@@ -69,6 +71,14 @@ wheels for all three. See `Design.md` for the design and `README.md` for usage.
 ### Testing
 
 - `examples/<VERSION>/*.pdf` — the folder name is the ground-truth version label
+- `examples/<VERSION>/*.exar1` — protocol archives, discovered the same way.
+  `SIEMENS_PROTOCOL_EXAR_DIR` names a directory whose archives are used *as
+  well*, not instead: `examples/` is always scanned, and archives found through
+  the variable carry no version label, so a test needing one reads the
+  archive's own baseline. Remove the shipped archives and 25 corpus-driven
+  tests skip while 10 pure-unit ones still pass, which reads like a pass --
+  so CI asserts both that discovery found something and that nothing skipped,
+  the same two-halves guard the OCR and front-end suites have.
 - `SIEMENS_PROTOCOL_REGEN=1 .venv/bin/python -m pytest tests/test_golden.py` — regenerate snapshots
 - `pythonpath = ["tests"]` in pyproject lets tests import `conftest` helpers directly
 - Verify layout changes with the token-conservation test in `tests/test_pipeline.py`:
@@ -262,12 +272,107 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   scan a person should look at, which is what that verdict means. No shipped
   example does it; the branch exists so a future one is visible rather than
   quietly resolved.
-- The corpus is now fully accounted for -- 385 third-party, 204 stock, 0
-  unrecognized -- and `test_the_shipped_examples_are_now_fully_accounted_for`
-  pins that. `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so
-  reports third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is
-  also in `stock_binaries`. If a new example reintroduces an unaccounted scan,
-  relax that test deliberately -- do not loosen the catalog.
+- The corpus stands at 469 third-party, 246 stock and 5 unrecognized, pinned by
+  `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
+  `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
+  third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
+  `stock_binaries`. The five unaccounted scans are all in `XA60-Potpourri`,
+  added for the `.exar1` work rather than for sequence detection: Siemens
+  kernels (`epfid`, `epse`, `fl`) carrying MGH's FLEET/ACS modifications, whose
+  extra parameters no signature claims. They are named individually rather than
+  counted, so a *sixth* unaccounted scan -- or one of these five quietly
+  resolving -- still fails. That test asserted zero before, and relaxing it was
+  the deliberate act the previous wording called for; writing signatures to
+  force it back to zero would mean attributing sequences from inference alone,
+  which is exactly what the attribution rule above forbids.
+
+### The .exar1 archives
+
+`siemens_protocol.exar` reads and rewrites the protocol archives XA exports.
+None of this is documented by Siemens; every claim below was established
+against real exports and is asserted in `tests/test_exar.py` rather than
+assumed. The corpus is `examples/XA60/Potpourri.exar1` plus
+`Potpourri_changed.exar1`, which is the same export re-saved after changing TR
+on five scans -- a deliberate one-parameter probe, not a second real protocol.
+`Potpourri.pdf` is that same tree's PDF export, which is what lets the two
+readers be checked against each other.
+
+- **The format is five layers deep**: SQLite -> raw DEFLATE (`wbits=-15`, no
+  zlib or gzip wrapper) -> a one-line `EDF V1: ContentType=...;` header -> a
+  Newtonsoft JSON document -> and, in `EdfProtocolContent.Data`, the XProtocol
+  text with its `### ASCCONV BEGIN ###` block. Numaris/X did not replace
+  XProtocol, it wrapped it, so `alTR[0] = 650000` sits in an XA archive exactly
+  as it did on VB17.
+- **`Content.Hash` is the SHA-1 of the *decompressed* header-plus-JSON**, not of
+  the stored blob and not of the JSON alone. That is the whole write path: build
+  the document, prepend the header, hash, deflate. Hash the wrong bytes and the
+  archive's own references stop resolving.
+- **Three GUID spaces meet in `Instance`, and mixing them yields a plausible
+  wrong answer.** `Id` is one version of a node; `Element_id` is the node across
+  versions and is what the packed `Children` blobs reference; `ObjectId` is the
+  domain object and is what the *JSON payloads* reference (`FirstStepId`,
+  `LinksFrom`). Indexing `Children` through the object map raises `KeyError` if
+  you are lucky and silently finds nothing if you are not. A test in
+  `test_exar.py` did exactly this while being the test written to guard it.
+- **Step order is a linked list, not the `Children` blob.** Walk `FirstStepId`
+  and follow `LinksFrom` to `LastStepId`. The blob holds the same eighteen steps
+  permuted, so reading it yields a full set of scans with every value correct
+  and every scan attached to the wrong name -- the TR *multiset* still matches
+  the PDF, which is why a spot check passes. The order assertion also checks
+  that the two orders genuinely differ, so the test cannot pass vacuously on an
+  archive that happens to store steps in running order.
+- **`Children` holds .NET mixed-endian GUIDs** (`uuid.UUID(bytes_le=...)`),
+  sixteen bytes each. Reading them big-endian gives well-formed GUIDs that match
+  no element, so the failure is an empty tree rather than an error.
+- **Scan names are not in the protocol.** They hang off `Instance.LabelElement_id`
+  on an `EdfString` node whose content is a locale table, `{"Texts": {"": name}}`,
+  with the empty key as default. That is deliberate: renaming a scan must not
+  re-hash the protocol.
+- **`Preview` is the bridge to the PDF.** Each protocol carries a flat map of
+  `{Label, Unit, Value}` entries whose labels are the ones the PDF prints -- `TR`,
+  `Slice Thickness`, `FOV Read`. It is a per-protocol dictionary from printed
+  label to protocol path, so the PDF-to-protocol mapping can largely be derived
+  rather than hand-authored. Multi-echo scans print `TE 1`..`TE 4` and have no
+  bare `TE`, so an exact-label lookup returning nothing there is correct.
+- **A value lives in two places and both must be patched.** Changing TR moved
+  `Preview["sub.0.msr.tr.0"].Value` (ms, float) *and* ASCCONV `alTR[0]` (us, int).
+  Patch only the preview and the console lists a number the scan will not use;
+  patch only the ASCCONV and the list goes stale. The console also recomputes
+  derived values -- `lScanTimeSec` followed TR -- which a patcher does not.
+- **Byte-exact round-trip is not the goal, because the console is not
+  byte-stable either.** Re-saving an unmodified protocol regenerates all 67
+  GUIDs, rewrites `sCoilSelectMeas.aRxCoilSelectData[N].tCheckUUID` and the GUID
+  leading `sWipMemBlock.tFree`, flips ASCCONV whitespace between `  =  ` and
+  `\t = \t`, and updates `sSpecPara.lFinalMatrixSizePhase` / `...Read`, which
+  despite their names hold a *date and time* (`20260825` / `155206`). Assert
+  semantic equality against that churn list, never bytes. Establishing this
+  needed the unchanged-vs-changed pair; without it the obvious acceptance test
+  is the wrong one.
+- **Unmodified content is written back from its original blob**, never
+  recompressed. Our zlib does not reproduce the console's DEFLATE stream, so
+  regenerating every blob would rewrite all fifty rows on a no-op round trip and
+  make any later diff useless. `Envelope.stored` is what holds that; dropping it
+  on edit is what re-addresses the content.
+- **`json.dumps(obj, indent=2, ensure_ascii=False)` with CRLF reproduces
+  Newtonsoft exactly**, for 56 of 57 float literals and every other construct.
+  The exception is `2.8936200141906738`, which .NET's round-trip format spells
+  with seventeen significant digits where Python finds a sixteen-digit form for
+  the identical double. Both are legal JSON for the same value; the point of
+  preserving original bytes is that it never has to matter.
+- **`store.py` copies the schema out of `sqlite_master`** rather than declaring
+  it, so a baseline that adds a column still round-trips without a code change.
+  Storage classes are preserved deliberately: sqlite is dynamically typed, and a
+  GUID written back as a blob would still store, still look right, and no longer
+  equal the same GUID held as text elsewhere in the file. Both appear in one
+  `Instance` row -- the id columns are text, `Children` is a blob.
+- **Read at the real branch, not the placeholder.** Every archive carries a
+  second `Branch` row whose `Baseline` is `-` and whose head resolves to no live
+  instances; reading there yields an empty tree that looks like a corrupt file.
+  The real row's baseline is the compatibility gate the scanner checks:
+  `MAJORVERSION:VA60A, PROTOCOL:66010002, ADDIN:NXMAINLINE, EDF:1, SEQUENCE:1`.
+- Everything so far is XA60 (`VA60A`). No XA30 archive has been seen, so the
+  claim that the model is release-independent is untested -- that is the first
+  thing to check when one arrives.
 
 ### Code Formatting
 
