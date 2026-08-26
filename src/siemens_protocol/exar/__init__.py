@@ -1,0 +1,39 @@
+"""Read and write Siemens Numaris/X ``.exar1`` protocol archives.
+
+An ``.exar1`` file is a SQLite database wrapping a content-addressed
+version-control store, whose blobs are raw DEFLATE streams, each holding a
+one-line ``EDF V1:`` type header followed by a Newtonsoft JSON document, and
+whose protocol documents carry the classic XProtocol text -- ASCCONV block
+included -- in a single ``Data`` string.
+
+Nothing here is derived from Siemens documentation, which does not exist in
+public form. Everything was established against real exports and is verified
+against them by the tests: the compression, the hashing, the three GUID
+spaces, and the linked list that fixes the running order of the scans.
+"""
+
+from __future__ import annotations
+
+from .archive import (
+    Archive,
+    Instance,
+    PreviewEntry,
+    Protocol,
+    Step,
+    pack_guids,
+    read,
+    unpack_guids,
+)
+from .envelope import Envelope
+
+__all__ = [
+    "Archive",
+    "Envelope",
+    "Instance",
+    "PreviewEntry",
+    "Protocol",
+    "Step",
+    "pack_guids",
+    "read",
+    "unpack_guids",
+]

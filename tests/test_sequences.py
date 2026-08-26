@@ -668,15 +668,39 @@ def test_the_stated_owner_never_contradicts_the_other_detectors() -> None:
     assert seen == 110, f"expected every VB17A scan to state an owner, saw {seen}"
 
 
+#: The only scans in the corpus no signature accounts for, pinned by name so
+#: that a *new* unaccounted scan still fails this test. All five are in
+#: XA60-Potpourri, which was added for the .exar1 work rather than for
+#: sequence detection: each runs a Siemens kernel (``epfid``, ``epse``,
+#: ``fl``) carrying MGH's FLEET/ACS modifications, which print
+#: sequence-specific parameters no shipped signature claims. Writing
+#: signatures for them would mean attributing sequences from inference alone,
+#: which the catalog's rule against guessed attributions forbids -- and
+#: 'unrecognized' is the honest verdict for a scan a person should look at.
+UNACCOUNTED = {
+    ("XA60-Potpourri.json", "ep2d_bold_mgh"),
+    ("XA60-Potpourri.json", "ep2d_diff_mgh"),
+    ("XA60-Potpourri.json", "ep2d_se_sms_mgh"),
+    ("XA60-Potpourri.json", "ABCD_fMRI_rest_MGH"),
+    ("XA60-Potpourri.json", "can_neuromelanin"),
+}
+
+
 @requires_snapshots
-def test_the_shipped_examples_are_now_fully_accounted_for() -> None:
-    # Stronger than the 5% floor above, and true only because the owner field
-    # resolves the two VB17A binaries no fingerprint could. If a future
-    # example reintroduces an unaccounted scan this is the test to relax,
-    # deliberately -- not the catalog to loosen.
+def test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few() -> None:
+    # Was == 0 before XA60-Potpourri arrived, and is still exact: the set of
+    # unaccounted scans is named rather than counted, so a regression that
+    # unaccounts a sixth scan -- or that quietly resolves one of these five --
+    # fails here. Relaxing this further is a deliberate act; loosening the
+    # catalog to make it pass is not the alternative.
     catalog = default_catalog()
-    found = [i for _, p in GOLDEN_PROTOCOLS for i in identify_protocol(p, catalog)]
-    assert summarize(found)[UNRECOGNIZED] == 0
+    unaccounted = {
+        (name, item.name)
+        for name, protocol in GOLDEN_PROTOCOLS
+        for item in identify_protocol(protocol, catalog)
+        if item.verdict == UNRECOGNIZED
+    }
+    assert unaccounted == UNACCOUNTED
 
 
 def test_a_scan_flagged_only_by_its_owner_label_describes_without_a_dangling_dash() -> None:

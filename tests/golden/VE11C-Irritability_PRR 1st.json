@@ -1,0 +1,3256 @@
+{
+  "source_file": "examples/VE11C/Irritability_PRR 1st.pdf",
+  "software_version": "VE11C",
+  "detection": {
+    "method": "header-string",
+    "confidence": "high"
+  },
+  "scanner": "SIEMENS MAGNETOM Prisma",
+  "page_count": 27,
+  "front_matter_pages": [
+    1
+  ],
+  "scans": [
+    {
+      "index": 0,
+      "name": "localizer",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\localizer",
+      "header": {
+        "ta": "0:30",
+        "pm": "REF",
+        "voxel_size_mm": "0.5×0.5×7.0",
+        "pat": "Off",
+        "rel_snr": "1.00",
+        "sequence": "fl"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "FLASH -- spoiled gradient echo",
+        "evidence": [
+          "sequence binary 'fl' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "On",
+          "Load images to graphic segments": "On",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "On",
+          "Wait for user to start": "Off",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "3",
+          "Dist. factor": "20 %",
+          "Position": "L0.0 A10.0 H0.0 mm",
+          "Orientation": "Sagittal",
+          "Phase enc. dir.": "A >> P",
+          "Slice group #2": "2",
+          "Slices #2": "2",
+          "Dist. factor #2": "20 %",
+          "Position #2": "L0.0 A10.0 H0.0 mm",
+          "Orientation #2": "Transversal",
+          "Phase enc. dir. #2": "A >> P",
+          "Slice group #3": "3",
+          "Slices #3": "2",
+          "Dist. factor #3": "20 %",
+          "Position #3": "L0.0 A10.0 H0.0 mm",
+          "Orientation #3": "Coronal",
+          "Phase enc. dir. #3": "R >> L",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "250 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "7.0 mm",
+          "TR": "8.6 ms",
+          "TE": "3.69 ms",
+          "Averages": "2",
+          "Concatenations": "7",
+          "Filter": "Prescan Normalize, Elliptical filter",
+          "Coil elements": "HC1-7"
+        },
+        "Contrast - Common": {
+          "TR": "8.6 ms",
+          "TE": "3.69 ms",
+          "TD": "0 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "20 deg",
+          "Fat suppr.": "None",
+          "Water suppr.": "None",
+          "SWI": "Off"
+        },
+        "Contrast - Dynamic": {
+          "Averages": "2",
+          "Averaging mode": "Short term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "1",
+          "Multiple series": "Each measurement"
+        },
+        "Resolution - Common": {
+          "FoV read": "250 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "7.0 mm",
+          "Base resolution": "256",
+          "Phase resolution": "91 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "On"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "None"
+        },
+        "Resolution - Filter Image": {
+          "Image Filter": "Off",
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On",
+          "Unfiltered images": "Off",
+          "Normalize": "Off",
+          "B1 filter": "Off"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "On"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "3",
+          "Dist. factor": "20 %",
+          "Position": "L0.0 A10.0 H0.0 mm",
+          "Orientation": "Sagittal",
+          "Phase enc. dir.": "A >> P",
+          "Slice group #2": "2",
+          "Slices #2": "2",
+          "Dist. factor #2": "20 %",
+          "Position #2": "L0.0 A10.0 H0.0 mm",
+          "Orientation #2": "Transversal",
+          "Phase enc. dir. #2": "A >> P",
+          "Slice group #3": "3",
+          "Slices #3": "2",
+          "Dist. factor #3": "20 %",
+          "Position #3": "L0.0 A10.0 H0.0 mm",
+          "Orientation #3": "Coronal",
+          "Phase enc. dir. #3": "R >> L",
+          "FoV read": "250 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "7.0 mm",
+          "TR": "8.6 ms",
+          "Multi-slice mode": "Sequential",
+          "Series": "Interleaved",
+          "Concatenations": "7"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "L0.0 A10.0 H0.0 mm",
+          "Orientation": "Sagittal",
+          "Phase enc. dir.": "A >> P",
+          "Slice group #2": "2",
+          "Position #2": "L0.0 A10.0 H0.0 mm",
+          "Orientation #2": "Transversal",
+          "Phase enc. dir. #2": "A >> P",
+          "Slice group #3": "3",
+          "Position #3": "L0.0 A10.0 H0.0 mm",
+          "Orientation #3": "Coronal",
+          "Phase enc. dir. #3": "R >> L",
+          "AutoAlign": "---",
+          "Initial Position": "L0.0 A10.0 H0.0",
+          "L": "0.0 mm",
+          "A": "10.0 mm",
+          "H": "0.0 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Sagittal"
+        },
+        "Geometry - Saturation": {
+          "Saturation mode": "Standard",
+          "Fat suppr.": "None",
+          "Water suppr.": "None",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "REF",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Adaptive Combine",
+          "Save uncombined": "Off",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Tune up",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "263 mm",
+          "R >> L": "350 mm",
+          "F >> H": "350 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Slice-sel."
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "8.6 ms",
+          "Concatenations": "7",
+          "Segments": "1"
+        },
+        "Physio - Cardiac": {
+          "Magn. preparation": "None",
+          "Fat suppr.": "None",
+          "Dark blood": "Off",
+          "FoV read": "250 mm",
+          "FoV phase": "100.0 %",
+          "Phase resolution": "91 %"
+        },
+        "Physio - PACE": {
+          "Resp. control": "Off",
+          "Concatenations": "7"
+        },
+        "Inline - Common": {
+          "Subtract": "Off",
+          "Measurements": "1",
+          "StdDev": "Off",
+          "Liver registration": "Off",
+          "Save original images": "On"
+        },
+        "Inline - MIP": {
+          "MIP-Sag": "Off",
+          "MIP-Cor": "Off",
+          "MIP-Tra": "Off",
+          "MIP-Time": "Off",
+          "Save original images": "On"
+        },
+        "Inline - Soft Tissue": {
+          "Wash - In": "Off",
+          "Wash - Out": "Off",
+          "TTP": "Off",
+          "PEI": "Off",
+          "MIP - time": "Off",
+          "Measurements": "1"
+        },
+        "Inline - Composing": {
+          "Distortion Corr.": "Off"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "On",
+          "Dimension": "2D",
+          "Phase stabilisation": "Off",
+          "Asymmetric echo": "Allowed",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Sequential",
+          "Bandwidth": "320 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "Segments": "1",
+          "Acoustic noise reduction": "None",
+          "RF pulse type": "Normal",
+          "Gradient mode": "Normal",
+          "Excitation": "Slice-sel.",
+          "RF spoiling": "On"
+        },
+        "Sequence - Assistant": {
+          "Mode": "Off",
+          "Allowed delay": "0 s"
+        }
+      },
+      "pages": [
+        2,
+        3
+      ]
+    },
+    {
+      "index": 1,
+      "name": "ep2D_mb_PRR",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_PRR",
+      "header": {
+        "ta": "6:22",
+        "pm": "REF",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 21
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "2",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "72 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "2"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "REF",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "128 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "2300 ms",
+          "Multi-band accel. factor": "2"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.64 ms",
+          "Bandwidth": "1796 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "3800 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        4,
+        5
+      ]
+    },
+    {
+      "index": 2,
+      "name": "ep2D_mb_PRR",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_PRR",
+      "header": {
+        "ta": "6:22",
+        "pm": "FIX",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 21
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "2",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "72 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "2"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "128 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "2300 ms",
+          "Multi-band accel. factor": "2"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.64 ms",
+          "Bandwidth": "1796 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "3800 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        6,
+        7
+      ]
+    },
+    {
+      "index": 3,
+      "name": "ep2D_mb_PRR",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_PRR",
+      "header": {
+        "ta": "6:22",
+        "pm": "FIX",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 21
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "2",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "72 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "2"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "128 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "2300 ms",
+          "Multi-band accel. factor": "2"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.64 ms",
+          "Bandwidth": "1796 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "3800 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        8,
+        9
+      ]
+    },
+    {
+      "index": 4,
+      "name": "ep2D_mb_PRR",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_PRR",
+      "header": {
+        "ta": "6:22",
+        "pm": "FIX",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 21
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "2",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "2300 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "72 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2300 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "2"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "128 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "2300 ms",
+          "Multi-band accel. factor": "2"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "156",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.64 ms",
+          "Bandwidth": "1796 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "3800 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        10,
+        11
+      ]
+    },
+    {
+      "index": 5,
+      "name": "t1_mprage",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\t1_mprage",
+      "header": {
+        "ta": "4:01",
+        "pm": "REF",
+        "voxel_size_mm": "1.0×1.0×1.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "tfl"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "TurboFLASH -- MPRAGE and friends",
+        "evidence": [
+          "sequence binary 'tfl' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slab group": "1",
+          "Slabs": "1",
+          "Dist. factor": "50 %",
+          "Position": "R0.7 A16.9 H35.1 mm",
+          "Orientation": "Sagittal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "Slice oversampling": "30.0 %",
+          "Slices per slab": "160",
+          "FoV read": "256 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "1.00 mm",
+          "TR": "1900.0 ms",
+          "TE": "3.02 ms",
+          "Averages": "1",
+          "Concatenations": "1",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1"
+        },
+        "Contrast - Common": {
+          "TR": "1900.0 ms",
+          "TE": "3.02 ms",
+          "Magn. preparation": "Non-sel. IR",
+          "TI": "900 ms",
+          "Flip angle": "9 deg",
+          "Fat suppr.": "None",
+          "Water suppr.": "None"
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "1",
+          "Multiple series": "Each measurement"
+        },
+        "Resolution - Common": {
+          "FoV read": "256 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "1.00 mm",
+          "Base resolution": "256",
+          "Phase resolution": "100 %",
+          "Slice resolution": "100 %",
+          "Phase partial Fourier": "7/8",
+          "Slice partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "30",
+          "Accel. factor 3D": "1",
+          "Reference scan mode": "Integrated"
+        },
+        "Resolution - Filter Image": {
+          "Image Filter": "Off",
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On",
+          "Unfiltered images": "Off",
+          "Normalize": "Off",
+          "B1 filter": "Off"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off"
+        },
+        "Geometry - Common": {
+          "Slab group": "1",
+          "Slabs": "1",
+          "Dist. factor": "50 %",
+          "Position": "R0.7 A16.9 H35.1 mm",
+          "Orientation": "Sagittal",
+          "Phase enc. dir.": "A >> P",
+          "Slice oversampling": "30.0 %",
+          "Slices per slab": "160",
+          "FoV read": "256 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "1.00 mm",
+          "TR": "1900.0 ms",
+          "Multi-slice mode": "Single shot",
+          "Series": "Interleaved",
+          "Concatenations": "1"
+        },
+        "Geometry - AutoAlign": {
+          "Slab group": "1",
+          "Position": "R0.7 A16.9 H35.1 mm",
+          "Orientation": "Sagittal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R0.7 A16.9 H35.1",
+          "R": "0.7 mm",
+          "A": "16.9 mm",
+          "H": "35.1 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Sagittal"
+        },
+        "Geometry - Navigator": {},
+        "System - Miscellaneous": {
+          "Positioning mode": "REF",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Adaptive Combine",
+          "Save uncombined": "Off",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R0.7 A16.9 H35.1 mm",
+          "Orientation": "Sagittal",
+          "Rotation": "0.00 deg",
+          "A >> P": "256 mm",
+          "F >> H": "256 mm",
+          "R >> L": "160 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Non-sel."
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "Low",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "1900.0 ms",
+          "Concatenations": "1"
+        },
+        "Physio - Cardiac": {
+          "Magn. preparation": "Non-sel. IR",
+          "TI": "900 ms",
+          "Fat suppr.": "None",
+          "Dark blood": "Off",
+          "FoV read": "256 mm",
+          "FoV phase": "100.0 %",
+          "Phase resolution": "100 %"
+        },
+        "Physio - PACE": {
+          "Resp. control": "Off",
+          "Concatenations": "1"
+        },
+        "Inline - Common": {
+          "Subtract": "Off",
+          "Measurements": "1",
+          "StdDev": "Off",
+          "Save original images": "On"
+        },
+        "Inline - MIP": {
+          "MIP-Sag": "Off",
+          "MIP-Cor": "Off",
+          "MIP-Tra": "Off",
+          "MIP-Time": "Off",
+          "Save original images": "On"
+        },
+        "Inline - Composing": {
+          "Distortion Corr.": "Off"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "On",
+          "Dimension": "3D",
+          "Elliptical scanning": "Off",
+          "Reordering": "Linear",
+          "Asymmetric echo": "Off",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Single shot",
+          "Echo spacing": "8.1 ms",
+          "Bandwidth": "230 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "RF pulse type": "Fast",
+          "Gradient mode": "Fast*",
+          "Excitation": "Non-sel.",
+          "RF spoiling": "On",
+          "Incr. Gradient spoiling": "On",
+          "Turbo factor": "208"
+        },
+        "Sequence - Assistant": {
+          "Mode": "Off"
+        }
+      },
+      "pages": [
+        12,
+        13
+      ]
+    },
+    {
+      "index": 6,
+      "name": "ep2D_mb_POSNER",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_POSNER",
+      "header": {
+        "ta": "7:06",
+        "pm": "FIX",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "1000 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "4",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "1000 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "72 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "406",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "1000 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "4"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "128 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "1000 ms",
+          "Multi-band accel. factor": "4"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "406",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.64 ms",
+          "Bandwidth": "1860 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "4500 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "MB RF phase scramble": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        14,
+        15
+      ]
+    },
+    {
+      "index": 7,
+      "name": "ep2D_mb_POSNER",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_POSNER",
+      "header": {
+        "ta": "7:06",
+        "pm": "FIX",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "1000 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "4",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "1000 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "72 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "406",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "64",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "1000 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "4"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "128 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "1000 ms",
+          "Multi-band accel. factor": "4"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "406",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.64 ms",
+          "Bandwidth": "1860 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "4500 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "MB RF phase scramble": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        16,
+        17
+      ]
+    },
+    {
+      "index": 8,
+      "name": "ep2D_mb_REST",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\ep2D_mb_REST",
+      "header": {
+        "ta": "9:00",
+        "pm": "FIX",
+        "voxel_size_mm": "2.0×2.0×2.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epfid"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, BOLD",
+        "signature": "cmrr-mb-epi-bold",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "66",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2000 ms",
+          "TE": "30.00 ms",
+          "Averages": "1",
+          "Multi-band accel. factor": "3",
+          "Filter": "Prescan Normalize",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "2000 ms",
+          "TE": "30.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "90 deg",
+          "Fat suppr.": "Fat sat."
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "256",
+          "Delay in TR": "0 ms"
+        },
+        "Resolution - Common": {
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "Base resolution": "96",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off",
+          "Hamming": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "66",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "192 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "2.00 mm",
+          "TR": "2000 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "3"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "192 mm",
+          "R >> L": "192 mm",
+          "F >> H": "132 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "2000 ms",
+          "Multi-band accel. factor": "3"
+        },
+        "BOLD": {
+          "GLM Statistics": "Off",
+          "Dynamic t-maps": "Off",
+          "Ignore meas. at start": "6",
+          "Ignore after transition": "0",
+          "Model transition states": "Off",
+          "Temp. highpass filter": "On",
+          "Threshold": "4.00",
+          "Paradigm size": "12",
+          "Meas[1]": "Baseline",
+          "Meas[2]": "Baseline",
+          "Meas[3]": "Baseline",
+          "Meas[4]": "Baseline",
+          "Meas[5]": "Baseline",
+          "Meas[6]": "Baseline",
+          "Meas[7]": "Active",
+          "Meas[8]": "Active",
+          "Meas[9]": "Active",
+          "Meas[10]": "Active",
+          "Meas[11]": "Active",
+          "Meas[12]": "Active",
+          "Motion correction": "Off",
+          "Spatial filter": "Off",
+          "Measurements": "256",
+          "Delay in TR": "0 ms"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.93 ms",
+          "Bandwidth": "1336 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "Gradient mode": "Performance",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "4500 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "MB RF phase scramble": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Sinc exc. pulse BWTP": "5.2",
+          "Physio recording": "Off",
+          "Triggering scheme": "Standard"
+        }
+      },
+      "pages": [
+        18,
+        19
+      ]
+    },
+    {
+      "index": 9,
+      "name": "cmrr_DSI_1.5_HARDI",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\cmrr_DSI_1.5_HARDI",
+      "header": {
+        "ta": "9:02",
+        "pm": "FIX",
+        "voxel_size_mm": "1.5×1.5×1.5",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "epse"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "multiband EPI, diffusion",
+        "signature": "cmrr-mb-epi-diffusion",
+        "evidence": [
+          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+        ],
+        "special_parameters": 22
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "On",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "84",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Phase oversampling": "0 %",
+          "FoV read": "228 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "1.50 mm",
+          "TR": "3205 ms",
+          "TE": "94.00 ms",
+          "Multi-band accel. factor": "4",
+          "Filter": "None",
+          "Coil elements": "HC1-7;NC1,2"
+        },
+        "Contrast - Common": {
+          "TR": "3205 ms",
+          "TE": "94.00 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "90 deg",
+          "Refocus flip angle": "180 deg",
+          "Fat suppr.": "Fat sat.",
+          "Grad. rev. fat suppr.": "Enabled"
+        },
+        "Contrast - Dynamic": {
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "1",
+          "Delay in TR": "0 ms",
+          "Multiple series": "Off"
+        },
+        "Resolution - Common": {
+          "FoV read": "228 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "1.50 mm",
+          "Base resolution": "152",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "24",
+          "Reference scan mode": "Single-shot"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "Off",
+          "Dynamic Field Corr.": "Off"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "Off"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "84",
+          "Dist. factor": "0 %",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "228 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "1.50 mm",
+          "TR": "3205 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Multi-band accel. factor": "4"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "R3.0 A9.6 F7.8",
+          "R": "3.0 mm",
+          "A": "9.6 mm",
+          "F": "7.8 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Grad. rev. fat suppr.": "Enabled",
+          "Special sat.": "None"
+        },
+        "Geometry - Navigator": {},
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "0 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "---",
+          "Coil Select Mode": "On - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "R3.0 A9.6 F7.8 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "228 mm",
+          "R >> L": "228 mm",
+          "F >> H": "126 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm",
+          "Excitation": "Standard"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "3205 ms",
+          "Multi-band accel. factor": "4"
+        },
+        "Physio - PACE": {
+          "Resp. control": "Off",
+          "Multi-band accel. factor": "4"
+        },
+        "Diff - Neuro": {
+          "Diffusion mode": "Free",
+          "Diff. directions": "75",
+          "Diffusion Scheme": "Monopolar",
+          "Diff. weightings": "3",
+          "b-value 1": "0 s/mm²",
+          "b-value 2": "1000 s/mm²",
+          "b-value 3": "2500 s/mm²",
+          "b-value 1 #2": "1",
+          "b-value 2 #2": "1",
+          "b-value 3 #2": "1",
+          "Diff. weighted images": "On",
+          "Trace weighted images": "On",
+          "ADC maps": "On",
+          "FA maps": "On",
+          "Mosaic": "On",
+          "Tensor": "On",
+          "Noise level": "40"
+        },
+        "Diff - Body": {
+          "Diffusion mode": "Free",
+          "Diff. directions": "75",
+          "Diffusion Scheme": "Monopolar",
+          "Diff. weightings": "3",
+          "b-value 1": "0 s/mm²",
+          "b-value 2": "1000 s/mm²",
+          "b-value 3": "2500 s/mm²",
+          "b-value 1 #2": "1",
+          "b-value 2 #2": "1",
+          "b-value 3 #2": "1",
+          "Diff. weighted images": "On",
+          "Trace weighted images": "On",
+          "ADC maps": "On",
+          "Exponential ADC Maps": "Off",
+          "FA maps": "On",
+          "Invert Gray Scale": "Off",
+          "Calculated Image": "Off",
+          "b-Value >=": "0 s/mm²",
+          "Noise level": "40"
+        },
+        "Diff - Composing": {
+          "Distortion Corr.": "Off"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "Off",
+          "Dimension": "2D",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "0.74 ms",
+          "Bandwidth": "1566 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "152",
+          "Gradient mode": "Performance*",
+          "Excitation": "Standard",
+          "RF spoiling": "Off"
+        },
+        "Sequence - Special": {
+          "Excite pulse duration": "4480 us",
+          "Refocus pulse duration": "8320 us",
+          "Min. prep scans": "0",
+          "Min. prep scans SB": "0",
+          "Delay before PC scans": "0 us",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "Off",
+          "MB RF phase scramble": "Off",
+          "Opt. MB RF pulse BW": "Off",
+          "Time-shifted MB RF": "Off",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
+          "Disable B1 control loop": "Off",
+          "Disable freq. update": "Off",
+          "Suppress 16-bit DICOM": "Off",
+          "Force equal slice timing": "Off",
+          "Online multi-band recon.": "Online",
+          "FFT scale factor": "1.00",
+          "Fat saturation FA": "110.0 deg",
+          "Fat sat. offset": "0.0 Hz",
+          "Physio recording": "Off"
+        }
+      },
+      "pages": [
+        20,
+        21
+      ]
+    },
+    {
+      "index": 10,
+      "name": "pd+t2_tse_tra",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\pd+t2_tse_tra",
+      "header": {
+        "ta": "2:11",
+        "pm": "REF",
+        "voxel_size_mm": "0.3×0.3×4.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "tse"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo spin echo",
+        "evidence": [
+          "sequence binary 'tse' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "Off",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "30",
+          "Dist. factor": "25 %",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "R >> L",
+          "AutoAlign": "Head > Brain",
+          "Phase oversampling": "0 %",
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "4.0 mm",
+          "TR": "3600.0 ms",
+          "TE 1": "9.4 ms",
+          "TE 2": "94 ms",
+          "Averages": "1",
+          "Concatenations": "1",
+          "Filter": "Prescan Normalize, Elliptical filter",
+          "Coil elements": "HE1-4"
+        },
+        "Contrast - Common": {
+          "TR": "3600.0 ms",
+          "TE 1": "9.4 ms",
+          "TE 2": "94 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "160 deg",
+          "Fat suppr.": "None",
+          "Water suppr.": "None",
+          "Restore magn.": "Off"
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "1",
+          "Multiple series": "Each measurement"
+        },
+        "Resolution - Common": {
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "4.0 mm",
+          "Base resolution": "320",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Trajectory": "Cartesian",
+          "Interpolation": "On"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "30",
+          "Reference scan mode": "Integrated"
+        },
+        "Resolution - Filter Image": {
+          "Image Filter": "Off",
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On",
+          "Unfiltered images": "Off",
+          "Normalize": "Off",
+          "B1 filter": "Off"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "On"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "30",
+          "Dist. factor": "25 %",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "R >> L",
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "4.0 mm",
+          "TR": "3600.0 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Concatenations": "1"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "R >> L",
+          "AutoAlign": "Head > Brain",
+          "Initial Position": "L0.0 P0.0 F37.0",
+          "L": "0.0 mm",
+          "P": "0.0 mm",
+          "H": "37.0 mm",
+          "Initial Rotation": "90.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "None",
+          "Water suppr.": "None",
+          "Restore magn.": "Off",
+          "Special sat.": "None"
+        },
+        "Geometry - Navigator": {},
+        "System - Miscellaneous": {
+          "Positioning mode": "REF",
+          "Table position": "H",
+          "Table position #2": "37 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Adaptive Combine",
+          "Save uncombined": "Off",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "Head > Brain",
+          "Coil Select Mode": "Off - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Tune up",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "263 mm",
+          "R >> L": "350 mm",
+          "F >> H": "350 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "3600.0 ms",
+          "Concatenations": "1"
+        },
+        "Physio - Cardiac": {
+          "Magn. preparation": "None",
+          "Fat suppr.": "None",
+          "Dark blood": "Off",
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Phase resolution": "100 %",
+          "Trajectory": "Cartesian"
+        },
+        "Physio - PACE": {
+          "Resp. control": "Off",
+          "Concatenations": "1"
+        },
+        "Inline - Common": {
+          "Subtract": "Off",
+          "Measurements": "1",
+          "StdDev": "Off",
+          "Save original images": "On"
+        },
+        "Inline - MIP": {
+          "MIP-Sag": "Off",
+          "MIP-Cor": "Off",
+          "MIP-Tra": "Off",
+          "MIP-Time": "Off",
+          "Save original images": "On"
+        },
+        "Inline - Composing": {
+          "Distortion Corr.": "Off"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "On",
+          "Dimension": "2D",
+          "Compensate T2 decay": "Off",
+          "Reduce Motion Sens.": "On",
+          "Contrasts": "2",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "9.36 ms",
+          "Bandwidth": "252 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "Define": "Turbo factor",
+          "Echo trains per slice": "35",
+          "Phase correction": "Automatic",
+          "Acoustic noise reduction": "None",
+          "RF pulse type": "Normal",
+          "Gradient mode": "Normal",
+          "Hyperecho": "Off",
+          "WARP": "Off",
+          "Red. EC sensitivity": "Off",
+          "Turbo factor": "5"
+        },
+        "Sequence - Assistant": {
+          "Mode": "Min flip angle",
+          "Min flip angle": "130 deg",
+          "Allowed delay": "60 s"
+        }
+      },
+      "pages": [
+        22,
+        23
+      ]
+    },
+    {
+      "index": 11,
+      "name": "t2_tse_dark-fluid_tra",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\t2_tse_dark-fluid_tra",
+      "header": {
+        "ta": "4:14",
+        "pm": "FIX",
+        "voxel_size_mm": "0.7×0.7×4.0",
+        "pat": "Off",
+        "rel_snr": "1.00",
+        "sequence": "tir"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "turbo inversion recovery",
+        "evidence": [
+          "sequence binary 'tir' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "On",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "Off",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "30",
+          "Dist. factor": "25 %",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "R >> L",
+          "AutoAlign": "Head > Brain",
+          "Phase oversampling": "0 %",
+          "FoV read": "220 mm",
+          "FoV phase": "96.9 %",
+          "Slice thickness": "4.0 mm",
+          "TR": "9000.0 ms",
+          "TE": "83.0 ms",
+          "Averages": "1",
+          "Concatenations": "2",
+          "Filter": "Prescan Normalize, Elliptical filter",
+          "Coil elements": "HE1-4"
+        },
+        "Contrast - Common": {
+          "TR": "9000.0 ms",
+          "TE": "83.0 ms",
+          "TD": "0.0 ms",
+          "MTC": "Off",
+          "Magn. preparation": "Slice-sel. IR",
+          "TI": "2500 ms",
+          "Flip angle": "150 deg",
+          "Fat suppr.": "Fat sat.",
+          "Fat sat. mode": "Strong",
+          "Water suppr.": "None",
+          "Restore magn.": "Off",
+          "Freeze suppressed tissue": "On"
+        },
+        "Contrast - Dynamic": {
+          "Averages": "1",
+          "Averaging mode": "Long term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "1",
+          "Multiple series": "Each measurement"
+        },
+        "Resolution - Common": {
+          "FoV read": "220 mm",
+          "FoV phase": "96.9 %",
+          "Slice thickness": "4.0 mm",
+          "Base resolution": "320",
+          "Phase resolution": "70 %",
+          "Phase partial Fourier": "Off",
+          "Trajectory": "Cartesian",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "None"
+        },
+        "Resolution - Filter Image": {
+          "Image Filter": "Off",
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On",
+          "Unfiltered images": "Off",
+          "Normalize": "Off",
+          "B1 filter": "Off"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "Off",
+          "Elliptical filter": "On"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "30",
+          "Dist. factor": "25 %",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "R >> L",
+          "FoV read": "220 mm",
+          "FoV phase": "96.9 %",
+          "Slice thickness": "4.0 mm",
+          "TR": "9000.0 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Concatenations": "2"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "R >> L",
+          "AutoAlign": "Head > Brain",
+          "Initial Position": "L0.0 P0.0 F37.0",
+          "L": "0.0 mm",
+          "P": "0.0 mm",
+          "H": "37.0 mm",
+          "Initial Rotation": "90.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Fat sat. mode": "Strong",
+          "Water suppr.": "None",
+          "Restore magn.": "Off",
+          "Special sat.": "None"
+        },
+        "Geometry - Navigator": {},
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "37 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Adaptive Combine",
+          "Save uncombined": "Off",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "Head > Brain",
+          "Coil Select Mode": "Off - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Rotation": "90.00 deg",
+          "R >> L": "214 mm",
+          "A >> P": "220 mm",
+          "F >> H": "149 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "9000.0 ms",
+          "Concatenations": "2"
+        },
+        "Physio - Cardiac": {
+          "Magn. preparation": "Slice-sel. IR",
+          "TI": "2500 ms",
+          "Fat suppr.": "Fat sat.",
+          "Dark blood": "Off",
+          "FoV read": "220 mm",
+          "FoV phase": "96.9 %",
+          "Phase resolution": "70 %",
+          "Trajectory": "Cartesian"
+        },
+        "Physio - PACE": {
+          "Resp. control": "Off",
+          "Concatenations": "2"
+        },
+        "Inline - Common": {
+          "Subtract": "Off",
+          "Measurements": "1",
+          "StdDev": "Off",
+          "Save original images": "On"
+        },
+        "Inline - MIP": {
+          "MIP-Sag": "Off",
+          "MIP-Cor": "Off",
+          "MIP-Tra": "Off",
+          "MIP-Time": "Off",
+          "Save original images": "On"
+        },
+        "Inline - Composing": {
+          "Distortion Corr.": "Off"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "On",
+          "Dimension": "2D",
+          "Compensate T2 decay": "Off",
+          "Reduce Motion Sens.": "On",
+          "Contrasts": "1",
+          "Flow comp.": "No",
+          "Multi-slice mode": "Interleaved",
+          "Free echo spacing": "Off",
+          "Echo spacing": "8.28 ms",
+          "Bandwidth": "289 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "Define": "Turbo factor",
+          "Echo trains per slice": "13",
+          "Phase correction": "Automatic",
+          "Acoustic noise reduction": "None",
+          "RF pulse type": "Normal",
+          "Gradient mode": "Performance",
+          "Hyperecho": "Off",
+          "WARP": "Off",
+          "Red. EC sensitivity": "Off",
+          "Turbo factor": "17"
+        },
+        "Sequence - Assistant": {
+          "Mode": "Off",
+          "Allowed delay": "60 s"
+        }
+      },
+      "pages": [
+        24,
+        25
+      ]
+    },
+    {
+      "index": 12,
+      "name": "resolve_4scan_trace_tra_p2_192",
+      "path": "\\\\Research\\Investigators\\Dickstein\\Irritability_PRR 1st\\resolve_4scan_trace_tra_p2_192",
+      "header": {
+        "ta": "1:51",
+        "pm": "FIX",
+        "voxel_size_mm": "1.1×1.1×4.0",
+        "pat": "2",
+        "rel_snr": "1.00",
+        "sequence": "resolve"
+      },
+      "provenance": {
+        "verdict": "stock",
+        "vendor": "Siemens",
+        "family": "RESOLVE -- readout-segmented diffusion",
+        "evidence": [
+          "sequence binary 'resolve' is a Siemens kernel",
+          "no sequence-specific parameters printed"
+        ],
+        "special_parameters": 0
+      },
+      "sections": {
+        "Properties": {
+          "Prio recon": "Off",
+          "Load images to viewer": "On",
+          "Inline movie": "Off",
+          "Auto store images": "On",
+          "Load images to stamp segments": "Off",
+          "Load images to graphic segments": "Off",
+          "Auto open inline display": "Off",
+          "Auto close inline display": "Off",
+          "Start measurement without further preparation": "Off",
+          "Wait for user to start": "Off",
+          "Start measurements": "Single measurement"
+        },
+        "Routine": {
+          "Slice group": "1",
+          "Slices": "30",
+          "Dist. factor": "25 %",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "Head > Brain",
+          "Phase oversampling": "0 %",
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "4.0 mm",
+          "TR": "4040 ms",
+          "TE 1": "55 ms",
+          "TE 2": "93 ms",
+          "Concatenations": "1",
+          "Filter": "Raw filter, Prescan Normalize",
+          "Coil elements": "HE1-4"
+        },
+        "Contrast - Common": {
+          "TR": "4040 ms",
+          "TE 1": "55 ms",
+          "TE 2": "93 ms",
+          "MTC": "Off",
+          "Magn. preparation": "None",
+          "Flip angle": "180 deg",
+          "Fat suppr.": "Fat sat.",
+          "Fat sat. mode": "Strong"
+        },
+        "Contrast - Dynamic": {
+          "Averaging mode": "Short term",
+          "Reconstruction": "Magnitude",
+          "Measurements": "1"
+        },
+        "Resolution - Common": {
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "4.0 mm",
+          "Base resolution": "192",
+          "Phase resolution": "100 %",
+          "Phase partial Fourier": "Off",
+          "Readout partial Fourier": "5/8",
+          "Readout segments": "7",
+          "Interpolation": "Off"
+        },
+        "Resolution - iPAT": {
+          "PAT mode": "GRAPPA",
+          "Accel. factor PE": "2",
+          "Ref. lines PE": "96",
+          "Reference scan mode": "EPI/separate"
+        },
+        "Resolution - Filter Image": {
+          "Distortion Corr.": "Off",
+          "Prescan Normalize": "On",
+          "Unfiltered images": "Off"
+        },
+        "Resolution - Filter Rawdata": {
+          "Raw filter": "On"
+        },
+        "Geometry - Common": {
+          "Slice group": "1",
+          "Slices": "30",
+          "Dist. factor": "25 %",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "FoV read": "220 mm",
+          "FoV phase": "100.0 %",
+          "Slice thickness": "4.0 mm",
+          "TR": "4040 ms",
+          "Multi-slice mode": "Interleaved",
+          "Series": "Interleaved",
+          "Concatenations": "1"
+        },
+        "Geometry - AutoAlign": {
+          "Slice group": "1",
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Phase enc. dir.": "A >> P",
+          "AutoAlign": "Head > Brain",
+          "Initial Position": "L0.0 P0.0 F37.0",
+          "L": "0.0 mm",
+          "P": "0.0 mm",
+          "H": "37.0 mm",
+          "Initial Rotation": "0.00 deg",
+          "Initial Orientation": "Transversal"
+        },
+        "Geometry - Saturation": {
+          "Fat suppr.": "Fat sat.",
+          "Fat sat. mode": "Strong",
+          "Special sat.": "None"
+        },
+        "System - Miscellaneous": {
+          "Positioning mode": "FIX",
+          "Table position": "H",
+          "Table position #2": "37 mm",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combine Mode": "Adaptive Combine",
+          "Save uncombined": "Off",
+          "Matrix Optimization": "Off",
+          "AutoAlign": "Head > Brain",
+          "Coil Select Mode": "Off - AutoCoilSelect"
+        },
+        "System - Adjustments": {
+          "B0 Shim mode": "Standard",
+          "B1 Shim mode": "TrueForm",
+          "Adjust with body coil": "On",
+          "Confirm freq. adjustment": "Off",
+          "Assume Dominant Fat": "Off",
+          "Assume Silicone": "Off",
+          "Adjustment Tolerance": "Auto"
+        },
+        "System - Adjust Volume": {
+          "Position": "L0.0 P0.0 H0.0 mm",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "220 mm",
+          "R >> L": "220 mm",
+          "F >> H": "149 mm",
+          "Reset": "Off"
+        },
+        "System - pTx Volumes": {
+          "B1 Shim mode": "TrueForm"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249510 MHz",
+          "Correction factor": "1",
+          "Gain": "High",
+          "Img. Scale Cor.": "1.000",
+          "Reset": "Off",
+          "? Ref. amplitude 1H": "0.000 V"
+        },
+        "Physio - Signal1": {
+          "1st Signal/Mode": "None",
+          "TR": "4040 ms",
+          "Concatenations": "1"
+        },
+        "Diff - Neuro": {
+          "Diffusion mode": "4-Scan Trace",
+          "Diff. directions": "4",
+          "Diffusion Scheme": "Monopolar",
+          "Diff. weightings": "2",
+          "b-value 1": "0 s/mm²",
+          "b-value 2": "1000 s/mm²",
+          "b-value 1 #2": "1",
+          "b-value 2 #2": "1",
+          "Diff. weighted images": "Off",
+          "Trace weighted images": "On",
+          "ADC maps": "On",
+          "FA maps": "Off",
+          "Mosaic": "Off",
+          "Tensor": "Off",
+          "Noise level": "100"
+        },
+        "Diff - Body": {
+          "Diffusion mode": "4-Scan Trace",
+          "Diff. directions": "4",
+          "Diffusion Scheme": "Monopolar",
+          "Diff. weightings": "2",
+          "b-value 1": "0 s/mm²",
+          "b-value 2": "1000 s/mm²",
+          "b-value 1 #2": "1",
+          "b-value 2 #2": "1",
+          "Diff. weighted images": "Off",
+          "Trace weighted images": "On",
+          "ADC maps": "On",
+          "Exponential ADC Maps": "Off",
+          "FA maps": "Off",
+          "Invert Gray Scale": "Off",
+          "Calculated Image": "Off",
+          "b-Value >=": "0 s/mm²",
+          "Noise level": "100"
+        },
+        "Diff - Composing": {
+          "Distortion Corr.": "Off"
+        },
+        "Sequence - Part 1": {
+          "Introduction": "On",
+          "Dimension": "2D",
+          "Contrasts": "2",
+          "Optimization": "Min. TE",
+          "Multi-slice mode": "Interleaved",
+          "Echo spacing": "0.32 ms",
+          "Bandwidth": "766 Hz/Px"
+        },
+        "Sequence - Part 2": {
+          "EPI factor": "96",
+          "RF pulse type": "Normal",
+          "Gradient mode": "Fast",
+          "Reacquisition mode": "On"
+        },
+        "Sequence - Assistant": {
+          "Mode": "Off"
+        }
+      },
+      "pages": [
+        26,
+        27
+      ]
+    }
+  ]
+}
