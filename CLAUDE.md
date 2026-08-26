@@ -72,9 +72,13 @@ See `Design.md` for the design and `README.md` for usage.
 
 - `examples/<VERSION>/*.pdf` — the folder name is the ground-truth version label
 - `examples/<VERSION>/*.exar1` — protocol archives, discovered the same way.
-  `SIEMENS_PROTOCOL_EXAR_DIR` points at a corpus kept outside the repo instead;
-  with neither, all 27 corpus-driven `.exar1` tests skip, and a skip reads like
-  a pass. Keep at least one archive in `examples/`.
+  `SIEMENS_PROTOCOL_EXAR_DIR` names a directory whose archives are used *as
+  well*, not instead: `examples/` is always scanned, and archives found through
+  the variable carry no version label, so a test needing one reads the
+  archive's own baseline. Remove the shipped archives and 25 corpus-driven
+  tests skip while 10 pure-unit ones still pass, which reads like a pass --
+  so CI asserts both that discovery found something and that nothing skipped,
+  the same two-halves guard the OCR and front-end suites have.
 - `SIEMENS_PROTOCOL_REGEN=1 .venv/bin/python -m pytest tests/test_golden.py` — regenerate snapshots
 - `pythonpath = ["tests"]` in pyproject lets tests import `conftest` helpers directly
 - Verify layout changes with the token-conservation test in `tests/test_pipeline.py`:

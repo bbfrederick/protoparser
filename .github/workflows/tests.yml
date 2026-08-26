@@ -101,6 +101,35 @@ jobs:
             exit 1
           fi
 
+      # The .exar1 tests skip wholesale when no archive is discoverable, and
+      # a skip reads like a pass -- the same trap the two guards above exist
+      # for. It is a live risk here because the corpus is discovered rather
+      # than declared: examples/<VERSION>/*.exar1, or SIEMENS_PROTOCOL_EXAR_DIR
+      # pointing outside the repo. Losing the shipped archive would silently
+      # stop testing the reader, the patcher and the hashing all at once.
+      # Discovery is asked of conftest rather than reimplemented as a glob,
+      # because a guard that asks a different question than the code does is
+      # how the tesseract skip went unnoticed on Windows.
+      - name: The .exar1 archives must be present and exercised
+        shell: bash
+        env:
+          PYTHONPATH: tests
+        run: |
+          python -c "
+          import sys
+          from conftest import EXAR_FILES
+          for path, version in EXAR_FILES:
+              print('discovered:', version, path)
+          if not EXAR_FILES:
+              print('::error::no .exar1 archive was discovered, so those tests would skip')
+              sys.exit(1)
+          "
+          python -m pytest tests/test_exar.py tests/test_exar_patch.py -q | tee exar.log
+          if grep -q skipped exar.log; then
+            echo "::error::the .exar1 tests skipped, so the archives were not usable"
+            exit 1
+          fi
+
       - name: Test
         run: python -m pytest -q
 
