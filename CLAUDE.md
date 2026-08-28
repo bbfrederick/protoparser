@@ -272,16 +272,17 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   scan a person should look at, which is what that verdict means. No shipped
   example does it; the branch exists so a future one is visible rather than
   quietly resolved.
-- The corpus stands at 469 third-party, 246 stock and 5 unrecognized, pinned by
+- The corpus stands at 584 third-party, 272 stock and 21 unrecognized, pinned by
   `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
   `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
   third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
   `stock_binaries`. The five unaccounted scans are all in `XA60-Potpourri`,
   added for the `.exar1` work rather than for sequence detection: Siemens
   kernels (`epfid`, `epse`, `fl`) carrying MGH's FLEET/ACS modifications, whose
-  extra parameters no signature claims. They are named individually rather than
-  counted, so a *sixth* unaccounted scan -- or one of these five quietly
-  resolving -- still fails. That test asserted zero before, and relaxing it was
+  extra parameters no signature claims. They recur in all three Potpourri
+  exports (P1, P1_changed, P2), so the pinned set is the product of five scan
+  names and three export names rather than fifteen literals -- a *sixth*
+  unaccounted scan, or one of these five quietly resolving, still fails. That test asserted zero before, and relaxing it was
   the deliberate act the previous wording called for; writing signatures to
   force it back to zero would mean attributing sequences from inference alone,
   which is exactly what the attribution rule above forbids.
@@ -291,11 +292,14 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 `siemens_protocol.exar` reads and rewrites the protocol archives XA exports.
 None of this is documented by Siemens; every claim below was established
 against real exports and is asserted in `tests/test_exar.py` rather than
-assumed. The corpus is `examples/XA60/Potpourri.exar1` plus
-`Potpourri_changed.exar1`, which is the same export re-saved after changing TR
-on five scans -- a deliberate one-parameter probe, not a second real protocol.
-`Potpourri.pdf` is that same tree's PDF export, which is what lets the two
-readers be checked against each other.
+assumed. The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
+and `Potpourri_P2`, each with its PDF export. Two re-saved variants are the
+answer keys the mappings rest on: `Potpourri_P2_changed` moves TR alone on five
+scans, and `Potpourri_P1_changed` moves many parameters across five scans
+including the Special card, with its own PDF. Having the PDF beside the archive
+is what lets the two readers be checked against each other, and having a
+before/after pair is the only way to learn where a printed value is stored --
+`sWipMemBlock` in particular is unreadable without one.
 
 - **The format is five layers deep**: SQLite -> raw DEFLATE (`wbits=-15`, no
   zlib or gzip wrapper) -> a one-line `EDF V1: ContentType=...;` header -> a
@@ -325,9 +329,12 @@ readers be checked against each other.
   sixteen bytes each. Reading them big-endian gives well-formed GUIDs that match
   no element, so the failure is an empty tree rather than an error.
 - **Scan names are not in the protocol.** They hang off `Instance.LabelElement_id`
-  on an `EdfString` node whose content is a locale table, `{"Texts": {"": name}}`,
-  with the empty key as default. That is deliberate: renaming a scan must not
-  re-hash the protocol.
+  on an `EdfString` node whose content is a locale table. That is deliberate:
+  renaming a scan must not re-hash the protocol. The key is not always the same
+  -- most archives use `""` for the default, but some write `"en"` with no empty
+  key at all, and both spellings are in the corpus. Reading only `""` yields a
+  nameless tree on those, which looks like a reader that cannot find the labels
+  rather than one looking under the wrong key.
 - **`Preview` is the bridge to the PDF.** Each protocol carries a flat map of
   `{Label, Unit, Value}` entries whose labels are the ones the PDF prints -- `TR`,
   `Slice Thickness`, `FOV Read`. It is a per-protocol dictionary from printed
@@ -339,6 +346,62 @@ readers be checked against each other.
   Patch only the preview and the console lists a number the scan will not use;
   patch only the ASCCONV and the list goes stale. The console also recomputes
   derived values -- `lScanTimeSec` followed TR -- which a patcher does not.
+- **"Two places" is the simple case; there are four shapes.** Some parameters
+  are an ASCCONV *array*: `FOV Read` and `Slice Thickness` are replicated across
+  every `sSliceArray.asSlice[]` element -- three on a localizer, sixty-four on a
+  multi-slice EPI -- and writing element zero alone yields a protocol that loads,
+  lists correctly and is wrong. Some are *derived*: `FOV Phase` is a percentage
+  on the card but millimetres in the protocol, `dPhaseFOV = dReadoutFOV * pct/100`.
+  Some are ASCCONV *only*: nothing on the Special card appears in `Preview` at
+  all, so those have no preview side to keep in sync. And `Preview` is the
+  console's listing, not a mirror of the printout -- a multi-echo scan prints
+  `TE 1`..`TE 4` and `Preview` carries only the first, the rest living in
+  `alTE[1..3]` alone.
+- **`dThickness` is the slice on a 2D acquisition and the whole slab on a 3D
+  one.** `sKSpace.ucDimension` is 2 or 4 and decides which; on all eight 3D
+  protocols `dThickness` is exactly the displayed thickness times
+  `sKSpace.lImagesPerSlab`. Writing the displayed number straight in would put
+  1.0 where the protocol holds 176.0. This was caught by the mapping test
+  re-deriving its evidence rather than trusting the table, which is the whole
+  reason that test exists.
+- **`FOV Phase` cannot be reproduced exactly from a percentage.** The console
+  quantises it to a ratio the hardware can realise -- 29/30 of the read FOV,
+  printed as 96.7% -- so writing `read * 96.7/100` lands within a rounding of
+  the console's value but not on it. Assert to within the printed precision and
+  say so in the manifest; do not fudge the number to match.
+- **`sWipMemBlock` has no global meaning, so its mappings are per sequence.**
+  It is scratch memory the sequence binary reads as it likes. `alFree[0]` is MT
+  Flip Angle on `can_neuromelanin` and a packed word of checkbox flags on CMRR's
+  multiband sequences; `alFree[1]` is Readout polarity on `tfl_mgh_epinav_ABCD`
+  and Protocol filename on `ep_moco_nav_set_ABCD`; `alFree[12]` is Nav. location
+  on the MPRAGE navigator and Include Nav. on the SPACE one. A table treating an
+  index as one parameter would write a flip angle into CMRR's flags, so anything
+  reaching into `sWipMemBlock` must name its sequences and a test enforces it.
+- **The option-scan archives are what pin the Special card**, and nothing else
+  can. `CMRR_optionscan_P1`, `MEMPRAGE_optionscan_P1` and `NAV_optionscan_P1`
+  each hold one sequence repeated with a single option changed per copy -- 33,
+  7 and 31 scans -- so diffing each against its group's baseline gives one
+  labelled change against one moved field. That yields three encodings: values
+  written directly, small-integer enums (`Averaging` is 1=None 2=Linear 3=RMS
+  4=RMS only 5=Mean), and CMRR's fourteen-bit flags word in `alFree[0]`.
+  `tests/test_exar_patch.py` replays all 62 toggles through the patcher and
+  requires every one to reproduce the console.
+- **`sWipMemBlock` arrays are sparse: an assignment holding zero is not
+  written at all.** A CMRR protocol with every Special-card box unticked has no
+  `alFree[0]` line, and setting `Remeasure` to zero deleted its line rather
+  than writing `0`. Elements are listed in ascending index order, so creating
+  one means inserting it among its siblings and not appending. A patcher that
+  only overwrites existing assignments cannot turn a first flag on, which is
+  how this was found.
+- **A flags word carries bits no mapping claims.** Comparing a whole `alFree[0]`
+  against the console's is therefore wrong; compare the bit a mapping claims.
+  The Potpourri edit toggled `Echoes in separate series`, which no option scan
+  has pinned, and it shares the word with fourteen options that are pinned.
+- **ASCCONV doubles carry twelve significant figures.** That reproduces all 919
+  distinct float literals in the reference archives, and so does Python's
+  `repr` -- but `repr` spells a freshly computed value with its binary tail
+  (`201.26200000000003` where the console writes `201.262`), so it is the wrong
+  choice for the one job the formatter has.
 - **Byte-exact round-trip is not the goal, because the console is not
   byte-stable either.** Re-saving an unmodified protocol regenerates all 67
   GUIDs, rewrites `sCoilSelectMeas.aRxCoilSelectData[N].tCheckUUID` and the GUID
@@ -370,6 +433,26 @@ readers be checked against each other.
   instances; reading there yields an empty tree that looks like a corrupt file.
   The real row's baseline is the compatibility gate the scanner checks:
   `MAJORVERSION:VA60A, PROTOCOL:66010002, ADDIN:NXMAINLINE, EDF:1, SEQUENCE:1`.
+- **Two scanners differ only in the churn fields, plus the coils.** P1 and P2
+  are the same protocol imported onto two XA60 systems. Five of eighteen
+  protocols are byte-identical; the other thirteen differ *only* in
+  `tCheckUUID`, `sWipMemBlock.tFree` and the date-and-time hiding in
+  `sSpecPara.lFinalMatrixSize*` -- every one already on the churn list above,
+  which was derived from re-saving one archive and is here confirmed on a
+  completely independent axis. No acquisition parameter differs. The single
+  real difference is hardware: `aRxCoilSelectData[1].aFFT_SCALE` has 58
+  entries on P1 and 20 on P2, on the one scan using a second coil array. A
+  generator moving a protocol between scanners must not copy that across.
+- **A readable archive can hold no protocols at all.** Exporting an empty
+  folder node rather than the protocol tree yields a valid SQLite file with
+  the directory scaffolding, a `Root` label and nothing else -- five
+  `Instance` rows against a real export's sixty-seven. It is an export
+  mistake, not a corrupt file, so `read` must not raise; but a corpus sweep
+  asserting things about scans has nothing to say about one and would report
+  the mistake as a reader failure. `conftest.EXAR_PROTOCOL_FILES` partitions
+  the corpus, and the sweeps that need scans take `protocol_archive_path`
+  while the structural ones (envelope, hashing, GUID layout) still take
+  `archive_path` and are exercised by it.
 - Everything so far is XA60 (`VA60A`). No XA30 archive has been seen, so the
   claim that the model is release-independent is untested -- that is the first
   thing to check when one arrives.

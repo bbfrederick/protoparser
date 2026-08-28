@@ -88,4 +88,6 @@ skip = "./examples,./tests/golden"
 # case-sensitively, so the lowercase spellings need their own entries: the
 # exar preview paths write the echo time as "sub.0.msr.te.0", and "TE" alone
 # does not cover that -- codespell reads the bare "te" as the/be/we/to.
-ignore-words-list = "TE,TR,te,tr,ADDIN"
+# NOE is the Nuclear Overhauser Effect, which names one of the spectroscopy
+# examples and so appears in the scan-count and sequence tests.
+ignore-words-list = "TE,TR,te,tr,ADDIN,NOE"

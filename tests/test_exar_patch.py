@@ -16,11 +16,20 @@ actually changed.
 
 from __future__ import annotations
 
+import json
 import pathlib
+import re
+import subprocess
+import sys
 
 import pytest
 
-from conftest import find_exar, requires_exar
+from conftest import (  # noqa: F401
+    find_exar,
+    find_pdf,
+    protocol_archive_path,
+    requires_exar,
+)
 from siemens_protocol.exar import patch, read
 
 #: The parameter the reference pair records a controlled edit for.
@@ -73,8 +82,8 @@ def test_patching_reproduces_the_console_edit(tmp_path: pathlib.Path) -> None:
     -------
     None
     """
-    source = find_exar("Potpourri.exar1")
-    target = find_exar("Potpourri_changed.exar1")
+    source = find_exar("Potpourri_P2.exar1")
+    target = find_exar("Potpourri_P2_changed.exar1")
     wanted = _changed_steps(source, target)
     assert wanted, "the reference pair records no TR change to reproduce"
 
@@ -99,6 +108,207 @@ def test_patching_reproduces_the_console_edit(tmp_path: pathlib.Path) -> None:
 
 
 @requires_exar
+def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.Path) -> None:
+    """The P1 pair is an answer key for every mapping at once.
+
+    Potpourri_P1_changed is the same export re-saved after changing many
+    parameters across five scans, Special card included. Asking the patcher for
+    exactly those values and comparing every mapped assignment -- at every
+    array index -- exercises scope, arrays, units, the derived basis, re-hashing
+    and the container rewiring together.
+
+    FOV Phase is compared to within the console's own rounding rather than
+    exactly: it is quantised to a ratio the hardware can realise and printed to
+    a tenth of a percent, so a percentage cannot reconstruct the millimetres it
+    came from. Everything else must match byte for byte.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the patched archive.
+
+    Returns
+    -------
+    None
+    """
+    source = find_exar("Potpourri_P1.exar1")
+    target = find_exar("Potpourri_P1_changed.exar1")
+    before, after = read(source), read(target)
+
+    wanted: dict[str, dict[str, object]] = {}
+    for one, other in zip(before.steps, after.steps):
+        asked: dict[str, object] = {}
+        for mapping in patch.MAPPINGS:
+            if not patch.applies_to(mapping, one.protocol):
+                continue
+            if mapping.preview_path is not None:
+                was = one.protocol.preview.get(mapping.preview_path)
+                now = other.protocol.preview.get(mapping.preview_path)
+                if was is not None and now is not None and was.value != now.value:
+                    asked[mapping.label] = now.value
+                continue
+            was_raw = patch.read_ascconv(one.protocol.xprotocol, mapping.ascconv_key)
+            now_raw = patch.read_ascconv(other.protocol.xprotocol, mapping.ascconv_key)
+            if mapping.bit is not None:
+                was_on = bool(int(was_raw or 0) >> mapping.bit & 1)
+                now_on = bool(int(now_raw or 0) >> mapping.bit & 1)
+                if was_on != now_on:
+                    asked[mapping.label] = now_on
+                continue
+            if was_raw is not None and now_raw is not None and was_raw != now_raw:
+                asked[mapping.label] = float(now_raw)
+        if asked:
+            wanted[one.name] = asked
+    assert wanted, "the reference pair records no mapped change to reproduce"
+
+    archive = read(source)
+    manifest = patch.apply(archive, wanted)
+    assert manifest.complete, manifest.report()
+    written = tmp_path / "patched.exar1"
+    archive.write(str(written))
+
+    ours = read(str(written))
+    exact = approximate = 0
+    for one, other in zip(ours.steps, after.steps):
+        for mapping in patch.MAPPINGS:
+            if not patch.applies_to(mapping, other.protocol):
+                continue
+            for key, _index in patch.expand(mapping.ascconv_key, other.protocol.xprotocol):
+                got = patch.read_ascconv(one.protocol.xprotocol, key)
+                want = patch.read_ascconv(other.protocol.xprotocol, key)
+                if got is None or want is None:
+                    continue
+                if mapping.bit is not None:
+                    # Compare the bit this mapping claims, not the whole word.
+                    # The console also sets flags no shipped mapping covers --
+                    # this export toggled "Echoes in separate series", which no
+                    # option scan has pinned -- and those share the word.
+                    mine = int(got) >> mapping.bit & 1
+                    theirs = int(want) >> mapping.bit & 1
+                    assert mine == theirs, f"{one.name} {key} bit {mapping.bit}"
+                    exact += 1
+                    continue
+                if got == want:
+                    exact += 1
+                    continue
+                assert mapping.basis is not None, f"{one.name} {key}: {got} != {want}"
+                assert abs(float(got) - float(want)) <= 5e-4 * max(1.0, abs(float(want)))
+                approximate += 1
+    assert exact > 1000, f"only {exact} assignments compared"
+    assert approximate, "the quantised parameter was not exercised"
+
+
+#: Archives whose scans are one sequence repeated with a single Special-card
+#: option changed each time. They are what pins the WIP indices, the enum
+#: values and the flag bits, none of which can be read off a single export.
+OPTION_SCANS = (
+    "CMRR_optionscan_P1",
+    "MEMPRAGE_optionscan_P1",
+    "NAV_optionscan_P1",
+)
+
+#: Units the card prints beside a value and the protocol does not store.
+UNIT_SUFFIX = re.compile(r"\s*(ms|TRs|deg|Hz|%)$")
+
+
+def _printed(scan: dict) -> dict[str, object]:
+    """Flatten one parsed scan to ``{parameter: printed value}``.
+
+    Parameters
+    ----------
+    scan : dict
+        One entry of a parsed protocol's ``scans``.
+
+    Returns
+    -------
+    dict
+        Every parameter the scan prints, keyed by name.
+    """
+    return {
+        key: (item.get("value") if isinstance(item, dict) else item)
+        for key, item in (scan.get("flat") or {}).items()
+    }
+
+
+@requires_exar
+@pytest.mark.parametrize("name", OPTION_SCANS)
+def test_replaying_every_single_option_toggle_matches_the_console(name: str) -> None:
+    """Each option scan is dozens of one-change answer keys in one file.
+
+    Every scan after the first in a sequence group differs from the group's
+    baseline by one Special-card option, so asking the patcher for that one
+    label and comparing what it wrote against what the console wrote tests the
+    index, the encoding and the sparse-array behaviour at once. A flag is
+    compared at its own bit rather than by the whole word, since the console
+    also sets flags no shipped mapping covers and they share that word.
+
+    Parameters
+    ----------
+    name : str
+        Base name of the option-scan pair.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar(f"{name}.exar1"))
+    printed = json.loads(
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "siemens_protocol.cli",
+                "parse",
+                find_pdf(f"{name}.pdf"),
+                "--stdout",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    )["scans"]
+    assert len(printed) == len(archive.steps)
+
+    groups: dict[str, list[int]] = {}
+    for position, step in enumerate(archive.steps):
+        groups.setdefault(patch.sequence_of(step.protocol), []).append(position)
+
+    replayed = 0
+    for positions in groups.values():
+        first = positions[0]
+        baseline = archive.steps[first].protocol
+        was = _printed(printed[first])
+        for position in positions[1:]:
+            now = _printed(printed[position])
+            asked = {}
+            for label, value in now.items():
+                if was.get(label) == value:
+                    continue
+                mapping, _reason = patch.resolve(baseline, label)
+                if mapping is not None:
+                    asked[label] = UNIT_SUFFIX.sub("", str(value)).strip()
+            if not asked:
+                continue
+            replayed += 1
+            document, _applied, skipped = patch.patch_document(baseline, asked)
+            assert not skipped, [s.reason for s in skipped]
+            target = archive.steps[position].protocol.xprotocol
+            for label in asked:
+                mapping, _reason = patch.resolve(baseline, label)
+                assert mapping is not None
+                for key, _index in patch.expand(mapping.ascconv_key, target):
+                    ours = patch.read_ascconv(document["Data"], key)
+                    theirs = patch.read_ascconv(target, key)
+                    if mapping.bit is not None:
+                        assert (int(ours or 0) >> mapping.bit & 1) == (
+                            int(theirs or 0) >> mapping.bit & 1
+                        ), f"scan {position}: {label} at {key} bit {mapping.bit}"
+                    else:
+                        assert ours == theirs, f"scan {position}: {label} at {key}"
+    assert replayed >= 5, f"{name} exercised only {replayed} toggles"
+
+
+@requires_exar
 def test_a_patch_writes_both_locations_not_just_the_preview() -> None:
     """The preview and the ASCCONV block move together.
 
@@ -109,7 +319,7 @@ def test_a_patch_writes_both_locations_not_just_the_preview() -> None:
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     step = archive.steps[0]
     before = patch.read_ascconv(step.protocol.xprotocol, "alTR[0]")
     document, applied, skipped = patch.patch_document(step.protocol, {"TR": 1234.0})
@@ -132,7 +342,7 @@ def test_the_millisecond_to_microsecond_scale_is_applied() -> None:
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     document, applied, _ = patch.patch_document(archive.steps[0].protocol, {"TR": 2000.0})
     assert applied[0].value == 2000.0
     assert patch.read_ascconv(document["Data"], "alTR[0]") == "2000000"
@@ -201,16 +411,16 @@ def test_an_assignment_outside_the_ascconv_block_is_left_alone() -> None:
 def test_an_unmapped_label_is_reported_not_written() -> None:
     """A parameter the PDF prints but no mapping covers is skipped by name.
 
-    ``FOV Read`` is the live example: two ASCCONV keys hold the same number
-    throughout the corpus, so no mapping ships and the request must surface
-    rather than pick one.
+    ``Bandwidth`` is the live example: the PDF prints it on every scan and no
+    controlled edit has pinned where it is stored, so the request must surface
+    rather than be guessed at.
 
     Returns
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
-    _, applied, skipped = patch.patch_document(archive.steps[0].protocol, {"FOV Read": 210.0})
+    archive = read(find_exar("Potpourri_P2.exar1"))
+    _, applied, skipped = patch.patch_document(archive.steps[0].protocol, {"Bandwidth": 2000.0})
     assert not applied
     assert len(skipped) == 1
     assert (
@@ -227,7 +437,7 @@ def test_a_request_for_a_missing_step_is_skipped_with_a_reason() -> None:
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     manifest = patch.apply(archive, {"no_such_scan": {"TR": 100.0}})
     assert not manifest.complete
     assert manifest.skipped[0].reason == "no such step in archive"
@@ -241,7 +451,7 @@ def test_a_protocol_without_the_field_is_skipped_not_invented() -> None:
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     lacking = [s for s in archive.steps if "sub.0.msr.ips" not in s.protocol.preview]
     if not lacking:
         pytest.skip("every protocol in this archive carries sub.0.msr.ips")
@@ -271,7 +481,7 @@ def test_a_patch_re_addresses_only_the_protocol_it_touched(tmp_path: pathlib.Pat
     -------
     None
     """
-    path = find_exar("Potpourri.exar1")
+    path = find_exar("Potpourri_P2.exar1")
     archive = read(path)
     name = archive.steps[0].name
     before = {s.name: s.protocol.instance.content_hash for s in archive.steps}
@@ -292,7 +502,7 @@ def test_a_run_that_writes_nothing_leaves_the_archive_alone(tmp_path: pathlib.Pa
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     before = {s.name: s.protocol.instance.content_hash for s in archive.steps}
     manifest = patch.apply(archive, {archive.steps[0].name: {"Nonexistent Parameter": 1}})
     assert not manifest.applied
@@ -313,7 +523,7 @@ def test_the_patched_archive_survives_a_write_and_read(tmp_path: pathlib.Path) -
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     name = archive.steps[3].name
     patch.apply(archive, {name: {"TR": 1750.0}})
     written = tmp_path / "patched.exar1"
@@ -343,7 +553,7 @@ def test_the_manifest_counts_what_it_did_not_write() -> None:
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     name = archive.steps[0].name
     manifest = patch.apply(archive, {name: {"TR": 900.0}})
     assert manifest.inherited > 0
@@ -358,7 +568,7 @@ def test_the_manifest_names_the_values_the_console_would_recompute() -> None:
     -------
     None
     """
-    archive = read(find_exar("Potpourri.exar1"))
+    archive = read(find_exar("Potpourri_P2.exar1"))
     manifest = patch.apply(archive, {archive.steps[0].name: {"TR": 900.0}})
     assert "lScanTimeSec" in manifest.stale
     assert "not recomputed" in manifest.report()
@@ -370,36 +580,159 @@ def test_the_manifest_names_the_values_the_console_would_recompute() -> None:
 
 
 @requires_exar
-def test_every_shipped_mapping_agrees_with_the_corpus(archive_path: str) -> None:
-    """Each mapping's two locations hold the same value in every protocol.
+def test_every_shipped_mapping_agrees_with_the_corpus(protocol_archive_path: str) -> None:
+    """Each mapping's stored value matches its displayed one, in every protocol.
 
-    This is the evidence the table rests on, re-checked rather than trusted:
-    a mapping whose scale or key is wrong shows up as a disagreement here.
+    This re-derives the evidence the table rests on rather than trusting it: a
+    wrong scale, key or basis shows up as a disagreement. Array targets are
+    checked at every index, not just the first, since a mapping that wrote one
+    slice and left the rest is exactly the bug this catches.
 
     Parameters
     ----------
-    archive_path : str
-        One archive from the corpus.
+    protocol_archive_path : str
+        One archive from the corpus that carries protocols.
 
     Returns
     -------
     None
     """
-    archive = read(archive_path)
+    archive = read(protocol_archive_path)
     checked = 0
     for step in archive.steps:
         protocol = step.protocol
-        for mapping in patch.MAPPINGS.values():
-            entry = protocol.preview.get(mapping.preview_path)
-            literal = patch.read_ascconv(protocol.xprotocol, mapping.ascconv_key)
-            if entry is None or literal is None or not isinstance(entry.value, (int, float)):
+        for mapping in patch.MAPPINGS:
+            if mapping.preview_path is None or not patch.applies_to(mapping, protocol):
                 continue
-            checked += 1
-            assert float(literal) == pytest.approx(entry.value * mapping.scale), (
-                f"{step.name}: {mapping.label} preview {entry.value} does not match "
-                f"{mapping.ascconv_key}={literal} at scale {mapping.scale}"
-            )
+            entry = protocol.preview.get(mapping.preview_path)
+            if entry is None or not isinstance(entry.value, (int, float)):
+                continue
+            for key, index in patch.expand(mapping.ascconv_key, protocol.xprotocol):
+                literal = patch.read_ascconv(protocol.xprotocol, key)
+                if literal is None:
+                    continue
+                want = float(entry.value) * mapping.scale
+                if mapping.basis is not None:
+                    basis = patch.read_ascconv(
+                        protocol.xprotocol, mapping.basis.replace("[*]", f"[{index}]")
+                    )
+                    if basis is None:
+                        continue
+                    want *= float(basis)
+                checked += 1
+                # FOV Phase is quantised by the console and printed rounded to a
+                # tenth of a percent, so it agrees to within that rounding and
+                # not exactly. Everything else is exact.
+                tolerance = 2e-3 if mapping.basis is not None else 1e-6
+                assert abs(float(literal) - want) <= tolerance * max(1.0, abs(want)), (
+                    f"{step.name}: {mapping.label} shows {entry.value} but "
+                    f"{key}={literal}, wanted {want}"
+                )
     assert checked, "no mapping was exercised by this archive"
+
+
+@requires_exar
+def test_a_sequence_specific_mapping_is_refused_on_another_sequence() -> None:
+    """``sWipMemBlock`` indices mean different things per sequence.
+
+    ``alFree[0]`` is MT Flip Angle on ``can_neuromelanin`` and a packed word of
+    checkbox flags on CMRR's multiband sequences, so a table that wrote it
+    without regard to the sequence would put a flip angle into CMRR's flags.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    steps = {s.name: s for s in archive.steps}
+    cmrr = steps["Minn_CMRR_2.3mm_S8_rest_6min"].protocol
+    neuro = steps["can_neuromelanin"].protocol
+    assert patch.sequence_of(cmrr) == "cmrr_mbep2d_bold"
+    assert patch.sequence_of(neuro) == "can_neuromelanin"
+
+    found, _ = patch.resolve(neuro, "MT Flip Angle")
+    assert found is not None and found.ascconv_key == "sWipMemBlock.alFree[0]"
+
+    refused, reason = patch.resolve(cmrr, "MT Flip Angle")
+    assert refused is None
+    assert "cmrr_mbep2d_bold" in reason
+
+
+@requires_exar
+def test_an_array_target_writes_every_slice_not_only_the_first() -> None:
+    """FOV Read and Slice Thickness are replicated across the slice array.
+
+    Writing element zero alone leaves the others at the old value, which loads,
+    lists correctly in the console, and is wrong.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    step = {s.name: s for s in archive.steps}["Minn_CMRR_2.3mm_S8_rest_6min"]
+    targets = patch.expand("sSliceArray.asSlice[*].dReadoutFOV", step.protocol.xprotocol)
+    assert len(targets) > 1, "this fixture should have a multi-slice array"
+
+    document, applied, skipped = patch.patch_document(step.protocol, {"FOV Read": 199.0})
+    assert not skipped and len(applied) == 1
+    written = {patch.read_ascconv(document["Data"], key) for key, _ in targets}
+    assert written == {"199.0"}, f"not every slice was written: {sorted(written)}"
+
+
+@requires_exar
+def test_a_derived_target_is_scaled_by_its_basis() -> None:
+    """FOV Phase is stored as millimetres, not as the percentage displayed.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    step = {s.name: s for s in archive.steps}["Minn_CMRR_2.3mm_S8_rest_6min"]
+    document, applied, skipped = patch.patch_document(
+        step.protocol, {"FOV Read": 200.0, "FOV Phase": 50.0}
+    )
+    assert not skipped and len(applied) == 2
+    assert patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dReadoutFOV") == "200.0"
+    assert patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dPhaseFOV") == "100.0"
+
+
+@requires_exar
+def test_a_special_card_mapping_writes_ascconv_with_no_preview_side() -> None:
+    """Nothing on the Special card appears in ``Preview``.
+
+    The console lists only common parameters, so these mappings have no preview
+    entry to keep in sync and must not invent one.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    step = {s.name: s for s in archive.steps}["can_neuromelanin"]
+    assert not step.protocol.by_label("MT Flip Angle")
+
+    before = dict(step.protocol.document["Preview"])
+    document, applied, skipped = patch.patch_document(step.protocol, {"MT Flip Angle": 355})
+    assert not skipped and len(applied) == 1
+    assert patch.read_ascconv(document["Data"], "sWipMemBlock.alFree[0]") == "355"
+    assert document["Preview"] == before, "an ASCCONV-only mapping touched the preview"
+
+
+def test_a_float_is_written_the_way_the_console_writes_one() -> None:
+    """Doubles carry twelve significant figures, not Python's full repr.
+
+    A freshly computed value otherwise arrives with its binary tail attached --
+    ``201.26200000000003`` where the console would write ``201.262``.
+
+    Returns
+    -------
+    None
+    """
+    assert patch.format_like(201.26200000000003, "207.0") == "201.262"
+    assert patch.format_like(1.0, "2.0") == "1.0"
+    assert patch.format_like(2000000.0, "650000") == "2000000"
 
 
 def test_every_mapping_records_how_it_was_established() -> None:
@@ -413,18 +746,85 @@ def test_every_mapping_records_how_it_was_established() -> None:
     -------
     None
     """
-    for path, mapping in patch.MAPPINGS.items():
-        assert mapping.preview_path == path
+    for mapping in patch.MAPPINGS:
         assert mapping.evidence.strip()
         assert mapping.scale > 0
+        assert mapping.label.strip()
+        # sWipMemBlock is scratch memory with no global meaning, so anything
+        # reaching into it must say which sequences it is true of.
+        if "sWipMemBlock" in mapping.ascconv_key:
+            assert mapping.is_sequence_specific, f"{mapping.label} must name its sequences"
 
 
 def test_no_two_mappings_claim_the_same_ascconv_key() -> None:
-    """Two preview paths writing one assignment would race each other.
+    """Distinct entries are distinguished by more than their target.
+
+    Two mappings may share a key when their conditions are disjoint -- slice
+    thickness writes ``dThickness`` on both 2D and 3D acquisitions, meaning
+    different things -- so the identity of an entry is the target together with
+    the scope it applies in.
 
     Returns
     -------
     None
     """
-    keys = [m.ascconv_key for m in patch.MAPPINGS.values()]
-    assert len(keys) == len(set(keys))
+    identity = [(m.ascconv_key, m.sequences, m.when, m.bit) for m in patch.MAPPINGS]
+    assert len(identity) == len(set(identity))
+
+
+@requires_exar
+def test_no_protocol_has_two_mappings_writing_one_key(protocol_archive_path: str) -> None:
+    """The safety property the entry-level check only approximates.
+
+    Sharing a key is fine while the conditions are disjoint, and fine for
+    checkboxes packed into one word -- fourteen CMRR options live in
+    ``alFree[0]`` and touch a bit each. What would race is two mappings in
+    scope for one protocol writing the same *whole* assignment.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        One archive from the corpus that carries protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    for step in archive.steps:
+        protocol = step.protocol
+        keys = [(m.ascconv_key, m.bit) for m in patch.MAPPINGS if patch.applies_to(m, protocol)]
+        assert len(keys) == len(set(keys)), (
+            f"{step.name} ({patch.sequence_of(protocol)}) has two mappings "
+            f"writing one key: {sorted(k for k in keys if keys.count(k) > 1)}"
+        )
+
+
+@requires_exar
+def test_slice_thickness_follows_the_acquisition_dimension() -> None:
+    """On a 3D acquisition ``dThickness`` is the slab, not the slice.
+
+    Writing the displayed thickness straight into it would put 1.0 where the
+    protocol holds 176.0 -- a protocol that loads and is badly wrong.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    steps = {s.name: s for s in archive.steps}
+    flat = steps["Minn_CMRR_2.3mm_S8_rest_6min"].protocol
+    slab = steps["ABCD_T1w_MPR_vNav"].protocol
+    assert patch.read_ascconv(flat.xprotocol, "sKSpace.ucDimension") == "2"
+    assert patch.read_ascconv(slab.xprotocol, "sKSpace.ucDimension") == "4"
+
+    two_d, _ = patch.resolve(flat, "Slice Thickness")
+    three_d, _ = patch.resolve(slab, "Slice Thickness")
+    assert two_d is not None and two_d.basis is None
+    assert three_d is not None and three_d.basis == "sKSpace.lImagesPerSlab"
+
+    partitions = float(patch.read_ascconv(slab.xprotocol, "sKSpace.lImagesPerSlab"))
+    document, applied, skipped = patch.patch_document(slab, {"Slice Thickness": 1.25})
+    assert not skipped and len(applied) == 1
+    written = float(patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dThickness"))
+    assert written == 1.25 * partitions

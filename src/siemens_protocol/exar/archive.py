@@ -341,8 +341,15 @@ class Archive:
 
         Names live on a separate ``EdfString`` node rather than inside the
         protocol, so that renaming a scan does not rewrite -- and so does not
-        re-hash -- the protocol itself. The string content is a locale table
-        whose empty-string key holds the default.
+        re-hash -- the protocol itself.
+
+        The string content is a locale table, and the key is not always the
+        same. Most archives put the default under ``""``, but some write
+        ``"en"`` instead, with no empty key at all -- both spellings occur in
+        the shipped corpus. Reading only ``""`` yields a nameless tree on those,
+        which looks like a reader that cannot find the labels rather than one
+        looking under the wrong key. Any locale is better than no name, so the
+        empty key wins, then English, then whatever is there.
 
         Parameters
         ----------
@@ -360,7 +367,12 @@ class Archive:
         holder = self.by_element.get(element)
         if holder is None:
             return ""
-        return self.document(holder).get("Texts", {}).get("", "")
+        texts = self.document(holder).get("Texts", {})
+        locales = {k: v for k, v in texts.items() if k != "$id" and isinstance(v, str)}
+        for key in ("", "en"):
+            if locales.get(key):
+                return locales[key]
+        return next((v for _k, v in sorted(locales.items()) if v), "")
 
     @property
     def program(self) -> Instance | None:
