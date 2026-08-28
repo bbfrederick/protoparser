@@ -773,6 +773,70 @@ def _vocab_commands() -> tuple[Command, ...]:
     )
 
 
+def _exar_command() -> Command:
+    """Describe the archive-writing command.
+
+    Returns
+    -------
+    Command
+        The command's form and argument construction.
+    """
+    return Command(
+        name="exar",
+        group="Archive",
+        title="Write into an .exar1 archive",
+        summary=(
+            "Take a template .exar1 archive and a protocol PDF, write every parameter "
+            "that has a verified mapping, and report what could not be written. Only a "
+            "fraction of what a protocol prints is mapped, so the result is mostly the "
+            "template it started from -- the manifest says how much, and names the "
+            "parameters no mapping covers. Nothing is written without a destination."
+        ),
+        argv=("exar",),
+        fields=(
+            Field(
+                name="archive",
+                kind="path",
+                label="Template archive",
+                help="The .exar1 archive to write into. It is not modified in place.",
+                picker="file",
+                accept=(".exar1",),
+                required=True,
+            ),
+            Field(
+                name="input",
+                kind="path",
+                label="Protocol",
+                help="A PDF, or JSON this tool wrote earlier.",
+                picker="file",
+                accept=(".pdf", ".json"),
+                required=True,
+            ),
+            _release_field("Force a Siemens release profile for a PDF input."),
+            Field(
+                name="out",
+                kind="path",
+                label="Write archive to",
+                help=(
+                    "Where to write the result. Left empty, the manifest is shown and "
+                    "no archive is written."
+                ),
+                flag="--out",
+                picker="save",
+                accept=(".exar1",),
+            ),
+            Field(
+                name="show",
+                kind="int",
+                label="Entries to list",
+                help="How many written and unmapped entries the manifest names.",
+                flag="--show",
+                default=12,
+            ),
+        ),
+    )
+
+
 def _versions_command() -> Command:
     """Describe the ``versions`` subcommand.
 
@@ -810,6 +874,7 @@ def command_specs() -> tuple[Command, ...]:
         _diff_command(),
         _check_command(),
         _list_command(),
+        _exar_command(),
         _sequences_command(),
         *_vocab_commands(),
         _versions_command(),

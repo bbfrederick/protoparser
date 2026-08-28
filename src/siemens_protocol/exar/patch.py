@@ -45,6 +45,10 @@ from typing import Mapping as MappingType
 
 from .archive import Archive, Protocol, Step
 
+#: How a record spells an assignment that is not present. A sparse array omits
+#: an element holding zero, so "absent" is a value rather than a gap.
+ABSENT = "(absent)"
+
 #: Delimiters of the ASCCONV block inside the XProtocol text.
 ASCCONV_BEGIN = "### ASCCONV BEGIN"
 ASCCONV_END = "### ASCCONV END"
@@ -920,6 +924,20 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
         hits = [m for m in in_scope if m.preview_path == name]
     if len(hits) == 1:
         return (hits[0], "")
+    if not hits:
+        # The card does not always print a parameter under the name a mapping
+        # carries: a multi-echo scan prints "TE 1" where a single-echo one
+        # prints "TE", and Preview labels it the same way. Resolving through
+        # the preview entry follows the printout rather than duplicating every
+        # spelling in the table.
+        paths = {
+            entry.path
+            for entry in protocol.preview.values()
+            if entry.label.strip().casefold() == wanted
+        }
+        hits = [m for m in in_scope if m.preview_path in paths]
+    if len(hits) == 1:
+        return (hits[0], "")
     if len(hits) > 1:
         keys = ", ".join(sorted(m.ascconv_key for m in hits))
         return (None, f"label {name!r} maps to several parameters: {keys}")
@@ -1122,7 +1140,8 @@ def _apply_one(
             # is a legitimate state, not a missing target.
             literal = set_bit(existing, mapping.bit, bool(number))
             if not first_before:
-                first_before, first_after = existing or "0", literal
+                first_before = existing or "0"
+                first_after = ABSENT if (sparse and _is_zero(literal)) else literal
             text = _store(text, key, literal, existing, sparse)
             continue
         if existing is None and not sparse:
@@ -1136,7 +1155,12 @@ def _apply_one(
             written *= float(basis)
         literal = format_like(written, existing if existing is not None else _model(key))
         if not first_before:
-            first_before, first_after = existing or "(absent)", literal
+            # Report what will actually be stored. Writing zero into a sparse
+            # array removes the assignment, so an absent element asked to hold
+            # zero does not change -- and saying otherwise makes a no-op run
+            # look like it wrote something.
+            first_before = existing or ABSENT
+            first_after = ABSENT if (sparse and _is_zero(literal)) else literal
         text = _store(text, key, literal, existing, sparse)
 
     previous = None

@@ -14,6 +14,7 @@ spaces, and the linked list that fixes the running order of the scans.
 
 from __future__ import annotations
 
+from . import generate, patch, validate
 from .archive import (
     Archive,
     Instance,
@@ -28,6 +29,9 @@ from .envelope import Envelope
 
 __all__ = [
     "Archive",
+    "generate",
+    "patch",
+    "validate",
     "Envelope",
     "Instance",
     "PreviewEntry",
