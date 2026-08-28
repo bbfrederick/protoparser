@@ -1,0 +1,371 @@
+[
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T01_Single_band_images_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Single-band images",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T02_PF_omits_higher_k_space_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "PF omits higher k-space",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T03_SENSE1_coil_combine_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "SENSE1 coil combine",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T04_Invert_RO_PE_polarity_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Invert RO/PE polarity",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T05_MB_RF_phase_scramble_False",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "MB RF phase scramble",
+    "status": "OK",
+    "was": "True",
+    "now": "False"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T06_Time_shifted_MB_RF_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Time-shifted MB RF",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T07_MB_LeakBlock_kernel_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "MB LeakBlock kernel",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T08_MB_dual_kernel_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "MB dual kernel",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T09_Disable_freq__update_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Disable freq. update",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T10_Force_equal_slice_timing_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Force equal slice timing",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T11_Opt__MB_RF_pulse_BW_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Opt. MB RF pulse BW",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T12_Suppress_16_bit_DICOM_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Suppress 16-bit DICOM",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T13_Disable_B1_control_loop_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Disable B1 control loop",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T14_Force_GPA_balance_True",
+    "sequence": "cmrr_mbep2d_diff",
+    "parameter": "Force GPA balance",
+    "status": "OK",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_CMRR.exar1",
+    "scan": "T15_TR_6510",
+    "sequence": "cmrr_mbep2d_bold",
+    "parameter": "TR",
+    "status": "OK",
+    "was": "650.0",
+    "now": "651.0"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T01_Readout_polarity_Negative",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Readout polarity",
+    "status": "OK",
+    "was": "Positive",
+    "now": "Negative"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T02_Nav__location_After",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Nav. location",
+    "status": "OK",
+    "was": "Before",
+    "now": "After"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T03_Apply_moco_to_neither",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Apply moco to",
+    "status": "OK",
+    "was": "parent and nav",
+    "now": "neither"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T04_Remeasure_50",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Remeasure",
+    "status": "OK",
+    "was": "None",
+    "now": "5.0"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T05_Reacq__threshold_055",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Reacq. threshold",
+    "status": "OK",
+    "was": "0.5",
+    "now": "0.55"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T06_Feedback_Delay_610",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Feedback Delay",
+    "status": "OK",
+    "was": "60.0",
+    "now": "61.0"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T07_Moco_ref__image_NewSessRef",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Moco ref. image",
+    "status": "OK",
+    "was": "Use Temp Ref",
+    "now": "New Sess Ref"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T08_K_space_streaming_File",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "K-space streaming",
+    "status": "OK",
+    "was": "None",
+    "now": "File"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T09_ABCD_navigator_Off",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "ABCD navigator",
+    "status": "OK",
+    "was": "On",
+    "now": "Off"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T10_Apply_freq_to_neither",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Apply freq to",
+    "status": "OK",
+    "was": "parent and nav",
+    "now": "neither"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T11_Add__grad_time_01",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "parameter": "Add. grad time",
+    "status": "OK",
+    "was": "None",
+    "now": "0.1"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T12_Include_Nav__Off",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Include Nav.",
+    "status": "OK",
+    "was": "On",
+    "now": "Off"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T13_Apply_moco_to_neither",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Apply moco to",
+    "status": "OK",
+    "was": "parent and nav",
+    "now": "neither"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T14_Remeasure_190",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Remeasure",
+    "status": "OK",
+    "was": "18.0",
+    "now": "19.0"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T15_Reacq__threshold_055",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Reacq. threshold",
+    "status": "OK",
+    "was": "0.5",
+    "now": "0.55"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T16_Feedback_Delay_810",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Feedback Delay",
+    "status": "OK",
+    "was": "80.0",
+    "now": "81.0"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T17_Moco_ref__image_NewSessRef",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Moco ref. image",
+    "status": "OK",
+    "was": "Use Temp Ref",
+    "now": "New Sess Ref"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T18_K_space_streaming_File",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "K-space streaming",
+    "status": "OK",
+    "was": "None",
+    "now": "File"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T19_ABCD_navigator_Off",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "ABCD navigator",
+    "status": "OK",
+    "was": "On",
+    "now": "Off"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T20_Apply_freq_to_neither",
+    "sequence": "space_mgh_epinav_ABCD",
+    "parameter": "Apply freq to",
+    "status": "OK",
+    "was": "parent and nav",
+    "now": "neither"
+  },
+  {
+    "file": "loadtest/loadtest_NAV.exar1",
+    "scan": "T21_Protocol_filename_Generic",
+    "sequence": "ep_moco_nav_set_ABCD",
+    "parameter": "Protocol filename",
+    "status": "OK",
+    "was": "MPRAGE",
+    "now": "Generic"
+  },
+  {
+    "file": "loadtest/loadtest_MEMPRAGE.exar1",
+    "scan": "T01_Readout_polarity_Negative",
+    "sequence": "tfl_mgh_multiecho",
+    "parameter": "Readout polarity",
+    "status": "OK",
+    "was": "Positive",
+    "now": "Negative"
+  },
+  {
+    "file": "loadtest/loadtest_MEMPRAGE.exar1",
+    "scan": "T02_Gradient_spoiling_Integral",
+    "sequence": "tfl_mgh_multiecho",
+    "parameter": "Gradient spoiling",
+    "status": "OK",
+    "was": "Siemens",
+    "now": "Integral"
+  },
+  {
+    "file": "loadtest/loadtest_MEMPRAGE.exar1",
+    "scan": "T03_Averaging_None",
+    "sequence": "tfl_mgh_multiecho",
+    "parameter": "Averaging",
+    "status": "OK",
+    "was": "RMS",
+    "now": "None"
+  },
+  {
+    "file": "loadtest/loadtest_MISC.exar1",
+    "scan": "T01_MT_Flip_Angle_3710",
+    "sequence": "can_neuromelanin",
+    "parameter": "MT Flip Angle",
+    "status": "OK",
+    "was": "370.0",
+    "now": "371.0"
+  },
+  {
+    "file": "loadtest/loadtest_MISC2.exar1",
+    "scan": "T01_MT_Offset_15010",
+    "sequence": "can_neuromelanin",
+    "parameter": "MT Offset",
+    "status": "OK",
+    "was": "1500.0",
+    "now": "1501.0"
+  }
+]
