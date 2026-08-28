@@ -28,6 +28,8 @@ running order is a linked list held in the program's own content -- start at
 
 from __future__ import annotations
 
+import hashlib
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Iterator
@@ -493,6 +495,10 @@ class Archive:
         rows = self.container.tables["Instance"]
         for position in rows.find("Id", instance.id):
             rows.set(position, "ContentHash", digest)
+            tags = rows.rows[position][rows.index_of("Tags")]
+            refreshed = _refresh_content_tag(tags, document)
+            if refreshed != tags:
+                rows.set(position, "Tags", refreshed)
         instance.content_hash = digest
         return digest
 
@@ -509,6 +515,34 @@ class Archive:
         None
         """
         store.write(self.container, path)
+
+
+def _refresh_content_tag(tags: Any, document: dict[str, Any]) -> Any:
+    """Keep a protocol's ``#ContentHash`` tag in step with its XProtocol text.
+
+    ``Instance.Tags`` carries a fingerprint of the protocol -- the SHA-1 of the
+    ``Data`` string, which is not the ``ContentHash`` column and not the hash of
+    the stored blob. The console recomputes it on save, and a stale one was
+    tolerated on load, but it is derivable and describes the content, so it is
+    kept correct rather than left to drift.
+
+    Parameters
+    ----------
+    tags : Any
+        The instance's current ``Tags`` value, which may be ``None``.
+    document : dict
+        The replacement document. Only protocol content carries ``Data``.
+
+    Returns
+    -------
+    Any
+        The updated tags, or the original when there is nothing to update.
+    """
+    data = document.get("Data") if isinstance(document, dict) else None
+    if not isinstance(tags, str) or not isinstance(data, str):
+        return tags
+    digest = hashlib.sha1(data.encode("utf-8")).hexdigest()
+    return re.sub(r"(#ContentHash\|)[0-9a-f]+", rf"\g<1>{digest}", tags)
 
 
 def _head_branch(container: store.Container) -> tuple[str, str]:
