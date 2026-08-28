@@ -272,7 +272,7 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   scan a person should look at, which is what that verdict means. No shipped
   example does it; the branch exists so a future one is visible rather than
   quietly resolved.
-- The corpus stands at 584 third-party, 272 stock and 21 unrecognized, pinned by
+- The corpus stands at 677 third-party, 276 stock and 31 unrecognized, pinned by
   `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
   `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
   third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
@@ -405,23 +405,65 @@ before/after pair is the only way to learn where a printed value is stored --
 - **Byte-exact round-trip is not the goal, because the console is not
   byte-stable either.** Re-saving an unmodified protocol regenerates all 67
   GUIDs, rewrites `sCoilSelectMeas.aRxCoilSelectData[N].tCheckUUID` and the GUID
-  leading `sWipMemBlock.tFree`, flips ASCCONV whitespace between `  =  ` and
+  *leading* `sWipMemBlock.tFree`, flips ASCCONV whitespace between `  =  ` and
   `\t = \t`, and updates `sSpecPara.lFinalMatrixSizePhase` / `...Read`, which
   despite their names hold a *date and time* (`20260825` / `155206`). Assert
   semantic equality against that churn list, never bytes. Establishing this
   needed the unchanged-vs-changed pair; without it the obvious acceptance test
   is the wrong one.
+- **Only the GUID in `sWipMemBlock.tFree` is churn; the rest of it is the
+  sequence build stamp.** CMRR writes
+  `<guid>||Sequence: R017 nxva60a/main r/91b106c1e; May 15 2026 12:56:25 by eja`,
+  and while the GUID differs between any two saves the tail is identical across
+  every export, both scanners and every edit. `patch.sequence_stamp` returns it
+  with the GUID dropped. Treating the whole field as churn -- which this file
+  did at first -- would normalize away the only record of which binary wrote a
+  protocol. And `tFree` is sequence-private like the rest of the block: the ABCD
+  navigators put a `.prot` file name there with no GUID, and `tfl_mgh_multiecho`
+  writes nothing at all.
+- **The Special card can change between sequence builds, so a mapping is only
+  verified for the build it was derived from.** Everything in `MAPPINGS` came
+  from binaries stamped `R017 ... r/91b106c1e`. A later CMRR release is free to
+  renumber `alFree` indices or move a flag bit, and nothing in the protocol
+  would announce it -- the values would simply land in the wrong parameter. If
+  a second build ever enters the corpus, check the option-scan diffs against it
+  before trusting the table, and expect `Mapping` to need a version dimension
+  beside `sequences`. Note also what the stamp does *not* say: it reads `R017`
+  whether the binary was 017pre15 or a later 017, so the commit and build time
+  are what identify a build exactly.
 - **Unmodified content is written back from its original blob**, never
   recompressed. Our zlib does not reproduce the console's DEFLATE stream, so
   regenerating every blob would rewrite all fifty rows on a no-op round trip and
   make any later diff useless. `Envelope.stored` is what holds that; dropping it
   on edit is what re-addresses the content.
-- **`json.dumps(obj, indent=2, ensure_ascii=False)` with CRLF reproduces
-  Newtonsoft exactly**, for 56 of 57 float literals and every other construct.
-  The exception is `2.8936200141906738`, which .NET's round-trip format spells
-  with seventeen significant digits where Python finds a sixteen-digit form for
-  the identical double. Both are legal JSON for the same value; the point of
-  preserving original bytes is that it never has to matter.
+- **`json.dumps(obj, indent=2, ensure_ascii=False)` with CRLF and
+  `envelope.dotnet_double` reproduces Newtonsoft byte for byte** -- all 596
+  content blobs across every console-authored archive re-encode to their exact
+  stored bytes and hash back to their stored address. Doubles are the whole
+  difficulty: .NET's round-trip format writes fifteen significant figures when
+  that round-trips and seventeen when it does not, where Python's `repr` gives
+  the shortest round-tripping form. The two agree on almost everything and
+  disagree on the field strength, `2.8936200141906738` against
+  `2.893620014190674`. `json.dumps` has no hook for float formatting, so floats
+  are carried through the encoder as marked strings and substituted after; the
+  marker has to be printable, because the encoder escapes control characters
+  whatever `ensure_ascii` says.
+- **A scanner has now loaded patched archives and written them back**, which
+  is the only test that can validate the write path rather than merely
+  comparing it to another export. Five archives, 41 scans each changing one
+  mapped parameter, every scan loaded and every value survived. Those returns
+  ship as `examples/XA60/*_loadtest.{exar1,pdf}` beside the sources they came
+  from, and `test_exar_patch.py` asserts that no scan went missing and that
+  every ASCCONV field differing from the source is one a mapping writes. The re-saved
+  files then differ from what we wrote in exactly one respect: the console
+  recompresses (its DEFLATE is tighter -- 770 KB against our 934 KB) and
+  otherwise the ASCCONV text is identical field for field, churn included.
+- **Import and re-export is not the same as editing.** `tCheckUUID`, the GUID
+  leading `sWipMemBlock.tFree` and the date hidden in `sSpecPara.lFinalMatrixSize*`
+  are regenerated when a protocol is *edited on the console*, and left alone
+  when one is merely loaded and exported again. The churn list above was
+  derived from an edited pair, so it describes the wider case; do not expect
+  those fields to move on a round trip through the scanner.
 - **`store.py` copies the schema out of `sqlite_master`** rather than declaring
   it, so a baseline that adds a column still round-trips without a code change.
   Storage classes are preserved deliberately: sqlite is dynamically typed, and a

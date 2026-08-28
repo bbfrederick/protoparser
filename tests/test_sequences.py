@@ -711,9 +711,30 @@ UNACCOUNTED_ELSEWHERE = {
     ("XA60-31P CSI 20230503 NOE.json", "head_csi_fid"),
 }
 
-UNACCOUNTED = {
-    (export, scan) for export in UNACCOUNTED_EXPORTS for scan in UNACCOUNTED_SCANS
-} | UNACCOUNTED_ELSEWHERE
+#: The same five MGH scans again, in the two Potpourri exports a scanner
+#: returned after loading patched copies. They carry the names the load-test
+#: generator gave them rather than their original ones, which is why they are
+#: listed separately: the sequences are unchanged and so is the reason no
+#: signature claims them.
+UNACCOUNTED_AFTER_LOAD = {
+    (export, scan)
+    for export in ("XA60-Potpourri_P1_loadtest.json", "XA60-Potpourri_P2_loadtest.json")
+    for scan in (
+        "CTRL13_unchanged_ep2d_bold_mgh",
+        "CTRL14_unchanged_ep2d_diff_mgh",
+        "CTRL15_unchanged_ep2d_se_sms_mgh",
+        "CTRL17_unchanged_ep2d_bold_mgh",
+    )
+} | {
+    ("XA60-Potpourri_P1_loadtest.json", "T01_MT_Flip_Angle_3710"),
+    ("XA60-Potpourri_P2_loadtest.json", "T01_MT_Offset_15010"),
+}
+
+UNACCOUNTED = (
+    {(export, scan) for export in UNACCOUNTED_EXPORTS for scan in UNACCOUNTED_SCANS}
+    | UNACCOUNTED_ELSEWHERE
+    | UNACCOUNTED_AFTER_LOAD
+)
 
 
 @requires_snapshots
