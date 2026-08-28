@@ -16,7 +16,12 @@ import pathlib
 
 import pytest
 
-from conftest import find_exar, protocol_archive_path, requires_exar  # noqa: F401
+from conftest import (  # noqa: F401
+    find_exar,
+    find_pdf,
+    protocol_archive_path,
+    requires_exar,
+)
 from siemens_protocol.exar import generate, patch, read, validate
 
 
@@ -203,3 +208,154 @@ def test_a_broken_running_order_is_reported() -> None:
     archive.replace_content(archive.program, document)
     reported = validate.problems(archive)
     assert any("link chain covers" in line for line in reported)
+
+
+# --------------------------------------------------------------------------
+# The driver: a template archive plus a parsed PDF
+# --------------------------------------------------------------------------
+
+
+def _parse(pdf: str) -> dict:
+    """Parse one example PDF through the CLI, as the driver's callers do.
+
+    Parameters
+    ----------
+    pdf : str
+        Path to the PDF.
+
+    Returns
+    -------
+    dict
+        The parsed protocol.
+    """
+    import json
+    import subprocess
+    import sys
+
+    done = subprocess.run(
+        [sys.executable, "-m", "siemens_protocol.cli", "parse", pdf, "--stdout"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return json.loads(done.stdout)
+
+
+@requires_exar
+def test_driving_an_archive_from_its_own_pdf_writes_nothing() -> None:
+    """A protocol told what it already says must not change.
+
+    This is the sharpest cheap check on the whole chain: units, scales, the
+    derived basis, sparse arrays and change detection all have to be right or
+    something reports a spurious write. An earlier version wrote two values
+    here, both a printed ``0.00`` against an assignment a sparse array omits.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import build
+
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1.pdf")))
+    assert report.applied == [], [f"{a.step}: {a.label}" for a in report.applied]
+    assert report.unchanged > 100, "nothing was compared, so this proves nothing"
+    assert report.unmatched == []
+
+
+@requires_exar
+def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) -> None:
+    """Given the changed PDF, the driver writes what the console wrote.
+
+    ``Potpourri_P1_changed`` is the same protocol after the console changed
+    many parameters across five scans. Driving the unmodified archive from
+    that PDF must land on the same values in every mapped field.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the built archive.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import build
+
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1_changed.pdf")))
+    assert report.applied, "the changed PDF should have moved something"
+    assert validate.problems(archive) == []
+
+    written = tmp_path / "built.exar1"
+    archive.write(str(written))
+    ours = {s.name: s for s in read(str(written)).steps}
+    theirs = read(find_exar("Potpourri_P1_changed.exar1"))
+
+    compared = 0
+    for step in theirs.steps:
+        mine = ours[step.name]
+        for mapping in patch.MAPPINGS:
+            if not patch.applies_to(mapping, step.protocol):
+                continue
+            for key, _index in patch.expand(mapping.ascconv_key, step.protocol.xprotocol):
+                got = patch.read_ascconv(mine.protocol.xprotocol, key)
+                want = patch.read_ascconv(step.protocol.xprotocol, key)
+                if got is None and want is None:
+                    continue
+                compared += 1
+                if mapping.bit is not None:
+                    assert (int(got or 0) >> mapping.bit & 1) == (
+                        int(want or 0) >> mapping.bit & 1
+                    ), f"{step.name}: {mapping.label}"
+                elif mapping.basis is not None:
+                    # FOV Phase is quantised by the console; see patch.Manifest.
+                    assert abs(float(got) - float(want)) <= 5e-4 * max(1.0, abs(float(want)))
+                else:
+                    assert got == want, f"{step.name}: {mapping.label}"
+    assert compared > 1000, f"only {compared} fields compared"
+
+
+@requires_exar
+def test_the_report_counts_what_it_could_not_write() -> None:
+    """Coverage is stated, not implied.
+
+    Most of what a protocol prints has no mapping, so a manifest that listed
+    only successes would describe a small part of the result as if it were the
+    whole. The unmapped parameters are named and counted.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import build
+
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1.pdf")))
+    written, total = report.coverage
+    assert 0 < written < total, "coverage should be a real fraction, not all or nothing"
+    assert report.inherited, "no unmapped parameters were recorded"
+    text = report.report()
+    assert "coverage:" in text and "no mapping" in text
+
+
+@requires_exar
+def test_a_scan_the_template_lacks_is_reported_not_invented() -> None:
+    """An unmatched scan surfaces rather than being guessed at.
+
+    The PDF names a sequence by kernel and the archive by sequence file, so a
+    donor to copy cannot be chosen without guessing. The driver says so.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import build
+
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    parsed = _parse(find_pdf("Potpourri_P1.pdf"))
+    parsed["scans"] = list(parsed["scans"]) + [
+        {"name": "a_scan_no_template_has", "flat": {"TR": {"value": "1000 ms"}}}
+    ]
+    report = build.apply_protocol(archive, parsed)
+    assert report.unmatched == ["a_scan_no_template_has"]

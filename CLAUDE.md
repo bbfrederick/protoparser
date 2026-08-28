@@ -525,6 +525,26 @@ before/after pair is the only way to learn where a printed value is stored --
   the corpus, and the sweeps that need scans take `protocol_archive_path`
   while the structural ones (envelope, hashing, GUID layout) still take
   `archive_path` and are exercised by it.
+- **`siemens-protocol-tool exar <archive> <pdf>` is the driver**, and its
+  manifest is as much the point as its output. Roughly a tenth of what a
+  protocol prints has a verified mapping, so a built archive is mostly the
+  template it started from; the report states that fraction, counts inherited
+  values and names the unmapped parameters by frequency, which is what says
+  where the next mapping is worth deriving. Driving an archive from its *own*
+  PDF must write nothing -- that one check exercises units, scales, the derived
+  basis, sparse arrays and change detection at once, and it caught two spurious
+  writes where a printed `0.00` met an assignment a sparse array omits.
+- **Scans are matched to the template by name, and an unmatched one is
+  reported rather than guessed at.** The PDF names a sequence by kernel
+  (`epfid`) and the archive by sequence file (`cmrr_mbep2d_bold`), so there is
+  no reliable way to pick a donor scan to copy. `generate.duplicate_step` is
+  available to a caller who knows which scan to copy; the driver will not
+  choose one.
+- **`patch.resolve` falls back to the label `Preview` prints.** A multi-echo
+  scan prints `TE 1` where a single-echo one prints `TE`, and the preview entry
+  is labelled the same way, so resolving through it follows the printout
+  instead of duplicating every spelling in the table. Without that the driver
+  silently skipped TE on exactly the scans that print it differently.
 - Everything so far is XA60 (`VA60A`). No XA30 archive has been seen, so the
   claim that the model is release-independent is untested -- that is the first
   thing to check when one arrives.

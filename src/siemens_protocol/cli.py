@@ -341,6 +341,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     vocab_suggest.add_argument("--vocabulary", metavar="DIR", help="an overlay directory")
 
+    exar_cmd = sub.add_parser(
+        "exar",
+        help="write a protocol PDF's parameters into an XA .exar1 archive",
+        description=(
+            "Take a template .exar1 archive and a protocol PDF, write every "
+            "parameter that has a verified mapping, and report what could not "
+            "be written. Only a fraction of what a protocol prints is mapped, "
+            "so the result is mostly the template it started from -- the "
+            "manifest says how much, and names the parameters no mapping "
+            "covers so the gap is visible rather than implied. Nothing is "
+            "written without --out."
+        ),
+    )
+    exar_cmd.add_argument("archive", help="the template .exar1 archive")
+    exar_cmd.add_argument("input", help="a protocol PDF, or a previously parsed JSON file")
+    add_release_option(exar_cmd, "force a Siemens release profile for a PDF input (default: auto)")
+    exar_cmd.add_argument("--out", help="write the resulting archive here")
+    exar_cmd.add_argument(
+        "--show", type=int, default=12, metavar="N", help="how many entries to list (default: 12)"
+    )
+
     versions_cmd = sub.add_parser("versions", help="list the known version profiles")
     versions_cmd.set_defaults(command="versions")
 
@@ -1268,6 +1289,48 @@ def use_utf8_output() -> None:
             pass
 
 
+def _run_exar(args: argparse.Namespace) -> int:
+    """Write a PDF's mapped parameters into a template archive.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments carrying ``archive``, ``input``, ``out`` and ``show``.
+
+    Returns
+    -------
+    int
+        Process exit status.
+    """
+    from .exar import build as exar_build
+    from .exar import read as read_exar
+    from .exar import validate as exar_validate
+
+    try:
+        archive = read_exar(args.archive)
+        protocol = _load_protocol(args.input, getattr(args, "release", "auto"))
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    report = exar_build.apply_protocol(archive, protocol)
+    print(report.report(limit=args.show))
+
+    problems = exar_validate.problems(archive)
+    if problems:
+        print("\nthe result is not structurally sound:", file=sys.stderr)
+        for line in problems:
+            print(f"  {line}", file=sys.stderr)
+        return 1
+
+    if args.out:
+        archive.write(args.out)
+        print(f"\nwrote {args.out}")
+    else:
+        print("\n(no --out given, so nothing was written)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the command line interface.
 
@@ -1299,6 +1362,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         return _run_list(args)
+
+    if args.command == "exar":
+        return _run_exar(args)
 
     if args.command == "sequences":
         return _run_sequences(args)
