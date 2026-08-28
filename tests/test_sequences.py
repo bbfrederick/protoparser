@@ -677,13 +677,43 @@ def test_the_stated_owner_never_contradicts_the_other_detectors() -> None:
 #: signatures for them would mean attributing sequences from inference alone,
 #: which the catalog's rule against guessed attributions forbids -- and
 #: 'unrecognized' is the honest verdict for a scan a person should look at.
-UNACCOUNTED = {
-    ("XA60-Potpourri.json", "ep2d_bold_mgh"),
-    ("XA60-Potpourri.json", "ep2d_diff_mgh"),
-    ("XA60-Potpourri.json", "ep2d_se_sms_mgh"),
-    ("XA60-Potpourri.json", "ABCD_fMRI_rest_MGH"),
-    ("XA60-Potpourri.json", "can_neuromelanin"),
+#: The five scans, and the three exports of the one protocol that prints them.
+#: Potpourri now ships as P1 and P2 -- the same protocol imported onto two XA60
+#: scanners -- plus P1_changed, so the same five recur in each. Kept as a
+#: product of two small sets rather than fifteen literals, because the fact
+#: being pinned is "these five scans, in every Potpourri export" and a flat
+#: list would obscure a case where one export gained a sixth.
+UNACCOUNTED_SCANS = {
+    "ep2d_bold_mgh",
+    "ep2d_diff_mgh",
+    "ep2d_se_sms_mgh",
+    "ABCD_fMRI_rest_MGH",
+    "can_neuromelanin",
 }
+UNACCOUNTED_EXPORTS = {
+    "XA60-Potpourri_P1.json",
+    "XA60-Potpourri_P1_changed.json",
+    "XA60-Potpourri_P2.json",
+}
+
+#: Spectroscopy scans that no signature accounts for, in two VE11C protocols
+#: added for their own sake rather than for sequence detection. ``head_csi_fid``
+#: and ``SPECIAL_ACC`` are spectroscopy kernels, and ``can_neuromelanin`` here
+#: is the VE11C build of a sequence the XA60 examples also print. Naming them
+#: is the honest record: writing signatures would mean attributing sequences
+#: from inference, which the catalog's rules forbid.
+UNACCOUNTED_ELSEWHERE = {
+    ("VE11C-31P CSI 20230503 NOE.json", "SPECIAL_ACC"),
+    ("VE11C-31P CSI 20230503 NOE.json", "head_csi_fid"),
+    ("VE11C-BEEST_SPICE_11112025.json", "can_neuromelanin"),
+    # The same 31P protocol exported from XA60. Its SPECIAL_ACC scan resolves
+    # there and does not on VE11C, so the two exports differ by one entry.
+    ("XA60-31P CSI 20230503 NOE.json", "head_csi_fid"),
+}
+
+UNACCOUNTED = {
+    (export, scan) for export in UNACCOUNTED_EXPORTS for scan in UNACCOUNTED_SCANS
+} | UNACCOUNTED_ELSEWHERE
 
 
 @requires_snapshots

@@ -15,7 +15,12 @@ import sqlite3
 
 import pytest
 
-from conftest import archive_path, find_exar, requires_exar  # noqa: F401  (fixture)
+from conftest import (  # noqa: F401  (fixtures)
+    archive_path,
+    find_exar,
+    protocol_archive_path,
+    requires_exar,
+)
 from siemens_protocol import exar
 from siemens_protocol.exar import archive, envelope, store
 from siemens_protocol.pipeline import parse_document
@@ -205,7 +210,7 @@ def test_unpacking_no_children_yields_no_ids() -> None:
 
 
 @requires_exar
-def test_the_archive_reads_at_a_real_branch_head(archive_path: str) -> None:
+def test_the_archive_reads_at_a_real_branch_head(protocol_archive_path: str) -> None:
     """The placeholder branch is never chosen, and the head has live instances.
 
     Every archive carries a second branch whose baseline is ``-`` and which
@@ -214,14 +219,14 @@ def test_the_archive_reads_at_a_real_branch_head(archive_path: str) -> None:
 
     Parameters
     ----------
-    archive_path : str
+    protocol_archive_path : str
         Archive under test.
 
     Returns
     -------
     None
     """
-    loaded = exar.read(archive_path)
+    loaded = exar.read(protocol_archive_path)
     assert loaded.baseline != archive.PLACEHOLDER_BASELINE
     assert loaded.major_version.startswith("VA")
     assert loaded.instances
@@ -229,7 +234,7 @@ def test_the_archive_reads_at_a_real_branch_head(archive_path: str) -> None:
 
 
 @requires_exar
-def test_step_order_is_the_link_chain_not_the_children_blob(archive_path: str) -> None:
+def test_step_order_is_the_link_chain_not_the_children_blob(protocol_archive_path: str) -> None:
     """Running order comes from the program's linked list.
 
     The program's ``Children`` blob holds the same steps in a different order.
@@ -239,14 +244,14 @@ def test_step_order_is_the_link_chain_not_the_children_blob(archive_path: str) -
 
     Parameters
     ----------
-    archive_path : str
+    protocol_archive_path : str
         Archive under test.
 
     Returns
     -------
     None
     """
-    loaded = exar.read(archive_path)
+    loaded = exar.read(protocol_archive_path)
     program = loaded.program
     assert program is not None
     chain = loaded.step_order()
@@ -260,19 +265,19 @@ def test_step_order_is_the_link_chain_not_the_children_blob(archive_path: str) -
 
 
 @requires_exar
-def test_every_step_is_named_and_holds_a_protocol(archive_path: str) -> None:
+def test_every_step_is_named_and_holds_a_protocol(protocol_archive_path: str) -> None:
     """Names resolve through the label element, and each step runs a protocol.
 
     Parameters
     ----------
-    archive_path : str
+    protocol_archive_path : str
         Archive under test.
 
     Returns
     -------
     None
     """
-    steps = exar.read(archive_path).steps
+    steps = exar.read(protocol_archive_path).steps
     assert steps
     for step in steps:
         assert step.name, f"step {step.instance.object_id} has no name"
@@ -454,7 +459,7 @@ def test_the_archive_scan_list_matches_its_pdf_export() -> None:
     -------
     None
     """
-    archive_file = find_exar("Potpourri.exar1")
+    archive_file = find_exar("Potpourri_P2.exar1")
     pdf = os.path.splitext(archive_file)[0] + ".pdf"
     if not os.path.isfile(pdf):
         pytest.skip(f"no PDF export beside {os.path.basename(archive_file)}")

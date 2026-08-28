@@ -180,6 +180,74 @@ def archive_path(request: pytest.FixtureRequest) -> str:
     return str(request.param)
 
 
+def find_pdf(name: str) -> str:
+    """Locate one example PDF by file name, skipping the test if absent.
+
+    Parameters
+    ----------
+    name : str
+        Base file name, such as ``"CMRR_optionscan_P1.pdf"``.
+
+    Returns
+    -------
+    str
+        Full path to the PDF.
+    """
+    for path, _version in EXAMPLE_FILES:
+        if os.path.basename(path) == name:
+            return path
+    pytest.skip(f"{name} is not among the available examples")
+
+
+def exar_files_with_protocols() -> list[tuple[str, str | None]]:
+    """The archives that actually carry a protocol tree.
+
+    An ``.exar1`` file can be a valid, readable archive and still hold no
+    protocols: exporting an empty folder node rather than the protocol tree
+    yields a database with the directory scaffolding and nothing else. That is
+    a real export mistake, not a corrupt file, so the reader must handle it --
+    but a test that sweeps the corpus asserting things about scans has nothing
+    to say about one, and would report the mistake as a failure of the reader.
+
+    Returns
+    -------
+    list of tuple
+        ``(archive path, version or None)`` for archives holding at least one
+        protocol.
+    """
+    from siemens_protocol.exar import read
+
+    keep: list[tuple[str, str | None]] = []
+    for path, version in EXAR_FILES:
+        try:
+            if read(path).program is not None:
+                keep.append((path, version))
+        except Exception:  # noqa: BLE001 - an unreadable archive is not this list's concern
+            continue
+    return keep
+
+
+EXAR_PROTOCOL_FILES = exar_files_with_protocols()
+EXAR_PROTOCOL_IDS = [os.path.basename(p) for p, _ in EXAR_PROTOCOL_FILES]
+
+
+@pytest.fixture(params=[p for p, _ in EXAR_PROTOCOL_FILES], ids=EXAR_PROTOCOL_IDS)
+def protocol_archive_path(request: pytest.FixtureRequest) -> str:
+    """Parametrize over the archives that carry a protocol tree.
+
+    Parameters
+    ----------
+    request : pytest.FixtureRequest
+        The parametrization hook.
+
+    Returns
+    -------
+    str
+        Path to one archive holding protocols.
+    """
+    return str(request.param)
+
+
 def find_exar(name: str) -> str:
     """Locate one ``.exar1`` archive by file name, skipping the test if absent.
 

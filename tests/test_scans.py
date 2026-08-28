@@ -54,11 +54,26 @@ EXPECTED_SCAN_COUNT = {
     "XA60/NSSI_ROUTINE.pdf": 12,
     "VE11C/Healthy Control NSSI HOOD.pdf": 18,
     "XA60/Healthy Control NSSI HOOD.pdf": 18,
-    # Potpourri ships beside its own .exar1 export, so this count is not
-    # eyeballed off the printout: it is the number of measurement steps in
-    # the archive's program chain, reached by a route that shares no code
-    # with the PDF splitter. tests/test_exar.py asserts the names match too.
-    "Potpourri.pdf": 18,
+    # Potpourri ships beside its own .exar1 export, so these counts are not
+    # eyeballed off the printout: 18 is the number of measurement steps in the
+    # archive's program chain, reached by a route that shares no code with the
+    # PDF splitter. tests/test_exar.py asserts the names match too. P1 and P2
+    # are the same protocol imported onto two XA60 scanners and agree, which
+    # is a third independent check on the same number.
+    # The three option scans hold one sequence repeated with a single Special
+    # card option changed each time; their counts are the number of steps in
+    # each archive's program chain, so they are cross-checked the same way
+    # Potpourri is. The two VE11C spectroscopy protocols have no archive and
+    # are checked against their own contents pages instead.
+    "XA60/CMRR_optionscan_P1.pdf": 33,
+    "XA60/MEMPRAGE_optionscan_P1.pdf": 7,
+    "XA60/NAV_optionscan_P1.pdf": 31,
+    "VE11C/31P CSI 20230503 NOE.pdf": 13,
+    "XA60/31P CSI 20230503 NOE.pdf": 13,
+    "VE11C/BEEST_SPICE_11112025.pdf": 24,
+    "Potpourri_P1.pdf": 18,
+    "Potpourri_P1_changed.pdf": 18,
+    "Potpourri_P2.pdf": 18,
     "ELS2_20210802XA60.pdf": 15,
     "NOCICEPT_Ph2MRI515_SecondXA60.pdf": 19,
     # XA30 counts are cross-checked against each export's table of contents,
