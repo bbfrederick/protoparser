@@ -107,17 +107,81 @@ def content_hash(raw: bytes) -> str:
     return hashlib.sha1(raw).hexdigest()
 
 
+#: Marker wrapped around a float while the document is encoded, then replaced
+#: by the literal .NET would have written. Printable on purpose: the encoder
+#: escapes control characters whatever ``ensure_ascii`` says, which would put
+#: the marker beyond the reach of the substitution. Checked for collisions
+#: before use all the same.
+_FLOAT_MARK = "@@edf-double@@"
+
+
+def dotnet_double(value: float) -> str:
+    """Format a double the way .NET's round-trip format does.
+
+    Newtonsoft writes doubles with ``ToString("R")``, which on the .NET
+    Framework emits fifteen significant digits when that round-trips and
+    seventeen when it does not. Python's ``repr`` gives the shortest form that
+    round-trips, which is usually the same string and occasionally is not:
+    the field strength in these protocols is ``2.8936200141906738`` to .NET
+    and ``2.893620014190674`` to Python, both exact for the same double.
+
+    This rule reproduces all 74 distinct float literals across every
+    console-authored archive in the corpus, including the ones the scanner
+    itself wrote back after loading a patched protocol. ``repr`` reproduces
+    73 of them.
+
+    Parameters
+    ----------
+    value : float
+        The double to format.
+
+    Returns
+    -------
+    str
+        The literal, always carrying a decimal point so that a whole number
+        stays a double.
+    """
+    text = f"{value:.15g}"
+    if float(text) != value:
+        text = f"{value:.17g}"
+    if "." not in text and "e" not in text and "E" not in text:
+        text += ".0"
+    return text
+
+
+def _mark_floats(node: Any) -> Any:
+    """Replace every float with a marked string so it can be re-formatted.
+
+    ``json.dumps`` offers no hook for float formatting, so the values are
+    carried through the encoder as strings and substituted afterwards.
+
+    Parameters
+    ----------
+    node : Any
+        A decoded JSON value.
+
+    Returns
+    -------
+    Any
+        The same structure with floats replaced by marked strings.
+    """
+    if isinstance(node, float):
+        return f"{_FLOAT_MARK}{dotnet_double(node)}"
+    if isinstance(node, dict):
+        return {k: _mark_floats(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_mark_floats(v) for v in node]
+    return node
+
+
 def dumps(document: Any) -> bytes:
     """Serialize a decoded document the way Newtonsoft wrote it.
 
-    Two-space indentation, CRLF endings, no ASCII escaping. This reproduces
-    every stored document in the reference archives byte for byte except for
-    one double, ``2.8936200141906738``, where .NET's round-trip format emits
-    seventeen significant digits and Python's ``repr`` finds a sixteen-digit
-    form that parses to the identical value. Both are legal JSON for the same
-    double, and the console's own serializer is not byte-stable between saves
-    anyway, so the difference is cosmetic -- but it is the reason unmodified
-    content is written back from its original bytes rather than re-encoded.
+    Two-space indentation, CRLF endings, no ASCII escaping, and doubles
+    formatted by :func:`dotnet_double`. Together these reproduce every stored
+    document in the reference archives byte for byte -- including the ones a
+    scanner wrote back after loading a protocol this package had patched,
+    which is what confirms the rule rather than merely fitting it.
 
     Parameters
     ----------
@@ -128,8 +192,18 @@ def dumps(document: Any) -> bytes:
     -------
     bytes
         UTF-8 encoded JSON with CRLF line endings.
+
+    Raises
+    ------
+    ValueError
+        If the document already contains the internal float marker, which
+        would make the substitution ambiguous.
     """
-    text = json.dumps(document, indent=2, ensure_ascii=False)
+    marked = json.dumps(_mark_floats(document), indent=2, ensure_ascii=False)
+    if marked.count(_FLOAT_MARK) != marked.count(f'"{_FLOAT_MARK}'):
+        raise ValueError("document contains the internal float marker")
+    text = marked
+    text = re.sub(rf'"{re.escape(_FLOAT_MARK)}([^"]*)"', r"\1", text)
     return text.replace("\n", "\r\n").encode("utf-8")
 
 

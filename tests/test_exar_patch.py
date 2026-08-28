@@ -30,7 +30,7 @@ from conftest import (  # noqa: F401
     protocol_archive_path,
     requires_exar,
 )
-from siemens_protocol.exar import patch, read
+from siemens_protocol.exar import envelope, patch, read
 
 #: The parameter the reference pair records a controlled edit for.
 CONTROLLED = "TR"
@@ -579,6 +579,111 @@ def test_the_manifest_names_the_values_the_console_would_recompute() -> None:
 # --------------------------------------------------------------------------
 
 
+#: Archives a scanner returned after loading a patched copy of their source.
+#: Each ``Tnn`` scan carries one value this package wrote; the scanner kept
+#: every one, which is the only evidence that the write path is acceptable to
+#: a loader rather than merely consistent with other exports.
+ROUND_TRIPPED = (
+    ("CMRR_optionscan_P1.exar1", "CMRR_optionscan_P1_loadtest.exar1"),
+    ("NAV_optionscan_P1.exar1", "NAV_optionscan_P1_loadtest.exar1"),
+    ("MEMPRAGE_optionscan_P1.exar1", "MEMPRAGE_optionscan_P1_loadtest.exar1"),
+)
+
+
+@requires_exar
+@pytest.mark.parametrize("source,returned", ROUND_TRIPPED, ids=[r for _s, r in ROUND_TRIPPED])
+def test_a_patched_protocol_survives_a_real_scanner_load(source: str, returned: str) -> None:
+    """Nothing was dropped, and what changed is only what a mapping writes.
+
+    The returned archive is the source after this package changed one mapped
+    parameter per scan and a scanner loaded and re-exported it. A scan the
+    loader rejected would be missing; a value it overrode or normalised would
+    show up as an ASCCONV difference no mapping accounts for.
+
+    Parameters
+    ----------
+    source : str
+        The archive the test scans were built from.
+    returned : str
+        What the scanner wrote back.
+
+    Returns
+    -------
+    None
+    """
+    before, after = read(find_exar(source)), read(find_exar(returned))
+    assert len(after.steps) == len(before.steps), "the loader dropped a scan"
+
+    changed = touched = 0
+    for original, result in zip(before.steps, after.steps):
+        writable = {
+            key
+            for mapping in patch.MAPPINGS
+            if patch.applies_to(mapping, result.protocol)
+            for key, _index in patch.expand(mapping.ascconv_key, result.protocol.xprotocol)
+        }
+        differing = _ascconv_differences(original.protocol.xprotocol, result.protocol.xprotocol)
+        if not differing:
+            continue
+        touched += 1
+        stray = differing - writable
+        assert not stray, f"{result.name}: the scanner changed {sorted(stray)[:4]}"
+        changed += len(differing)
+    assert touched, f"{returned} is identical to its source; nothing was exercised"
+    assert changed >= touched, "expected at least one field per changed scan"
+
+
+def _ascconv_differences(one: str, other: str) -> set[str]:
+    """Return the ASCCONV keys whose values differ between two protocols.
+
+    Parameters
+    ----------
+    one, other : str
+        XProtocol texts to compare.
+
+    Returns
+    -------
+    set of str
+        Keys present in one and not the other, or holding different literals.
+    """
+
+    def table(text: str) -> dict[str, str]:
+        start, end = patch.ascconv_bounds(text)
+        if start < 0:
+            return {}
+        found = re.finditer(
+            r"^[ \t]*([A-Za-z_][\w\[\].]*)[ \t]*=[ \t]*(.*?)[ \t]*$", text[start:end], re.M
+        )
+        return {m.group(1): m.group(2) for m in found}
+
+    a, b = table(one), table(other)
+    return {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
+
+
+@requires_exar
+def test_re_encoding_a_returned_archive_reproduces_the_scanner_bytes() -> None:
+    """The scanner's own output round-trips through our serializer exactly.
+
+    These archives were written by the console after loading protocols this
+    package had edited, so they are the closest thing to an authoritative
+    sample of what our writer must produce. Every content blob must re-encode
+    to its stored bytes and hash back to its stored address.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("CMRR_optionscan_P1_loadtest.exar1"))
+    checked = 0
+    for digest, content in archive.contents.items():
+        again = envelope.dumps(content.decode())
+        assert again == content.payload, f"{content.kind} does not re-encode byte for byte"
+        rebuilt = envelope.Envelope(content_type=content.content_type, payload=again)
+        assert rebuilt.hash == digest
+        checked += 1
+    assert checked > 20, f"only {checked} blobs compared"
+
+
 @requires_exar
 def test_every_shipped_mapping_agrees_with_the_corpus(protocol_archive_path: str) -> None:
     """Each mapping's stored value matches its displayed one, in every protocol.
@@ -733,6 +838,109 @@ def test_a_float_is_written_the_way_the_console_writes_one() -> None:
     assert patch.format_like(201.26200000000003, "207.0") == "201.262"
     assert patch.format_like(1.0, "2.0") == "1.0"
     assert patch.format_like(2000000.0, "650000") == "2000000"
+
+
+@requires_exar
+def test_the_sequence_build_stamp_is_stable_where_the_guid_beside_it_is_not() -> None:
+    """CMRR records which binary wrote a protocol; the GUID in front does not.
+
+    ``sWipMemBlock.tFree`` was first taken for pure per-export churn because
+    its leading GUID is regenerated on every save. The rest of it is not churn:
+    it names the sequence build, and normalising the field away would discard
+    the only thing in the protocol that says which binary produced it.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("CMRR_optionscan_P1.exar1"))
+    stamps, guids = set(), set()
+    for step in archive.steps:
+        if not patch.sequence_of(step.protocol).startswith("cmrr_"):
+            continue
+        raw = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.tFree")
+        guids.add(raw.strip('"').split("||")[0])
+        stamps.add(patch.sequence_stamp(step.protocol))
+    assert len(guids) > 1, "the GUID prefix should differ between saves"
+    # One stamp per binary: the BOLD, SE and diffusion sequences were built
+    # minutes apart from one commit.
+    assert 1 <= len(stamps) <= 3, sorted(stamps)
+    assert all(s.startswith("Sequence: R") for s in stamps), sorted(stamps)
+
+
+@requires_exar
+def test_the_build_stamp_survives_an_edit_and_a_round_trip(tmp_path: pathlib.Path) -> None:
+    """Patching a protocol must not disturb which build is recorded.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the patched archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("CMRR_optionscan_P1.exar1"))
+    step = next(s for s in archive.steps if patch.sequence_of(s.protocol).startswith("cmrr_"))
+    before = patch.sequence_stamp(step.protocol)
+    assert before
+
+    document, applied, skipped = patch.patch_document(step.protocol, {"MB dual kernel": True})
+    assert not skipped and applied
+    archive.replace_content(step.protocol.instance, document)
+    written = tmp_path / "patched.exar1"
+    archive.write(str(written))
+
+    back = {s.name: s for s in read(str(written)).steps}[step.name]
+    assert patch.sequence_stamp(back.protocol) == before
+
+
+@requires_exar
+@pytest.mark.parametrize(
+    "sequence,shape",
+    [("cmrr_mbep2d_bold", "Sequence: R"), ("tfl_mgh_epinav_ABCD", ".prot")],
+)
+def test_what_tfree_holds_depends_on_the_sequence(sequence: str, shape: str) -> None:
+    """``tFree`` is sequence-private free text, like the rest of sWipMemBlock.
+
+    CMRR writes a build stamp behind a GUID; the ABCD navigators write a
+    protocol file name with no GUID; ``tfl_mgh_multiecho`` writes nothing.
+    Reading it as one kind of value across sequences would be wrong the same
+    way reading ``alFree[0]`` as one parameter is.
+
+    Parameters
+    ----------
+    sequence : str
+        The sequence to look at.
+    shape : str
+        Text the stamp must contain for that sequence.
+
+    Returns
+    -------
+    None
+    """
+    for name in ("CMRR_optionscan_P1.exar1", "NAV_optionscan_P1.exar1"):
+        archive = read(find_exar(name))
+        for step in archive.steps:
+            if patch.sequence_of(step.protocol) == sequence:
+                assert shape in patch.sequence_stamp(step.protocol)
+                return
+    pytest.skip(f"no {sequence} scan available")
+
+
+def test_a_sequence_that_writes_no_stamp_yields_an_empty_string() -> None:
+    """An absent ``tFree`` is a legitimate state, not an error.
+
+    Returns
+    -------
+    None
+    """
+
+    class Bare:
+        xprotocol = "### ASCCONV BEGIN ###\nalTR[0]\t = \t100\n### ASCCONV END ###\n"
+
+    assert patch.sequence_stamp(Bare()) == ""
 
 
 def test_every_mapping_records_how_it_was_established() -> None:

@@ -25,9 +25,10 @@ from siemens_protocol import exar
 from siemens_protocol.exar import archive, envelope, store
 from siemens_protocol.pipeline import parse_document
 
-#: The one double in the reference archives that Python and .NET spell
-#: differently. Both parse to the same value; see ``envelope.dumps``.
-KNOWN_FLOAT_SPELLING = "2.8936200141906738"
+#: The double that used to be the one divergence between our serializer and
+#: Newtonsoft's, before ``envelope.dotnet_double`` reproduced .NET's rule.
+#: Kept as a fixture: it is the value that distinguishes the two formats.
+DOTNET_SPELLING = "2.8936200141906738"
 
 
 # --------------------------------------------------------------------------
@@ -141,10 +142,45 @@ def test_re_encoding_reproduces_the_console_json(archive_path: str) -> None:
         decoded = envelope.parse(blob)
         if envelope.dumps(decoded.decode()) != decoded.payload:
             mismatched.append(decoded)
-    for decoded in mismatched:
-        assert KNOWN_FLOAT_SPELLING in decoded.payload.decode(
-            "utf-8"
-        ), f"{decoded.kind} differs for a reason other than the known float spelling"
+    assert (
+        not mismatched
+    ), "re-encoding no longer reproduces the console byte for byte: " + ", ".join(
+        sorted({d.kind for d in mismatched})
+    )
+
+
+def test_doubles_are_spelled_the_way_dotnet_spells_them() -> None:
+    """.NET writes fifteen significant digits, or seventeen when it must.
+
+    Python's ``repr`` gives the shortest round-tripping form, which differs
+    for some doubles -- the field strength in these protocols is the case.
+    Getting this wrong is cosmetic (both parse to the same value, and a
+    scanner accepted the Python spelling) but it re-addresses the content,
+    so a no-op re-encode would no longer hash to where it came from.
+
+    Returns
+    -------
+    None
+    """
+    assert envelope.dotnet_double(2.8936200141906738) == DOTNET_SPELLING
+    assert repr(2.8936200141906738) != DOTNET_SPELLING
+    # A whole number still has to read as a double.
+    assert envelope.dotnet_double(650.0) == "650.0"
+    assert envelope.dotnet_double(0.5) == "0.5"
+
+
+def test_a_document_carrying_the_float_marker_is_refused() -> None:
+    """The substitution must not be ambiguous.
+
+    Floats are carried through the encoder as marked strings, so a document
+    already containing that marker would be rewritten unpredictably.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="float marker"):
+        envelope.dumps({"Data": f"text {envelope._FLOAT_MARK} more"})
 
 
 def test_a_blob_that_is_not_an_envelope_is_rejected() -> None:

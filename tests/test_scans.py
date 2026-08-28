@@ -65,6 +65,15 @@ EXPECTED_SCAN_COUNT = {
     # each archive's program chain, so they are cross-checked the same way
     # Potpourri is. The two VE11C spectroscopy protocols have no archive and
     # are checked against their own contents pages instead.
+    # The _loadtest pair of each is the same protocol after a scanner loaded
+    # a patched copy and wrote it back, so its count must equal its source's --
+    # a scan the loader rejected would be missing, which is the whole point of
+    # those files.
+    "XA60/CMRR_optionscan_P1_loadtest.pdf": 33,
+    "XA60/MEMPRAGE_optionscan_P1_loadtest.pdf": 7,
+    "XA60/NAV_optionscan_P1_loadtest.pdf": 31,
+    "XA60/Potpourri_P1_loadtest.pdf": 18,
+    "XA60/Potpourri_P2_loadtest.pdf": 18,
     "XA60/CMRR_optionscan_P1.pdf": 33,
     "XA60/MEMPRAGE_optionscan_P1.pdf": 7,
     "XA60/NAV_optionscan_P1.pdf": 31,

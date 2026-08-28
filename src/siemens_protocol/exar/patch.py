@@ -43,7 +43,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from typing import Mapping as MappingType
 
-from .archive import Archive, Protocol
+from .archive import Archive, Protocol, Step
 
 #: Delimiters of the ASCCONV block inside the XProtocol text.
 ASCCONV_BEGIN = "### ASCCONV BEGIN"
@@ -800,6 +800,47 @@ def sequence_of(protocol: Protocol) -> str:
     return str(entry.value) if entry is not None and entry.value is not None else ""
 
 
+def sequence_stamp(protocol: Protocol) -> str:
+    """Return whatever the sequence wrote into ``sWipMemBlock.tFree``.
+
+    That field is sequence-private free text, so what it means depends
+    entirely on the binary that wrote it. CMRR's multiband sequences put a
+    build stamp there behind a GUID that is regenerated on every save::
+
+        <guid>||Sequence: R017 nxva60a/main r/91b106c1e; May 15 2026 12:56:25 by eja
+
+    The ABCD navigator sequences write a protocol file name instead, with no
+    GUID, and ``tfl_mgh_multiecho`` does not write the field at all. The
+    leading GUID is dropped here because it carries no information and differs
+    between two exports of one protocol; everything after it is stable across
+    saves, edits and scanners.
+
+    This matters beyond curiosity: the Special card's layout can change between
+    sequence builds, so a mapping verified against one build is not
+    automatically true of another, and this is the only thing in the protocol
+    that says which build wrote it. Note what it does *not* pin down -- the
+    string says ``R017`` whether the binary was 017pre15 or a later 017, so the
+    commit and build time are the parts that identify a build exactly.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to inspect.
+
+    Returns
+    -------
+    str
+        The stamp with any leading GUID removed, or an empty string when the
+        sequence writes nothing there.
+    """
+    raw = read_ascconv(protocol.xprotocol, "sWipMemBlock.tFree")
+    if not raw:
+        return ""
+    text = raw.strip().strip('"')
+    _guid, sep, tail = text.partition("||")
+    return (tail if sep else text).strip()
+
+
 def applies_to(mapping: Mapping, protocol: Protocol) -> bool:
     """Return whether a mapping is meaningful for this protocol.
 
@@ -1211,15 +1252,28 @@ def apply(archive: Archive, changes: MappingType[str, MappingType[str, Any]]) ->
         What was written, what was refused, and how much was inherited.
     """
     manifest = Manifest()
-    steps = {step.name: step for step in archive.steps}
+    steps: dict[str, list[Step]] = {}
+    for step in archive.steps:
+        steps.setdefault(step.name, []).append(step)
     for name, requests in changes.items():
-        step = steps.get(name)
-        if step is None:
+        found = steps.get(name, [])
+        # Scan names are not unique. An archive built by repeating one sequence
+        # with a single option varied per copy -- the shape that pins the
+        # Special card -- has a dozen scans sharing a name, and resolving that
+        # to one of them would patch an arbitrary scan while the caller
+        # believed it had named a particular one.
+        if len(found) != 1:
+            reason = (
+                "no such step in archive"
+                if not found
+                else f"{len(found)} steps are named {name!r}; patch by instance instead"
+            )
             for label, value in requests.items():
                 manifest.skipped.append(
-                    Skipped(step=name, label=label, value=value, reason="no such step in archive")
+                    Skipped(step=name, label=label, value=value, reason=reason)
                 )
             continue
+        step = found[0]
         protocol = step.protocol
         document, applied, skipped = patch_document(protocol, requests, step=name)
         manifest.applied.extend(applied)
