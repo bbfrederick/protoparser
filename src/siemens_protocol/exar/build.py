@@ -32,7 +32,7 @@ from .archive import Archive
 
 #: Units the card prints beside a value and the protocol does not store.
 UNIT_SUFFIX = re.compile(
-    r"\s*(ms|s|mm|cm|deg|degree|degrees|Hz|Hz/Px|kHz|%|TRs|TR|min|sec|mT/m|ppm)\s*$",
+    r"\s+(ms|s|mm|cm|deg|degree|degrees|Hz|Hz/Px|kHz|%|TRs|TR|min|sec|mT/m|ppm)\s*$",
     re.I,
 )
 
@@ -52,8 +52,10 @@ def printed_value(text: Any) -> Any:
     """
     if not isinstance(text, str):
         return text
-    # Some values carry two: "5.0 mm" is one, "24 TRs" is one, and a printed
-    # angle is "360 degrees". Strip repeatedly rather than assume a single unit.
+    # The unit has to follow whitespace. Matching it anywhere turns "RMS" into
+    # "R", because "MS" is a unit and the comparison is case-insensitive --
+    # which then fails to resolve as an Averaging choice. Strip repeatedly,
+    # since a value can carry more than one suffix.
     stripped = text.strip()
     while True:
         shorter = UNIT_SUFFIX.sub("", stripped).strip()
@@ -180,22 +182,63 @@ def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildRepo
         What was written, refused and inherited.
     """
     report = BuildReport()
+    # A pause step carries no protocol and the PDF does not print it as a scan,
+    # so it can never be the counterpart of one.
     steps: dict[str, list[Any]] = {}
     for step in archive.steps:
-        steps.setdefault(step.name, []).append(step)
+        if step.runs_a_protocol:
+            steps.setdefault(step.name, []).append(step)
+
+    scans: dict[str, list[Any]] = {}
+    for scan in parsed.get("scans", []):
+        scans.setdefault(scan.get("name", ""), []).append(scan)
 
     seen: set[str] = set()
-    for scan in parsed.get("scans", []):
-        name = scan.get("name", "")
-        found = steps.get(name, [])
-        if len(found) != 1:
-            report.unmatched.append(name)
+    for name, printed in scans.items():
+        held = steps.get(name, [])
+        # A name repeats: a protocol may run four scans called Localizer. Pair
+        # them in running order, which both sides preserve -- but only when the
+        # two sides agree on how many there are. Otherwise which is which is a
+        # guess, and guessing would write one scan's values into another.
+        if not held or len(held) != len(printed):
+            report.unmatched.extend(name for _ in printed)
             continue
         seen.add(name)
-        report.matched.append(name)
-        _apply_scan(archive, found[0], scan, report)
+        for step, scan in zip(held, printed):
+            report.matched.append(name)
+            _apply_scan(archive, step, scan, report)
     report.untouched = [n for n in steps if n not in seen]
     return report
+
+
+def agrees_at_printed_precision(printed: str, stored: Any) -> bool:
+    """Return whether a stored value and a printed one are the same number.
+
+    A printout carries fewer digits than the protocol: one scan prints
+    ``TE 1 = 54 ms`` for a stored 54.16. Writing the printed value back would
+    quietly drop 0.16 ms, so a printed value is treated as agreeing when the
+    stored one rounds to it at the precision actually printed.
+
+    Parameters
+    ----------
+    printed : str
+        The value as the card prints it, units already removed.
+    stored : Any
+        What the protocol holds.
+
+    Returns
+    -------
+    bool
+        ``True`` when the two are the same number to the printed precision.
+    """
+    if not isinstance(stored, (int, float)) or isinstance(stored, bool):
+        return False
+    try:
+        wanted = float(printed)
+    except (TypeError, ValueError):
+        return False
+    _whole, _, fraction = str(printed).strip().partition(".")
+    return round(float(stored), len(fraction)) == wanted
 
 
 def _moved(record: patch.Applied) -> bool:
@@ -242,7 +285,16 @@ def _apply_scan(
         if mapping is None:
             report.inherited[label] += 1
             continue
-        requests[label] = printed_value(value)
+        wanted = printed_value(value)
+        entry = (
+            step.protocol.preview.get(mapping.preview_path)
+            if mapping.preview_path is not None
+            else None
+        )
+        if entry is not None and agrees_at_printed_precision(wanted, entry.value):
+            report.unchanged += 1
+            continue
+        requests[label] = wanted
     if not requests:
         return
     document, applied, skipped = patch.patch_document(step.protocol, requests, step=step.name)

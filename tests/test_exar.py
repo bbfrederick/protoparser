@@ -301,8 +301,19 @@ def test_step_order_is_the_link_chain_not_the_children_blob(protocol_archive_pat
 
 
 @requires_exar
-def test_every_step_is_named_and_holds_a_protocol(protocol_archive_path: str) -> None:
-    """Names resolve through the label element, and each step runs a protocol.
+def test_every_step_is_named_and_measurement_steps_hold_a_protocol(
+    protocol_archive_path: str,
+) -> None:
+    """Names resolve, and a step holds a protocol exactly when it acquires one.
+
+    The running order mixes two kinds. An ``EdfMeasurementStep`` runs a
+    protocol; an ``EdfPauseStep`` is an instruction an operator put between
+    scans -- "Count down with RA to start of scan" -- and holds none. Both are
+    named and both are in the chain, so walking scans means skipping the
+    second rather than assuming it cannot happen.
+
+    The two signals are checked against each other: the instance kind and the
+    presence of a protocol must agree, since either alone could be wrong.
 
     Parameters
     ----------
@@ -317,7 +328,31 @@ def test_every_step_is_named_and_holds_a_protocol(protocol_archive_path: str) ->
     assert steps
     for step in steps:
         assert step.name, f"step {step.instance.object_id} has no name"
-        assert step.protocol.xprotocol.startswith("<XProtocol>")
+        assert step.is_pause != step.runs_a_protocol, (
+            f"{step.name}: kind is {step.instance.kind} but "
+            f"{'no ' if not step.runs_a_protocol else ''}protocol is attached"
+        )
+        if step.runs_a_protocol:
+            assert step.protocol.xprotocol.startswith("<XProtocol>")
+
+
+@requires_exar
+def test_a_pause_step_is_a_real_thing_the_corpus_contains() -> None:
+    """At least one archive exercises the protocol-less step.
+
+    A branch nothing reaches is a claim about the code rather than the format,
+    and this one was written only because three archives arrived carrying
+    eleven pause steps each and the reader raised on all of them.
+
+    Returns
+    -------
+    None
+    """
+    archive = exar.read(find_exar("CHR-MDD.exar1"))
+    pauses = [step for step in archive.steps if step.is_pause]
+    assert pauses, "no pause step in this archive, so the handling is untested"
+    assert all(not step.protocols for step in pauses)
+    assert all(step.name for step in pauses)
 
 
 @requires_exar
@@ -337,6 +372,8 @@ def test_protocol_previews_carry_the_labels_the_pdf_prints(archive_path: str) ->
     None
     """
     for step in exar.read(archive_path).steps:
+        if not step.runs_a_protocol:
+            continue
         entries = step.protocol.preview
         assert entries
         assert "$id" not in entries
@@ -360,6 +397,8 @@ def test_a_protocol_still_carries_an_ascconv_block(archive_path: str) -> None:
     None
     """
     for step in exar.read(archive_path).steps:
+        if not step.runs_a_protocol:
+            continue
         text = step.protocol.xprotocol
         assert "### ASCCONV BEGIN" in text
         assert "### ASCCONV END" in text
@@ -428,8 +467,8 @@ def test_a_written_archive_reads_back_to_the_same_tree(
     assert written.baseline == original.baseline
     assert written.head == original.head
     assert [s.name for s in written.steps] == [s.name for s in original.steps]
-    assert [s.protocol.xprotocol for s in written.steps] == [
-        s.protocol.xprotocol for s in original.steps
+    assert [s.protocol.xprotocol for s in written.steps if s.runs_a_protocol] == [
+        s.protocol.xprotocol for s in original.steps if s.runs_a_protocol
     ]
 
 

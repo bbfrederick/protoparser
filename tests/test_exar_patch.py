@@ -705,6 +705,8 @@ def test_every_shipped_mapping_agrees_with_the_corpus(protocol_archive_path: str
     archive = read(protocol_archive_path)
     checked = 0
     for step in archive.steps:
+        if not step.runs_a_protocol:
+            continue
         protocol = step.protocol
         for mapping in patch.MAPPINGS:
             if mapping.preview_path is None or not patch.applies_to(mapping, protocol):
@@ -856,6 +858,8 @@ def test_the_sequence_build_stamp_is_stable_where_the_guid_beside_it_is_not() ->
     archive = read(find_exar("CMRR_optionscan_P1.exar1"))
     stamps, guids = set(), set()
     for step in archive.steps:
+        if not step.runs_a_protocol:
+            continue
         if not patch.sequence_of(step.protocol).startswith("cmrr_"):
             continue
         raw = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.tFree")
@@ -1000,6 +1004,8 @@ def test_no_protocol_has_two_mappings_writing_one_key(protocol_archive_path: str
     """
     archive = read(protocol_archive_path)
     for step in archive.steps:
+        if not step.runs_a_protocol:
+            continue
         protocol = step.protocol
         keys = [(m.ascconv_key, m.bit) for m in patch.MAPPINGS if patch.applies_to(m, protocol)]
         assert len(keys) == len(set(keys)), (

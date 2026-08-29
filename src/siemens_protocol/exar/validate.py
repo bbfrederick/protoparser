@@ -20,7 +20,7 @@ import uuid
 from typing import Any
 
 from . import envelope
-from .archive import MEASUREMENT_STEP, Archive
+from .archive import STEP_KINDS, Archive
 from .generate import NO_GUID, STEP_KEYED_MAPS
 
 #: Matches a GUID as these payloads spell one.
@@ -106,7 +106,7 @@ def _running_order(archive: Archive, document: dict[str, Any]) -> list[str]:
     # derived by walking the chain, so comparing the two would be circular: a
     # chain that stops early would agree with itself and the break would show
     # up only as unrelated complaints about the maps.
-    existing = sum(1 for i in archive.instances.values() if i.kind == MEASUREMENT_STEP)
+    existing = sum(1 for i in archive.instances.values() if i.kind in STEP_KINDS)
     if len(order) != existing:
         found.append(f"link chain covers {len(order)} steps but {existing} exist")
     if order and document.get("FirstStepId") != order[0]:
@@ -183,10 +183,9 @@ def _parents(archive: Archive) -> list[str]:
     program = archive.program
     found = []
     for step in archive.steps:
-        expected = {
-            "protocol": (step.protocol.instance, step.instance.element_id),
-            "step": (step.instance, program.element_id),
-        }
+        expected = {"step": (step.instance, program.element_id)}
+        if step.runs_a_protocol:
+            expected["protocol"] = (step.protocol.instance, step.instance.element_id)
         holder = archive.by_element.get(step.instance.label_element_id)
         if holder is not None:
             expected["label"] = (holder, step.instance.element_id)
