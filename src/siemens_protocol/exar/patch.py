@@ -1298,6 +1298,17 @@ def apply(archive: Archive, changes: MappingType[str, MappingType[str, Any]]) ->
                 )
             continue
         step = found[0]
+        if not step.runs_a_protocol:
+            for label, value in requests.items():
+                manifest.skipped.append(
+                    Skipped(
+                        step=name,
+                        label=label,
+                        value=value,
+                        reason="that step is a pause and holds no protocol",
+                    )
+                )
+            continue
         protocol = step.protocol
         document, applied, skipped = patch_document(protocol, requests, step=name)
         manifest.applied.extend(applied)

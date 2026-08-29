@@ -48,6 +48,16 @@ PLACEHOLDER_BASELINE = "-"
 #: Instance types, as ``Instance.InstanceType`` spells them.
 PROGRAM = "EdfProgram"
 MEASUREMENT_STEP = "EdfMeasurementStep"
+
+#: A step in the running order that acquires nothing. Operators put pause and
+#: instruction steps between scans -- "Count down with RA to start of scan",
+#: "Pause for saliva collection" -- and the console gives them their own
+#: instance type. They are common in real clinical trees, so the running order
+#: mixes both kinds and anything walking *scans* has to skip these.
+PAUSE_STEP = "EdfPauseStep"
+
+#: Both kinds that appear in a program's running order.
+STEP_KINDS = (MEASUREMENT_STEP, PAUSE_STEP)
 PROTOCOL = "EdfProtocol"
 STRING = "EdfString"
 
@@ -240,6 +250,36 @@ class Step:
     protocols: list[Protocol] = field(default_factory=list)
 
     @property
+    def is_pause(self) -> bool:
+        """Return whether this step is an instruction rather than an acquisition.
+
+        Returns
+        -------
+        bool
+            ``True`` for an ``EdfPauseStep``.
+        """
+        return self.instance.kind == PAUSE_STEP
+
+    @property
+    def runs_a_protocol(self) -> bool:
+        """Return whether this step acquires anything.
+
+        A measurement step need not hold a protocol. Operators put pause and
+        instruction steps in the running order -- "Count down with RA to start
+        of scan", "Pause for saliva collection", "Do NOT add Raw Filter to 3D
+        MPR" -- and those carry an ``EdfMeasurementStepContent`` with injector
+        fields and no protocol child. They are common in real clinical trees
+        and the PDF does not print them as scans, so anything walking scans
+        must skip them rather than assume every step has one.
+
+        Returns
+        -------
+        bool
+            ``True`` when the step holds at least one protocol.
+        """
+        return bool(self.protocols)
+
+    @property
     def protocol(self) -> Protocol:
         """Return the step's single protocol.
 
@@ -251,7 +291,9 @@ class Step:
         Raises
         ------
         ValueError
-            If the step holds no protocol at all.
+            If the step holds no protocol at all, which is a legitimate state
+            -- see :attr:`runs_a_protocol` -- so callers sweeping an archive
+            should test that first rather than catching this.
         """
         if not self.protocols:
             raise ValueError(f"measurement step {self.name!r} holds no protocol")

@@ -272,7 +272,7 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   scan a person should look at, which is what that verdict means. No shipped
   example does it; the branch exists so a future one is visible rather than
   quietly resolved.
-- The corpus stands at 677 third-party, 276 stock and 31 unrecognized, pinned by
+- The corpus stands at 701 third-party, 299 stock and 31 unrecognized, pinned by
   `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
   `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
   third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
@@ -515,6 +515,24 @@ before/after pair is the only way to learn where a printed value is stored --
   real difference is hardware: `aRxCoilSelectData[1].aFFT_SCALE` has 58
   entries on P1 and 20 on P2, on the one scan using a second coil array. A
   generator moving a protocol between scanners must not copy that across.
+- **A step in the running order need not run anything.** `EdfPauseStep` is an
+  instruction an operator put between scans -- "Count down with RA to start of
+  scan", "Pause for saliva collection", "Do NOT add Raw Filter to 3D MPR" --
+  carrying an `EdfMeasurementStepContent` with injector fields and no protocol
+  child. Eleven of `CHR-MDD`'s thirty-four steps are pauses, and the reader
+  raised on all three archives that arrived with them. They are named, they are
+  in the chain, and the PDF does not print them as scans, so anything walking
+  *scans* skips them: `Step.is_pause` reads the instance kind, `runs_a_protocol`
+  reads the content, and a test asserts the two always agree because either
+  alone could be wrong.
+- **A printout carries fewer digits than the protocol.** One scan prints
+  `TE 1 = 54 ms` for a stored `54.16`, so writing the printed value back drops
+  0.16 ms. `build.agrees_at_printed_precision` treats a printed value as
+  matching when the stored one rounds to it at the precision actually printed;
+  without it, driving an archive from its own PDF degrades it.
+- **Strip a printed unit only after whitespace.** Matching it anywhere turns
+  `RMS` into `R`, because `MS` is a unit and the comparison is
+  case-insensitive -- which then fails to resolve as an `Averaging` choice.
 - **A readable archive can hold no protocols at all.** Exporting an empty
   folder node rather than the protocol tree yields a valid SQLite file with
   the directory scaffolding, a `Root` label and nothing else -- five

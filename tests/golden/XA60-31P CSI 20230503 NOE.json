@@ -211,7 +211,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -461,7 +461,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -689,7 +689,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -885,7 +885,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1035,7 +1035,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1185,7 +1185,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1335,7 +1335,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1485,7 +1485,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1522,9 +1522,9 @@
       "name": "head_csi_fid",
       "path": "\\\\Research\\Investigators\\XChen\\31P CSI 20230503 NOE\\head_csi_fid",
       "header": {
-        "ta": "12:54 min",
+        "ta": "36:24 min",
         "coil_selection": "Auto",
-        "voxel_size_mm": "25.0×25.0×25.0",
+        "voxel_size_mm": "50.0×50.0×36.0",
         "rel_snr": "1.00",
         "sequence": "csi_fid"
       },
@@ -1552,55 +1552,54 @@
           "Inline Movie": "Off"
         },
         "Routine": {
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Rotation": "0.00 deg",
           "FOV A >> P": "400 mm",
           "FOV R >> L": "400 mm",
-          "Thickness F >> H": "25 mm",
+          "Thickness F >> H": "36 mm",
           "VoI A >> P": "400 mm",
           "VoI R >> L": "400 mm",
-          "TR": "1500.0 ms",
+          "TR": "3000.0 ms",
           "TE": "2.30 ms",
-          "Averages": "2"
+          "Averages": "60"
         },
         "Contrast - Common": {
-          "TR": "1500.0 ms",
+          "TR": "3000.0 ms",
           "TE": "2.30 ms",
           "Flip Angle": "90 deg",
-          "Preparation Scans": "4",
-          "Averages": "2",
-          "Water Suppression": "Water Saturation",
-          "Water Suppr. BW": "35 Hz"
+          "Preparation Scans": "8",
+          "Averages": "60",
+          "Water Suppression": "None"
         },
         "Resolution - Common": {
           "FOV A >> P": "400 mm",
           "FOV R >> L": "400 mm",
-          "Thickness F >> H": "25 mm",
-          "Scan Res. A >> P": "16",
-          "Scan Res. R >> L": "16",
-          "Interpol. Res. A >> P": "16",
-          "Interpol. Res. R >> L": "16",
+          "Thickness F >> H": "36 mm",
+          "Scan Res. A >> P": "8",
+          "Scan Res. R >> L": "8",
+          "Interpol. Res. A >> P": "8",
+          "Interpol. Res. R >> L": "8",
           "Hamming": "Off",
           "Dimension": "2D",
-          "Phase Encoding": "Full",
+          "Phase Encoding": "Weighted",
           "Vector Size": "512",
           "Normalize": "Off"
         },
         "Geometry - Common": {
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Rotation": "0.00 deg",
           "FOV A >> P": "400 mm",
           "FOV R >> L": "400 mm",
-          "Thickness F >> H": "25 mm",
+          "Thickness F >> H": "36 mm",
           "VoI A >> P": "400 mm",
           "VoI R >> L": "400 mm"
         },
         "Geometry - AutoAlign": {
           "Slice Group": "1",
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "---",
           "Initial Position": "Isocenter",
@@ -1626,49 +1625,58 @@
           "Adjust with Body Coil": "Off",
           "Confirm Frequency": "Never",
           "Assume Silicone": "Off",
-          "Adj. Water Suppr.": "On"
+          "Adj. Water Suppr.": "Off"
         },
         "System - Adjust Volume": {
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Rotation": "0.00 deg",
           "A >> P": "400 mm",
           "R >> L": "400 mm",
-          "F >> H": "25 mm",
+          "F >> H": "36 mm",
           "Reset": "Off"
         },
         "System - pTx": {
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 31P": "49.891823 MHz",
+          "Frequency 1H": "123.249275 MHz",
+          "? Ref. Amplitude 31P": "0.000 V",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
         },
         "Physio - Signal": {
           "1st Signal/Mode": "None",
-          "TR": "1500.0 ms"
+          "TR": "3000.0 ms"
         },
         "Sequence - Common": {
           "Sequence Name": "csi_fid",
-          "Preparation Scans": "4",
+          "Preparation Scans": "8",
           "Delta Frequency": "0.00 ppm",
           "Measurements": "1",
           "Dimension": "2D",
           "Save Uncombined": "Off",
           "Acquisition Delay": "2.30 ms",
-          "Bandwidth": "1000 Hz",
-          "Acquisition Duration": "512 ms",
+          "Bandwidth": "4000 Hz",
+          "Acquisition Duration": "128 ms",
           "Remove Oversampling": "On"
         },
         "Sequence - Nuclei": {
-          "TX/RX Nucleus": "1H",
+          "TX/RX Nucleus": "31P",
           "TX/RX Delta Frequency": "0 Hz",
-          "NOE Type": "None",
-          "TX Nucleus": "None",
+          "NOE Type": "Rectangular",
+          "NOE Count": "1",
+          "NOE Duration": "5.00 ms",
+          "NOE Flip Angle": "90.00 deg",
+          "TX Nucleus": "1H",
           "TX Delta Frequency": "0 Hz",
-          "Decoupling Type": "None"
+          "Decoupling Type": "Waltz4",
+          "Decoupling Duration": "1.00 ms",
+          "DC Total Duration": "50.00 %",
+          "DC Pause Fract.": "100.00 %",
+          "Decoupling Flip Angle": "180.00 deg"
         }
       },
       "pages": [
@@ -1681,9 +1689,9 @@
       "name": "head_csi_fid",
       "path": "\\\\Research\\Investigators\\XChen\\31P CSI 20230503 NOE\\head_csi_fid",
       "header": {
-        "ta": "12:54 min",
+        "ta": "14:36 min",
         "coil_selection": "Auto",
-        "voxel_size_mm": "25.0×25.0×25.0",
+        "voxel_size_mm": "50.0×50.0×40.0",
         "rel_snr": "1.00",
         "sequence": "csi_fid"
       },
@@ -1711,55 +1719,54 @@
           "Inline Movie": "Off"
         },
         "Routine": {
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Rotation": "0.00 deg",
           "FOV A >> P": "400 mm",
           "FOV R >> L": "400 mm",
-          "Thickness F >> H": "25 mm",
+          "Thickness F >> H": "40 mm",
           "VoI A >> P": "400 mm",
           "VoI R >> L": "400 mm",
-          "TR": "1500.0 ms",
+          "TR": "3000.0 ms",
           "TE": "2.30 ms",
-          "Averages": "2"
+          "Averages": "22"
         },
         "Contrast - Common": {
-          "TR": "1500.0 ms",
+          "TR": "3000.0 ms",
           "TE": "2.30 ms",
           "Flip Angle": "90 deg",
-          "Preparation Scans": "4",
-          "Averages": "2",
-          "Water Suppression": "Water Saturation",
-          "Water Suppr. BW": "35 Hz"
+          "Preparation Scans": "8",
+          "Averages": "22",
+          "Water Suppression": "None"
         },
         "Resolution - Common": {
           "FOV A >> P": "400 mm",
           "FOV R >> L": "400 mm",
-          "Thickness F >> H": "25 mm",
-          "Scan Res. A >> P": "16",
-          "Scan Res. R >> L": "16",
-          "Interpol. Res. A >> P": "16",
-          "Interpol. Res. R >> L": "16",
-          "Hamming": "Off",
+          "Thickness F >> H": "40 mm",
+          "Scan Res. A >> P": "8",
+          "Scan Res. R >> L": "8",
+          "Interpol. Res. A >> P": "8",
+          "Interpol. Res. R >> L": "8",
+          "Hamming": "On",
           "Dimension": "2D",
-          "Phase Encoding": "Full",
+          "Phase Encoding": "Weighted",
           "Vector Size": "512",
           "Normalize": "Off"
         },
         "Geometry - Common": {
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Rotation": "0.00 deg",
           "FOV A >> P": "400 mm",
           "FOV R >> L": "400 mm",
-          "Thickness F >> H": "25 mm",
+          "Thickness F >> H": "40 mm",
           "VoI A >> P": "400 mm",
           "VoI R >> L": "400 mm"
         },
         "Geometry - AutoAlign": {
           "Slice Group": "1",
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "---",
           "Initial Position": "Isocenter",
@@ -1785,49 +1792,59 @@
           "Adjust with Body Coil": "Off",
           "Confirm Frequency": "Never",
           "Assume Silicone": "Off",
-          "Adj. Water Suppr.": "On"
+          "Adj. Water Suppr.": "Off"
         },
         "System - Adjust Volume": {
-          "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Position": "L30.0 A10.7 H24.3 mm",
+          "Orientation": "T > C-17.0",
           "Rotation": "0.00 deg",
           "A >> P": "400 mm",
           "R >> L": "400 mm",
-          "F >> H": "25 mm",
+          "F >> H": "40 mm",
           "Reset": "Off"
         },
         "System - pTx": {
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 31P": "49.891823 MHz",
+          "Frequency 1H": "123.249275 MHz",
+          "? Ref. Amplitude 31P": "0.000 V",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
         },
         "Physio - Signal": {
           "1st Signal/Mode": "None",
-          "TR": "1500.0 ms"
+          "TR": "3000.0 ms"
         },
         "Sequence - Common": {
           "Sequence Name": "csi_fid",
-          "Preparation Scans": "4",
+          "Preparation Scans": "8",
           "Delta Frequency": "0.00 ppm",
           "Measurements": "1",
           "Dimension": "2D",
           "Save Uncombined": "Off",
           "Acquisition Delay": "2.30 ms",
-          "Bandwidth": "1000 Hz",
-          "Acquisition Duration": "512 ms",
+          "Bandwidth": "4000 Hz",
+          "Acquisition Duration": "128 ms",
           "Remove Oversampling": "On"
         },
         "Sequence - Nuclei": {
-          "TX/RX Nucleus": "1H",
+          "TX/RX Nucleus": "31P",
           "TX/RX Delta Frequency": "0 Hz",
-          "NOE Type": "None",
-          "TX Nucleus": "None",
+          "NOE Type": "Rectangular",
+          "NOE Count": "10",
+          "NOE Duration": "5.00 ms",
+          "NOE Pause": "10.00 ms",
+          "NOE Flip Angle": "90.00 deg",
+          "TX Nucleus": "1H",
           "TX Delta Frequency": "0 Hz",
-          "Decoupling Type": "None"
+          "Decoupling Type": "Waltz4",
+          "Decoupling Duration": "1.00 ms",
+          "DC Total Duration": "50.00 %",
+          "DC Pause Fract.": "100.00 %",
+          "Decoupling Flip Angle": "180.00 deg"
         }
       },
       "pages": [
@@ -2004,7 +2021,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2254,7 +2271,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2496,7 +2513,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249491 MHz",
+          "Frequency 1H": "123.249275 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
