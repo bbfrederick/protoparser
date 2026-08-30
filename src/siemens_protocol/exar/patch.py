@@ -49,6 +49,12 @@ from .archive import Archive, Protocol, Step
 #: an element holding zero, so "absent" is a value rather than a gap.
 ABSENT = "(absent)"
 
+#: The CMRR multiband build every Special-card mapping here was derived from.
+#: Compared against :func:`build_id`, so the timestamp is deliberately absent:
+#: the three sequences of one release are built minutes apart and differ in
+#: that field alone.
+CMRR_R017 = "Sequence: R017 nxva60a/main r/91b106c1e"
+
 #: Delimiters of the ASCCONV block inside the XProtocol text.
 ASCCONV_BEGIN = "### ASCCONV BEGIN"
 ASCCONV_END = "### ASCCONV END"
@@ -94,6 +100,17 @@ class Mapping:
         Position of this parameter's flag within ``ascconv_key``, for a
         checkbox packed into a shared word. Writing one is a read-modify-write
         of that word, and an absent word counts as zero.
+    builds : tuple of str
+        Sequence builds this mapping is verified against, compared against
+        :func:`build_id`. Empty means the mapping does not depend on the
+        build, which is the honest default for a parameter stored in its own
+        named field. It is *not* the right default for a bit packed into a
+        shared word: a later release is free to renumber those, nothing in the
+        protocol announces it, and the value would simply land in a different
+        option. Only the CMRR sequences stamp a build at all -- the ABCD
+        navigators write a ``.prot`` file name there and two sequences write
+        nothing -- so their mappings cannot be guarded this way and say so by
+        leaving this empty.
     when : tuple of str or None
         An ``(ASCCONV key, literal)`` pair that must hold for this mapping to
         apply, which is how one label can be stored two different ways. Slice
@@ -111,6 +128,7 @@ class Mapping:
     sequences: tuple[str, ...] = ()
     choices: tuple[tuple[str, int], ...] = ()
     bit: int | None = None
+    builds: tuple[str, ...] = ()
     when: tuple[str, str] | None = None
 
     @property
@@ -238,6 +256,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=0,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 0",
     ),
     Mapping(
@@ -245,6 +264,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=1,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 1",
     ),
     Mapping(
@@ -252,6 +272,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=4,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 4",
     ),
     Mapping(
@@ -259,6 +280,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=8,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 8",
     ),
     Mapping(
@@ -266,6 +288,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=9,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 9",
     ),
     Mapping(
@@ -273,6 +296,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=10,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 10",
     ),
     Mapping(
@@ -280,6 +304,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=12,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 12",
     ),
     Mapping(
@@ -287,6 +312,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=16,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 16",
     ),
     Mapping(
@@ -294,6 +320,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=18,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 18",
     ),
     Mapping(
@@ -301,6 +328,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=20,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 20",
     ),
     Mapping(
@@ -308,6 +336,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=22,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 22",
     ),
     Mapping(
@@ -315,6 +344,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=25,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 25",
     ),
     Mapping(
@@ -322,6 +352,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=27,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 27",
     ),
     Mapping(
@@ -329,6 +360,7 @@ MAPPINGS: tuple[Mapping, ...] = (
         ascconv_key="sWipMemBlock.alFree[0]",
         bit=28,
         sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 28",
     ),
     # ---- The ABCD navigated sequences. Shared between the MPRAGE and
@@ -845,6 +877,30 @@ def sequence_stamp(protocol: Protocol) -> str:
     return (tail if sep else text).strip()
 
 
+def build_id(stamp: str) -> str:
+    """Reduce a build stamp to the part identifying the binary.
+
+    CMRR writes ``Sequence: R017 nxva60a/main r/91b106c1e; May 15 2026
+    12:56:25 by eja``. The three sequences of one release are compiled minutes
+    apart, so the timestamp distinguishes ``cmrr_mbep2d_bold`` from
+    ``cmrr_mbep2d_se`` rather than one release from another -- comparing whole
+    stamps would make every mapping sequence-specific by accident.
+
+    Parameters
+    ----------
+    stamp : str
+        A stamp as :func:`sequence_stamp` returns it.
+
+    Returns
+    -------
+    str
+        Everything before the first ``;``, stripped. A stamp with no ``;`` --
+        the navigators' ``.prot`` file name -- comes back whole, which cannot
+        match a build and so refuses rather than matching loosely.
+    """
+    return stamp.partition(";")[0].strip()
+
+
 def applies_to(mapping: Mapping, protocol: Protocol) -> bool:
     """Return whether a mapping is meaningful for this protocol.
 
@@ -858,9 +914,12 @@ def applies_to(mapping: Mapping, protocol: Protocol) -> bool:
     Returns
     -------
     bool
-        ``True`` for an unrestricted mapping, or one naming this sequence.
+        ``True`` for an unrestricted mapping, or one naming this sequence and
+        the build it was derived from.
     """
     if mapping.sequences and sequence_of(protocol) not in mapping.sequences:
+        return False
+    if mapping.builds and build_id(sequence_stamp(protocol)) not in mapping.builds:
         return False
     if mapping.when is not None:
         key, expected = mapping.when
@@ -944,6 +1003,20 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
     elsewhere = [m for m in MAPPINGS if m.label.strip().casefold() == wanted]
     if elsewhere:
         runs = sequence_of(protocol) or "an unnamed sequence"
+        # Distinguish the two ways a mapping can be out of scope. Reporting a
+        # build mismatch in terms of the sequence produces "mapped for
+        # cmrr_mbep2d_bold, but this protocol runs cmrr_mbep2d_bold", which is
+        # true, useless, and reads like a bug in the table.
+        right_sequence = [m for m in elsewhere if not m.sequences or runs in m.sequences]
+        if right_sequence:
+            seen = build_id(sequence_stamp(protocol)) or "no build stamp"
+            wants = ", ".join(sorted({b for m in right_sequence for b in m.builds}))
+            return (
+                None,
+                f"{name!r} is mapped for {runs} built as {wants}, and this protocol "
+                f"reports {seen}; a later build may pack that option differently, so "
+                f"the mapping is not applied rather than guessed",
+            )
         wants = ", ".join(sorted({q for m in elsewhere for q in m.sequences}))
         return (None, f"{name!r} is mapped for {wants}, but this protocol runs {runs}")
     printed = {e.label.strip().casefold() for e in protocol.preview.values()}

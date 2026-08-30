@@ -427,8 +427,9 @@ before/after pair is the only way to learn where a printed value is stored --
   renumber `alFree` indices or move a flag bit, and nothing in the protocol
   would announce it -- the values would simply land in the wrong parameter. If
   a second build ever enters the corpus, check the option-scan diffs against it
-  before trusting the table, and expect `Mapping` to need a version dimension
-  beside `sequences`. Note also what the stamp does *not* say: it reads `R017`
+  before trusting the table. A second build *has* now arrived, which is what
+  `Mapping.builds` answers; deriving mappings for it still needs option scans
+  taken on that build. Note also what the stamp does *not* say: it reads `R017`
   whether the binary was 017pre15 or a later 017, so the commit and build time
   are what identify a build exactly.
 - **Unmodified content is written back from its original blob**, never
@@ -485,16 +486,33 @@ before/after pair is the only way to learn where a printed value is stored --
   carrying an edit and three byte-identical controls -- so importing a step
   across archives is sound, and 11 of the 12 checkable edits came back exactly
   as written.
-- **A protocol naming a sequence the scanner does not have is inconsistent,
-  and nothing in this layer can tell.** The three `hcp_mbep2d_*` scans failed
-  in both copies, the edited one *and the unedited control byte-identical to
-  its donor*, which is what proves the cause is not ours. They are the only
-  protocols in the corpus stamped `ve11c/master r/5b0256d+; Dec 2016` rather
-  than `R017 nxva60a/main` -- VE11C-era binaries carried forward and never
-  rebuilt for Numaris/X. A donor archive is not evidence that the *target*
-  scanner can run what it holds. Do not read "not printed in its own PDF" as
-  the same signal: `BIAS_BC` and `T1_MEMPRAGE_64ch_gr2` are unprinted too and
-  loaded fine.
+- **A protocol from an older CMRR build can be rejected on import, whatever
+  we write.** The three `hcp_mbep2d_*` scans failed in both copies -- the
+  edited one *and the unedited control byte-identical to its donor* -- which
+  is what proves the cause is not the patcher. The user's account is that
+  CMRR releases sometimes recompose the flags word, so the console
+  reconciling an old-build protocol against the installed binary is where it
+  breaks; that happens at *import*, which is why an untouched copy fails
+  alongside an edited one. A donor archive is therefore not evidence that the
+  target scanner can use what it holds. Do not read "not printed in its own
+  PDF" as the same signal: `BIAS_BC` and `T1_MEMPRAGE_64ch_gr2` are unprinted
+  too and loaded fine.
+- **A `sWipMemBlock` bit mapping is gated on the sequence build, not just the
+  sequence.** `Mapping.builds` names the builds a mapping was derived from and
+  `applies_to` refuses outside them; all fourteen CMRR flag bits carry
+  `CMRR_R017`. The trigger was the corpus gaining a second CMRR generation --
+  `hcp_mbep2d_bold` alone carries `ve11c/master r/5b0256d+` (Dec 2016) and
+  `R016 ve11c/master r/e634e98` (Dec 2017) beside the mapped sequences'
+  `R017 nxva60a/main r/91b106c1e`. Compare with `build_id`, never whole
+  stamps: the three sequences of one release are compiled minutes apart, so
+  the timestamp separates `bold` from `se`, not one release from another.
+  The refusal must also name the *build*, since blaming the sequence yields
+  "mapped for cmrr_mbep2d_bold, but this protocol runs cmrr_mbep2d_bold".
+  Only CMRR stamps a build at all -- the ABCD navigators write a `.prot` file
+  name and `can_neuromelanin`/`tfl_mgh_multiecho` write nothing -- so those
+  mappings are unguardable this way and leave `builds` empty rather than
+  pretending. Two tests hold the gate honest: one that every gated mapping
+  still resolves across the corpus, one that a staged later build refuses.
 - **An off-grid value is stored faithfully and displayed snapped to the grid.**
   `MT Flip Angle` written as 371 comes back from the scanner as 371 in the
   archive and prints `370 degrees`; `MT Offset` 1501 prints `1500 Hz`. Both
