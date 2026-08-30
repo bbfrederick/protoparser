@@ -6,7 +6,7 @@
     "confidence": "high"
   },
   "scanner": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",
-  "page_count": 60,
+  "page_count": 57,
   "front_matter_pages": [
     1
   ],
@@ -210,7 +210,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -460,7 +460,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -712,7 +712,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -962,7 +962,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1199,7 +1199,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1275,7 +1275,7 @@
       "header": {
         "ta": "4:32 min",
         "coil_selection": "Manual",
-        "voxel_size_mm": "1.0×1.0×1.3",
+        "voxel_size_mm": "1.0×1.0×1.0",
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tfl_me"
@@ -1313,12 +1313,12 @@
           "Position": "R2.2 P1.7 F31.8 mm",
           "Orientation": "Sagittal",
           "Phase Encoding Dir.": "A >> P",
-          "Slices per Slab": "128",
+          "Slices per Slab": "160",
           "Phase Oversampling": "0 %",
           "Slice Oversampling": "0.0 %",
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.33 mm",
+          "Slice Thickness": "1.00 mm",
           "TR": "2530.0 ms",
           "TE 1": "3.30 ms",
           "TE 2": "6.93 ms",
@@ -1336,7 +1336,7 @@
           "TE 3": "8.79 ms",
           "TE 4": "10.65 ms",
           "Magn. Preparation": "Non-sel. IR",
-          "TI": "1100 ms",
+          "TI": "1150 ms",
           "Flip Angle": "7 deg",
           "Fat-Water Contrast": "Standard",
           "Dark Blood": "Off",
@@ -1352,7 +1352,7 @@
         "Resolution - Common": {
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.33 mm",
+          "Slice Thickness": "1.00 mm",
           "Base Resolution": "256",
           "Phase Resolution": "75 %",
           "Slice Resolution": "100 %",
@@ -1372,7 +1372,7 @@
         "Resolution - Filter": {
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Normalize": "Prescan",
           "Image Filter": "Off"
         },
@@ -1383,12 +1383,12 @@
           "Position": "R2.2 P1.7 F31.8 mm",
           "Orientation": "Sagittal",
           "Phase Encoding Dir.": "A >> P",
-          "Slices per Slab": "128",
+          "Slices per Slab": "160",
           "Phase Oversampling": "0 %",
           "Slice Oversampling": "0.0 %",
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.33 mm",
+          "Slice Thickness": "1.00 mm",
           "TR": "2530.0 ms",
           "Multi-Slice Mode": "Single Shot",
           "Series": "Ascending",
@@ -1439,7 +1439,7 @@
           "Rotation": "0.00 deg",
           "A >> P": "256 mm",
           "F >> H": "256 mm",
-          "R >> L": "171 mm",
+          "R >> L": "160 mm",
           "Reset": "Off"
         },
         "System - pTx": {
@@ -1447,7 +1447,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1461,7 +1461,7 @@
         "Physio - Cardiac": {
           "Fat-Water Contrast": "Standard",
           "Magn. Preparation": "Non-sel. IR",
-          "TI": "1100 ms",
+          "TI": "1150 ms",
           "Dark Blood": "Off",
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
@@ -1508,7 +1508,7 @@
           "Bandwidth 4": "650 Hz/Px",
           "Echo Spacing": "14.08 ms",
           "Asymmetric Echo": "Off",
-          "Turbo Factor": "128"
+          "Turbo Factor": "160"
         },
         "Sequence - Part 2": {
           "Introduction": "On",
@@ -1703,7 +1703,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1953,7 +1953,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2198,7 +2198,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2296,7 +2296,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -2350,7 +2350,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -2364,14 +2364,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -2405,7 +2407,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -2417,7 +2419,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2465,7 +2467,7 @@
           "Invert RO/PE polarity": "Off",
           "Force GPA balance": "Off",
           "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
+          "Suppress 16-bit DICOM": "On",
           "Force equal slice timing": "Off",
           "FFT scale factor": "1.00",
           "Physio recording": "Off",
@@ -2523,7 +2525,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -2577,7 +2579,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -2591,14 +2593,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -2632,7 +2636,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -2644,7 +2648,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2692,7 +2696,7 @@
           "Invert RO/PE polarity": "On",
           "Force GPA balance": "Off",
           "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
+          "Suppress 16-bit DICOM": "On",
           "Force equal slice timing": "Off",
           "FFT scale factor": "1.00",
           "Physio recording": "Off",
@@ -2906,7 +2910,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3031,7 +3035,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -3064,7 +3068,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -3075,7 +3079,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -3084,7 +3088,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -3098,14 +3102,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -3138,7 +3144,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -3150,7 +3156,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -3187,7 +3193,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -3421,7 +3427,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3546,7 +3552,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -3579,7 +3585,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -3590,7 +3596,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -3599,7 +3605,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -3613,14 +3619,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -3653,7 +3661,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -3665,7 +3673,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -3702,7 +3710,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -3780,7 +3788,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -3813,7 +3821,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -3824,7 +3832,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -3833,7 +3841,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -3847,14 +3855,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -3887,7 +3897,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -3899,7 +3909,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -3936,7 +3946,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -4014,7 +4024,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -4047,7 +4057,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -4058,7 +4068,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -4067,7 +4077,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -4081,14 +4091,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -4121,7 +4133,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -4133,7 +4145,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4170,7 +4182,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -4248,7 +4260,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -4281,7 +4293,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -4292,7 +4304,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -4301,7 +4313,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -4315,14 +4327,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -4355,7 +4369,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -4367,7 +4381,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4404,7 +4418,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -4482,7 +4496,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -4515,7 +4529,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -4526,7 +4540,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -4535,7 +4549,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -4549,14 +4563,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -4589,7 +4605,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -4601,7 +4617,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4638,7 +4654,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -4872,7 +4888,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4997,7 +5013,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -5030,7 +5046,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -5041,7 +5057,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -5050,7 +5066,7 @@
           "Slices": "72",
           "Distance Factor": "0 %",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "208 mm",
@@ -5064,14 +5080,16 @@
         "Geometry - AutoAlign": {
           "Slice Group": "1",
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
           "Initial Position": "Isocenter",
           "L": "0.0 mm",
           "P": "0.0 mm",
           "H": "0.0 mm",
-          "Initial Orientation": "Transversal",
+          "Initial Orientation": "T > C",
+          "T > C": "-16.00",
+          "> S": "0.00",
           "Initial Rotation": "0.00 deg"
         },
         "Geometry - Saturation": {
@@ -5104,7 +5122,7 @@
         },
         "System - Adjust Volume": {
           "Position": "Isocenter",
-          "Orientation": "Transversal",
+          "Orientation": "T > C-16.0",
           "Rotation": "0.00 deg",
           "A >> P": "208 mm",
           "R >> L": "208 mm",
@@ -5116,7 +5134,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -5153,7 +5171,7 @@
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -5352,7 +5370,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -5418,7 +5436,7 @@
           "Force GPA balance": "Off",
           "Disable B1 control loop": "Off",
           "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
+          "Suppress 16-bit DICOM": "On",
           "Force equal slice timing": "Off",
           "Online multi-band recon.": "Online",
           "FFT scale factor": "1.00",
@@ -5436,252 +5454,6 @@
     },
     {
       "index": 22,
-      "name": "dMRI_dir107_AP",
-      "path": "\\\\Research\\Investigators\\Millman\\CHR-MDD\\dMRI_dir107_AP",
-      "header": {
-        "ta": "6:05 min",
-        "coil_selection": "Auto",
-        "voxel_size_mm": "2.1×2.1×1.5",
-        "pat": "None",
-        "rel_snr": "1.00",
-        "sequence": "epse"
-      },
-      "provenance": {
-        "verdict": "third-party",
-        "vendor": "CMRR (University of Minnesota)",
-        "family": "multiband EPI, diffusion",
-        "signature": "cmrr-mb-epi-diffusion",
-        "evidence": [
-          "Special card prints MB LeakBlock kernel, Online multi-band recon."
-        ],
-        "special_parameters": 22
-      },
-      "sections": {
-        "Properties": {
-          "Start measurement without further preparation": "On",
-          "Wait for User to Start": "Off",
-          "Start measurements": "Single Measurement",
-          "Prio Recon": "Off",
-          "Auto Open Inline Display": "Off",
-          "Auto Close Inline Display": "Off",
-          "Load Images to MR View&GO": "On",
-          "Auto Store Images": "On",
-          "Disable auto transfer to PACS": "Off",
-          "Load Images to Stamp Segments": "Off",
-          "Load Images to Graphic Segments": "Off",
-          "Graphic segment": "Default",
-          "Inline Movie": "Off"
-        },
-        "Routine": {
-          "Slice Group": "1",
-          "Slices": "92",
-          "Distance Factor": "0 %",
-          "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
-          "Phase Encoding Dir.": "A >> P",
-          "Phase Oversampling": "0 %",
-          "FOV Read": "210 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.5 mm",
-          "TR": "3230.0 ms",
-          "TE": "89.20 ms",
-          "Multi-band accel. factor": "4",
-          "AutoAlign": "Head > Brain"
-        },
-        "Contrast - Common": {
-          "TR": "3230.0 ms",
-          "TE": "89.20 ms",
-          "MTC": "Off",
-          "Magn. Preparation": "None",
-          "Flip Angle": "78 deg",
-          "Refocus flip angle": "160 deg",
-          "Fat-Water Contrast": "Fat Saturation",
-          "Grad. rev. fat suppr.": "Enabled",
-          "Reconstruction": "Magnitude"
-        },
-        "Contrast - Dynamic": {
-          "Dynamic Mode": "Standard",
-          "Multiple Series": "Off",
-          "Delay in TR": "0.00 ms"
-        },
-        "Resolution - Common": {
-          "FOV Read": "210 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.5 mm",
-          "Base Resolution": "98",
-          "Phase Resolution": "100 %",
-          "Interpolation": "Off"
-        },
-        "Resolution - Acceleration": {
-          "Acceleration Mode": "None",
-          "Phase Partial Fourier": "6/8"
-        },
-        "Resolution - Filter": {
-          "Raw Filter": "Off",
-          "Elliptical Filter": "Off",
-          "Distortion Correction": "Off",
-          "Static Field Correction": "Off",
-          "Normalize": "Off"
-        },
-        "Geometry - Common": {
-          "Slice Group": "1",
-          "Slices": "92",
-          "Distance Factor": "0 %",
-          "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
-          "Phase Encoding Dir.": "A >> P",
-          "Phase Oversampling": "0 %",
-          "FOV Read": "210 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.5 mm",
-          "TR": "3230.0 ms",
-          "Multi-Slice Mode": "Interleaved",
-          "Series": "Interleaved",
-          "Multi-band accel. factor": "4"
-        },
-        "Geometry - AutoAlign": {
-          "Slice Group": "1",
-          "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
-          "Phase Encoding Dir.": "A >> P",
-          "AutoAlign": "Head > Brain",
-          "Initial Position": "L0.0 P0.0 H2.0",
-          "L": "0.0 mm",
-          "P": "0.0 mm",
-          "H": "2.0 mm",
-          "Initial Orientation": "T > C",
-          "T > C": "-16.00",
-          "> S": "0.00",
-          "Initial Rotation": "0.00 deg"
-        },
-        "Geometry - Navigator": {},
-        "Geometry - Saturation": {
-          "Special Saturation": "None"
-        },
-        "Geometry - Tim Planning Suite": {
-          "Set-n-Go Protocol": "Off",
-          "Table Position": "2 mm",
-          "Table Position #2": "H",
-          "Inline Composing": "Off"
-        },
-        "System - Miscellaneous": {
-          "Coil Selection": "Auto Coil Select",
-          "Radial Sorting": "Off",
-          "MSMA": "S - C - T",
-          "Sagittal": "R >> L",
-          "Coronal": "A >> P",
-          "Transversal": "F >> H",
-          "Coil Combination": "Sum of Squares",
-          "Matrix Optimization": "Off",
-          "Coil Focus": "Flat"
-        },
-        "System - Adjustments": {
-          "Adjustment Strategy": "Standard",
-          "B0 Shim": "Standard",
-          "B1 Shim": "TrueForm",
-          "Adjustment Tolerance": "Auto",
-          "Adjust with Body Coil": "Off",
-          "Confirm Frequency": "Never",
-          "Assume Silicone": "Off"
-        },
-        "System - Adjust Volume": {
-          "Position": "Isocenter",
-          "Orientation": "T > C-16.0",
-          "Rotation": "0.00 deg",
-          "A >> P": "210 mm",
-          "R >> L": "210 mm",
-          "F >> H": "138 mm",
-          "Reset": "Off"
-        },
-        "System - pTx": {
-          "B1 Shim": "TrueForm",
-          "Excitation": "Standard"
-        },
-        "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
-          "? Ref. Amplitude 1H": "0.000 V",
-          "Reset": "Off",
-          "Image Scaling": "1.000"
-        },
-        "Physio - Signal": {
-          "1st Signal/Mode": "None",
-          "TR": "3230.0 ms",
-          "Multi-band accel. factor": "4"
-        },
-        "Physio - PACE": {
-          "Resp. Control": "Off",
-          "Multi-band accel. factor": "4"
-        },
-        "Diff": {
-          "Diffusion Mode": "Free",
-          "Diff. Directions": "107",
-          "Diffusion Scheme": "Monopolar",
-          "Diff. Weightings": "2",
-          "b-value 1": "0 s/mm²",
-          "b-value 2": "3000 s/mm²",
-          "Averages 1": "1",
-          "Averages 2": "1",
-          "Dynamic Field Correction": "Off",
-          "Invert Gray Scale": "Off",
-          "Diff. Weighted Images": "On",
-          "Trace Weighted Images": "Off",
-          "Tensor": "Off",
-          "FA Maps": "Off",
-          "ADC Maps": "Off",
-          "Exponential ADC Maps": "Off",
-          "Calculated Image": "Off"
-        },
-        "Sequence - Part 1": {
-          "Sequence Name": "epse",
-          "Dimension": "2D",
-          "Excitation": "Standard",
-          "Gradient Mode": "Performance",
-          "Bandwidth": "1700 Hz/Px",
-          "Echo Spacing": "0.69 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "98"
-        },
-        "Sequence - Part 2": {
-          "Introduction": "Off",
-          "RF Spoiling": "Off",
-          "Phase Correction": "Internal"
-        },
-        "Sequence - Special": {
-          "Excite pulse duration": "3840 us",
-          "Refocus pulse duration": "7680 us",
-          "Min. prep scans": "0",
-          "Min. prep scans SB": "0",
-          "Delay before PC scans": "0 us",
-          "Single-band images": "On",
-          "MB LeakBlock kernel": "On",
-          "MB dual kernel": "Off",
-          "MB RF phase scramble": "On",
-          "Opt. MB RF pulse BW": "Off",
-          "Time-shifted MB RF": "Off",
-          "SENSE1 coil combine": "On",
-          "Invert RO/PE polarity": "Off",
-          "PF omits higher k-space": "Off",
-          "Force GPA balance": "Off",
-          "Disable B1 control loop": "Off",
-          "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
-          "Force equal slice timing": "Off",
-          "Online multi-band recon.": "Online",
-          "FFT scale factor": "1.00",
-          "Physio recording": "DICOM"
-        },
-        "Sequence - Assistant": {
-          "SAR Assistant": "Off"
-        }
-      },
-      "pages": [
-        55,
-        56,
-        57
-      ]
-    },
-    {
-      "index": 23,
       "name": "dMRI_dir107_PA_FORTOPUP",
       "path": "\\\\Research\\Investigators\\Millman\\CHR-MDD\\dMRI_dir107_PA_FORTOPUP",
       "header": {
@@ -5844,7 +5616,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -5908,7 +5680,7 @@
           "Force GPA balance": "Off",
           "Disable B1 control loop": "Off",
           "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
+          "Suppress 16-bit DICOM": "On",
           "Force equal slice timing": "Off",
           "Online multi-band recon.": "Online",
           "FFT scale factor": "1.00",
@@ -5919,9 +5691,9 @@
         }
       },
       "pages": [
-        58,
-        59,
-        60
+        55,
+        56,
+        57
       ]
     }
   ]

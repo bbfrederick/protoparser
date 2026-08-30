@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import uuid
 
 import pytest
 
@@ -25,6 +26,7 @@ from conftest import (  # noqa: F401
     requires_exar,
 )
 from siemens_protocol.exar import generate, patch, read, validate
+from siemens_protocol.exar.archive import STEP_KINDS, Instance, pack_guids
 
 #: An assignment into the ``sWipMemBlock`` scratch block, which is what a
 #: sequence with a Special card writes. The block itself is declared by every
@@ -517,3 +519,275 @@ def test_every_customer_sequence_in_the_corpus_assembles_into_one_archive(
     assert validate.problems(built) == []
     assembled = {patch.sequence_of(s.protocol) for s in built.steps if s.name.startswith("SEQ")}
     assert assembled == set(wanted)
+
+
+def _second_program(archive: object, keep: int) -> str:
+    """Split an archive's steps across a second program node.
+
+    A backup holds one program per protocol. No such archive is readable in
+    the corpus at the moment -- the one XA30 backup that arrived is a cloud
+    placeholder -- so the shape is staged here out of a real export rather
+    than asserted about a file that may not be present. Everything the reader
+    keys on is real: a second ``EdfProgram`` instance with its own element and
+    object ids, its own ``Children``, its own link chain and ``Ranks``, and
+    steps re-parented to it.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to split. Modified in place.
+    keep : int
+        How many steps stay with the original program; the rest move.
+
+    Returns
+    -------
+    str
+        The new program's object id.
+    """
+    original = archive.program
+    moving = archive.steps[keep:]
+    rows = archive.container.tables["Instance"]
+    fresh = (str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()))
+
+    document = archive.document(original)
+    row = dict(zip(rows.columns, rows.rows[rows.find("Id", original.id)[0]]))
+    row["Id"], row["Element_id"], row["ObjectId"] = fresh
+    row["Children"] = pack_guids([s.instance.element_id for s in moving])
+    rows.append(row)
+    elements = archive.container.tables["Element"]
+    source = elements.rows[elements.find("Id", original.element_id)[0]]
+    elements.append(dict(zip(elements.columns, (fresh[1], source[1], None))))
+    archive.container.tables["InstanceChangeSet"].append(
+        {"InstanceId": fresh[0], "ChangeSetId": archive.head, "ElementId": fresh[1], "State": 0}
+    )
+    maps = archive.container.tables["ElementToInstanceMap"]
+    at = maps.find("Id", generate._head_map_id(archive))[0]
+    blob = maps.rows[at][maps.index_of("Data")]
+    maps.set(at, "Data", blob + uuid.UUID(fresh[1]).bytes_le + uuid.UUID(fresh[0]).bytes_le)
+
+    for step in moving:
+        rows.set(rows.find("Id", step.instance.id)[0], "ParentElementId", fresh[1])
+
+    ids = [s.instance.object_id for s in moving]
+    _rewrite_program(
+        archive, original, document, [s.instance.object_id for s in archive.steps[:keep]]
+    )
+    moved = dict(document)
+    _rewrite_program(archive, None, moved, ids)
+    archive.container.tables["Instance"].set(
+        rows.find("Id", fresh[0])[0],
+        "ContentHash",
+        archive.replace_content(
+            Instance(
+                id=fresh[0],
+                element_id=fresh[1],
+                object_id=fresh[2],
+                kind=original.kind,
+                content_hash=original.content_hash,
+            ),
+            generate.renumber_references(moved),
+        ),
+    )
+    keeping = [s.instance.element_id for s in archive.steps[:keep]]
+    rows.set(rows.find("Id", original.id)[0], "Children", pack_guids(keeping))
+    return fresh[2]
+
+
+def _rewrite_program(archive: object, node: object, document: dict, ids: list) -> None:
+    """Rebuild a program document's chain and maps around ``ids``.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive being edited.
+    node : Instance or None
+        The program to store the result on, or ``None`` to only edit
+        ``document`` in place.
+    document : dict
+        The program content to rewrite.
+    ids : list of str
+        Step object ids, in the running order they should take.
+
+    Returns
+    -------
+    None
+    """
+    document["FirstStepId"] = ids[0]
+    document["LastStepId"] = ids[-1]
+    document["Ranks"] = {"$id": "ranks"} | {
+        one: {"$id": f"rk-{one}", "Rank": n, "StepId": one} for n, one in enumerate(ids)
+    }
+    links = {}
+    for n, one in enumerate(ids[:-1]):
+        links[one] = {
+            "$id": f"lf-{one}",
+            "$values": [
+                {
+                    "$id": f"link-{ids[n + 1]}",
+                    "$type": generate.LINK_TYPE,
+                    "ConditionId": generate.NO_GUID,
+                    "SelectionId": generate.NO_GUID,
+                    "SourceId": one,
+                    "TargetId": ids[n + 1],
+                }
+            ],
+        }
+    links[ids[-1]] = {"$id": f"lf-{ids[-1]}", "$values": []}
+    document["LinksFrom"] = {"$id": "lfrom"} | links
+    document["LinksTo"] = {"$id": "lto"} | {
+        one: {
+            "$id": f"lt-{one}",
+            "$values": [] if n == 0 else [{"$ref": f"link-{one}"}],
+        }
+        for n, one in enumerate(ids)
+    }
+    # Distinct prefixes: both names start "Re", and a shared $id makes the
+    # document illegal in a way renumbering cannot repair.
+    for name, tag in (("RelationsFrom", "rf"), ("RelationsTo", "rt")):
+        document[name] = {"$id": name.lower()} | {
+            one: {"$id": f"{tag}-{one}", "$values": []} for one in ids
+        }
+    if node is not None:
+        archive.replace_content(node, generate.renumber_references(document))
+
+
+@requires_exar
+def test_an_archive_with_several_programs_reads_all_of_them(tmp_path: pathlib.Path) -> None:
+    """Every protocol in a backup is read, not just the first.
+
+    The XA30 backup that prompted this holds seven programs and 43 steps; a
+    reader taking the first program described eight of them and looked like
+    it had read the file. The split is staged here, but the failure it guards
+    is the one that archive produced.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    before = [step.name for step in archive.steps]
+    _second_program(archive, keep=10)
+    written = tmp_path / "backup.exar1"
+    archive.write(str(written))
+
+    split = read(str(written))
+    assert len(split.program_nodes) == 2
+    assert [len(one.steps) for one in split.programs] == [10, len(before) - 10]
+    # Every step still readable, and each program keeps its own running order.
+    assert [s.name for s in split.steps] == before
+    assert validate.problems(split) == []
+
+
+@requires_exar
+def test_asking_for_the_only_program_refuses_when_there_are_several(
+    tmp_path: pathlib.Path,
+) -> None:
+    """``program`` may not answer when the answer would be a guess.
+
+    Returning the first of several is what made the original defect invisible:
+    it reads as success while hiding every other protocol in the file.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    assert archive.program is not None
+    _second_program(archive, keep=10)
+    written = tmp_path / "backup.exar1"
+    archive.write(str(written))
+    split = read(str(written))
+
+    with pytest.raises(ValueError, match="2 programs"):
+        _ = split.program
+    with pytest.raises(ValueError, match="2 programs"):
+        generate.duplicate_step(split, split.steps[0], "NOWHERE_TO_PUT_IT")
+
+    # Naming one is enough, and the scan lands in that protocol and no other.
+    second = split.programs[1]
+    generate.duplicate_step(split, split.steps[0], "INTO_THE_SECOND", program=second.instance)
+    grown = tmp_path / "grown.exar1"
+    split.write(str(grown))
+    final = read(str(grown))
+    assert validate.problems(final) == []
+    assert [len(one.steps) for one in final.programs] == [10, 9]
+    assert final.programs[1].steps[-1].name == "INTO_THE_SECOND"
+
+
+@requires_exar
+def test_every_step_in_a_corpus_archive_belongs_to_exactly_one_program(
+    protocol_archive_path: str,
+) -> None:
+    """No step is orphaned, and none is claimed twice.
+
+    Trivial while an archive holds one program, which every readable one in
+    the corpus does. It is written archive-wide rather than per-program so
+    that a backup tightens it rather than needing a new test.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        One archive from the corpus that carries protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    claimed = [s.instance.object_id for one in archive.programs for s in one.steps]
+    live = {i.object_id for i in archive.instances.values() if i.kind in STEP_KINDS}
+    assert len(claimed) == len(set(claimed)), "a step is in two running orders"
+    assert set(claimed) == live, "a step is in no running order"
+
+
+@requires_exar
+def test_a_step_no_program_runs_is_reported(tmp_path: pathlib.Path) -> None:
+    """A step in the file but in no running order must be named.
+
+    This is the archive-wide half of the running-order check, and it exists
+    because the per-program half cannot see it: each program is compared
+    against its *own* children, so a step dropped from every chain leaves
+    each program internally consistent. That was the old check's real
+    content, and moving to several programs would have quietly lost it.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    _second_program(archive, keep=10)
+    written = tmp_path / "backup.exar1"
+    archive.write(str(written))
+    split = read(str(written))
+    assert validate.problems(split) == []
+
+    # Shorten the second program's chain by one, leaving the step in the file.
+    second = split.programs[1]
+    document = split.document(second.instance)
+    kept = [s.instance.object_id for s in second.steps[:-1]]
+    _rewrite_program(split, second.instance, document, kept)
+    rows = split.container.tables["Instance"]
+    at = rows.find("Id", second.instance.id)[0]
+    split.container.tables["Instance"].set(
+        at, "Children", pack_guids([s.instance.element_id for s in second.steps[:-1]])
+    )
+    orphaned = tmp_path / "orphaned.exar1"
+    split.write(str(orphaned))
+
+    problems = validate.problems(read(str(orphaned)))
+    assert any("no program's running order" in one for one in problems), problems

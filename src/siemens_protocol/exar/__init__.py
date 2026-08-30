@@ -19,6 +19,7 @@ from .archive import (
     Archive,
     Instance,
     PreviewEntry,
+    Program,
     Protocol,
     Step,
     pack_guids,
@@ -29,6 +30,7 @@ from .envelope import Envelope
 
 __all__ = [
     "Archive",
+    "Program",
     "generate",
     "patch",
     "validate",

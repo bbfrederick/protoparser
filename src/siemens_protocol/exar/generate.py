@@ -28,7 +28,7 @@ import uuid
 from typing import Any
 
 from . import envelope
-from .archive import Archive, Step, pack_guids, unpack_guids
+from .archive import Archive, Instance, Step, pack_guids, unpack_guids
 
 #: The maps in ``EdfProgramContent`` keyed by measurement-step id. Every step
 #: must appear in all of them.
@@ -94,7 +94,13 @@ def renumber_references(document: Any) -> Any:
     return rewrite(document)
 
 
-def duplicate_step(archive: Archive, step: Step, name: str, source: Archive | None = None) -> str:
+def duplicate_step(
+    archive: Archive,
+    step: Step,
+    name: str,
+    source: Archive | None = None,
+    program: Instance | None = None,
+) -> str:
     """Append a copy of ``step`` to the archive's running order.
 
     The copy gets its own identity in all three GUID spaces and its own label.
@@ -122,6 +128,11 @@ def duplicate_step(archive: Archive, step: Step, name: str, source: Archive | No
     source : Archive or None
         The archive ``step`` was read from, when that is not ``archive``.
         ``None`` means the step is already in ``archive``.
+    program : Instance or None
+        Which program to append to. ``None`` means the archive's only one,
+        which raises if it holds several -- a backup carries one program per
+        protocol, and appending to whichever came first would put the scan in
+        an unrelated protocol.
 
     Returns
     -------
@@ -131,12 +142,14 @@ def duplicate_step(archive: Archive, step: Step, name: str, source: Archive | No
     Raises
     ------
     ValueError
-        If the archive has no program node to attach the step to, or if an
-        imported step comes from a different release. The baseline is the
-        compatibility key the scanner checks, so importing across it produces
-        an archive that is well-formed and will not load.
+        If the archive has no program node to attach the step to, if it has
+        several and none was named, or if an imported step comes from a
+        different release. The baseline is the compatibility key the scanner
+        checks, so importing across it produces an archive that is
+        well-formed and will not load.
     """
-    program = archive.program
+    if program is None:
+        program = archive.program
     if program is None:
         raise ValueError("archive has no program to append a step to")
     origin = archive if source is None else source

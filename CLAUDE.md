@@ -647,9 +647,43 @@ before/after pair is the only way to learn where a printed value is stored --
   is labelled the same way, so resolving through it follows the printout
   instead of duplicating every spelling in the table. Without that the driver
   silently skipped TE on exactly the scans that print it differently.
-- Everything so far is XA60 (`VA60A`). No XA30 archive has been seen, so the
-  claim that the model is release-independent is untested -- that is the first
-  thing to check when one arrives.
+- **The first XA30 archive says the format model is release-independent.**
+  `MAJORVERSION:VA30A, PROTOCOL:63010001` against XA60's `66010002`, and all
+  39 protocols decode with an ASCCONV block and a `Preview` map while all
+  16 571 content blobs re-encode to their stored hash. Nothing in the
+  envelope, hashing or GUID layers needed a release dimension.
+- **An archive can hold more than one program, and a backup does.** That XA30
+  file is a *backup* rather than an export: seven `EdfProgram` nodes, one per
+  protocol, 43 steps between them. `Archive.program` used to return the first
+  and `steps` described its eight, which reads exactly like a successful read
+  of the whole file. So `program` now *raises* when there are several rather
+  than picking one -- returning a guess is the failure it exists to prevent --
+  and callers use `programs` (a `Program` per protocol, each with its own
+  ordered steps), `program_nodes`, or `steps_of(program)`. `steps` is every
+  step across every program, which is unchanged for a single-protocol export.
+  `duplicate_step` takes an explicit `program=`, since appending to whichever
+  came first would put a scan in an unrelated protocol.
+- **Per-program checks and archive-wide ones answer different questions.**
+  A program's chain is compared against *its own* `Children`, because a
+  backup's programs each legitimately run a fraction of the file's steps --
+  the old tally against every step in the archive is what reported the backup
+  as broken. What that tally really guarded is a step in the file that no
+  chain runs, and each program stays internally consistent when one is
+  dropped, so it survives as `_step_coverage`: every live step in exactly one
+  running order, no orphans and no step claimed twice. `_parents` likewise
+  checks each step against the program that runs *it*, not against "the"
+  program.
+- Program order is the store's own row order. It is stable and assumes nothing
+  about the directory tree, but it is not known to match the console's display
+  order -- worth checking against a readable backup.
+- The XA30 backup arrived as a cloud placeholder that materializes on read and
+  is later evicted, so it reads as 142 MB once and 0 bytes afterwards, failing
+  nine corpus tests with a different error each time (`no such table: Content`,
+  `archive declares no branch`). That is the file, not the reader. The
+  multi-program shape is therefore staged in `tests/test_exar_generate.py`
+  out of a real export, and `test_every_step_in_a_corpus_archive_belongs_to_
+  exactly_one_program` is written archive-wide so a readable backup tightens
+  it rather than needing a new test.
 
 ### Code Formatting
 

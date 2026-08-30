@@ -16,6 +16,7 @@ import sqlite3
 import pytest
 
 from conftest import (  # noqa: F401  (fixtures)
+    EXAR_PROTOCOL_FILES,
     archive_path,
     find_exar,
     protocol_archive_path,
@@ -288,16 +289,43 @@ def test_step_order_is_the_link_chain_not_the_children_blob(protocol_archive_pat
     None
     """
     loaded = exar.read(protocol_archive_path)
-    program = loaded.program
-    assert program is not None
-    chain = loaded.step_order()
+    assert loaded.program_nodes, "archive carries protocols but no program"
     by_element = loaded.by_element
-    stored = [by_element[c].object_id for c in program.children if c in by_element]
-    assert sorted(chain) == sorted(stored), "the two orders must hold the same steps"
-    assert chain != stored, "storage order already matches; this archive cannot detect the bug"
-    content = loaded.document(program)
-    assert chain[0] == content["FirstStepId"]
-    assert chain[-1] == content["LastStepId"]
+    for program in loaded.program_nodes:
+        chain = loaded.step_order(program)
+        stored = [by_element[c].object_id for c in program.children if c in by_element]
+        assert sorted(chain) == sorted(stored), "the two orders must hold the same steps"
+        content = loaded.document(program)
+        assert chain[0] == content["FirstStepId"]
+        assert chain[-1] == content["LastStepId"]
+
+
+@requires_exar
+def test_some_archive_stores_its_steps_out_of_running_order() -> None:
+    """At least one program in the corpus proves the two orders differ.
+
+    This is the anti-vacuity half of the check above, and it belongs to the
+    corpus rather than to each file. A program whose stored order already
+    matches its running order cannot detect reading the ``Children`` blob
+    instead of the chain, and a single-scan protocol never can -- one step is
+    in the same order either way. Asserting it per archive therefore fails on
+    a perfectly good export the moment one arrives, which is how this was
+    found. Asserting it nowhere would let the whole corpus drift into orders
+    that agree, leaving the check above passing for the wrong reason.
+
+    Returns
+    -------
+    None
+    """
+    differing = 0
+    for path, _version in EXAR_PROTOCOL_FILES:
+        loaded = exar.read(path)
+        by_element = loaded.by_element
+        for program in loaded.program_nodes:
+            chain = loaded.step_order(program)
+            stored = [by_element[c].object_id for c in program.children if c in by_element]
+            differing += chain != stored
+    assert differing, "every program stores its steps in running order; the chain is unexercised"
 
 
 @requires_exar
