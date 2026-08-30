@@ -210,7 +210,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -460,7 +460,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -712,7 +712,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -962,7 +962,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1199,7 +1199,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1275,7 +1275,7 @@
       "header": {
         "ta": "4:32 min",
         "coil_selection": "Manual",
-        "voxel_size_mm": "1.0×1.0×1.3",
+        "voxel_size_mm": "1.0×1.0×1.0",
         "pat": "2",
         "rel_snr": "1.00",
         "sequence": "tfl_me"
@@ -1313,12 +1313,12 @@
           "Position": "R2.2 P1.7 F31.8 mm",
           "Orientation": "Sagittal",
           "Phase Encoding Dir.": "A >> P",
-          "Slices per Slab": "128",
+          "Slices per Slab": "160",
           "Phase Oversampling": "0 %",
           "Slice Oversampling": "0.0 %",
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.33 mm",
+          "Slice Thickness": "1.00 mm",
           "TR": "2530.0 ms",
           "TE 1": "3.30 ms",
           "TE 2": "6.93 ms",
@@ -1336,7 +1336,7 @@
           "TE 3": "8.79 ms",
           "TE 4": "10.65 ms",
           "Magn. Preparation": "Non-sel. IR",
-          "TI": "1100 ms",
+          "TI": "1150 ms",
           "Flip Angle": "7 deg",
           "Fat-Water Contrast": "Standard",
           "Dark Blood": "Off",
@@ -1352,7 +1352,7 @@
         "Resolution - Common": {
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.33 mm",
+          "Slice Thickness": "1.00 mm",
           "Base Resolution": "256",
           "Phase Resolution": "75 %",
           "Slice Resolution": "100 %",
@@ -1372,7 +1372,7 @@
         "Resolution - Filter": {
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Normalize": "Prescan",
           "Image Filter": "Off"
         },
@@ -1383,12 +1383,12 @@
           "Position": "R2.2 P1.7 F31.8 mm",
           "Orientation": "Sagittal",
           "Phase Encoding Dir.": "A >> P",
-          "Slices per Slab": "128",
+          "Slices per Slab": "160",
           "Phase Oversampling": "0 %",
           "Slice Oversampling": "0.0 %",
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
-          "Slice Thickness": "1.33 mm",
+          "Slice Thickness": "1.00 mm",
           "TR": "2530.0 ms",
           "Multi-Slice Mode": "Single Shot",
           "Series": "Ascending",
@@ -1439,7 +1439,7 @@
           "Rotation": "0.00 deg",
           "A >> P": "256 mm",
           "F >> H": "256 mm",
-          "R >> L": "171 mm",
+          "R >> L": "160 mm",
           "Reset": "Off"
         },
         "System - pTx": {
@@ -1447,7 +1447,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1461,7 +1461,7 @@
         "Physio - Cardiac": {
           "Fat-Water Contrast": "Standard",
           "Magn. Preparation": "Non-sel. IR",
-          "TI": "1100 ms",
+          "TI": "1150 ms",
           "Dark Blood": "Off",
           "FOV Read": "256 mm",
           "FOV Phase": "100.0 %",
@@ -1508,7 +1508,7 @@
           "Bandwidth 4": "650 Hz/Px",
           "Echo Spacing": "14.08 ms",
           "Asymmetric Echo": "Off",
-          "Turbo Factor": "128"
+          "Turbo Factor": "160"
         },
         "Sequence - Part 2": {
           "Introduction": "On",
@@ -1703,7 +1703,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1953,7 +1953,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2198,7 +2198,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2417,7 +2417,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2465,7 +2465,7 @@
           "Invert RO/PE polarity": "Off",
           "Force GPA balance": "Off",
           "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
+          "Suppress 16-bit DICOM": "On",
           "Force equal slice timing": "Off",
           "FFT scale factor": "1.00",
           "Physio recording": "Off",
@@ -2644,7 +2644,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2692,7 +2692,7 @@
           "Invert RO/PE polarity": "On",
           "Force GPA balance": "Off",
           "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
+          "Suppress 16-bit DICOM": "On",
           "Force equal slice timing": "Off",
           "FFT scale factor": "1.00",
           "Physio recording": "Off",
@@ -2783,7 +2783,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -2794,7 +2794,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -2869,7 +2869,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -2905,8 +2905,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -3017,7 +3017,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -3028,7 +3028,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -3103,7 +3103,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -3139,8 +3139,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -3374,7 +3374,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3532,7 +3532,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -3543,7 +3543,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -3618,7 +3618,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -3654,8 +3654,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -3889,7 +3889,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4170,7 +4170,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4328,7 +4328,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -4339,7 +4339,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -4414,7 +4414,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4450,8 +4450,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -4562,7 +4562,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -4573,7 +4573,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -4648,7 +4648,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4684,8 +4684,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -4796,7 +4796,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -4807,7 +4807,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -4882,7 +4882,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -4918,8 +4918,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -5030,7 +5030,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -5041,7 +5041,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -5116,7 +5116,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -5152,8 +5152,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -5387,7 +5387,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -5545,7 +5545,7 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.0 mm",
           "Base Resolution": "104",
-          "Phase Resolution": "72 %",
+          "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
         "Resolution - Acceleration": {
@@ -5556,7 +5556,7 @@
           "Raw Filter": "Off",
           "Elliptical Filter": "Off",
           "Hamming": "Off",
-          "Distortion Correction": "3D",
+          "Distortion Correction": "2D",
           "Static Field Correction": "Off",
           "Normalize": "Prescan"
         },
@@ -5631,7 +5631,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249358 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -5667,8 +5667,8 @@
           "Flow Compensation": "None",
           "Bandwidth": "2290 Hz/Px",
           "Echo Spacing": "0.58 ms",
-          "Free Echo Spacing": "Off",
-          "EPI Factor": "75"
+          "Free Echo Spacing": "On",
+          "EPI Factor": "104"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",

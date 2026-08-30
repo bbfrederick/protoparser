@@ -301,6 +301,30 @@ class Step:
 
 
 @dataclass
+class Program:
+    """One protocol: a program node and the steps it runs, in order.
+
+    An archive holds one of these per protocol. An export of a single
+    protocol has exactly one; a backup has one per protocol it was taken
+    from, and they are separate running orders that share nothing but the
+    file.
+
+    Attributes
+    ----------
+    instance : Instance
+        The ``EdfProgram`` node.
+    name : str
+        The protocol's displayed name.
+    steps : list of Step
+        Its steps, in running order.
+    """
+
+    instance: Instance
+    name: str
+    steps: list[Step] = field(default_factory=list)
+
+
+@dataclass
 class Archive:
     """One ``.exar1`` file, read at a branch head.
 
@@ -419,25 +443,76 @@ class Archive:
         return next((v for _k, v in sorted(locales.items()) if v), "")
 
     @property
+    def program_nodes(self) -> list[Instance]:
+        """Return every program node, in the order the store lists them.
+
+        An export of one protocol carries exactly one. A *backup* carries one
+        per protocol -- the first XA30 archive to arrive held seven -- and
+        anything that reads only the first describes a fraction of the file
+        while looking like it read all of it.
+
+        The order is the store's own row order. It is stable and needs no
+        assumption about the directory tree, but it is not known to match the
+        order the console displays.
+
+        Returns
+        -------
+        list of Instance
+            Every live ``EdfProgram`` instance.
+        """
+        return [one for one in self.instances.values() if one.kind == PROGRAM]
+
+    @property
     def program(self) -> Instance | None:
-        """Return the root program node.
+        """Return the archive's only program node.
 
         Returns
         -------
         Instance or None
-            The single ``EdfProgram`` instance, or ``None`` if absent.
-        """
-        for one in self.instances.values():
-            if one.kind == PROGRAM:
-                return one
-        return None
+            The sole ``EdfProgram`` instance, or ``None`` if there is none.
 
-    def step_order(self) -> list[str]:
-        """Return the object ids of the measurement steps, in running order.
+        Raises
+        ------
+        ValueError
+            If the archive holds several. Returning one of them is the
+            failure this property exists to prevent: it reads as success and
+            silently hides every other protocol in the file. A caller that
+            can handle more than one asks :attr:`programs` instead.
+        """
+        found = self.program_nodes
+        if len(found) > 1:
+            raise ValueError(
+                f"archive holds {len(found)} programs; ask for .programs and "
+                "name the one you mean"
+            )
+        return found[0] if found else None
+
+    @property
+    def programs(self) -> list["Program"]:
+        """Return every protocol in the archive, each with its ordered steps.
+
+        Returns
+        -------
+        list of Program
+            One entry per program node, in :attr:`program_nodes` order.
+        """
+        return [
+            Program(instance=node, name=self.label_of(node), steps=self.steps_of(node))
+            for node in self.program_nodes
+        ]
+
+    def step_order(self, program: Instance | None = None) -> list[str]:
+        """Return the object ids of a program's steps, in running order.
 
         The order is a linked list in the program's content, not the order of
         the program's ``Children`` blob. Following the blob instead yields the
         same steps permuted, which is a failure that looks like success.
+
+        Parameters
+        ----------
+        program : Instance or None
+            The program to walk. ``None`` means the archive's only one, which
+            raises if it holds several -- see :attr:`program`.
 
         Returns
         -------
@@ -445,7 +520,7 @@ class Archive:
             Object ids from ``FirstStepId`` onwards. Empty when there is no
             program node.
         """
-        root = self.program
+        root = self.program if program is None else program
         if root is None:
             return []
         content = self.document(root)
@@ -464,19 +539,24 @@ class Archive:
             current = following[0] if following else None
         return order
 
-    @property
-    def steps(self) -> list[Step]:
-        """Return the measurement steps in running order, with their protocols.
+    def steps_of(self, program: Instance) -> list[Step]:
+        """Return one program's steps in running order, with their protocols.
+
+        Parameters
+        ----------
+        program : Instance
+            The program node to walk.
 
         Returns
         -------
         list of Step
-            One entry per step, matching the scan order of the PDF export.
+            One entry per step, matching the scan order of that protocol's
+            PDF export.
         """
         by_element = self.by_element
         by_object = self.by_object
         built: list[Step] = []
-        for object_id in self.step_order():
+        for object_id in self.step_order(program):
             node = by_object.get(object_id)
             if node is None:
                 continue
@@ -487,6 +567,24 @@ class Archive:
                     protocols.append(Protocol(instance=held, document=self.document(held)))
             built.append(Step(instance=node, name=self.label_of(node), protocols=protocols))
         return built
+
+    @property
+    def steps(self) -> list[Step]:
+        """Return every step in the archive, in running order within each program.
+
+        For an export of one protocol this is that protocol's scan order, which
+        is what it has always been. For a backup it is every protocol's steps,
+        concatenated in :attr:`program_nodes` order -- so a sweep over an
+        archive sees all of them rather than one program's worth. Scan names
+        are not unique across programs, and a caller keying on them wants
+        :attr:`programs` instead.
+
+        Returns
+        -------
+        list of Step
+            One entry per step the archive's programs run.
+        """
+        return [step for node in self.program_nodes for step in self.steps_of(node)]
 
     def replace_content(self, instance: Instance, document: dict[str, Any]) -> str:
         """Store an edited document and point ``instance`` at it.

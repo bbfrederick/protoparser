@@ -220,7 +220,7 @@ def exar_files_with_protocols() -> list[tuple[str, str | None]]:
     keep: list[tuple[str, str | None]] = []
     for path, version in EXAR_FILES:
         try:
-            if read(path).program is not None:
+            if read(path).program_nodes:
                 keep.append((path, version))
         except Exception:  # noqa: BLE001 - an unreadable archive is not this list's concern
             continue

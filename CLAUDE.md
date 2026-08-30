@@ -427,8 +427,9 @@ before/after pair is the only way to learn where a printed value is stored --
   renumber `alFree` indices or move a flag bit, and nothing in the protocol
   would announce it -- the values would simply land in the wrong parameter. If
   a second build ever enters the corpus, check the option-scan diffs against it
-  before trusting the table, and expect `Mapping` to need a version dimension
-  beside `sequences`. Note also what the stamp does *not* say: it reads `R017`
+  before trusting the table. A second build *has* now arrived, which is what
+  `Mapping.builds` answers; deriving mappings for it still needs option scans
+  taken on that build. Note also what the stamp does *not* say: it reads `R017`
   whether the binary was 017pre15 or a later 017, so the commit and build time
   are what identify a build exactly.
 - **Unmodified content is written back from its original blob**, never
@@ -466,6 +467,89 @@ before/after pair is the only way to learn where a printed value is stored --
   row and an `InstanceChangeSet` row for each, three pairs appended to the head
   changeset's `ElementToInstanceMap`, and the step's element appended to the
   program's `Children`.
+- **A step can be imported out of a *different* archive**, which is what lets
+  one file hold sequences no single export carries. The store being
+  content-addressed makes that mostly a matter of copying the step's and
+  protocol's `Content` rows across; `Envelope.stored` is what keeps an
+  unmodified protocol byte-identical rather than recompressed, so an imported
+  scan can be asserted equal to its donor. Two things do *not* survive the
+  move on their own. A step's `ParentElementId` names the program, which
+  within one file is the source's own and across two is a node that does not
+  exist -- so `duplicate_step` writes the target's program explicitly, a no-op
+  in the same-archive case. And the baseline is the compatibility key the
+  scanner checks, so an import across releases is refused rather than
+  producing a well-formed archive that will not load. Every corpus archive is
+  `VA60A`, so that guard is staged in a test rather than found.
+- **A scanner has loaded a cross-archive assembly.** Forty scans, 22 of them
+  appended by the library and six imported out of a *different* export; 33
+  loaded. Every imported scan that loaded kept its own content -- three
+  carrying an edit and three byte-identical controls -- so importing a step
+  across archives is sound, and 11 of the 12 checkable edits came back exactly
+  as written.
+- **A protocol from an older CMRR build can be rejected on import, whatever
+  we write.** The three `hcp_mbep2d_*` scans failed in both copies -- the
+  edited one *and the unedited control byte-identical to its donor* -- which
+  is what proves the cause is not the patcher. The user's account is that
+  CMRR releases sometimes recompose the flags word, so the console
+  reconciling an old-build protocol against the installed binary is where it
+  breaks; that happens at *import*, which is why an untouched copy fails
+  alongside an edited one. A donor archive is therefore not evidence that the
+  target scanner can use what it holds. Do not read "not printed in its own
+  PDF" as the same signal: `BIAS_BC` and `T1_MEMPRAGE_64ch_gr2` are unprinted
+  too and loaded fine.
+- **A `sWipMemBlock` bit mapping is gated on the sequence build, not just the
+  sequence.** `Mapping.builds` names the builds a mapping was derived from and
+  `applies_to` refuses outside them; all fourteen CMRR flag bits carry
+  `CMRR_R017`. The trigger was the corpus gaining a second CMRR generation --
+  `hcp_mbep2d_bold` alone carries `ve11c/master r/5b0256d+` (Dec 2016) and
+  `R016 ve11c/master r/e634e98` (Dec 2017) beside the mapped sequences'
+  `R017 nxva60a/main r/91b106c1e`. Compare with `build_id`, never whole
+  stamps: the three sequences of one release are compiled minutes apart, so
+  the timestamp separates `bold` from `se`, not one release from another.
+  The refusal must also name the *build*, since blaming the sequence yields
+  "mapped for cmrr_mbep2d_bold, but this protocol runs cmrr_mbep2d_bold".
+  Only CMRR stamps a build at all -- the ABCD navigators write a `.prot` file
+  name and `can_neuromelanin`/`tfl_mgh_multiecho` write nothing -- so those
+  mappings are unguardable this way and leave `builds` empty rather than
+  pretending. Two tests hold the gate honest: one that every gated mapping
+  still resolves across the corpus, one that a staged later build refuses.
+- **An off-grid value is stored faithfully and displayed snapped to the grid.**
+  `MT Flip Angle` written as 371 comes back from the scanner as 371 in the
+  archive and prints `370 degrees`; `MT Offset` 1501 prints `1500 Hz`. Both
+  parameters move in tens, which is also why the controlled edits that
+  established them were 370->360 and 1500->1490. So a PDF disagreeing with the
+  archive by less than one step is the console's display, not a failed write --
+  but it does mean a printout cannot verify an off-grid edit, and it is unknown
+  which of the two the sequence acts on. Pick an on-grid value when the point
+  is to prove a write.
+- **A scan can be rejected as inconsistent for reasons outside its own
+  protocol.** `Include Nav. = Off` on `space_mgh_epinav_ABCD` was refused in
+  the every-sequence archive, while byte-identical ASCCONV -- same source
+  protocol, same single edit -- loaded, round-tripped with *zero* fields
+  changed, and printed in the NAV option-scan load test. Two explanations were
+  tested and both fail: the sources do not differ (0 differing fields), and the
+  sequence does not need an adjacent setter (the NAV option scan carries 13
+  SPACE vNavs and no SPACE setter at all). What remains untested is the pair:
+  the every-sequence archive *does* carry `ABCD_T2w_SPC_vNav_setter`, so a
+  setter still expecting a navigator may contradict a vNav that has switched
+  one off. Deriving option interdependencies needs an option scan whose
+  baseline includes the setter.
+- **An export can hold more than one protocol tree, and reading at the head
+  picks one.** The archive returned from this test resolved to a 14-step
+  protocol from an unrelated session; the 33 saved scans were in a *prior*
+  changeset, still fully readable. That is useful rather than merely
+  confusing -- the dead changeset's rank count is what identified which seven
+  scans had been deleted, without asking. But a caller who wants a particular
+  tree cannot assume the head is it.
+- **The corpus holds 19 sequence binaries, 16 of which write into
+  `sWipMemBlock`** and so print a Special card; `patch.MAPPINGS` covers eight.
+  Detect them by an *indexed* assignment (`sWipMemBlock.alFree[0] =`), never
+  by the block's name: every protocol declares `sWipMemBlock`, so a substring
+  test matches `gre` and `tse` as well and a test written that way asserts
+  nothing. Two of the sixteen -- `resolve` and `tfl` -- are Siemens'. "Prints
+  a Special card" and "is third party" are separate questions, which is the
+  same distinction `sequences/catalog.json` draws with its `unrecognized`
+  verdict.
 - **`EdfProgramContent` has five parallel maps keyed by step id, not one.**
   `LinksFrom` (outgoing), `LinksTo` (incoming, as `$ref` back-pointers into the
   link objects `LinksFrom` defines), `Ranks` (`{Rank: 0..N, StepId}`, the
@@ -563,9 +647,43 @@ before/after pair is the only way to learn where a printed value is stored --
   is labelled the same way, so resolving through it follows the printout
   instead of duplicating every spelling in the table. Without that the driver
   silently skipped TE on exactly the scans that print it differently.
-- Everything so far is XA60 (`VA60A`). No XA30 archive has been seen, so the
-  claim that the model is release-independent is untested -- that is the first
-  thing to check when one arrives.
+- **The first XA30 archive says the format model is release-independent.**
+  `MAJORVERSION:VA30A, PROTOCOL:63010001` against XA60's `66010002`, and all
+  39 protocols decode with an ASCCONV block and a `Preview` map while all
+  16 571 content blobs re-encode to their stored hash. Nothing in the
+  envelope, hashing or GUID layers needed a release dimension.
+- **An archive can hold more than one program, and a backup does.** That XA30
+  file is a *backup* rather than an export: seven `EdfProgram` nodes, one per
+  protocol, 43 steps between them. `Archive.program` used to return the first
+  and `steps` described its eight, which reads exactly like a successful read
+  of the whole file. So `program` now *raises* when there are several rather
+  than picking one -- returning a guess is the failure it exists to prevent --
+  and callers use `programs` (a `Program` per protocol, each with its own
+  ordered steps), `program_nodes`, or `steps_of(program)`. `steps` is every
+  step across every program, which is unchanged for a single-protocol export.
+  `duplicate_step` takes an explicit `program=`, since appending to whichever
+  came first would put a scan in an unrelated protocol.
+- **Per-program checks and archive-wide ones answer different questions.**
+  A program's chain is compared against *its own* `Children`, because a
+  backup's programs each legitimately run a fraction of the file's steps --
+  the old tally against every step in the archive is what reported the backup
+  as broken. What that tally really guarded is a step in the file that no
+  chain runs, and each program stays internally consistent when one is
+  dropped, so it survives as `_step_coverage`: every live step in exactly one
+  running order, no orphans and no step claimed twice. `_parents` likewise
+  checks each step against the program that runs *it*, not against "the"
+  program.
+- Program order is the store's own row order. It is stable and assumes nothing
+  about the directory tree, but it is not known to match the console's display
+  order -- worth checking against a readable backup.
+- The XA30 backup arrived as a cloud placeholder that materializes on read and
+  is later evicted, so it reads as 142 MB once and 0 bytes afterwards, failing
+  nine corpus tests with a different error each time (`no such table: Content`,
+  `archive declares no branch`). That is the file, not the reader. The
+  multi-program shape is therefore staged in `tests/test_exar_generate.py`
+  out of a real export, and `test_every_step_in_a_corpus_archive_belongs_to_
+  exactly_one_program` is written archive-wide so a readable backup tightens
+  it rather than needing a new test.
 
 ### Code Formatting
 

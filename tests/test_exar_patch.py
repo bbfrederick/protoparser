@@ -25,12 +25,14 @@ import sys
 import pytest
 
 from conftest import (  # noqa: F401
+    EXAR_PROTOCOL_FILES,
     find_exar,
     find_pdf,
     protocol_archive_path,
     requires_exar,
 )
 from siemens_protocol.exar import envelope, patch, read
+from siemens_protocol.exar.archive import Protocol
 
 #: The parameter the reference pair records a controlled edit for.
 CONTROLLED = "TR"
@@ -1042,3 +1044,71 @@ def test_slice_thickness_follows_the_acquisition_dimension() -> None:
     assert not skipped and len(applied) == 1
     written = float(patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dThickness"))
     assert written == 1.25 * partitions
+
+
+@requires_exar
+def test_every_build_gated_mapping_still_applies_across_the_corpus() -> None:
+    """The gate must be a no-op on what is already verified.
+
+    A guard that silently stops writing the parameters the option scans
+    pinned would be worse than none, so this asserts the corpus still
+    resolves every gated mapping. It is the half that keeps the gate honest;
+    the next test is the half that proves it fires.
+
+    Returns
+    -------
+    None
+    """
+    gated = [m for m in patch.MAPPINGS if m.builds]
+    assert gated, "nothing is build-gated, so this test asserts nothing"
+    checked = 0
+    for path, _version in EXAR_PROTOCOL_FILES:
+        for step in read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            for mapping in gated:
+                if patch.sequence_of(step.protocol) not in mapping.sequences:
+                    continue
+                found, why = patch.resolve(step.protocol, mapping.label)
+                assert found is mapping, f"{step.name}: {mapping.label} refused -- {why}"
+                checked += 1
+    assert checked > 100, f"only {checked} gated resolutions exercised"
+
+
+@requires_exar
+def test_a_later_sequence_build_refuses_a_bit_mapping() -> None:
+    """A renumbered flags word must refuse rather than write the wrong option.
+
+    ``sWipMemBlock`` is sequence-private, so a later release may pack the
+    same card differently and nothing in the protocol announces it -- the
+    value would simply land in another option. The corpus holds one CMRR
+    build for the mapped sequences, so the mismatch is staged by rewriting
+    the stamp and nothing else, which is what isolates the gate from every
+    other reason a mapping can be out of scope.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("CMRR_optionscan_P1.exar1"))
+    step = next(
+        s
+        for s in archive.steps
+        if s.runs_a_protocol and patch.sequence_of(s.protocol) == "cmrr_mbep2d_bold"
+    )
+    assert patch.resolve(step.protocol, "Single-band images")[0] is not None
+
+    document = dict(step.protocol.document)
+    document["Data"] = step.protocol.xprotocol.replace(
+        "R017 nxva60a/main r/91b106c1e", "R018 nxva60a/main r/0000000"
+    )
+    later = Protocol(instance=step.protocol.instance, document=document)
+    assert patch.sequence_of(later) == patch.sequence_of(step.protocol)
+
+    found, why = patch.resolve(later, "Single-band images")
+    assert found is None
+    assert "R018" in why and "R017" in why, why
+    # The reason must not blame the sequence, which matches perfectly.
+    assert "but this protocol runs" not in why, why
+    # Only the packed card is gated; a parameter in its own field is not.
+    assert patch.resolve(later, "TR")[0] is not None

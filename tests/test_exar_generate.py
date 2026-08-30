@@ -13,16 +13,25 @@ tests reintroduce each defect and require it to be reported.
 from __future__ import annotations
 
 import pathlib
+import re
+import uuid
 
 import pytest
 
 from conftest import (  # noqa: F401
+    EXAR_PROTOCOL_FILES,
     find_exar,
     find_pdf,
     protocol_archive_path,
     requires_exar,
 )
 from siemens_protocol.exar import generate, patch, read, validate
+from siemens_protocol.exar.archive import STEP_KINDS, Instance, pack_guids
+
+#: An assignment into the ``sWipMemBlock`` scratch block, which is what a
+#: sequence with a Special card writes. The block itself is declared by every
+#: protocol, so the index is the part that carries the meaning.
+WIP_ELEMENT = re.compile(r"sWipMemBlock\.\w+\[\d+\]\s*=")
 
 
 @requires_exar
@@ -359,3 +368,426 @@ def test_a_scan_the_template_lacks_is_reported_not_invented() -> None:
     ]
     report = build.apply_protocol(archive, parsed)
     assert report.unmatched == ["a_scan_no_template_has"]
+
+
+@requires_exar
+def test_a_step_imported_from_another_archive_brings_its_own_protocol(
+    tmp_path: pathlib.Path,
+) -> None:
+    """An import carries content the target has never seen.
+
+    Within one archive a copy can lean on content that is already stored.
+    Across two it cannot, and the store is addressed by hash, so the blob has
+    to travel with the step. Asserting the imported XProtocol is *identical*
+    to the donor's is what separates a copy from something reconstructed:
+    our DEFLATE does not reproduce the console's, so a recompressed protocol
+    would still read back correctly while rewriting the stored bytes.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    target = read(find_exar("Potpourri_P1.exar1"))
+    donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
+    wanted = {s.name: s for s in donor.steps}["T1_MEMPRAGE_64ch_gr2"]
+    assert patch.sequence_of(wanted.protocol) not in {
+        patch.sequence_of(s.protocol) for s in target.steps if s.runs_a_protocol
+    }, "the donor scan runs a sequence the target already has, so nothing is proved"
+
+    before = [step.name for step in target.steps]
+    generate.duplicate_step(target, wanted, "IMPORTED_multiecho", source=donor)
+    written = tmp_path / "imported.exar1"
+    target.write(str(written))
+
+    grown = read(str(written))
+    assert validate.problems(grown) == []
+    assert [s.name for s in grown.steps] == before + ["IMPORTED_multiecho"]
+    copy = {s.name: s for s in grown.steps}["IMPORTED_multiecho"]
+    assert copy.protocol.xprotocol == wanted.protocol.xprotocol
+    assert copy.protocol.instance.content_hash == wanted.protocol.instance.content_hash
+
+
+@requires_exar
+def test_an_imported_step_can_be_given_content_of_its_own(tmp_path: pathlib.Path) -> None:
+    """Editing an imported scan leaves the archive sound and the edit in place.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    target = read(find_exar("Potpourri_P1.exar1"))
+    donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
+    generate.duplicate_step(
+        target, {s.name: s for s in donor.steps}["reward1"], "IMPORTED_hcp_bold", source=donor
+    )
+    first = tmp_path / "imported.exar1"
+    target.write(str(first))
+
+    grown = read(str(first))
+    manifest = patch.apply(grown, {"IMPORTED_hcp_bold": {"TR": 810.0}})
+    assert manifest.applied and not manifest.skipped
+    second = tmp_path / "patched.exar1"
+    grown.write(str(second))
+
+    final = read(str(second))
+    assert validate.problems(final) == []
+    copy = {s.name: s for s in final.steps}["IMPORTED_hcp_bold"]
+    assert copy.protocol.preview["sub.0.msr.tr.0"].value == 810.0
+    original = {s.name: s for s in donor.steps}["reward1"]
+    assert copy.protocol.instance.content_hash != original.protocol.instance.content_hash
+
+
+@requires_exar
+def test_importing_a_step_across_releases_is_refused() -> None:
+    """The baseline is the compatibility key, so an import may not cross it.
+
+    Every archive in the corpus is ``VA60A``, so the mismatch is staged rather
+    than found. That is the point: the guard exists for the first XA30 archive
+    to arrive, and an archive built across releases is well-formed and will
+    not load, which is the hardest kind of defect to attribute.
+
+    Returns
+    -------
+    None
+    """
+    target = read(find_exar("Potpourri_P1.exar1"))
+    donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
+    donor.baseline = donor.baseline.replace(target.major_version, "VA30A")
+    assert donor.major_version != target.major_version
+
+    with pytest.raises(ValueError, match="VA30A"):
+        generate.duplicate_step(target, donor.steps[0], "WRONG_RELEASE", source=donor)
+
+
+@requires_exar
+def test_every_customer_sequence_in_the_corpus_assembles_into_one_archive(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One archive can hold every sequence the corpus knows a Special card for.
+
+    The list of sequences is re-derived from the corpus rather than written
+    down, so a new export carrying a sequence this cannot assemble fails here
+    instead of being discovered on a scanner.
+
+    An *indexed* ``sWipMemBlock`` assignment is the test for a Special card:
+    the block is scratch memory a sequence binary reads as it likes, and a
+    sequence with no card leaves it empty. Matching the block's name alone is
+    not enough -- every protocol declares it, so ``gre`` and ``tse`` match a
+    substring test and this would then assert nothing.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    wanted: dict[str, tuple[str, str]] = {}
+    for path, _version in EXAR_PROTOCOL_FILES:
+        for step in read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            if not WIP_ELEMENT.search(step.protocol.xprotocol):
+                continue
+            wanted.setdefault(patch.sequence_of(step.protocol), (path, step.name))
+    assert len(wanted) > 10, "the corpus sweep found almost nothing, so this proves little"
+
+    target = read(find_exar("Potpourri_P1.exar1"))
+    opened: dict[str, object] = {}
+    for number, (sequence, (path, name)) in enumerate(sorted(wanted.items()), start=1):
+        donor = opened.setdefault(path, read(path))
+        step = {s.name: s for s in donor.steps if s.runs_a_protocol}[name]
+        generate.duplicate_step(
+            target, step, f"SEQ{number:02d}_{sequence}"[:35], source=donor  # type: ignore[arg-type]
+        )
+    written = tmp_path / "every-sequence.exar1"
+    target.write(str(written))
+
+    built = read(str(written))
+    assert validate.problems(built) == []
+    assembled = {patch.sequence_of(s.protocol) for s in built.steps if s.name.startswith("SEQ")}
+    assert assembled == set(wanted)
+
+
+def _second_program(archive: object, keep: int) -> str:
+    """Split an archive's steps across a second program node.
+
+    A backup holds one program per protocol. No such archive is readable in
+    the corpus at the moment -- the one XA30 backup that arrived is a cloud
+    placeholder -- so the shape is staged here out of a real export rather
+    than asserted about a file that may not be present. Everything the reader
+    keys on is real: a second ``EdfProgram`` instance with its own element and
+    object ids, its own ``Children``, its own link chain and ``Ranks``, and
+    steps re-parented to it.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to split. Modified in place.
+    keep : int
+        How many steps stay with the original program; the rest move.
+
+    Returns
+    -------
+    str
+        The new program's object id.
+    """
+    original = archive.program
+    moving = archive.steps[keep:]
+    rows = archive.container.tables["Instance"]
+    fresh = (str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4()))
+
+    document = archive.document(original)
+    row = dict(zip(rows.columns, rows.rows[rows.find("Id", original.id)[0]]))
+    row["Id"], row["Element_id"], row["ObjectId"] = fresh
+    row["Children"] = pack_guids([s.instance.element_id for s in moving])
+    rows.append(row)
+    elements = archive.container.tables["Element"]
+    source = elements.rows[elements.find("Id", original.element_id)[0]]
+    elements.append(dict(zip(elements.columns, (fresh[1], source[1], None))))
+    archive.container.tables["InstanceChangeSet"].append(
+        {"InstanceId": fresh[0], "ChangeSetId": archive.head, "ElementId": fresh[1], "State": 0}
+    )
+    maps = archive.container.tables["ElementToInstanceMap"]
+    at = maps.find("Id", generate._head_map_id(archive))[0]
+    blob = maps.rows[at][maps.index_of("Data")]
+    maps.set(at, "Data", blob + uuid.UUID(fresh[1]).bytes_le + uuid.UUID(fresh[0]).bytes_le)
+
+    for step in moving:
+        rows.set(rows.find("Id", step.instance.id)[0], "ParentElementId", fresh[1])
+
+    ids = [s.instance.object_id for s in moving]
+    _rewrite_program(
+        archive, original, document, [s.instance.object_id for s in archive.steps[:keep]]
+    )
+    moved = dict(document)
+    _rewrite_program(archive, None, moved, ids)
+    archive.container.tables["Instance"].set(
+        rows.find("Id", fresh[0])[0],
+        "ContentHash",
+        archive.replace_content(
+            Instance(
+                id=fresh[0],
+                element_id=fresh[1],
+                object_id=fresh[2],
+                kind=original.kind,
+                content_hash=original.content_hash,
+            ),
+            generate.renumber_references(moved),
+        ),
+    )
+    keeping = [s.instance.element_id for s in archive.steps[:keep]]
+    rows.set(rows.find("Id", original.id)[0], "Children", pack_guids(keeping))
+    return fresh[2]
+
+
+def _rewrite_program(archive: object, node: object, document: dict, ids: list) -> None:
+    """Rebuild a program document's chain and maps around ``ids``.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive being edited.
+    node : Instance or None
+        The program to store the result on, or ``None`` to only edit
+        ``document`` in place.
+    document : dict
+        The program content to rewrite.
+    ids : list of str
+        Step object ids, in the running order they should take.
+
+    Returns
+    -------
+    None
+    """
+    document["FirstStepId"] = ids[0]
+    document["LastStepId"] = ids[-1]
+    document["Ranks"] = {"$id": "ranks"} | {
+        one: {"$id": f"rk-{one}", "Rank": n, "StepId": one} for n, one in enumerate(ids)
+    }
+    links = {}
+    for n, one in enumerate(ids[:-1]):
+        links[one] = {
+            "$id": f"lf-{one}",
+            "$values": [
+                {
+                    "$id": f"link-{ids[n + 1]}",
+                    "$type": generate.LINK_TYPE,
+                    "ConditionId": generate.NO_GUID,
+                    "SelectionId": generate.NO_GUID,
+                    "SourceId": one,
+                    "TargetId": ids[n + 1],
+                }
+            ],
+        }
+    links[ids[-1]] = {"$id": f"lf-{ids[-1]}", "$values": []}
+    document["LinksFrom"] = {"$id": "lfrom"} | links
+    document["LinksTo"] = {"$id": "lto"} | {
+        one: {
+            "$id": f"lt-{one}",
+            "$values": [] if n == 0 else [{"$ref": f"link-{one}"}],
+        }
+        for n, one in enumerate(ids)
+    }
+    # Distinct prefixes: both names start "Re", and a shared $id makes the
+    # document illegal in a way renumbering cannot repair.
+    for name, tag in (("RelationsFrom", "rf"), ("RelationsTo", "rt")):
+        document[name] = {"$id": name.lower()} | {
+            one: {"$id": f"{tag}-{one}", "$values": []} for one in ids
+        }
+    if node is not None:
+        archive.replace_content(node, generate.renumber_references(document))
+
+
+@requires_exar
+def test_an_archive_with_several_programs_reads_all_of_them(tmp_path: pathlib.Path) -> None:
+    """Every protocol in a backup is read, not just the first.
+
+    The XA30 backup that prompted this holds seven programs and 43 steps; a
+    reader taking the first program described eight of them and looked like
+    it had read the file. The split is staged here, but the failure it guards
+    is the one that archive produced.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    before = [step.name for step in archive.steps]
+    _second_program(archive, keep=10)
+    written = tmp_path / "backup.exar1"
+    archive.write(str(written))
+
+    split = read(str(written))
+    assert len(split.program_nodes) == 2
+    assert [len(one.steps) for one in split.programs] == [10, len(before) - 10]
+    # Every step still readable, and each program keeps its own running order.
+    assert [s.name for s in split.steps] == before
+    assert validate.problems(split) == []
+
+
+@requires_exar
+def test_asking_for_the_only_program_refuses_when_there_are_several(
+    tmp_path: pathlib.Path,
+) -> None:
+    """``program`` may not answer when the answer would be a guess.
+
+    Returning the first of several is what made the original defect invisible:
+    it reads as success while hiding every other protocol in the file.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    assert archive.program is not None
+    _second_program(archive, keep=10)
+    written = tmp_path / "backup.exar1"
+    archive.write(str(written))
+    split = read(str(written))
+
+    with pytest.raises(ValueError, match="2 programs"):
+        _ = split.program
+    with pytest.raises(ValueError, match="2 programs"):
+        generate.duplicate_step(split, split.steps[0], "NOWHERE_TO_PUT_IT")
+
+    # Naming one is enough, and the scan lands in that protocol and no other.
+    second = split.programs[1]
+    generate.duplicate_step(split, split.steps[0], "INTO_THE_SECOND", program=second.instance)
+    grown = tmp_path / "grown.exar1"
+    split.write(str(grown))
+    final = read(str(grown))
+    assert validate.problems(final) == []
+    assert [len(one.steps) for one in final.programs] == [10, 9]
+    assert final.programs[1].steps[-1].name == "INTO_THE_SECOND"
+
+
+@requires_exar
+def test_every_step_in_a_corpus_archive_belongs_to_exactly_one_program(
+    protocol_archive_path: str,
+) -> None:
+    """No step is orphaned, and none is claimed twice.
+
+    Trivial while an archive holds one program, which every readable one in
+    the corpus does. It is written archive-wide rather than per-program so
+    that a backup tightens it rather than needing a new test.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        One archive from the corpus that carries protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    claimed = [s.instance.object_id for one in archive.programs for s in one.steps]
+    live = {i.object_id for i in archive.instances.values() if i.kind in STEP_KINDS}
+    assert len(claimed) == len(set(claimed)), "a step is in two running orders"
+    assert set(claimed) == live, "a step is in no running order"
+
+
+@requires_exar
+def test_a_step_no_program_runs_is_reported(tmp_path: pathlib.Path) -> None:
+    """A step in the file but in no running order must be named.
+
+    This is the archive-wide half of the running-order check, and it exists
+    because the per-program half cannot see it: each program is compared
+    against its *own* children, so a step dropped from every chain leaves
+    each program internally consistent. That was the old check's real
+    content, and moving to several programs would have quietly lost it.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    _second_program(archive, keep=10)
+    written = tmp_path / "backup.exar1"
+    archive.write(str(written))
+    split = read(str(written))
+    assert validate.problems(split) == []
+
+    # Shorten the second program's chain by one, leaving the step in the file.
+    second = split.programs[1]
+    document = split.document(second.instance)
+    kept = [s.instance.object_id for s in second.steps[:-1]]
+    _rewrite_program(split, second.instance, document, kept)
+    rows = split.container.tables["Instance"]
+    at = rows.find("Id", second.instance.id)[0]
+    split.container.tables["Instance"].set(
+        at, "Children", pack_guids([s.instance.element_id for s in second.steps[:-1]])
+    )
+    orphaned = tmp_path / "orphaned.exar1"
+    split.write(str(orphaned))
+
+    problems = validate.problems(read(str(orphaned)))
+    assert any("no program's running order" in one for one in problems), problems

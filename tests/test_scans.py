@@ -79,13 +79,13 @@ EXPECTED_SCAN_COUNT = {
     "XA60/NAV_optionscan_P1.pdf": 31,
     "VE11C/31P CSI 20230503 NOE.pdf": 13,
     "XA60/31P CSI 20230503 NOE.pdf": 13,
-    # Both counts confirmed against their own contents pages. Note that these
-    # two PDFs do NOT match the .exar1 shipped beside them: CHR-MDD's archive
-    # holds 23 acquisitions against the printout's 24, and the 31P archive
-    # holds 24 against its printout's 13. The pairs are different versions of
-    # their protocols, which is a fact about the corpus rather than a parse
-    # error -- ZMK23's pair does agree, at 23 each.
-    "XA60/CHR-MDD.pdf": 24,
+    # Both counts confirmed against their own contents pages, and both now
+    # agree with the .exar1 shipped beside them at 23 apiece -- CHR-MDD's
+    # pair was replaced with a matching one after the first export turned out
+    # to be a different version of the protocol from its archive. The 31P
+    # pair still disagrees, 24 in the archive against 13 in the printout,
+    # which is a fact about the corpus rather than a parse error.
+    "XA60/CHR-MDD.pdf": 23,
     "XA60/ZMK23 with Physio.pdf": 23,
     "VE11C/BEEST_SPICE_11112025.pdf": 24,
     "Potpourri_P1.pdf": 18,
