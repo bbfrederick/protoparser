@@ -466,6 +466,72 @@ before/after pair is the only way to learn where a printed value is stored --
   row and an `InstanceChangeSet` row for each, three pairs appended to the head
   changeset's `ElementToInstanceMap`, and the step's element appended to the
   program's `Children`.
+- **A step can be imported out of a *different* archive**, which is what lets
+  one file hold sequences no single export carries. The store being
+  content-addressed makes that mostly a matter of copying the step's and
+  protocol's `Content` rows across; `Envelope.stored` is what keeps an
+  unmodified protocol byte-identical rather than recompressed, so an imported
+  scan can be asserted equal to its donor. Two things do *not* survive the
+  move on their own. A step's `ParentElementId` names the program, which
+  within one file is the source's own and across two is a node that does not
+  exist -- so `duplicate_step` writes the target's program explicitly, a no-op
+  in the same-archive case. And the baseline is the compatibility key the
+  scanner checks, so an import across releases is refused rather than
+  producing a well-formed archive that will not load. Every corpus archive is
+  `VA60A`, so that guard is staged in a test rather than found.
+- **A scanner has loaded a cross-archive assembly.** Forty scans, 22 of them
+  appended by the library and six imported out of a *different* export; 33
+  loaded. Every imported scan that loaded kept its own content -- three
+  carrying an edit and three byte-identical controls -- so importing a step
+  across archives is sound, and 11 of the 12 checkable edits came back exactly
+  as written.
+- **A protocol naming a sequence the scanner does not have is inconsistent,
+  and nothing in this layer can tell.** The three `hcp_mbep2d_*` scans failed
+  in both copies, the edited one *and the unedited control byte-identical to
+  its donor*, which is what proves the cause is not ours. They are the only
+  protocols in the corpus stamped `ve11c/master r/5b0256d+; Dec 2016` rather
+  than `R017 nxva60a/main` -- VE11C-era binaries carried forward and never
+  rebuilt for Numaris/X. A donor archive is not evidence that the *target*
+  scanner can run what it holds. Do not read "not printed in its own PDF" as
+  the same signal: `BIAS_BC` and `T1_MEMPRAGE_64ch_gr2` are unprinted too and
+  loaded fine.
+- **An off-grid value is stored faithfully and displayed snapped to the grid.**
+  `MT Flip Angle` written as 371 comes back from the scanner as 371 in the
+  archive and prints `370 degrees`; `MT Offset` 1501 prints `1500 Hz`. Both
+  parameters move in tens, which is also why the controlled edits that
+  established them were 370->360 and 1500->1490. So a PDF disagreeing with the
+  archive by less than one step is the console's display, not a failed write --
+  but it does mean a printout cannot verify an off-grid edit, and it is unknown
+  which of the two the sequence acts on. Pick an on-grid value when the point
+  is to prove a write.
+- **A scan can be rejected as inconsistent for reasons outside its own
+  protocol.** `Include Nav. = Off` on `space_mgh_epinav_ABCD` was refused in
+  the every-sequence archive, while byte-identical ASCCONV -- same source
+  protocol, same single edit -- loaded, round-tripped with *zero* fields
+  changed, and printed in the NAV option-scan load test. Two explanations were
+  tested and both fail: the sources do not differ (0 differing fields), and the
+  sequence does not need an adjacent setter (the NAV option scan carries 13
+  SPACE vNavs and no SPACE setter at all). What remains untested is the pair:
+  the every-sequence archive *does* carry `ABCD_T2w_SPC_vNav_setter`, so a
+  setter still expecting a navigator may contradict a vNav that has switched
+  one off. Deriving option interdependencies needs an option scan whose
+  baseline includes the setter.
+- **An export can hold more than one protocol tree, and reading at the head
+  picks one.** The archive returned from this test resolved to a 14-step
+  protocol from an unrelated session; the 33 saved scans were in a *prior*
+  changeset, still fully readable. That is useful rather than merely
+  confusing -- the dead changeset's rank count is what identified which seven
+  scans had been deleted, without asking. But a caller who wants a particular
+  tree cannot assume the head is it.
+- **The corpus holds 19 sequence binaries, 16 of which write into
+  `sWipMemBlock`** and so print a Special card; `patch.MAPPINGS` covers eight.
+  Detect them by an *indexed* assignment (`sWipMemBlock.alFree[0] =`), never
+  by the block's name: every protocol declares `sWipMemBlock`, so a substring
+  test matches `gre` and `tse` as well and a test written that way asserts
+  nothing. Two of the sixteen -- `resolve` and `tfl` -- are Siemens'. "Prints
+  a Special card" and "is third party" are separate questions, which is the
+  same distinction `sequences/catalog.json` draws with its `unrecognized`
+  verdict.
 - **`EdfProgramContent` has five parallel maps keyed by step id, not one.**
   `LinksFrom` (outgoing), `LinksTo` (incoming, as `$ref` back-pointers into the
   link objects `LinksFrom` defines), `Ranks` (`{Rank: 0..N, StepId}`, the

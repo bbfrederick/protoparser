@@ -1,0 +1,200 @@
+[
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S01_can_neuromelanin_MTFlip",
+    "sequence": "can_neuromelanin",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "MT Flip Angle",
+    "was": "370",
+    "now": "371"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S02_cmrr_mbep2d_bold_SBimg",
+    "sequence": "cmrr_mbep2d_bold",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "Single-band images",
+    "was": "True",
+    "now": "False"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S03_cmrr_mbep2d_se_SENSE1",
+    "sequence": "cmrr_mbep2d_se",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "SENSE1 coil combine",
+    "was": "False",
+    "now": "True"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S04_cmrr_mbep2d_diff_LeakBlk",
+    "sequence": "cmrr_mbep2d_diff",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "MB LeakBlock kernel",
+    "was": "True",
+    "now": "False"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S05_tfl_mgh_epinav_ABCD_ROpol",
+    "sequence": "tfl_mgh_epinav_ABCD",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "Readout polarity",
+    "was": "Positive",
+    "now": "Negative"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S06_space_mgh_epinav_ABCD_IncNav",
+    "sequence": "space_mgh_epinav_ABCD",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "Include Nav.",
+    "was": "On",
+    "now": "Off"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S07_ep_moco_nav_set_ABCD_Protfn",
+    "sequence": "ep_moco_nav_set_ABCD",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "Protocol filename",
+    "was": "MPRAGE",
+    "now": "Generic"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S08_ep2d_bold_mgh_TR",
+    "sequence": "ep2d_bold_mgh",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "TR",
+    "was": "223",
+    "now": "233"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S09_ep2d_diff_mgh_TR",
+    "sequence": "ep2d_diff_mgh",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "TR",
+    "was": "500",
+    "now": "510"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S10_ep2d_se_sms_mgh_TR",
+    "sequence": "ep2d_se_sms_mgh",
+    "imported_from": "Potpourri_P1.exar1",
+    "parameter": "TR",
+    "was": "285",
+    "now": "295"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S11_tfl_mgh_multiecho_Avg",
+    "sequence": "tfl_mgh_multiecho",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "Averaging",
+    "was": "RMS",
+    "now": "None"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S12_hcp_mbep2d_bold_TR",
+    "sequence": "hcp_mbep2d_bold",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "TR",
+    "was": "800",
+    "now": "810"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S13_hcp_mbep2d_se_TR",
+    "sequence": "hcp_mbep2d_se",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "TR",
+    "was": "8000",
+    "now": "8010"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S14_hcp_mbep2d_diff_TR",
+    "sequence": "hcp_mbep2d_diff",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "TR",
+    "was": "3230",
+    "now": "3240"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S15_resolve_TR",
+    "sequence": "resolve",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "TR",
+    "was": "4190",
+    "now": "4200"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "S16_tfl_TR",
+    "sequence": "tfl",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "TR",
+    "was": "250",
+    "now": "260"
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "C11_tfl_mgh_multiecho_control",
+    "sequence": "tfl_mgh_multiecho",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "(unedited control)",
+    "was": "",
+    "now": ""
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "C12_hcp_mbep2d_bold_control",
+    "sequence": "hcp_mbep2d_bold",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "(unedited control)",
+    "was": "",
+    "now": ""
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "C13_hcp_mbep2d_se_control",
+    "sequence": "hcp_mbep2d_se",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "(unedited control)",
+    "was": "",
+    "now": ""
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "C14_hcp_mbep2d_diff_control",
+    "sequence": "hcp_mbep2d_diff",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "(unedited control)",
+    "was": "",
+    "now": ""
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "C15_resolve_control",
+    "sequence": "resolve",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "(unedited control)",
+    "was": "",
+    "now": ""
+  },
+  {
+    "file": "loadtest/loadtest_ALLSEQ.exar1",
+    "scan": "C16_tfl_control",
+    "sequence": "tfl",
+    "imported_from": "31P CSI 20230503 NOE.exar1",
+    "parameter": "(unedited control)",
+    "was": "",
+    "now": ""
+  }
+]

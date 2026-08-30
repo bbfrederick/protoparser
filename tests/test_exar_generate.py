@@ -13,16 +13,23 @@ tests reintroduce each defect and require it to be reported.
 from __future__ import annotations
 
 import pathlib
+import re
 
 import pytest
 
 from conftest import (  # noqa: F401
+    EXAR_PROTOCOL_FILES,
     find_exar,
     find_pdf,
     protocol_archive_path,
     requires_exar,
 )
 from siemens_protocol.exar import generate, patch, read, validate
+
+#: An assignment into the ``sWipMemBlock`` scratch block, which is what a
+#: sequence with a Special card writes. The block itself is declared by every
+#: protocol, so the index is the part that carries the meaning.
+WIP_ELEMENT = re.compile(r"sWipMemBlock\.\w+\[\d+\]\s*=")
 
 
 @requires_exar
@@ -359,3 +366,154 @@ def test_a_scan_the_template_lacks_is_reported_not_invented() -> None:
     ]
     report = build.apply_protocol(archive, parsed)
     assert report.unmatched == ["a_scan_no_template_has"]
+
+
+@requires_exar
+def test_a_step_imported_from_another_archive_brings_its_own_protocol(
+    tmp_path: pathlib.Path,
+) -> None:
+    """An import carries content the target has never seen.
+
+    Within one archive a copy can lean on content that is already stored.
+    Across two it cannot, and the store is addressed by hash, so the blob has
+    to travel with the step. Asserting the imported XProtocol is *identical*
+    to the donor's is what separates a copy from something reconstructed:
+    our DEFLATE does not reproduce the console's, so a recompressed protocol
+    would still read back correctly while rewriting the stored bytes.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    target = read(find_exar("Potpourri_P1.exar1"))
+    donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
+    wanted = {s.name: s for s in donor.steps}["T1_MEMPRAGE_64ch_gr2"]
+    assert patch.sequence_of(wanted.protocol) not in {
+        patch.sequence_of(s.protocol) for s in target.steps if s.runs_a_protocol
+    }, "the donor scan runs a sequence the target already has, so nothing is proved"
+
+    before = [step.name for step in target.steps]
+    generate.duplicate_step(target, wanted, "IMPORTED_multiecho", source=donor)
+    written = tmp_path / "imported.exar1"
+    target.write(str(written))
+
+    grown = read(str(written))
+    assert validate.problems(grown) == []
+    assert [s.name for s in grown.steps] == before + ["IMPORTED_multiecho"]
+    copy = {s.name: s for s in grown.steps}["IMPORTED_multiecho"]
+    assert copy.protocol.xprotocol == wanted.protocol.xprotocol
+    assert copy.protocol.instance.content_hash == wanted.protocol.instance.content_hash
+
+
+@requires_exar
+def test_an_imported_step_can_be_given_content_of_its_own(tmp_path: pathlib.Path) -> None:
+    """Editing an imported scan leaves the archive sound and the edit in place.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    target = read(find_exar("Potpourri_P1.exar1"))
+    donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
+    generate.duplicate_step(
+        target, {s.name: s for s in donor.steps}["reward1"], "IMPORTED_hcp_bold", source=donor
+    )
+    first = tmp_path / "imported.exar1"
+    target.write(str(first))
+
+    grown = read(str(first))
+    manifest = patch.apply(grown, {"IMPORTED_hcp_bold": {"TR": 810.0}})
+    assert manifest.applied and not manifest.skipped
+    second = tmp_path / "patched.exar1"
+    grown.write(str(second))
+
+    final = read(str(second))
+    assert validate.problems(final) == []
+    copy = {s.name: s for s in final.steps}["IMPORTED_hcp_bold"]
+    assert copy.protocol.preview["sub.0.msr.tr.0"].value == 810.0
+    original = {s.name: s for s in donor.steps}["reward1"]
+    assert copy.protocol.instance.content_hash != original.protocol.instance.content_hash
+
+
+@requires_exar
+def test_importing_a_step_across_releases_is_refused() -> None:
+    """The baseline is the compatibility key, so an import may not cross it.
+
+    Every archive in the corpus is ``VA60A``, so the mismatch is staged rather
+    than found. That is the point: the guard exists for the first XA30 archive
+    to arrive, and an archive built across releases is well-formed and will
+    not load, which is the hardest kind of defect to attribute.
+
+    Returns
+    -------
+    None
+    """
+    target = read(find_exar("Potpourri_P1.exar1"))
+    donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
+    donor.baseline = donor.baseline.replace(target.major_version, "VA30A")
+    assert donor.major_version != target.major_version
+
+    with pytest.raises(ValueError, match="VA30A"):
+        generate.duplicate_step(target, donor.steps[0], "WRONG_RELEASE", source=donor)
+
+
+@requires_exar
+def test_every_customer_sequence_in_the_corpus_assembles_into_one_archive(
+    tmp_path: pathlib.Path,
+) -> None:
+    """One archive can hold every sequence the corpus knows a Special card for.
+
+    The list of sequences is re-derived from the corpus rather than written
+    down, so a new export carrying a sequence this cannot assemble fails here
+    instead of being discovered on a scanner.
+
+    An *indexed* ``sWipMemBlock`` assignment is the test for a Special card:
+    the block is scratch memory a sequence binary reads as it likes, and a
+    sequence with no card leaves it empty. Matching the block's name alone is
+    not enough -- every protocol declares it, so ``gre`` and ``tse`` match a
+    substring test and this would then assert nothing.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    wanted: dict[str, tuple[str, str]] = {}
+    for path, _version in EXAR_PROTOCOL_FILES:
+        for step in read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            if not WIP_ELEMENT.search(step.protocol.xprotocol):
+                continue
+            wanted.setdefault(patch.sequence_of(step.protocol), (path, step.name))
+    assert len(wanted) > 10, "the corpus sweep found almost nothing, so this proves little"
+
+    target = read(find_exar("Potpourri_P1.exar1"))
+    opened: dict[str, object] = {}
+    for number, (sequence, (path, name)) in enumerate(sorted(wanted.items()), start=1):
+        donor = opened.setdefault(path, read(path))
+        step = {s.name: s for s in donor.steps if s.runs_a_protocol}[name]
+        generate.duplicate_step(
+            target, step, f"SEQ{number:02d}_{sequence}"[:35], source=donor  # type: ignore[arg-type]
+        )
+    written = tmp_path / "every-sequence.exar1"
+    target.write(str(written))
+
+    built = read(str(written))
+    assert validate.problems(built) == []
+    assembled = {patch.sequence_of(s.protocol) for s in built.steps if s.name.startswith("SEQ")}
+    assert assembled == set(wanted)
