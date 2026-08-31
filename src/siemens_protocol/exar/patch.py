@@ -361,10 +361,10 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Phase Partial Fourier",
         ascconv_key="sKSpace.ucPhasePartialFourier",
-        choices=(("7/8", 8), ("Off", 16)),
-        evidence="controlled edit: resolutionopts/RE11, Off->7/8. The codes are "
-        "powers of two rather than a fraction, so the other settings cannot be "
-        "guessed from these two.",
+        choices=(("6/8", 4), ("7/8", 8), ("Off", 16), ("Allowed", 32)),
+        evidence="controlled edit: resolutionopts/RE11, Off->7/8; 6/8 and Allowed "
+        "by corpus agreement. The codes are powers of two rather than fractions, "
+        "so anything not observed still cannot be guessed.",
     ),
     Mapping(
         label="MTC",
@@ -404,21 +404,30 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Distortion Correction",
         ascconv_key="sDistortionCorrFilter.ucMode",
-        choices=(("2D", 2), ("3D", 4)),
-        evidence="controlled edit: resolutionopts/RE17, 2D->3D",
+        choices=(("Off", 1), ("2D", 2), ("3D", 4)),
+        evidence="controlled edit: resolutionopts/RE17, 2D->3D; Off by corpus "
+        "agreement on 30 scans.",
     ),
     Mapping(
         label="Fat-Water Contrast",
         ascconv_key="sPrepPulses.lFatWaterContrast",
-        choices=(("Standard", 1), ("Fat Saturation", 4)),
-        evidence="controlled edit: contrastopts/C06, Fat Saturation->Standard",
+        choices=(
+            ("Standard", 1),
+            ("Fat Saturation", 4),
+            ("Water Excitation", 16),
+            ("Fast Water Excitation", 32),
+        ),
+        evidence="controlled edit: contrastopts/C06, Fat Saturation->Standard; the "
+        "two water-excitation settings by corpus agreement.",
     ),
     Mapping(
         label="Normalize",
         ascconv_key="sPreScanNormalizeFilter.ucOn",
         choices=(("Off", 0), ("Prescan", 1)),
         evidence="controlled edit: resolutionopts/RE20, Prescan->Off. Sparse: the "
-        "assignment is deleted rather than set to zero, seen on 168 corpus scans.",
+        "assignment is deleted rather than set to zero, seen on 168 corpus scans. "
+        "'Image Based' is deliberately absent: it stores the same absence as Off, "
+        "so it is distinguished by another field and cannot be written from here.",
     ),
     Mapping(
         label="Prio Recon",
@@ -435,20 +444,34 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="AutoAlign",
         ascconv_key="ucAARefMode",
-        choices=(("Head > Brain", 4), ("Head > IAC", 8)),
-        evidence="controlled edit: geomopts/G16, Head > Brain -> Head > IAC",
+        choices=(
+            ("Head > Basis", 2),
+            ("Head > Brain", 4),
+            ("Head > IAC", 8),
+            ("Head > Optic Nerves", 16),
+            ("Head > Optic Nerve L", 32),
+            ("Head > Optic Nerve R", 64),
+            ("Head > Temporal Lobe", 512),
+            ("Head > Orbits", 1024),
+        ),
+        evidence="controlled edit: geomopts/G16, plus corpus agreement over the "
+        "menus scan, which steps the region list. Code 1 is deliberately absent: "
+        "it prints as both '---' and 'Head', so it is not a function of this "
+        "field alone and writing it would need ucAARegionMode too.",
     ),
     Mapping(
         label="Series",
         ascconv_key="sSliceArray.ucMode",
-        choices=(("Descending", 2), ("Interleaved", 4)),
-        evidence="controlled edit: geomopts/G14, Interleaved->Descending",
+        choices=(("Ascending", 1), ("Descending", 2), ("Interleaved", 4)),
+        evidence="controlled edit: geomopts/G14, Interleaved->Descending; "
+        "Ascending by corpus agreement on 16 scans.",
     ),
     Mapping(
         label="B0 Shim",
         ascconv_key="sAdjData.uiAdjShimMode",
-        choices=(("Standard", 2), ("Brain", 512)),
-        evidence="controlled edit: systemandphysioopts, Standard->Brain",
+        choices=(("Tune up", 1), ("Standard", 2), ("Brain", 512)),
+        evidence="controlled edit: systemandphysioopts, Standard->Brain; Tune up "
+        "by corpus agreement on 43 scans.",
     ),
     Mapping(
         label="B1 Shim",

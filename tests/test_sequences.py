@@ -709,6 +709,16 @@ UNACCOUNTED_ELSEWHERE = {
     # The same 31P protocol exported from XA60. Its SPECIAL_ACC scan resolves
     # there and does not on VE11C, so the two exports differ by one entry.
     ("XA60-31P CSI 20230503 NOE.json", "head_csi_fid"),
+    # A third-party VASO sequence, on the protocol owner's word. It prints
+    # thirty sequence-specific parameters and a Special card and reports
+    # "unrecognized" -- so the verdict is wrong, not merely absent, and a
+    # signature would fix it. What is missing is the attribution: the binary
+    # (`rslh_ep3d_vaso`, printed as `vso rslh6.0`) suggests an author, and
+    # naming a vendor from a file name is exactly the inference the catalog's
+    # rules forbid. Pinned until the owner says whose it is; the alternative
+    # precedent is `dual-echo-pcasl`, which ships as "unattributed
+    # (site-installed)" because that one is genuinely unknown.
+    ("XA60-VASO test.json", "rslh_ep3d_vaso"),
 }
 
 #: The same five MGH scans again, in the two Potpourri exports a scanner

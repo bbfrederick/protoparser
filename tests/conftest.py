@@ -24,6 +24,14 @@ EXAMPLES = os.path.join(REPO_ROOT, "examples")
 #: them up as either.
 PARAMCHECK = os.path.join(REPO_ROOT, "paramcheck", "XA60")
 
+#: Scans that must not be used as evidence about anything. ``SPECIAL_ACC`` in
+#: the 31P export currently holds the wrong sequence, so its parameters
+#: describe a scan nobody intended: reading a mapping, a vocabulary entry or a
+#: sequence signature off it would pin a fact about a mistake. Parsing it is
+#: fine -- it is really in the file and the golden snapshot records it -- but
+#: nothing may generalise from it.
+UNTRUSTWORTHY_SCANS = frozenset({"SPECIAL_ACC"})
+
 
 def paramcheck_pairs() -> list[tuple[str, str]]:
     """Return the ``(archive, pdf)`` pairs of the option-scan corpus.

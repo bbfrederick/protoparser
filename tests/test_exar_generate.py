@@ -20,6 +20,7 @@ import pytest
 
 from conftest import (  # noqa: F401
     EXAR_PROTOCOL_FILES,
+    UNTRUSTWORTHY_SCANS,
     find_exar,
     find_pdf,
     protocol_archive_path,
@@ -370,6 +371,41 @@ def test_a_scan_the_template_lacks_is_reported_not_invented() -> None:
     assert report.unmatched == ["a_scan_no_template_has"]
 
 
+def _foreign_scan(donor: object, target: object, needs_preview: str | None = None) -> object:
+    """Return a donor scan running a sequence the target does not have.
+
+    Chosen from the corpus rather than named, because a named scan ties the
+    test to one export: the archive these two used was replaced when it turned
+    out to be a different protocol under the wrong file name, and both tests
+    broke on the scan names rather than on anything they were testing.
+
+    Parameters
+    ----------
+    donor : Archive
+        The archive to import from.
+    target : Archive
+        The archive that must not already run the sequence.
+    needs_preview : str or None
+        A preview path the chosen scan must carry, when the caller intends to
+        patch that parameter afterwards.
+
+    Returns
+    -------
+    Step
+        The first suitable scan, in running order.
+    """
+    here = {patch.sequence_of(s.protocol) for s in target.steps if s.runs_a_protocol}
+    for step in donor.steps:
+        if not step.runs_a_protocol or step.name in UNTRUSTWORTHY_SCANS:
+            continue
+        if patch.sequence_of(step.protocol) in here:
+            continue
+        if needs_preview is not None and needs_preview not in step.protocol.preview:
+            continue
+        return step
+    raise AssertionError("no donor scan runs a sequence the target lacks")
+
+
 @requires_exar
 def test_a_step_imported_from_another_archive_brings_its_own_protocol(
     tmp_path: pathlib.Path,
@@ -394,10 +430,7 @@ def test_a_step_imported_from_another_archive_brings_its_own_protocol(
     """
     target = read(find_exar("Potpourri_P1.exar1"))
     donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
-    wanted = {s.name: s for s in donor.steps}["T1_MEMPRAGE_64ch_gr2"]
-    assert patch.sequence_of(wanted.protocol) not in {
-        patch.sequence_of(s.protocol) for s in target.steps if s.runs_a_protocol
-    }, "the donor scan runs a sequence the target already has, so nothing is proved"
+    wanted = _foreign_scan(donor, target)
 
     before = [step.name for step in target.steps]
     generate.duplicate_step(target, wanted, "IMPORTED_multiecho", source=donor)
@@ -427,23 +460,21 @@ def test_an_imported_step_can_be_given_content_of_its_own(tmp_path: pathlib.Path
     """
     target = read(find_exar("Potpourri_P1.exar1"))
     donor = read(find_exar("31P CSI 20230503 NOE.exar1"))
-    generate.duplicate_step(
-        target, {s.name: s for s in donor.steps}["reward1"], "IMPORTED_hcp_bold", source=donor
-    )
+    original = _foreign_scan(donor, target, needs_preview="sub.0.msr.tr.0")
+    generate.duplicate_step(target, original, "IMPORTED_FOREIGN", source=donor)
     first = tmp_path / "imported.exar1"
     target.write(str(first))
 
     grown = read(str(first))
-    manifest = patch.apply(grown, {"IMPORTED_hcp_bold": {"TR": 810.0}})
+    manifest = patch.apply(grown, {"IMPORTED_FOREIGN": {"TR": 810.0}})
     assert manifest.applied and not manifest.skipped
     second = tmp_path / "patched.exar1"
     grown.write(str(second))
 
     final = read(str(second))
     assert validate.problems(final) == []
-    copy = {s.name: s for s in final.steps}["IMPORTED_hcp_bold"]
+    copy = {s.name: s for s in final.steps}["IMPORTED_FOREIGN"]
     assert copy.protocol.preview["sub.0.msr.tr.0"].value == 810.0
-    original = {s.name: s for s in donor.steps}["reward1"]
     assert copy.protocol.instance.content_hash != original.protocol.instance.content_hash
 
 
