@@ -292,7 +292,32 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 `siemens_protocol.exar` reads and rewrites the protocol archives XA exports.
 None of this is documented by Siemens; every claim below was established
 against real exports and is asserted in `tests/test_exar.py` rather than
-assumed. The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
+assumed. `SiemensProtocols.md` holds the domain background this rests on --
+what a scan, protocol and session are, and how the scanner organizes them --
+supplied by the user rather than derived, so prefer it to inference and keep
+the two consistent.
+
+- **The scanner's tree is Region / Exam / Program, and a *Program* is what we
+  call a protocol.** A Program is a group of scans; at this centre the Exam
+  level groups protocols by investigator and the Region level separates
+  research from clinical acquisitions. That is exactly the tree the archive
+  stores and the PDF prints: an `EdfStructure` root holding `EdfDirectory`
+  nodes -- `Investigators`, `Frederick` -- with `EdfProgram` the protocol,
+  matching the `\\Research\Investigators\Frederick\Potpourri_P1\<scan>` path
+  in every exported page. It also says what a multi-program archive *is*: an
+  export taken at the Exam or Region level rather than at a single Program,
+  which is why the XA30 backup holds seven.
+- **A program carries its own name, and it is the cheapest pairing check
+  there is.** The label on the `EdfProgram` node matches the protocol
+  component of the path the PDF prints, on 20 of the 21 archive/PDF pairs in
+  the corpus. The exception is the finding: `31P CSI 20230503 NOE.exar1`
+  contains a program named **`CHR-MDD`** with 24 scans while its PDF prints a
+  13-scan protocol sharing only two scan names, so that "mismatched pair" was
+  never a pair at all -- it is a CHR-MDD export saved under the wrong file
+  name. Anything treating those two files as versions of one protocol is
+  comparing unrelated data. Check the program label before comparing
+  anything: it is one string and it catches a whole class of error that
+  agreeing scan names does not. The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
 and `Potpourri_P2`, each with its PDF export. Two re-saved variants are the
 answer keys the mappings rest on: `Potpourri_P2_changed` moves TR alone on five
 scans, and `Potpourri_P1_changed` moves many parameters across five scans
@@ -378,20 +403,33 @@ before/after pair is the only way to learn where a printed value is stored --
   index as one parameter would write a flip angle into CMRR's flags, so anything
   reaching into `sWipMemBlock` must name its sequences and a test enforces it.
 - **Parameters are not independent, and only the scanner can say whether a set
-  of them is consistent.** Each sequence checks its own parameters when it is
-  loaded, and that check cannot run anywhere else. Around any value there is a
-  range that changes nothing else; outside it the console either forbids the
-  change or moves other parameters to compensate. A protocol written with a
-  combination the sequence rejects still loads into the archive, and the
-  console then greys the scan out -- it cannot be opened or edited at all,
-  which is why an inconsistent scan has to be deleted before the protocol can
-  be saved or printed. This is the frame for everything below: **no amount of
+  of them is consistent.** Each sequence checks its own parameters, and it
+  re-checks on every update -- but only on the scanner, with the sequence
+  loaded. Around any value there is a range that changes nothing else;
+  outside it the console either forbids the change or moves other parameters
+  to compensate, and some parameters accept only discrete values and snap to
+  the nearest allowed one. A protocol written with a combination the sequence
+  rejects still loads into the archive, and the console then greys the scan
+  out: it cannot be opened or modified at all, only rebuilt from a consistent
+  starting set, which is why an inconsistent scan has to be deleted before
+  the protocol can be saved or printed. This is the frame for everything below: **no amount of
   offline checking can establish that a patched protocol is valid.** What this
   layer can promise is that it wrote what it was asked to; whether the result
   is acceptable is a question only a scanner answers. That is what happened to
   `Include Nav. = Off`, and it is why the same bytes loaded in one archive and
   were rejected in another -- consistency is a property of the whole parameter
   set, not of the field being written.
+- **A PDF is proof of consistency, and that is what makes coverage a
+  correctness question rather than a fidelity one.** A protocol printout can
+  only be generated from a consistent protocol, so every parameter set in
+  every example PDF is one some sequence accepted. That cuts both ways for
+  the driver. Writing *all* of a PDF's parameters into an archive would aim
+  at a set already known to be consistent; writing the tenth of them that is
+  mapped produces a hybrid of that PDF and the template, and a hybrid of two
+  consistent sets is not itself consistent. So mapping coverage is not only
+  about how much of the printout survives -- it is what decides whether the
+  result can be loaded at all, and the manifest's count of inherited values
+  is a measure of that risk rather than a footnote.
 - **A mapping is verified at the value it was derived at.** The option scans
   are console-authored, so every value in them is one the sequence accepted.
   Replaying those is safe by construction; writing an arbitrary value through

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import collections
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -1363,3 +1364,41 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
     # ucAARegionMode as well as ucAARefMode, and writing half of a coupled
     # pair is worse than declining.
     assert len(refused) <= 1, refused
+
+
+@requires_exar
+def test_an_archive_and_the_pdf_beside_it_name_the_same_protocol() -> None:
+    """A program's own label must match the protocol the PDF prints.
+
+    The scanner's tree is Region / Exam / Program, and the Program *is* the
+    protocol -- so an archive states its own name and the PDF prints it in
+    every scan's path. Comparing the two is one string against one string and
+    catches a class of error that agreeing scan names does not: the corpus
+    holds an archive whose program is named ``CHR-MDD`` shipped under a
+    ``31P CSI`` file name, sharing two scan names with the PDF beside it.
+    That pair is pinned here rather than quietly tolerated, because anything
+    treating those files as versions of one protocol compares unrelated data.
+
+    Returns
+    -------
+    None
+    """
+    known_bad = {"31P CSI 20230503 NOE.exar1"}
+    checked, mismatched = 0, set()
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        named = {p.name for p in read(path).programs}
+        printed = {
+            scan["path"].rsplit("\\", 2)[-2]
+            for scan in parse_document(pdf).protocol.to_dict()["scans"]
+            if scan.get("path")
+        }
+        checked += 1
+        if not named & printed:
+            mismatched.add(os.path.basename(path))
+    assert checked > 10, f"only {checked} pairs compared; this proves little"
+    assert (
+        mismatched == known_bad
+    ), f"archive/PDF pairs naming different protocols changed: {sorted(mismatched)}"
