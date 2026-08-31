@@ -377,6 +377,32 @@ before/after pair is the only way to learn where a printed value is stored --
   on the MPRAGE navigator and Include Nav. on the SPACE one. A table treating an
   index as one parameter would write a flip angle into CMRR's flags, so anything
   reaching into `sWipMemBlock` must name its sequences and a test enforces it.
+- **Parameters are not independent, and only the scanner can say whether a set
+  of them is consistent.** Each sequence checks its own parameters when it is
+  loaded, and that check cannot run anywhere else. Around any value there is a
+  range that changes nothing else; outside it the console either forbids the
+  change or moves other parameters to compensate. A protocol written with a
+  combination the sequence rejects still loads into the archive, and the
+  console then greys the scan out -- it cannot be opened or edited at all,
+  which is why an inconsistent scan has to be deleted before the protocol can
+  be saved or printed. This is the frame for everything below: **no amount of
+  offline checking can establish that a patched protocol is valid.** What this
+  layer can promise is that it wrote what it was asked to; whether the result
+  is acceptable is a question only a scanner answers. That is what happened to
+  `Include Nav. = Off`, and it is why the same bytes loaded in one archive and
+  were rejected in another -- consistency is a property of the whole parameter
+  set, not of the field being written.
+- **A mapping is verified at the value it was derived at.** The option scans
+  are console-authored, so every value in them is one the sequence accepted.
+  Replaying those is safe by construction; writing an arbitrary value through
+  the same mapping is not, and a large step is likelier to leave the range
+  than a small one. Prefer the smallest change that demonstrates a write.
+- **Coupled parameters must move together or not at all.** `AutoAlign`
+  printed as `---` moves `ucAARegionMode` as well as `ucAARefMode`, and
+  writing one of a pair produces exactly the inconsistent set above. `encode`
+  refusing a choice it has not seen is the right behaviour here rather than a
+  gap: a refusal costs a look, a half-written pair costs a greyed-out scan
+  that cannot even be inspected.
 - **`paramcheck/XA60/` extends the option-scan method to the common cards.**
   Six archives, one CMRR BOLD scan repeated with a single console option
   varied per copy, split by printed card. They take `MAPPINGS` from 41 to 67.
@@ -419,11 +445,15 @@ before/after pair is the only way to learn where a printed value is stored --
 - **`Measurements` is the first mapping needing an offset.** The card counts
   measurements from one and `lRepetitions` counts repeats, so four is stored
   as three. `Mapping.offset` applies before `scale`.
-- **Changing the displayed `TE 1` shifts every echo by the same delta**, on
-  three independent copies in three archives, preserving echo spacing. The
-  shipped `TE` mapping writes `alTE[0]` alone, which is right for a
-  single-echo scan and changes the *spacing* on a multi-echo one. Not yet
-  fixed; noted here because the corpus is full of multi-echo scans.
+- **Each echo is written on its own; do not shift the train from `TE 1`.**
+  Changing the displayed `TE 1` does move all four echoes by the same delta in
+  these exports, preserving spacing -- but that is because CMRR's multi-echo
+  BOLD has its echo spacing at the minimum, so the later echoes have nowhere
+  else to go. Spacing varies independently in other sequences and settings, so
+  generalising the observed shift into a rule would be inference dressed as
+  evidence. `TE 2`/`TE 3`/`TE 4` map to `alTE[1..3]` instead, verified by
+  agreement on 126-129 scans apiece: a driver writes every echo the printout
+  names and reproduces either case without needing to know which applies.
 - **The option scans are `paramcheck/`, deliberately outside `examples/`.**
   They are evidence for deriving mappings rather than examples of what the
   tool parses, and the corpus fixtures must not discover them as either.

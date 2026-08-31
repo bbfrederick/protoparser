@@ -75,6 +75,7 @@ SPARSE_KEYS = frozenset(
         "ucReconstructionPrio",
         "sWorkflow.ucWaitForUserStart",
         "sAAInitialOffset.SliceInformation.dInPlaneRot",
+        "sPrepPulses.ucMTC",
     }
 )
 
@@ -90,6 +91,7 @@ HEX_KEYS = frozenset(
         "ucReconstructionPrio",
         "sWorkflow.ucWaitForUserStart",
         "ucStaticFieldCorrection",
+        "sPrepPulses.ucMTC",
     }
 )
 
@@ -129,6 +131,7 @@ SPARSE_ANCHORS: dict[str, tuple[str, ...]] = {
     "sSliceArray.ucImageNumbSag": ("sSliceArray.ucMode",),
     "sSliceArray.ucImageNumbTra": ("sSliceArray.ucMode",),
     "sWorkflow.ucWaitForUserStart": ("sInversionArray.asElm.__attribute__.size",),
+    "sPrepPulses.ucMTC": ("sPrepPulses.ucTIScout",),
     "ucReconstructionPrio": ("ulWrapUpMagn",),
 }
 
@@ -258,6 +261,33 @@ MAPPINGS: tuple[Mapping, ...] = (
         evidence="controlled edit: P1 pair, 4 scans. Multi-echo prints TE 1..TE 4 "
         "and Preview carries only the first; alTE[1..3] have no preview side.",
     ),
+    # Each later echo is written on its own rather than by shifting the train
+    # from TE 1. On CMRR's multi-echo BOLD the echo spacing sits at the
+    # minimum, so moving the first echo does move the rest and keeps the
+    # spacing -- but that is a property of that sequence at that setting, not
+    # of the format, and spacing varies independently elsewhere. Writing every
+    # echo the printout names reproduces either case without having to know
+    # which one applies. Verified by agreement rather than a controlled edit:
+    # printed TE n equals alTE[n-1] on every comparable scan in the corpus.
+    Mapping(
+        label="TE 2",
+        ascconv_key="alTE[1]",
+        scale=1000.0,
+        evidence="corpus agreement: 129 scans, printed TE 2 against alTE[1] at the "
+        "precision the export prints.",
+    ),
+    Mapping(
+        label="TE 3",
+        ascconv_key="alTE[2]",
+        scale=1000.0,
+        evidence="corpus agreement: 127 scans, printed TE 3 against alTE[2].",
+    ),
+    Mapping(
+        label="TE 4",
+        ascconv_key="alTE[3]",
+        scale=1000.0,
+        evidence="corpus agreement: 126 scans, printed TE 4 against alTE[3].",
+    ),
     Mapping(
         label="Flip Angle",
         preview_path="sub.0.msr.angle_array.0",
@@ -322,6 +352,25 @@ MAPPINGS: tuple[Mapping, ...] = (
         offset=-1.0,
         evidence="controlled edit: contrastopts/C09, 4->3 measurements. The card counts "
         "measurements and lRepetitions counts repeats, so the stored value trails by one.",
+    ),
+    Mapping(
+        label="Acceleration Factor PE",
+        ascconv_key="sPat.lAccelFactPE",
+        evidence="controlled edit: resolutionopts/RE09, 2->3",
+    ),
+    Mapping(
+        label="Phase Partial Fourier",
+        ascconv_key="sKSpace.ucPhasePartialFourier",
+        choices=(("7/8", 8), ("Off", 16)),
+        evidence="controlled edit: resolutionopts/RE11, Off->7/8. The codes are "
+        "powers of two rather than a fraction, so the other settings cannot be "
+        "guessed from these two.",
+    ),
+    Mapping(
+        label="MTC",
+        ascconv_key="sPrepPulses.ucMTC",
+        choices=(("Off", 0), ("On", 1)),
+        evidence="controlled edit: contrastopts/C04, Off->On. Sparse.",
     ),
     Mapping(
         label="Reference Lines PE",

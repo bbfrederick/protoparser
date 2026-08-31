@@ -163,7 +163,13 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
                     asked[mapping.label] = now_on
                 continue
             if was_raw is not None and now_raw is not None and was_raw != now_raw:
-                asked[mapping.label] = float(now_raw)
+                # A mapping with no preview side is read from the ASCCONV
+                # block, which holds the *stored* number. Asking for it
+                # verbatim only worked while every such mapping was a Special
+                # card flag at scale 1; TE 2 stores microseconds, so the
+                # request has to be turned back into what the card displays
+                # or the patcher scales an already-scaled value.
+                asked[mapping.label] = float(now_raw) / mapping.scale - mapping.offset
         if asked:
             wanted[one.name] = asked
     assert wanted, "the reference pair records no mapped change to reproduce"
