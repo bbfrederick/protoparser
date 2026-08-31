@@ -292,7 +292,32 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 `siemens_protocol.exar` reads and rewrites the protocol archives XA exports.
 None of this is documented by Siemens; every claim below was established
 against real exports and is asserted in `tests/test_exar.py` rather than
-assumed. The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
+assumed. `SiemensProtocols.md` holds the domain background this rests on --
+what a scan, protocol and session are, and how the scanner organizes them --
+supplied by the user rather than derived, so prefer it to inference and keep
+the two consistent.
+
+- **The scanner's tree is Region / Exam / Program, and a *Program* is what we
+  call a protocol.** A Program is a group of scans; at this centre the Exam
+  level groups protocols by investigator and the Region level separates
+  research from clinical acquisitions. That is exactly the tree the archive
+  stores and the PDF prints: an `EdfStructure` root holding `EdfDirectory`
+  nodes -- `Investigators`, `Frederick` -- with `EdfProgram` the protocol,
+  matching the `\\Research\Investigators\Frederick\Potpourri_P1\<scan>` path
+  in every exported page. It also says what a multi-program archive *is*: an
+  export taken at the Exam or Region level rather than at a single Program,
+  which is why the XA30 backup holds seven.
+- **A program carries its own name, and it is the cheapest pairing check
+  there is.** The label on the `EdfProgram` node matches the protocol
+  component of the path the PDF prints, on 20 of the 21 archive/PDF pairs in
+  the corpus. The exception is the finding: `31P CSI 20230503 NOE.exar1`
+  contains a program named **`CHR-MDD`** with 24 scans while its PDF prints a
+  13-scan protocol sharing only two scan names, so that "mismatched pair" was
+  never a pair at all -- it is a CHR-MDD export saved under the wrong file
+  name. Anything treating those two files as versions of one protocol is
+  comparing unrelated data. Check the program label before comparing
+  anything: it is one string and it catches a whole class of error that
+  agreeing scan names does not. The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
 and `Potpourri_P2`, each with its PDF export. Two re-saved variants are the
 answer keys the mappings rest on: `Potpourri_P2_changed` moves TR alone on five
 scans, and `Potpourri_P1_changed` moves many parameters across five scans
@@ -377,6 +402,99 @@ before/after pair is the only way to learn where a printed value is stored --
   on the MPRAGE navigator and Include Nav. on the SPACE one. A table treating an
   index as one parameter would write a flip angle into CMRR's flags, so anything
   reaching into `sWipMemBlock` must name its sequences and a test enforces it.
+- **Parameters are not independent, and only the scanner can say whether a set
+  of them is consistent.** Each sequence checks its own parameters, and it
+  re-checks on every update -- but only on the scanner, with the sequence
+  loaded. Around any value there is a range that changes nothing else;
+  outside it the console either forbids the change or moves other parameters
+  to compensate, and some parameters accept only discrete values and snap to
+  the nearest allowed one. A protocol written with a combination the sequence
+  rejects still loads into the archive, and the console then greys the scan
+  out: it cannot be opened or modified at all, only rebuilt from a consistent
+  starting set, which is why an inconsistent scan has to be deleted before
+  the protocol can be saved or printed. This is the frame for everything below: **no amount of
+  offline checking can establish that a patched protocol is valid.** What this
+  layer can promise is that it wrote what it was asked to; whether the result
+  is acceptable is a question only a scanner answers. That is what happened to
+  `Include Nav. = Off`, and it is why the same bytes loaded in one archive and
+  were rejected in another -- consistency is a property of the whole parameter
+  set, not of the field being written.
+- **A PDF is proof of consistency, and that is what makes coverage a
+  correctness question rather than a fidelity one.** A protocol printout can
+  only be generated from a consistent protocol, so every parameter set in
+  every example PDF is one some sequence accepted. That cuts both ways for
+  the driver. Writing *all* of a PDF's parameters into an archive would aim
+  at a set already known to be consistent; writing the tenth of them that is
+  mapped produces a hybrid of that PDF and the template, and a hybrid of two
+  consistent sets is not itself consistent. So mapping coverage is not only
+  about how much of the printout survives -- it is what decides whether the
+  result can be loaded at all, and the manifest's count of inherited values
+  is a measure of that risk rather than a footnote.
+- **A mapping is verified at the value it was derived at.** The option scans
+  are console-authored, so every value in them is one the sequence accepted.
+  Replaying those is safe by construction; writing an arbitrary value through
+  the same mapping is not, and a large step is likelier to leave the range
+  than a small one. Prefer the smallest change that demonstrates a write.
+- **Coupled parameters must move together or not at all.** `AutoAlign`
+  printed as `---` moves `ucAARegionMode` as well as `ucAARefMode`, and
+  writing one of a pair produces exactly the inconsistent set above. `encode`
+  refusing a choice it has not seen is the right behaviour here rather than a
+  gap: a refusal costs a look, a half-written pair costs a greyed-out scan
+  that cannot even be inspected.
+- **`paramcheck/XA60/` extends the option-scan method to the common cards.**
+  Six archives, one CMRR BOLD scan repeated with a single console option
+  varied per copy, split by printed card. They take `MAPPINGS` from 41 to 67.
+  What made them usable is that the labels come from the PDF: `Preview` names
+  only about forty console-summary parameters and the varied options are
+  mostly not among them, so the archive alone yields almost nothing.
+- **A PDF beside an archive is not evidence it is an export *of* it.** The
+  first delivery had the six archives shifted one place against the six PDFs
+  while every PDF still printed its own protocol name in its header path, so
+  filename and content both agreed and the pairing was still wrong. Deriving
+  through that attaches a real label to the wrong field. `test_each_option_
+  scan_pairs_with_its_own_export` checks every scan's printed values against
+  that archive's own `Preview` -- a thousand comparisons over the six -- which
+  is what turned the pairing from an assumption into a check. It also caught
+  a PDF carrying one scan twice, where positional alignment silently shifted
+  everything after it and the value checks still passed, so align by name
+  wherever names are unique and drop the ones that are not.
+- **ASCCONV is written in the schema's order, not alphabetically.**
+  `ulWrapUpMagn` precedes `ucReconstructionPrio` precedes `lAverages`, so a
+  created assignment's position cannot be derived from its name.
+  `SPARSE_ANCHORS` records the assignment each sparse scalar follows, read off
+  the console's own output and stable wherever the key appears; inserting
+  after that anchor reproduces all 545 such assignments in the corpus byte for
+  byte. `insert_ascconv` reports "nowhere to put it" by returning the text
+  unchanged, which the writer must treat as a refusal -- unchecked it is a
+  write reported as applied that wrote nothing.
+- **Sparseness and spelling are observations, not rules.**
+  `ucStaticFieldCorrection` is a `uc` flag written `0x0`/`0x1` and is present
+  on all 321 corpus scans even while off, while `ucReconstructionPrio` beside
+  it is deleted when off -- so `SPARSE_KEYS` is a list. The same for spelling:
+  the `sAdjData` and `sWorkflow` flags are written `0x1` and the four
+  `sSliceArray.ucImageNumb*` beside `ucMode` are written `1`, which is why
+  `HEX_KEYS` and `INT_KEYS` are both enumerated. Both were found by the replay
+  test writing `1.0` and `0x0` where the console wrote `1` and nothing.
+- **An enum carries only the choices the option scans exercised.** These vary
+  each option once, so most new enums have two of their values and `encode`
+  refuses the rest. That is the intended behaviour: `AutoAlign` printed as
+  `---` is refused, and rightly, because it moves `ucAARegionMode` as well as
+  `ucAARefMode` and writing half a coupled pair is worse than declining.
+- **`Measurements` is the first mapping needing an offset.** The card counts
+  measurements from one and `lRepetitions` counts repeats, so four is stored
+  as three. `Mapping.offset` applies before `scale`.
+- **Each echo is written on its own; do not shift the train from `TE 1`.**
+  Changing the displayed `TE 1` does move all four echoes by the same delta in
+  these exports, preserving spacing -- but that is because CMRR's multi-echo
+  BOLD has its echo spacing at the minimum, so the later echoes have nowhere
+  else to go. Spacing varies independently in other sequences and settings, so
+  generalising the observed shift into a rule would be inference dressed as
+  evidence. `TE 2`/`TE 3`/`TE 4` map to `alTE[1..3]` instead, verified by
+  agreement on 126-129 scans apiece: a driver writes every echo the printout
+  names and reproduces either case without needing to know which applies.
+- **The option scans are `paramcheck/`, deliberately outside `examples/`.**
+  They are evidence for deriving mappings rather than examples of what the
+  tool parses, and the corpus fixtures must not discover them as either.
 - **The option-scan archives are what pin the Special card**, and nothing else
   can. `CMRR_optionscan_P1`, `MEMPRAGE_optionscan_P1` and `NAV_optionscan_P1`
   each hold one sequence repeated with a single option changed per copy -- 33,

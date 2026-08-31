@@ -16,7 +16,9 @@ actually changed.
 
 from __future__ import annotations
 
+import collections
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -26,13 +28,17 @@ import pytest
 
 from conftest import (  # noqa: F401
     EXAR_PROTOCOL_FILES,
+    PARAMCHECK_IDS,
+    PARAMCHECK_PAIRS,
     find_exar,
     find_pdf,
     protocol_archive_path,
     requires_exar,
+    requires_paramcheck,
 )
-from siemens_protocol.exar import envelope, patch, read
+from siemens_protocol.exar import build, envelope, patch, read
 from siemens_protocol.exar.archive import Protocol
+from siemens_protocol.pipeline import parse_document
 
 #: The parameter the reference pair records a controlled edit for.
 CONTROLLED = "TR"
@@ -158,7 +164,13 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
                     asked[mapping.label] = now_on
                 continue
             if was_raw is not None and now_raw is not None and was_raw != now_raw:
-                asked[mapping.label] = float(now_raw)
+                # A mapping with no preview side is read from the ASCCONV
+                # block, which holds the *stored* number. Asking for it
+                # verbatim only worked while every such mapping was a Special
+                # card flag at scale 1; TE 2 stores microseconds, so the
+                # request has to be turned back into what the card displays
+                # or the patcher scales an already-scaled value.
+                asked[mapping.label] = float(now_raw) / mapping.scale - mapping.offset
         if asked:
             wanted[one.name] = asked
     assert wanted, "the reference pair records no mapped change to reproduce"
@@ -1112,3 +1124,281 @@ def test_a_later_sequence_build_refuses_a_bit_mapping() -> None:
     assert "but this protocol runs" not in why, why
     # Only the packed card is gated; a parameter in its own field is not.
     assert patch.resolve(later, "TR")[0] is not None
+
+
+# --------------------------------------------------------------------------
+# The option scans: one console option varied per copy
+# --------------------------------------------------------------------------
+
+#: Values the console recomputes from whatever actually changed, so a copy
+#: that moves one of these has not necessarily changed it.
+FOLLOWS = {
+    "TA",
+    "Rel. SNR",
+    "SAR",
+    "Scan Time",
+    "Total Scan Time",
+    "Delay in TR",
+    "Voxel size",
+    "PAT",
+    "Reference lines PE",
+    "Slices per Slab",
+}
+
+#: Fields the console rewrites on every save, or recomputes.
+OPTION_CHURN = re.compile(
+    r"tCheckUUID|tFree|lFinalMatrixSize|ScanTimeSec|dRefSNR|"
+    r"dOverallImageScaleFactor|sIR\.adFree"
+)
+
+
+def _ascconv(text: str) -> dict[str, str]:
+    """Return the ASCCONV block as ``{key: literal}``.
+
+    Parameters
+    ----------
+    text : str
+        XProtocol text.
+
+    Returns
+    -------
+    dict
+        One entry per assignment.
+    """
+    low, high = patch.ascconv_bounds(text)
+    pairs = (line.partition("=") for line in text[low:high].splitlines()[1:])
+    return {k.strip(): v.strip() for k, sep, v in pairs if sep}
+
+
+def _printed(scan: dict) -> dict[str, object]:
+    """Flatten one parsed scan to ``{label: printed value}``.
+
+    Parameters
+    ----------
+    scan : dict
+        One entry of a parsed protocol's ``scans``.
+
+    Returns
+    -------
+    dict
+        The first printing of each label.
+    """
+    out: dict[str, object] = {}
+    for _title, params in scan.get("sections", {}).items():
+        for key, value in params.items():
+            out.setdefault(key.strip(), value)
+    return out
+
+
+def _modal(records: list[dict]) -> dict:
+    """Return the most common value of every key across ``records``.
+
+    Parameters
+    ----------
+    records : list of dict
+        The copies to summarise.
+
+    Returns
+    -------
+    dict
+        The baseline each copy is compared against.
+    """
+    keys = set().union(*records)
+    return {k: collections.Counter(r.get(k) for r in records).most_common(1)[0][0] for k in keys}
+
+
+def _option_scan(archive_path: str, pdf_path: str) -> tuple:
+    """Pair a scan's printed parameters with its protocol, and find the baseline.
+
+    Copies are paired by name when names are unique on both sides and by
+    position otherwise: one export still carries 24 scans sharing a name, and
+    resolving that by name silently addresses the wrong scan.
+
+    Parameters
+    ----------
+    archive_path : str
+        The option-scan archive.
+    pdf_path : str
+        Its PDF export.
+
+    Returns
+    -------
+    tuple
+        ``(pairs, prints, blocks, baseline index)``.
+    """
+    scans = parse_document(pdf_path).protocol.to_dict()["scans"]
+    steps = read(archive_path).steps
+    counts = collections.Counter(s["name"] for s in scans)
+    if max(counts.values()) == 1 and len({s.name for s in steps}) == len(steps):
+        by_name = {s["name"]: s for s in scans}
+        pairs = [(by_name[s.name], s) for s in steps if s.name in by_name]
+    else:
+        pairs = list(zip(scans, steps))
+    pairs = [
+        (p, s)
+        for p, s in pairs
+        if s.runs_a_protocol and patch.sequence_of(s.protocol) == "cmrr_mbep2d_bold"
+    ]
+    prints = [_printed(p) for p, _ in pairs]
+    blocks = [_ascconv(s.protocol.xprotocol) for _, s in pairs]
+    keys = set().union(*blocks)
+    modal = _modal(blocks)
+    baseline = min(
+        range(len(pairs)),
+        key=lambda i: sum(1 for k in keys if blocks[i].get(k) != modal.get(k)),
+    )
+    return pairs, prints, blocks, baseline
+
+
+@requires_paramcheck
+@pytest.mark.parametrize("archive_path,pdf_path", PARAMCHECK_PAIRS, ids=PARAMCHECK_IDS)
+def test_each_option_scan_pairs_with_its_own_export(archive_path: str, pdf_path: str) -> None:
+    """The PDF beside an archive must be an export *of* it.
+
+    Names agreeing is not enough. An earlier round of these files had the
+    archives shifted one place against the PDFs while every name still
+    matched its own file, and deriving a mapping through that would attach a
+    real label to the wrong field -- well-formed, plausible and wrong. Every
+    scan's printed values are therefore checked against the archive's own
+    ``Preview``, which is the console listing the same protocol.
+
+    Parameters
+    ----------
+    archive_path : str
+        The option-scan archive.
+    pdf_path : str
+        Its PDF export.
+
+    Returns
+    -------
+    None
+    """
+    pairs, _prints, _blocks, _baseline = _option_scan(archive_path, pdf_path)
+    assert pairs, "no copies paired at all"
+    checked = 0
+    for scan, step in pairs:
+        printed_values = _printed(scan)
+        for entry in step.protocol.preview.values():
+            label = entry.label.strip()
+            if label not in printed_values or entry.value is None:
+                continue
+            shown = build.printed_value(printed_values[label])
+            try:
+                same = abs(float(shown) - float(entry.value)) < 1e-3
+            except (TypeError, ValueError):
+                continue
+            checked += 1
+            assert same, f"{step.name}: {label} prints {shown!r}, preview holds {entry.value!r}"
+    assert checked > 50, f"only {checked} values compared; the pairing is barely checked"
+
+
+@requires_paramcheck
+def test_every_derived_option_replays_into_the_console_result() -> None:
+    """Applying a printed change must reproduce the copy the console wrote.
+
+    This is what the derived mappings rest on. Each option scan holds one
+    baseline and a copy per option, so applying the copy's printed value to
+    the baseline should produce that copy's protocol -- every field, not just
+    the one aimed at. A mapping with the wrong scale, the wrong spelling or a
+    missing second location fails here.
+
+    Returns
+    -------
+    None
+    """
+    labels = {m.label for m in patch.MAPPINGS}
+    replayed, refused, differing = 0, [], []
+    unclaimed: set[str] = set()
+    for archive_path, pdf_path in PARAMCHECK_PAIRS:
+        pairs, prints, blocks, baseline = _option_scan(archive_path, pdf_path)
+        base = pairs[baseline][1].protocol
+        printed_base, ascconv_base = _modal(prints), _modal(blocks)
+        for index, (printed_now, block) in enumerate(zip(prints, blocks)):
+            if index == baseline:
+                continue
+            moved = {
+                k
+                for k in set(printed_now) | set(printed_base)
+                if printed_now.get(k) != printed_base.get(k) and k not in FOLLOWS
+            }
+            if len(moved) != 1:
+                continue
+            label = next(iter(moved))
+            if label not in labels:
+                continue
+            value = build.printed_value(printed_now.get(label))
+            document, applied, skipped = patch.patch_document(base, {label: value})
+            if skipped:
+                refused.append((label, skipped[0].reason))
+                continue
+            assert applied
+            got = _ascconv(document["Data"])
+            diff = {
+                k
+                for k in set(got) | set(block)
+                if got.get(k) != block.get(k) and not OPTION_CHURN.search(k)
+            }
+            replayed += 1
+            # A mapping answers for the fields it writes. One copy varies a
+            # second option beyond the one it prints -- executionopts E05
+            # moves sAngio.ucUseTimingDelay as well as the workflow flag --
+            # so a residual difference is only a failure when it lands on a
+            # field some mapping claims.
+            claimed = {
+                key
+                for m in patch.MAPPINGS
+                for key, _index in patch.expand(m.ascconv_key, base.xprotocol)
+            }
+            blamed = diff & claimed
+            if blamed:
+                differing.append((label, sorted(blamed)[:3]))
+            unclaimed.update(diff - claimed)
+    assert replayed > 25, f"only {replayed} options replayed; this proves little"
+    assert not differing, f"replay wrote the wrong value into a mapped field: {differing}"
+    # Whatever is left must be small and nameable, or the replay is passing
+    # by declaring its failures out of scope.
+    assert (
+        len(unclaimed) <= 1
+    ), f"replay left {len(unclaimed)} unmapped fields: {sorted(unclaimed)}"
+    # One refusal is expected and correct: AutoAlign printed as "---" moves
+    # ucAARegionMode as well as ucAARefMode, and writing half of a coupled
+    # pair is worse than declining.
+    assert len(refused) <= 1, refused
+
+
+@requires_exar
+def test_an_archive_and_the_pdf_beside_it_name_the_same_protocol() -> None:
+    """A program's own label must match the protocol the PDF prints.
+
+    The scanner's tree is Region / Exam / Program, and the Program *is* the
+    protocol -- so an archive states its own name and the PDF prints it in
+    every scan's path. Comparing the two is one string against one string and
+    catches a class of error that agreeing scan names does not: the corpus
+    holds an archive whose program is named ``CHR-MDD`` shipped under a
+    ``31P CSI`` file name, sharing two scan names with the PDF beside it.
+    That pair is pinned here rather than quietly tolerated, because anything
+    treating those files as versions of one protocol compares unrelated data.
+
+    Returns
+    -------
+    None
+    """
+    known_bad = {"31P CSI 20230503 NOE.exar1"}
+    checked, mismatched = 0, set()
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        named = {p.name for p in read(path).programs}
+        printed = {
+            scan["path"].rsplit("\\", 2)[-2]
+            for scan in parse_document(pdf).protocol.to_dict()["scans"]
+            if scan.get("path")
+        }
+        checked += 1
+        if not named & printed:
+            mismatched.add(os.path.basename(path))
+    assert checked > 10, f"only {checked} pairs compared; this proves little"
+    assert (
+        mismatched == known_bad
+    ), f"archive/PDF pairs naming different protocols changed: {sorted(mismatched)}"

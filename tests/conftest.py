@@ -16,6 +16,43 @@ from siemens_protocol.pipeline import ParseResult
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXAMPLES = os.path.join(REPO_ROOT, "examples")
+
+#: Option scans: one sequence repeated with a single console option varied per
+#: copy, beside the PDF export of the same protocol. They live outside
+#: ``examples/`` deliberately -- they are evidence for deriving mappings rather
+#: than examples of what the tool parses, and the corpus fixtures must not pick
+#: them up as either.
+PARAMCHECK = os.path.join(REPO_ROOT, "paramcheck", "XA60")
+
+
+def paramcheck_pairs() -> list[tuple[str, str]]:
+    """Return the ``(archive, pdf)`` pairs of the option-scan corpus.
+
+    Returns
+    -------
+    list of tuple
+        One pair per option scan, sorted by name. Empty when the directory is
+        absent, which is what lets the tests skip rather than error.
+    """
+    if not os.path.isdir(PARAMCHECK):
+        return []
+    found = []
+    for entry in sorted(os.listdir(PARAMCHECK)):
+        if not entry.endswith(".exar1"):
+            continue
+        pdf = os.path.join(PARAMCHECK, entry[: -len(".exar1")] + ".pdf")
+        if os.path.exists(pdf):
+            found.append((os.path.join(PARAMCHECK, entry), pdf))
+    return found
+
+
+PARAMCHECK_PAIRS = paramcheck_pairs()
+PARAMCHECK_IDS = [os.path.basename(a) for a, _ in PARAMCHECK_PAIRS]
+
+requires_paramcheck = pytest.mark.skipif(
+    not PARAMCHECK_PAIRS,
+    reason="no option scans available; add them to paramcheck/XA60/",
+)
 GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden")
 
 

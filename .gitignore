@@ -11,3 +11,4 @@ examples/**/*.json
 *.swo
 ocr.log
 src/siemens_protocol/_version.py
+private_examples

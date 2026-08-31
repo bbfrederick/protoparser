@@ -81,8 +81,9 @@ testpaths = ["tests"]
 pythonpath = ["tests"]
 
 [tool.codespell]
-# loadtest/ holds disposable scanner round-trip artifacts, PDFs included.
-skip = "./examples,./tests/golden,./loadtest"
+# loadtest/ holds disposable scanner round-trip artifacts, PDFs included;
+# paramcheck/ and copyparamexamples/ hold option-scan exports, likewise.
+skip = "./examples,./tests/golden,./loadtest,./paramcheck,./copyparamexamples"
 # TE and TR are parameter keys, not typos. ADDIN is a literal field of the
 # .exar1 baseline string ("MAJORVERSION:VA60A, ADDIN:NXMAINLINE, ..."), which
 # is quoted in CLAUDE.md and matched in code. This list is matched
