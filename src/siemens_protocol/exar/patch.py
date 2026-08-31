@@ -55,6 +55,83 @@ ABSENT = "(absent)"
 #: that field alone.
 CMRR_R017 = "Sequence: R017 nxva60a/main r/91b106c1e"
 
+#: Scalar assignments the console leaves out entirely rather than writing a
+#: zero into. Each was observed absent on some corpus protocols and present on
+#: others, and every option scan that turns one off deletes its line. This is a
+#: list rather than a rule because it is not one: ``ucStaticFieldCorrection``
+#: looks identical -- a ``uc`` flag written ``0x0``/``0x1`` -- and is written
+#: on all 321 corpus scans even while off, so treating the shape as sparse
+#: would delete an assignment the console keeps.
+SPARSE_KEYS = frozenset(
+    {
+        "sAdjData.uiAdjWithBC",
+        "sAdjData.uiAdjTableToleranceValid",
+        "sAdjData.uiAdjFreSiliconeDetection",
+        "sSliceArray.ucImageNumbCor",
+        "sSliceArray.ucImageNumbMSMA",
+        "sSliceArray.ucImageNumbSag",
+        "sSliceArray.ucImageNumbTra",
+        "sPreScanNormalizeFilter.ucOn",
+        "ucReconstructionPrio",
+        "sWorkflow.ucWaitForUserStart",
+        "sAAInitialOffset.SliceInformation.dInPlaneRot",
+    }
+)
+
+#: Assignments the console spells in hexadecimal. Only consulted when an
+#: assignment is being *created*, since an existing literal supplies its own
+#: spelling. Every entry was read off a corpus protocol that carries the key.
+HEX_KEYS = frozenset(
+    {
+        "sAdjData.uiAdjWithBC",
+        "sAdjData.uiAdjTableToleranceValid",
+        "sAdjData.uiAdjFreSiliconeDetection",
+        "sPreScanNormalizeFilter.ucOn",
+        "ucReconstructionPrio",
+        "sWorkflow.ucWaitForUserStart",
+        "ucStaticFieldCorrection",
+    }
+)
+
+#: Sparse assignments the console spells as a plain integer. Distinguished
+#: from :data:`HEX_KEYS` by reading the console's own output: these four sit
+#: beside ``sSliceArray.ucMode`` and are written ``1``, while the flags in
+#: ``sAdjData`` and ``sWorkflow`` beside them are written ``0x1``. Nothing in
+#: the name says which, so both lists are observations rather than a rule.
+INT_KEYS = frozenset(
+    {
+        "sSliceArray.ucImageNumbCor",
+        "sSliceArray.ucImageNumbMSMA",
+        "sSliceArray.ucImageNumbSag",
+        "sSliceArray.ucImageNumbTra",
+    }
+)
+
+#: Where the console writes each sparse scalar: the assignment it follows,
+#: nearest candidate first. ASCCONV is written in the schema's order, not
+#: alphabetically -- ``ulWrapUpMagn`` precedes ``ucReconstructionPrio`` which
+#: precedes ``lAverages`` -- so a new line's position cannot be derived from
+#: its name and is read off the console's own output instead. Every anchor
+#: here is the single predecessor observed wherever the key appears across the
+#: corpus and the option scans, on between 1 and 265 scans. ``uiAdjWithBC``
+#: takes two because the ``sAdjData`` group has its own internal order.
+SPARSE_ANCHORS: dict[str, tuple[str, ...]] = {
+    "sAAInitialOffset.SliceInformation.dInPlaneRot": ("sAAInitialOffset.Laterality",),
+    "sAdjData.uiAdjTableToleranceValid": ("sAdjData.uiAdjTableTolerance",),
+    "sAdjData.uiAdjWithBC": (
+        "sAdjData.uiAdjTableToleranceValid",
+        "sAdjData.uiAdjTableTolerance",
+    ),
+    "sAdjData.uiAdjFreSiliconeDetection": ("sAdjData.uiAdjWithBC",),
+    "sPreScanNormalizeFilter.ucOn": ("sAngio.sFlowArray.asElm.__attribute__.size",),
+    "sSliceArray.ucImageNumbCor": ("sSliceArray.ucMode",),
+    "sSliceArray.ucImageNumbMSMA": ("sSliceArray.ucMode",),
+    "sSliceArray.ucImageNumbSag": ("sSliceArray.ucMode",),
+    "sSliceArray.ucImageNumbTra": ("sSliceArray.ucMode",),
+    "sWorkflow.ucWaitForUserStart": ("sInversionArray.asElm.__attribute__.size",),
+    "ucReconstructionPrio": ("ulWrapUpMagn",),
+}
+
 #: Delimiters of the ASCCONV block inside the XProtocol text.
 ASCCONV_BEGIN = "### ASCCONV BEGIN"
 ASCCONV_END = "### ASCCONV END"
@@ -83,6 +160,10 @@ class Mapping:
         Multiplier taking the displayed value to the stored one. ``1000`` for
         the times, which are displayed in milliseconds and stored in
         microseconds.
+    offset : float
+        Added to the displayed value before :attr:`scale`. ``Measurements``
+        needs it: the card counts measurements from one and ``lRepetitions``
+        counts repeats, so four measurements are stored as three.
     basis : str or None
         Another ASCCONV key whose value also multiplies the written one, for a
         parameter stored relative to a second field. ``[*]`` here resolves to
@@ -124,6 +205,7 @@ class Mapping:
     evidence: str
     preview_path: str | None = None
     scale: float = 1.0
+    offset: float = 0.0
     basis: str | None = None
     sequences: tuple[str, ...] = ()
     choices: tuple[tuple[str, int], ...] = ()
@@ -229,7 +311,171 @@ MAPPINGS: tuple[Mapping, ...] = (
         evidence="controlled edit: P1 pair, 100%->96.7% and 100%->97.7%. Stored as "
         "millimetres, not percent: dPhaseFOV = dReadoutFOV * percent / 100.",
     ),
+    # ---- Derived from the paramcheck option scans: one option varied per
+    # ---- copy on cmrr_mbep2d_bold, each label read off the matching export.
+    # ---- An enum carries only the choices those scans actually exercised,
+    # ---- which is two apiece; encode() refuses anything else rather than
+    # ---- guessing at a code it has never seen.
+    Mapping(
+        label="Measurements",
+        ascconv_key="lRepetitions",
+        offset=-1.0,
+        evidence="controlled edit: contrastopts/C09, 4->3 measurements. The card counts "
+        "measurements and lRepetitions counts repeats, so the stored value trails by one.",
+    ),
+    Mapping(
+        label="Reference Lines PE",
+        ascconv_key="sPat.lRefLinesPE",
+        evidence="controlled edit: resolutionopts/RE10, 24->26",
+    ),
+    Mapping(
+        label="Table Position",
+        ascconv_key="lScanRegionPosTra",
+        evidence="controlled edit: geomopts/G24, 6->7 mm",
+    ),
+    Mapping(
+        label="Image Scaling",
+        ascconv_key="dOverallImageScaleCorrectionFactor",
+        evidence="controlled edit: systemandphysioopts, 1.000->0.999",
+    ),
+    Mapping(
+        label="Initial Rotation",
+        ascconv_key="sAAInitialOffset.SliceInformation.dInPlaneRot",
+        scale=0.017453292519943295,
+        evidence="controlled edit: geomopts/G19, 0.00->0.02 deg stored as 0.000349065850399 "
+        "radians. Sparse: absent on 309 of 321 corpus scans, which is zero rotation.",
+    ),
+    Mapping(
+        label="Static Field Correction",
+        ascconv_key="ucStaticFieldCorrection",
+        choices=(("Off", 0), ("On", 1)),
+        evidence="controlled edit: resolutionopts/RE18, Off->On. Written 0x0 on all 321 "
+        "corpus scans even while off, so unlike its neighbours it is not sparse.",
+    ),
+    Mapping(
+        label="Distortion Correction",
+        ascconv_key="sDistortionCorrFilter.ucMode",
+        choices=(("2D", 2), ("3D", 4)),
+        evidence="controlled edit: resolutionopts/RE17, 2D->3D",
+    ),
+    Mapping(
+        label="Fat-Water Contrast",
+        ascconv_key="sPrepPulses.lFatWaterContrast",
+        choices=(("Standard", 1), ("Fat Saturation", 4)),
+        evidence="controlled edit: contrastopts/C06, Fat Saturation->Standard",
+    ),
+    Mapping(
+        label="Normalize",
+        ascconv_key="sPreScanNormalizeFilter.ucOn",
+        choices=(("Off", 0), ("Prescan", 1)),
+        evidence="controlled edit: resolutionopts/RE20, Prescan->Off. Sparse: the "
+        "assignment is deleted rather than set to zero, seen on 168 corpus scans.",
+    ),
+    Mapping(
+        label="Prio Recon",
+        ascconv_key="ucReconstructionPrio",
+        choices=(("Off", 0), ("On", 1)),
+        evidence="controlled edit: executionopts/E06, Off->On. Sparse.",
+    ),
+    Mapping(
+        label="Wait for User to Start",
+        ascconv_key="sWorkflow.ucWaitForUserStart",
+        choices=(("Off", 0), ("On", 1)),
+        evidence="controlled edit: executionopts/E03, Off->On. Sparse.",
+    ),
+    Mapping(
+        label="AutoAlign",
+        ascconv_key="ucAARefMode",
+        choices=(("Head > Brain", 4), ("Head > IAC", 8)),
+        evidence="controlled edit: geomopts/G16, Head > Brain -> Head > IAC",
+    ),
+    Mapping(
+        label="Series",
+        ascconv_key="sSliceArray.ucMode",
+        choices=(("Descending", 2), ("Interleaved", 4)),
+        evidence="controlled edit: geomopts/G14, Interleaved->Descending",
+    ),
+    Mapping(
+        label="B0 Shim",
+        ascconv_key="sAdjData.uiAdjShimMode",
+        choices=(("Standard", 2), ("Brain", 512)),
+        evidence="controlled edit: systemandphysioopts, Standard->Brain",
+    ),
+    Mapping(
+        label="B1 Shim",
+        ascconv_key="sTXSPEC.lB1ShimMode",
+        choices=(("TrueForm", 1), ("TrueForm C", 8)),
+        evidence="controlled edit: systemandphysioopts, TrueForm->TrueForm C",
+    ),
+    Mapping(
+        label="Coil Focus",
+        ascconv_key="sChannelMatrix.ucChannelDiscardMode",
+        choices=(("Flat", 1), ("Center", 2)),
+        evidence="controlled edit: systemandphysioopts, Flat->Center",
+    ),
+    Mapping(
+        label="Matrix Optimization",
+        ascconv_key="sChannelMatrix.ucChannelMixingMode",
+        choices=(("Off", 1), ("Performance", 2)),
+        evidence="controlled edit: systemandphysioopts, Performance->Off",
+    ),
+    Mapping(
+        label="Confirm Frequency",
+        ascconv_key="sAdjData.uiAdjFreqConfirmSpec",
+        choices=(("Never", 1), ("Always", 2)),
+        evidence="controlled edit: systemandphysioopts, Never->Always",
+    ),
+    Mapping(
+        label="Adjust with Body Coil",
+        ascconv_key="sAdjData.uiAdjWithBC",
+        choices=(("Off", 0), ("On", 1)),
+        evidence="controlled edit: systemandphysioopts, On->Off. Sparse.",
+    ),
+    Mapping(
+        label="Assume Silicone",
+        ascconv_key="sAdjData.uiAdjFreSiliconeDetection",
+        choices=(("Off", 0), ("On", 1)),
+        evidence="controlled edit: systemandphysioopts, Off->On. Sparse.",
+    ),
+    Mapping(
+        label="Adjustment Tolerance",
+        ascconv_key="sAdjData.uiAdjTableToleranceValid",
+        choices=(("Auto", 0), ("Maximum", 1)),
+        evidence="controlled edit: systemandphysioopts, Auto->Maximum. Sparse.",
+    ),
+    Mapping(
+        label="Transversal",
+        ascconv_key="sSliceArray.ucImageNumbTra",
+        choices=(("F >> H", 0), ("H >> F", 1)),
+        evidence="controlled edit: systemandphysioopts, F >> H -> H >> F. Sparse.",
+    ),
+    Mapping(
+        label="Sagittal",
+        ascconv_key="sSliceArray.ucImageNumbSag",
+        choices=(("R >> L", 0), ("L >> R", 1)),
+        evidence="controlled edit: systemandphysioopts, R >> L -> L >> R. Sparse.",
+    ),
+    Mapping(
+        label="Coronal",
+        ascconv_key="sSliceArray.ucImageNumbCor",
+        choices=(("A >> P", 0), ("P >> A", 1)),
+        evidence="controlled edit: systemandphysioopts, A >> P -> P >> A. Sparse.",
+    ),
+    Mapping(
+        label="MSMA",
+        ascconv_key="sSliceArray.ucImageNumbMSMA",
+        choices=(("S - C - T", 0), ("S - T - C", 1)),
+        evidence="controlled edit: systemandphysioopts, S - C - T -> S - T - C. Sparse.",
+    ),
     # ---- The Special card. ASCCONV only, and meaningful per sequence. ----
+    Mapping(
+        label="Reference scan mode",
+        ascconv_key="sWipMemBlock.alFree[26]",
+        sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se", "cmrr_mbep2d_diff"),
+        builds=(CMRR_R017,),
+        choices=(("Single-shot", 1), ("Segmented", 2)),
+        evidence="controlled edit: resolutionopts/RE08, Single-shot->Segmented",
+    ),
     Mapping(
         label="MT Flip Angle",
         ascconv_key="sWipMemBlock.alFree[0]",
@@ -703,7 +949,7 @@ def omits_zero(key: str) -> bool:
     bool
         ``True`` for a sparse array element.
     """
-    return bool(re.match(r"sWipMemBlock\.(al|ad)Free\[\d+\]$", key))
+    return bool(re.match(r"sWipMemBlock\.(al|ad)Free\[\d+\]$", key)) or key in SPARSE_KEYS
 
 
 def remove_ascconv(text: str, key: str) -> str:
@@ -753,9 +999,11 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
         sibling to place it beside.
     """
     start, end = ascconv_bounds(text)
-    match = re.fullmatch(r"(.*)\[(\d+)\]", key)
-    if start < 0 or match is None:
+    if start < 0:
         return text
+    match = re.fullmatch(r"(.*)\[(\d+)\]", key)
+    if match is None:
+        return _insert_scalar(text, key, literal, start, end)
     stem, index = match.group(1), int(match.group(2))
     sibling = re.compile(rf"^([ \t]*){re.escape(stem)}\[(\d+)\]([ \t]*=[ \t]*).*?\r?\n", re.M)
     found = [m for m in sibling.finditer(text, start, end)]
@@ -767,6 +1015,51 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
     ending = "\r\n" if model.group(0).endswith("\r\n") else "\n"
     line = f"{model.group(1)}{key}{model.group(3)}{literal}{ending}"
     return text[:at] + line + text[at:]
+
+
+def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> str:
+    """Place a non-array assignment where the console writes it.
+
+    A sparse scalar has no sibling index to sort against, and ASCCONV is
+    written in the schema's order rather than alphabetically, so the position
+    is not derivable from the name: ``ulWrapUpMagn`` precedes
+    ``ucReconstructionPrio`` precedes ``lAverages``. The anchor is read off
+    the console's own output instead -- see :data:`SPARSE_ANCHORS` -- and a
+    round-trip test removes each key from every protocol that carries it and
+    requires re-inserting to reproduce the file byte for byte.
+
+    Parameters
+    ----------
+    text : str
+        The XProtocol text.
+    key : str
+        The assignment to add.
+    literal : str
+        The value to write.
+    start : int
+        Offset of the ASCCONV block's start.
+    end : int
+        Offset of its end.
+
+    Returns
+    -------
+    str
+        The text with the assignment inserted, unchanged when no anchor for
+        the key is known or none of its anchors is present. Callers must
+        treat "unchanged" as a refusal rather than a write -- silently
+        writing nothing is the failure this shape invites.
+    """
+    for anchor in SPARSE_ANCHORS.get(key, ()):
+        found = _assignment(anchor).search(text, start, end)
+        if found is None:
+            continue
+        line = text[found.start() : found.end()]
+        indent = re.match(r"[ \t]*", line).group(0)
+        separator = re.search(r"[ \t]*=[ \t]*", line).group(0)
+        at = text.index("\n", found.end()) + 1
+        ending = "\r\n" if text[at - 2 : at] == "\r\n" else "\n"
+        return text[:at] + f"{indent}{key}{separator}{literal}{ending}" + text[at:]
+    return text
 
 
 def _assignment(key: str) -> re.Pattern[str]:
@@ -812,7 +1105,13 @@ def format_like(value: float, existing: str) -> str:
     str
         The formatted literal.
     """
-    if re.fullmatch(r"[-+]?\d+", existing.strip()):
+    literal = existing.strip()
+    if re.fullmatch(r"0x[0-9a-fA-F]+", literal):
+        # The console writes the flag-like fields as hex, and a reader that
+        # accepts 1 for 0x1 is not something to rely on when the spelling is
+        # right there to copy.
+        return f"0x{int(round(value)):x}"
+    if re.fullmatch(r"[-+]?\d+", literal):
         return str(int(round(value)))
     written = f"{float(value):.12g}"
     return written if ("." in written or "e" in written or "E" in written) else written + ".0"
@@ -1219,7 +1518,7 @@ def _apply_one(
             continue
         if existing is None and not sparse:
             return refused(f"ASCCONV block has no {key}")
-        written = number * mapping.scale
+        written = (number + mapping.offset) * mapping.scale
         if mapping.basis is not None:
             basis_key = mapping.basis.replace("[*]", f"[{index}]")
             basis = read_ascconv(text, basis_key)
@@ -1235,6 +1534,12 @@ def _apply_one(
             first_before = existing or ABSENT
             first_after = ABSENT if (sparse and _is_zero(literal)) else literal
         text = _store(text, key, literal, existing, sparse)
+        # Creating a sparse assignment needs somewhere to put it, and
+        # insert_ascconv reports "nowhere" by returning the text unchanged.
+        # Left unchecked that is a write reported as applied that wrote
+        # nothing, which is worse than refusing.
+        if read_ascconv(text, key) is None and not _is_zero(literal):
+            return refused(f"no anchor to place {key} beside in this protocol")
 
     previous = None
     if entry is not None:
@@ -1275,7 +1580,9 @@ def _model(key: str) -> str:
     str
         ``"0"`` for an integer array, ``"0.0"`` otherwise.
     """
-    return "0" if ".alFree[" in key else "0.0"
+    if ".alFree[" in key or key in INT_KEYS:
+        return "0"
+    return "0x0" if key in HEX_KEYS else "0.0"
 
 
 def _store(text: str, key: str, literal: str, existing: str | None, sparse: bool) -> str:
@@ -1323,8 +1630,11 @@ def _is_zero(literal: str) -> bool:
     bool
         ``True`` when it parses as zero.
     """
+    text = literal.strip()
     try:
-        return float(literal) == 0.0
+        if re.fullmatch(r"0x[0-9a-fA-F]+", text):
+            return int(text, 16) == 0
+        return float(text) == 0.0
     except ValueError:
         return False
 

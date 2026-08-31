@@ -377,6 +377,56 @@ before/after pair is the only way to learn where a printed value is stored --
   on the MPRAGE navigator and Include Nav. on the SPACE one. A table treating an
   index as one parameter would write a flip angle into CMRR's flags, so anything
   reaching into `sWipMemBlock` must name its sequences and a test enforces it.
+- **`paramcheck/XA60/` extends the option-scan method to the common cards.**
+  Six archives, one CMRR BOLD scan repeated with a single console option
+  varied per copy, split by printed card. They take `MAPPINGS` from 41 to 67.
+  What made them usable is that the labels come from the PDF: `Preview` names
+  only about forty console-summary parameters and the varied options are
+  mostly not among them, so the archive alone yields almost nothing.
+- **A PDF beside an archive is not evidence it is an export *of* it.** The
+  first delivery had the six archives shifted one place against the six PDFs
+  while every PDF still printed its own protocol name in its header path, so
+  filename and content both agreed and the pairing was still wrong. Deriving
+  through that attaches a real label to the wrong field. `test_each_option_
+  scan_pairs_with_its_own_export` checks every scan's printed values against
+  that archive's own `Preview` -- a thousand comparisons over the six -- which
+  is what turned the pairing from an assumption into a check. It also caught
+  a PDF carrying one scan twice, where positional alignment silently shifted
+  everything after it and the value checks still passed, so align by name
+  wherever names are unique and drop the ones that are not.
+- **ASCCONV is written in the schema's order, not alphabetically.**
+  `ulWrapUpMagn` precedes `ucReconstructionPrio` precedes `lAverages`, so a
+  created assignment's position cannot be derived from its name.
+  `SPARSE_ANCHORS` records the assignment each sparse scalar follows, read off
+  the console's own output and stable wherever the key appears; inserting
+  after that anchor reproduces all 545 such assignments in the corpus byte for
+  byte. `insert_ascconv` reports "nowhere to put it" by returning the text
+  unchanged, which the writer must treat as a refusal -- unchecked it is a
+  write reported as applied that wrote nothing.
+- **Sparseness and spelling are observations, not rules.**
+  `ucStaticFieldCorrection` is a `uc` flag written `0x0`/`0x1` and is present
+  on all 321 corpus scans even while off, while `ucReconstructionPrio` beside
+  it is deleted when off -- so `SPARSE_KEYS` is a list. The same for spelling:
+  the `sAdjData` and `sWorkflow` flags are written `0x1` and the four
+  `sSliceArray.ucImageNumb*` beside `ucMode` are written `1`, which is why
+  `HEX_KEYS` and `INT_KEYS` are both enumerated. Both were found by the replay
+  test writing `1.0` and `0x0` where the console wrote `1` and nothing.
+- **An enum carries only the choices the option scans exercised.** These vary
+  each option once, so most new enums have two of their values and `encode`
+  refuses the rest. That is the intended behaviour: `AutoAlign` printed as
+  `---` is refused, and rightly, because it moves `ucAARegionMode` as well as
+  `ucAARefMode` and writing half a coupled pair is worse than declining.
+- **`Measurements` is the first mapping needing an offset.** The card counts
+  measurements from one and `lRepetitions` counts repeats, so four is stored
+  as three. `Mapping.offset` applies before `scale`.
+- **Changing the displayed `TE 1` shifts every echo by the same delta**, on
+  three independent copies in three archives, preserving echo spacing. The
+  shipped `TE` mapping writes `alTE[0]` alone, which is right for a
+  single-echo scan and changes the *spacing* on a multi-echo one. Not yet
+  fixed; noted here because the corpus is full of multi-echo scans.
+- **The option scans are `paramcheck/`, deliberately outside `examples/`.**
+  They are evidence for deriving mappings rather than examples of what the
+  tool parses, and the corpus fixtures must not discover them as either.
 - **The option-scan archives are what pin the Special card**, and nothing else
   can. `CMRR_optionscan_P1`, `MEMPRAGE_optionscan_P1` and `NAV_optionscan_P1`
   each hold one sequence repeated with a single option changed per copy -- 33,
