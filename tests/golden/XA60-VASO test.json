@@ -25,9 +25,9 @@
       },
       "provenance": {
         "verdict": "third-party",
-        "vendor": "UIUC",
+        "vendor": "DZNE Bonn",
         "family": "VASO -- vascular space occupancy",
-        "signature": "uiuc-vaso",
+        "signature": "dzne-vaso",
         "evidence": [
           "sequence binary 'vso rslh6.0'",
           "Special card prints VASO Pre-TI1 delay, VASO Pre-TI2 delay, VASO Pre-Inv delay"

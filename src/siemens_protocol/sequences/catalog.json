@@ -316,11 +316,11 @@
       }
     },
     {
-      "id": "uiuc-vaso",
-      "vendor": "UIUC",
+      "id": "dzne-vaso",
+      "vendor": "DZNE Bonn",
       "family": "VASO -- vascular space occupancy",
       "priority": 10,
-      "note": "Attributed to UIUC by the protocol's owner. The binary prints as 'vso rslh6.0' and the archive names the sequence file rslh_ep3d_vaso, so the printed string carries a build number that a later release would change -- which is why the Special card is listed too, and why the three VASO Pre-* delays are the ones chosen: they name the technique rather than the EPI readout it shares with everything else on that card.",
+      "note": "Collaborative VASO sequence development with Laurentius (Renzo) Huber based on the custom DZNE skipped-CAIPI 3D-EPI sequence (segmented acquisition with CAIPIRINHA sampling). This sequence is compatible with FRISGO and NORDIC. The binary prints as 'vso rslh6.0' and the archive names the sequence file rslh_ep3d_vaso, so the printed string carries a build number that a later release would change -- which is why the Special card is listed too, and why the three VASO Pre-* delays are the ones chosen: they name the technique rather than the EPI readout it shares with everything else on that card.",
       "match": {
         "binaries": [
           "vso rslh6.0"

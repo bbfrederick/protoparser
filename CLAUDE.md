@@ -254,10 +254,16 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past
-  that -- CMRR, MGH, UIUC, Manus Donahue -- was supplied by the user and lives
-  in each signature's `note`. Do not "correct" one of these from a plausible
-  inference: the note says where it came from, and a guess overwriting a
-  confirmation is a silent regression. `dual-echo-pcasl` is deliberately left
+  that -- CMRR, MGH, UIUC, DZNE Bonn, Manus Donahue -- was supplied by the
+  user and lives in each signature's `note`. Do not "correct" one of these
+  from a plausible inference: the note says where it came from, and a guess
+  overwriting a confirmation is a silent regression. The binary name is the
+  most tempting inference and the one to resist hardest. Two of these
+  sequences carry their author's initials in it -- `ZPL_epsi_fid` for Zhi-Pei
+  Liang, `rslh_ep3d_vaso` for Renzo Huber -- which makes the prefix look like
+  a reliable key, and it is not: the VASO sequence was attributed to the wrong
+  institution on exactly that basis before its owner corrected it to DZNE
+  Bonn. Read the initials as a hint worth asking about, never as an answer. `dual-echo-pcasl` is deliberately left
   `unattributed (site-installed)` because that one is genuinely unknown.
 - **`sequence_owner` is the export saying so, so it decides the verdict.** VB17A
   introduces the binary with `SIEMENS:` or `USER:`; `profiles/vb17a.py` has
