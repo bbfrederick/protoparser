@@ -1,18 +1,14 @@
 {
   "description": "Third-party (customer) MR sequences, recognized by the parameters they print on the Special card and by their sequence binary names. Curated by hand from real exports: a wrong entry reports a protocol as converting cleanly when it does not, so anything unaccounted for is reported as unrecognized rather than guessed at.",
-
   "path_markers": {
     "CustomerSeq": "site-installed sequence (Siemens writes this into the protocol path)"
   },
-
   "third_party_owners": {
     "USER": "site-installed sequence (the export labels the binary USER, not SIEMENS)"
   },
-
   "stock_owners": {
     "SIEMENS": "the export labels the binary SIEMENS, naming the vendor as its owner"
   },
-
   "stock_binaries": {
     "fl": "FLASH -- spoiled gradient echo",
     "fl_pc": "FLASH phase contrast",
@@ -42,7 +38,6 @@
     "csi_se": "chemical shift imaging, spin echo",
     "AALScout": "AutoAlign scout -- the kernel under AAHead_Scout"
   },
-
   "signatures": [
     {
       "id": "cmrr-mb-epi-bold",
@@ -51,9 +46,16 @@
       "priority": 20,
       "note": "The MB parameters are CMRR's own and appear on no Siemens kernel in any shipped example: 169 scans across VE11C, XA30 and XA60 print them, all of them epfid or epse. The kernel is what splits BOLD from diffusion, since both report a stock kernel name. On VB17A the sequence file name is printed instead and identifies it outright.",
       "match": {
-        "binaries": ["cmrr_mbep2d_bold"],
-        "base_binaries": ["epfid"],
-        "special_all": ["MB LeakBlock kernel", "Online multi-band recon."]
+        "binaries": [
+          "cmrr_mbep2d_bold"
+        ],
+        "base_binaries": [
+          "epfid"
+        ],
+        "special_all": [
+          "MB LeakBlock kernel",
+          "Online multi-band recon."
+        ]
       }
     },
     {
@@ -63,9 +65,16 @@
       "priority": 20,
       "note": "Same CMRR multiband card as cmrr-mb-epi-bold, riding on the spin-echo kernel. Seen on dMRI_dir64_MGH, dMRI_dir99 and ABCD_dMRI scans in VE11C, XA30 and XA60 exports.",
       "match": {
-        "binaries": ["cmrr_mbep2d_diff"],
-        "base_binaries": ["epse"],
-        "special_all": ["MB LeakBlock kernel", "Online multi-band recon."]
+        "binaries": [
+          "cmrr_mbep2d_diff"
+        ],
+        "base_binaries": [
+          "epse"
+        ],
+        "special_all": [
+          "MB LeakBlock kernel",
+          "Online multi-band recon."
+        ]
       }
     },
     {
@@ -92,7 +101,9 @@
       "priority": 20,
       "note": "The vNav navigator parameters, on the multi-echo TurboFLASH kernel. Seen on T1w_MPR_vNav_4e and T1_MEMPRAGE_1.0mm_p4_vNav in XA30 exports.",
       "match": {
-        "base_binaries": ["tfl_me"],
+        "base_binaries": [
+          "tfl_me"
+        ],
         "special_all": [
           "ABCD navigator",
           "Moco ref. image",
@@ -108,7 +119,9 @@
       "priority": 20,
       "note": "The same vNav navigator parameters as vnav-mprage, on the SPACE kernel. Seen on ABCD_T2w_SPC_vNav (XA30) and T2_SPACE_GSP_vNavTrk (VE11C). Plain spc scans print an empty Special card, which is what separates the navigated variant from the stock one.",
       "match": {
-        "base_binaries": ["spc"],
+        "base_binaries": [
+          "spc"
+        ],
         "special_all": [
           "ABCD navigator",
           "Moco ref. image",
@@ -139,9 +152,16 @@
       "priority": 20,
       "note": "MEMPRAGE without the vNav navigator. Its four labels are disjoint from the vNav set, so the two tfl_me variants separate cleanly: 18 scans named T1_MEMPRAGE_64ch or MEMPRAGE across VE11C, XA30 and XA60. VB17A prints the sequence file name tfl_mgh_multiecho instead, on scans named me_mprage and T1_mprage_mgh.",
       "match": {
-        "binaries": ["tfl_mgh_multiecho"],
-        "base_binaries": ["tfl_me"],
-        "special_all": ["Gradient moment factor", "Readout trajectory"]
+        "binaries": [
+          "tfl_mgh_multiecho"
+        ],
+        "base_binaries": [
+          "tfl_me"
+        ],
+        "special_all": [
+          "Gradient moment factor",
+          "Readout trajectory"
+        ]
       }
     },
     {
@@ -151,8 +171,15 @@
       "priority": 10,
       "note": "Deelchand's semi-LASER. The binary is renamed across releases -- sead on VE11C, slaser on XA60 -- while the Special card is identical and both run scans named svs_slaser_dkd. That rename is exactly the kind of thing that breaks a conversion, so the parameter fingerprint rather than the binary is what identifies it.",
       "match": {
-        "binaries": ["sead", "slaser"],
-        "special_all": ["OVS module 1", "GOIA/FOCI", "FA AutoCalib"]
+        "binaries": [
+          "sead",
+          "slaser"
+        ],
+        "special_all": [
+          "OVS module 1",
+          "GOIA/FOCI",
+          "FA AutoCalib"
+        ]
       }
     },
     {
@@ -162,8 +189,13 @@
       "priority": 10,
       "note": "Auerbach's eja_svs_mpress. Eight scans across VE11C and XA60, all named eja_svs_mpress_*; the eja_ prefix is CMRR's spectroscopy suite.",
       "match": {
-        "binaries": ["mpres"],
-        "special_all": ["MEGA flip angle", "Editing pulse BW"]
+        "binaries": [
+          "mpres"
+        ],
+        "special_all": [
+          "MEGA flip angle",
+          "Editing pulse BW"
+        ]
       }
     },
     {
@@ -173,8 +205,14 @@
       "priority": 10,
       "note": "Gruetter's FASTMAP/FASTESTMAP shim sequence, which fits field projections along columns -- hence the bar geometry parameters. Ten scans across VE11C and XA60, every one named fastestmap. Confirmed by the protocol's owner.",
       "match": {
-        "binaries": ["fastmp"],
-        "special_all": ["Type of fit", "Bar thickness", "Save plots to database"]
+        "binaries": [
+          "fastmp"
+        ],
+        "special_all": [
+          "Type of fit",
+          "Bar thickness",
+          "Save plots to database"
+        ]
       }
     },
     {
@@ -184,8 +222,17 @@
       "priority": 10,
       "note": "The ZPL_ binary prefix is the author's initials; the shipped examples carry four of them -- ZPL_epsi_fid, ZPL_epsi_fid_v1h, ZPL_epsi_se_v1b, ZPL_JPSI_se -- running scans named ZPL_RG_EPSI_*, in protocols named *_SPICE_*. Its Special card is the widest of any sequence here, and the sampling-table file name it prints is the value that once collapsed the value column; see columns.value_origin.",
       "match": {
-        "binaries": ["ZPL_epsi_fid", "ZPL_epsi_fid_v1h", "ZPL_epsi_se_v1b", "ZPL_JPSI_se"],
-        "special_any": ["PE Samp EPSI", "Ramp. Samp. EPSI", "EPSI. EchoSpace"]
+        "binaries": [
+          "ZPL_epsi_fid",
+          "ZPL_epsi_fid_v1h",
+          "ZPL_epsi_se_v1b",
+          "ZPL_JPSI_se"
+        ],
+        "special_any": [
+          "PE Samp EPSI",
+          "Ramp. Samp. EPSI",
+          "EPSI. EchoSpace"
+        ]
       }
     },
     {
@@ -195,8 +242,12 @@
       "priority": 10,
       "note": "Sets the baseline head position that the vNav scans later navigate back to, so it acquires no images of its own -- which is why it prints exactly one Special parameter, Protocol filename. Eighteen scans across VE11C, XA30 and XA60, every one named *_setter. It is site-installed and does not survive a release change, so it belongs on the rebuild list; and because the navigated scans depend on it, rebuilding those without it is not enough.",
       "match": {
-        "binaries": ["ABCD"],
-        "special_all": ["Protocol filename"]
+        "binaries": [
+          "ABCD"
+        ],
+        "special_all": [
+          "Protocol filename"
+        ]
       }
     },
     {
@@ -206,8 +257,14 @@
       "priority": 10,
       "note": "CMRR's multiband ASL. Seen as the mbPCASL binary on VE11C and, on XA60, as an epfid scan named mbPCASLhr that prints only the three labeling parameters -- too few to match the CMRR EPI package entry, which needs six, so the labeling parameters have to identify it themselves. Siemens' product ASL in these releases is ep2d_pasl, pulsed rather than pseudo-continuous.",
       "match": {
-        "binaries": ["mbPCASL"],
-        "special_any": ["PCASL Options", "Postlabeling delay.", "Labeling Duration."]
+        "binaries": [
+          "mbPCASL"
+        ],
+        "special_any": [
+          "PCASL Options",
+          "Postlabeling delay.",
+          "Labeling Duration."
+        ]
       }
     },
     {
@@ -217,7 +274,9 @@
       "priority": 10,
       "note": "VB17A only, by sequence file name -- ep2d_DE_pcasl_iPAT, running eighteen scans named pcasl_DE_*. The DE is the dual echo. Confirmed third-party by the export's USER owner label; the group that wrote it is not recorded, so the vendor is left unattributed rather than guessed.",
       "match": {
-        "binaries": ["ep2d_DE_pcasl_iPAT"]
+        "binaries": [
+          "ep2d_DE_pcasl_iPAT"
+        ]
       }
     },
     {
@@ -227,7 +286,9 @@
       "priority": 10,
       "note": "VB17A only, and identified by the sequence file name alone, since VB17A prints no Special card. Ten scans named VASO_flipback_*.",
       "match": {
-        "binaries": ["mjd_mclean_flipback"]
+        "binaries": [
+          "mjd_mclean_flipback"
+        ]
       }
     },
     {
@@ -237,7 +298,9 @@
       "priority": 10,
       "note": "VB17A only, by sequence file name -- a modified ep2d_se for vascular-space-occupancy CBV imaging. Attribution is from the protocol's owner; no export states it.",
       "match": {
-        "binaries": ["ep2d_se_VASO"]
+        "binaries": [
+          "ep2d_se_VASO"
+        ]
       }
     },
     {
@@ -247,7 +310,26 @@
       "priority": 10,
       "note": "VB17A only, by sequence file name -- ep2d_bold_MGH_tb. One scan in the shipped examples.",
       "match": {
-        "binaries": ["ep2d_bold_MGH_tb"]
+        "binaries": [
+          "ep2d_bold_MGH_tb"
+        ]
+      }
+    },
+    {
+      "id": "uiuc-vaso",
+      "vendor": "UIUC",
+      "family": "VASO -- vascular space occupancy",
+      "priority": 10,
+      "note": "Attributed to UIUC by the protocol's owner. The binary prints as 'vso rslh6.0' and the archive names the sequence file rslh_ep3d_vaso, so the printed string carries a build number that a later release would change -- which is why the Special card is listed too, and why the three VASO Pre-* delays are the ones chosen: they name the technique rather than the EPI readout it shares with everything else on that card.",
+      "match": {
+        "binaries": [
+          "vso rslh6.0"
+        ],
+        "special_any": [
+          "VASO Pre-TI1 delay",
+          "VASO Pre-TI2 delay",
+          "VASO Pre-Inv delay"
+        ]
       }
     }
   ]

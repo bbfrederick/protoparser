@@ -24,10 +24,13 @@
         "sequence": "vso rslh6.0"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "UIUC",
+        "family": "VASO -- vascular space occupancy",
+        "signature": "uiuc-vaso",
         "evidence": [
-          "sequence binary 'vso rslh6.0' is not a listed Siemens kernel",
-          "prints 30 sequence-specific parameter(s) no signature accounts for, including EPI ramp factor, EPI ramp factor 2, Expert ramping"
+          "sequence binary 'vso rslh6.0'",
+          "Special card prints VASO Pre-TI1 delay, VASO Pre-TI2 delay, VASO Pre-Inv delay"
         ],
         "special_parameters": 30
       },
