@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import collections
 import json
+import math
 import os
 import pathlib
 import re
@@ -1244,10 +1245,12 @@ def _option_scan(archive_path: str, pdf_path: str) -> tuple:
     blocks = [_ascconv(s.protocol.xprotocol) for _, s in pairs]
     keys = set().union(*blocks)
     modal = _modal(blocks)
-    baseline = min(
-        range(len(pairs)),
-        key=lambda i: sum(1 for k in keys if blocks[i].get(k) != modal.get(k)),
-    )
+    apart = [sum(1 for k in keys if block.get(k) != modal.get(k)) for block in blocks]
+    # A replay needs a copy that carries no edit of its own. "Closest to the
+    # modal block" is not that: extravals holds five perturbations and no
+    # untouched copy, so the nearest one still differs somewhere and every
+    # replay off it inherits that difference. Report the absence instead.
+    baseline = apart.index(0) if 0 in apart else None
     return pairs, prints, blocks, baseline
 
 
@@ -1310,8 +1313,12 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
     labels = {m.label for m in patch.MAPPINGS}
     replayed, refused, differing = 0, [], []
     unclaimed: set[str] = set()
+    contributing = 0
     for archive_path, pdf_path in PARAMCHECK_PAIRS:
         pairs, prints, blocks, baseline = _option_scan(archive_path, pdf_path)
+        if baseline is None:
+            continue
+        contributing += 1
         base = pairs[baseline][1].protocol
         printed_base, ascconv_base = _modal(prints), _modal(blocks)
         for index, (printed_now, block) in enumerate(zip(prints, blocks)):
@@ -1355,6 +1362,7 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
                 differing.append((label, sorted(blamed)[:3]))
             unclaimed.update(diff - claimed)
     assert replayed > 25, f"only {replayed} options replayed; this proves little"
+    assert contributing >= 6, f"only {contributing} option scans had a usable baseline"
     assert not differing, f"replay wrote the wrong value into a mapped field: {differing}"
     # Whatever is left must be named, not merely counted, or the replay passes
     # by declaring its failures out of scope. Both are the console moving a
@@ -1475,3 +1483,77 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
                     wrong.append(f"{step.name}: {mapping.label}={shown!r} stored {stored}")
     assert checked > 500, f"only {checked} choices compared; this proves little"
     assert not wrong, f"choices disagree with the corpus: {wrong[:5]}"
+
+
+@requires_paramcheck
+def test_the_slice_array_is_a_function_of_its_group_parameters() -> None:
+    """Every slice position follows from six group quantities.
+
+    The geometry cards look like a twelve-field cascade because one console
+    option moves six to twelve ``sSliceArray.asSlice[]`` fields at once. None
+    of them is independent: the array is an arithmetic progression along the
+    slice normal, centred on the isocentre, with a step of
+    ``thickness * (1 + distance factor)``.
+
+    Asserted across the whole corpus rather than one scan, because a single
+    protocol cannot tell the two factors apart -- at a distance factor of
+    zero, ``step`` and ``thickness`` are the same number, and the rule looked
+    established for some time on exactly that evidence. ``extravals`` varies
+    them separately, which is what makes the product the claim rather than
+    either factor alone.
+
+    Returns
+    -------
+    None
+    """
+    axes = ("dSag", "dCor", "dTra")
+    checked, factors = 0, set()
+    centres: list[list[float]] = []
+    for archive_path, _pdf in PARAMCHECK_PAIRS:
+        for step in read(archive_path).steps:
+            if not step.runs_a_protocol:
+                continue
+            text = step.protocol.xprotocol
+
+            def value(key: str, fallback: float | None = None) -> float | None:
+                found = patch.read_ascconv(text, key)
+                return float(found) if found is not None else fallback
+
+            count = value("sSliceArray.lSize")
+            thickness = value("sSliceArray.asSlice[0].dThickness")
+            if not count or count < 3 or not thickness:
+                continue
+            count = int(count)
+            spread = value("sGroupArray.asGroup[0].dDistFact", 0.0)
+            if value("sGroupArray.asGroup[1].nSize") is not None:
+                continue  # several slice groups: the corpus never varies one
+            positions = [
+                [value(f"sSliceArray.asSlice[{n}].sPosition.{a}", 0.0) for a in axes]
+                for n in range(count)
+            ]
+            normal = [value(f"sSliceArray.asSlice[0].sNormal.{a}", 0.0) for a in axes]
+            centre = [sum(p[k] for p in positions) / count for k in range(3)]
+            expected_step = thickness * (1.0 + spread)
+            factors.add(round(spread, 3))
+            for n, position in enumerate(positions):
+                offset = (n - (count - 1) / 2) * expected_step
+                predicted = [centre[k] + normal[k] * offset for k in range(3)]
+                apart = math.dist(predicted, position)
+                assert apart < 5e-3, (
+                    f"{os.path.basename(archive_path)}/{step.name} slice {n}: "
+                    f"predicted {predicted} but stored {position}"
+                )
+            checked += 1
+            if os.path.basename(archive_path).startswith("extravals"):
+                centres.append(centre)
+    assert checked > 40, f"only {checked} scans exercised the formula"
+    assert factors >= {0.0, 0.2, 0.5}, f"distance factor barely varied: {sorted(factors)}"
+    # Those five copies vary only the count and the spacing, so the group
+    # centre must not move: the array re-centres rather than growing from
+    # slice zero, which is what makes the six inputs sufficient on their own.
+    # Stated over that one set rather than the corpus, because the centre is
+    # itself a free parameter -- geomopts/G04 translates the group on purpose.
+    assert len(centres) == 5, f"extravals gave {len(centres)} slice groups, expected 5"
+    assert all(
+        math.dist(one, centres[0]) < 5e-3 for one in centres
+    ), f"the group centre moved when only count and spacing changed: {centres}"

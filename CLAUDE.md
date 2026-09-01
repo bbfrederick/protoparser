@@ -397,7 +397,13 @@ before/after pair is the only way to learn where a printed value is stored --
       step        = thickness * (1 + distance factor)
 
   with `sNormal`, `dThickness` and `dInPlaneRot` identical on every slice.
-  Verified on a 60-slice EPI to a worst deviation of 14 nanometres. This is
+  Verified on a 60-slice EPI to a worst deviation of 14 nanometres, and then
+  against `paramcheck/XA60/extravals`, which varies the inputs independently:
+  the step is exactly `thickness * (1 + distance factor)` at distance factors
+  0, 20% and 50% and thicknesses 2.5 and 3.0 mm. Before that pair the two
+  factors had only ever been seen at values where they could not be told
+  apart -- one scan with a distance factor of zero, where `step` and
+  `thickness` are the same number. This is
   why the geometry labels look like a cascade: `Position`, `Orientation`,
   `Rotation`, `Slices`, `Slice Thickness` and `Distance Factor` each move six
   to twelve `asSlice[]` fields, and none of those fields is independent. The
@@ -405,6 +411,22 @@ before/after pair is the only way to learn where a printed value is stored --
   consistency rule above that is not merely tidier, it is the only safe
   option: a recomputed array is internally consistent by construction, where
   a partly written one never is.
+- **The slice array re-centres; it does not grow from slice zero.** Adding
+  slices (60 to 63) or widening the spacing (distance factor 0 to 50%) leaves
+  the group centre exactly where it was, on all five `extravals` copies. So
+  the six inputs plus the recomputation really are enough -- nothing has to
+  be carried over from the array being replaced. The centre itself is a free
+  parameter and often is *not* the isocentre: `geomopts/G04` translates the
+  group deliberately, which is what makes "centred on the isocentre" a
+  property of those particular copies rather than a rule, and a test written
+  that way fails on G04.
+- **The printed slab extent is edge-to-edge, and the obvious formula is
+  wrong in a way that hides.** `F >> H` is `(n - 1) * step + thickness`, the
+  distance from the outer face of the first slice to the outer face of the
+  last. The naive `n * step` agrees on four of the five `extravals` copies
+  and misses the fifth by a millimetre, which is exactly small enough to read
+  as rounding -- it is not a stored field at all, so anything writing it is
+  writing a derived quantity.
 - **Three geometry objects share the frame and must not be assumed to follow
   each other.** `sAAInitialOffset.SliceInformation` carries the slice normal
   on 395 of 445 corpus scans, so it largely tracks the slice geometry;
