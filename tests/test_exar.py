@@ -356,9 +356,16 @@ def test_every_step_is_named_and_measurement_steps_hold_a_protocol(
     assert steps
     for step in steps:
         assert step.name, f"step {step.instance.object_id} has no name"
-        assert step.is_pause != step.runs_a_protocol, (
+        # The kind and the content must agree about whether this step scans.
+        # Testing "is it a pause" instead was answering a narrower question and
+        # failed the moment a second non-acquiring kind turned up.
+        assert step.acquires == step.runs_a_protocol, (
             f"{step.name}: kind is {step.instance.kind} but "
             f"{'no ' if not step.runs_a_protocol else ''}protocol is attached"
+        )
+        assert step.instance.kind in archive.STEP_KINDS, (
+            f"{step.name}: {step.instance.kind} is in a running order but is not "
+            "a declared step kind"
         )
         if step.runs_a_protocol:
             assert step.protocol.xprotocol.startswith("<XProtocol>")

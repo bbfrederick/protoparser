@@ -1,0 +1,250 @@
+{
+  "source_file": "examples/XA60/VASO test.pdf",
+  "software_version": "XA60",
+  "detection": {
+    "method": "header-string",
+    "confidence": "high"
+  },
+  "scanner": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",
+  "page_count": 3,
+  "front_matter_pages": [
+    1
+  ],
+  "scans": [
+    {
+      "index": 0,
+      "name": "rslh_ep3d_vaso",
+      "path": "\\\\Research\\Investigators\\Frederick\\VASO test\\rslh_ep3d_vaso",
+      "header": {
+        "ta": "14 sec",
+        "coil_selection": "Auto",
+        "voxel_size_mm": "2.5×2.5×2.5",
+        "pat": "None",
+        "rel_snr": "1.00",
+        "sequence": "vso rslh6.0"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "DZNE Bonn",
+        "family": "VASO -- vascular space occupancy",
+        "signature": "dzne-vaso",
+        "evidence": [
+          "sequence binary 'vso rslh6.0'",
+          "Special card prints VASO Pre-TI1 delay, VASO Pre-TI2 delay, VASO Pre-Inv delay"
+        ],
+        "special_parameters": 30
+      },
+      "sections": {
+        "Properties": {
+          "Start measurement without further preparation": "On",
+          "Wait for User to Start": "Off",
+          "Start measurements": "Single Measurement",
+          "Prio Recon": "Off",
+          "Auto Open Inline Display": "Off",
+          "Auto Close Inline Display": "Off",
+          "Load Images to MR View&GO": "On",
+          "Auto Store Images": "On",
+          "Disable auto transfer to PACS": "Off",
+          "Load Images to Stamp Segments": "Off",
+          "Load Images to Graphic Segments": "Off",
+          "Graphic segment": "Default",
+          "Inline Movie": "Off"
+        },
+        "Routine": {
+          "Slab Group": "1",
+          "Slabs": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "Slices per Slab": "48",
+          "Phase Oversampling": "0.0 %",
+          "Slice Oversampling": "0.0 %",
+          "FOV Read": "210 mm",
+          "FOV Phase": "100.0 %",
+          "Slice Thickness": "2.50 mm",
+          "TR": "130.0 ms",
+          "Vol. TR": "12.50064 s",
+          "TE 1": "48.00 ms",
+          "Averages": "1",
+          "Multi-echo Shots": "1",
+          "AutoAlign": "---"
+        },
+        "Contrast - Common": {
+          "TR": "130.0 ms",
+          "Vol. TR": "12.50064 s",
+          "TE 1": "48.00 ms",
+          "Multi-echo spacing": "88.00 ms",
+          "MTC": "Off",
+          "Magn. Preparation": "Non-sel. IR",
+          "TI 1": "3130.32 ms",
+          "TI 2": "9370.32 ms",
+          "Flip Angle": "13 deg",
+          "Fat-Water Contrast": "Standard",
+          "Contrasts": "1",
+          "Reconstruction": "Magnitude"
+        },
+        "Contrast - Dynamic": {
+          "Dynamic Mode": "Standard",
+          "Measurements": "1",
+          "Reordering": "Linear"
+        },
+        "Resolution - Common": {
+          "FOV Read": "210 mm",
+          "FOV Phase": "100.0 %",
+          "Slice Thickness": "2.50 mm",
+          "Base Resolution": "84",
+          "Phase Resolution": "100 %",
+          "Slice Resolution": "100 %",
+          "Interpolation": "Off"
+        },
+        "Resolution - Acceleration": {
+          "Acceleration Mode": "None",
+          "Phase Partial Fourier": "Off",
+          "Slice Partial Fourier": "Off",
+          "Asymmetric Echo": "Off"
+        },
+        "Resolution - Filter": {
+          "Raw Filter": "Off",
+          "Elliptical Filter": "Off",
+          "Distortion Correction": "Off",
+          "Normalize": "Off",
+          "Image Filter": "Off"
+        },
+        "Geometry - Common": {
+          "Slab Group": "1",
+          "Slabs": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "Slices per Slab": "48",
+          "Phase Oversampling": "0.0 %",
+          "Slice Oversampling": "0.0 %",
+          "FOV Read": "210 mm",
+          "FOV Phase": "100.0 %",
+          "Slice Thickness": "2.50 mm",
+          "TR": "130.0 ms",
+          "Vol. TR": "12.50064 s",
+          "Multi-echo Shots": "1"
+        },
+        "Geometry - AutoAlign": {
+          "Slab Group": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "Isocenter",
+          "L": "0.0 mm",
+          "P": "0.0 mm",
+          "H": "0.0 mm",
+          "Initial Orientation": "Transversal",
+          "Initial Rotation": "0.00 deg"
+        },
+        "Geometry - Saturation": {
+          "Saturation Mode": "Standard"
+        },
+        "Geometry - Tim Planning Suite": {
+          "Set-n-Go Protocol": "Off",
+          "Table Position": "0 mm",
+          "Table Position #2": "H",
+          "Inline Composing": "Off"
+        },
+        "System - Miscellaneous": {
+          "Coil Selection": "Auto Coil Select",
+          "Radial Sorting": "Off",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combination": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "Coil Focus": "Flat"
+        },
+        "System - Adjustments": {
+          "Adjustment Strategy": "Standard",
+          "B0 Shim": "Brain",
+          "B1 Shim": "TrueForm",
+          "Adjustment Tolerance": "Auto",
+          "Adjust with Body Coil": "Off",
+          "Confirm Frequency": "Never",
+          "Assume Silicone": "Off"
+        },
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "210 mm",
+          "R >> L": "210 mm",
+          "F >> H": "120 mm",
+          "Reset": "Off"
+        },
+        "System - pTx": {
+          "B1 Shim": "TrueForm",
+          "Excitation": "Slab-sel."
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249358 MHz",
+          "? Ref. Amplitude 1H": "0.000 V",
+          "Reset": "Off",
+          "Image Scaling": "1.000"
+        },
+        "Sequence - Part 1": {
+          "Sequence Name": "vso rslh6.0",
+          "Dimension": "3D",
+          "Excitation": "Slab-sel.",
+          "RF Pulse Type": "Normal",
+          "Gradient Mode": "Fast",
+          "Reordering": "Linear",
+          "Bandwidth": "1044 Hz/Px",
+          "Echo Spacing": "1.04 ms",
+          "Asymmetric Echo": "Off",
+          "Turbo Factor": "48",
+          "Segmentation": "1",
+          "EPI Factor": "84"
+        },
+        "Sequence - Part 2": {
+          "Introduction": "On",
+          "RF Spoiling": "On"
+        },
+        "Sequence - Special": {
+          "RF duration": "1080 us",
+          "RF time x BW": "18",
+          "PAT ref. FA": "5 deg",
+          "Fat sat. FA": "110 deg",
+          "Variable FA": "4",
+          "Invert PE": "Off",
+          "Min. TE w/ PF": "On",
+          "Expert ramping": "Off",
+          "Trigger per shot": "Off",
+          "Noise image": "Off",
+          "Relax spoilers": "Off",
+          "MT flip angle": "170 deg",
+          "MT off-res.": "2000 Hz",
+          "MT RF duration": "12800 us",
+          "Phase Correction": "per Series",
+          "EPI ramp factor": "1.10",
+          "EPI ramp factor 2": "1.10",
+          "Ramp sampling": "1.00 1:max",
+          "Slab Scale": "0 %",
+          "Modify Ice Config": "On",
+          "G-factor map": "Off",
+          "Mosaic DICOMs": "Off",
+          "GRAPPA Regularization": "5000 /10^6",
+          "G. spoil dephasing[1]": "0 pi",
+          "G. spoil dephasing[2]": "2 pi",
+          "G. spoil dephasing[3]": "2 pi",
+          "Read polarity": "Regular RO",
+          "VASO Pre-TI1 delay": "0.00 ms",
+          "VASO Pre-TI2 delay": "0 ms",
+          "VASO Pre-Inv delay": "0 ms"
+        },
+        "Sequence - Assistant": {
+          "SAR Assistant": "Off"
+        }
+      },
+      "pages": [
+        2,
+        3
+      ]
+    }
+  ]
+}

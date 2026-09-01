@@ -30,6 +30,7 @@ from conftest import (  # noqa: F401
     EXAR_PROTOCOL_FILES,
     PARAMCHECK_IDS,
     PARAMCHECK_PAIRS,
+    UNTRUSTWORTHY_SCANS,
     find_exar,
     find_pdf,
     protocol_archive_path,
@@ -1355,15 +1356,25 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
             unclaimed.update(diff - claimed)
     assert replayed > 25, f"only {replayed} options replayed; this proves little"
     assert not differing, f"replay wrote the wrong value into a mapped field: {differing}"
-    # Whatever is left must be small and nameable, or the replay is passing
-    # by declaring its failures out of scope.
-    assert (
-        len(unclaimed) <= 1
-    ), f"replay left {len(unclaimed)} unmapped fields: {sorted(unclaimed)}"
+    # Whatever is left must be named, not merely counted, or the replay passes
+    # by declaring its failures out of scope. Both are the console moving a
+    # second field for a copy that prints one change: executionopts E05 sets a
+    # timing-delay flag beside the workflow one, and a geometry copy sets
+    # Laterality beside the rotation it prints.
+    expected_extra = {"sAngio.ucUseTimingDelay", "sAAInitialOffset.Laterality"}
+    assert unclaimed <= expected_extra, (
+        "replay left fields no mapping claims and none expected: "
+        f"{sorted(unclaimed - expected_extra)}"
+    )
     # One refusal is expected and correct: AutoAlign printed as "---" moves
     # ucAARegionMode as well as ucAARefMode, and writing half of a coupled
     # pair is worse than declining.
-    assert len(refused) <= 1, refused
+    # Refusals are allowed only where declining is the designed answer.
+    # AutoAlign stores 1 for both "---" and "Head", so that code is not a
+    # function of this field alone and is left out of the choices on purpose;
+    # writing it would need ucAARegionMode as well.
+    unexpected = [one for one in refused if one[0] != "AutoAlign"]
+    assert not unexpected, f"replay refused something it should have written: {unexpected}"
 
 
 @requires_exar
@@ -1383,7 +1394,10 @@ def test_an_archive_and_the_pdf_beside_it_name_the_same_protocol() -> None:
     -------
     None
     """
-    known_bad = {"31P CSI 20230503 NOE.exar1"}
+    # This was one for a while: a CHR-MDD export shipped under a 31P file
+    # name. It has been replaced, so nothing should mismatch now -- kept as a
+    # set so a future one is named rather than blanket tolerated.
+    known_bad: set[str] = set()
     checked, mismatched = 0, set()
     for path, _version in EXAR_PROTOCOL_FILES:
         pdf = os.path.splitext(path)[0] + ".pdf"
@@ -1402,3 +1416,62 @@ def test_an_archive_and_the_pdf_beside_it_name_the_same_protocol() -> None:
     assert (
         mismatched == known_bad
     ), f"archive/PDF pairs naming different protocols changed: {sorted(mismatched)}"
+
+
+@requires_paramcheck
+def test_every_enum_choice_agrees_with_the_corpus() -> None:
+    """A choice must match what the printout shows beside its stored code.
+
+    The option scans are console-authored, so a printed label sitting beside a
+    stored number is that sequence's own encoding. Checking every choice
+    against every scan that prints it turns a table derived from a handful of
+    toggles into one the whole corpus agrees with, and it fails on the case
+    that matters: a code repurposed between builds, or a choice transcribed
+    against the wrong number.
+
+    Archives we wrote are excluded. A ``*_loadtest`` file came back from a
+    scanner, but the parameter sets in it are ones this tool invented, and the
+    console's display of a coupled value there reads *our* combination rather
+    than reporting its encoding -- ``ABCD navigator`` shows ``Off`` against a
+    stored 2 in two such scans, because the navigator was switched off by a
+    different field.
+
+    Returns
+    -------
+    None
+    """
+    enums = [m for m in patch.MAPPINGS if m.choices and m.bit is None]
+    checked, wrong = 0, []
+    for path, _version in EXAR_PROTOCOL_FILES + [(a, "XA60") for a, _p in PARAMCHECK_PAIRS]:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf) or "loadtest" in os.path.basename(path):
+            continue
+        scans = collections.defaultdict(list)
+        for scan in parse_document(pdf).protocol.to_dict()["scans"]:
+            scans[scan["name"]].append(scan)
+        for step in read(path).steps:
+            held = scans.get(step.name)
+            if not step.runs_a_protocol or not held or len(held) != 1:
+                continue
+            if step.name in UNTRUSTWORTHY_SCANS:
+                continue
+            shown_by_label = _printed(held[0])
+            for mapping in enums:
+                if not patch.applies_to(mapping, step.protocol):
+                    continue
+                shown = shown_by_label.get(mapping.label)
+                if shown is None:
+                    continue
+                wanted = dict(mapping.choices).get(str(build.printed_value(shown)))
+                if wanted is None:
+                    continue
+                targets = patch.expand(mapping.ascconv_key, step.protocol.xprotocol)
+                stored = (
+                    patch.read_ascconv(step.protocol.xprotocol, targets[0][0]) if targets else None
+                )
+                got = 0 if stored is None else int(str(stored), 0)
+                checked += 1
+                if got != wanted:
+                    wrong.append(f"{step.name}: {mapping.label}={shown!r} stored {stored}")
+    assert checked > 500, f"only {checked} choices compared; this proves little"
+    assert not wrong, f"choices disagree with the corpus: {wrong[:5]}"

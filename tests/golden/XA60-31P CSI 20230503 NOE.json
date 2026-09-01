@@ -211,7 +211,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -461,7 +461,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -689,7 +689,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -885,7 +885,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1035,7 +1035,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1185,7 +1185,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1335,7 +1335,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1485,7 +1485,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -1640,8 +1640,8 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 31P": "49.891823 MHz",
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 31P": "49.891913 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 31P": "0.000 V",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
@@ -1807,8 +1807,8 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 31P": "49.891823 MHz",
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 31P": "49.891913 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 31P": "0.000 V",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
@@ -2021,7 +2021,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2271,7 +2271,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2513,7 +2513,7 @@
           "B1 Shim": "TrueForm"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249275 MHz",
+          "Frequency 1H": "123.249498 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"

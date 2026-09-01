@@ -56,8 +56,18 @@ MEASUREMENT_STEP = "EdfMeasurementStep"
 #: mixes both kinds and anything walking *scans* has to skip these.
 PAUSE_STEP = "EdfPauseStep"
 
-#: Both kinds that appear in a program's running order.
-STEP_KINDS = (MEASUREMENT_STEP, PAUSE_STEP)
+#: Another step that acquires nothing, for an action the operator takes at the
+#: console rather than a wait -- ``VA brain`` in the 31P export. A second kind
+#: of non-acquiring step is the point: "not a pause" is not the same question
+#: as "runs a protocol", and code that tested for ``EdfPauseStep`` to decide
+#: whether to expect a protocol was answering the wrong one.
+INTERACTION_STEP = "EdfInteractionStep"
+
+#: Every kind that appears in a program's running order. A step holds a
+#: protocol exactly when it is a ``MEASUREMENT_STEP``: that holds across all
+#: 481 steps in the corpus, and it is the rule to test against rather than
+#: enumerating the kinds that do not.
+STEP_KINDS = (MEASUREMENT_STEP, PAUSE_STEP, INTERACTION_STEP)
 PROTOCOL = "EdfProtocol"
 STRING = "EdfString"
 
@@ -251,14 +261,32 @@ class Step:
 
     @property
     def is_pause(self) -> bool:
-        """Return whether this step is an instruction rather than an acquisition.
+        """Return whether this step is a wait rather than an acquisition.
 
         Returns
         -------
         bool
-            ``True`` for an ``EdfPauseStep``.
+            ``True`` for an ``EdfPauseStep`` only. Use :attr:`acquires` to ask
+            whether a step scans anything: an ``EdfInteractionStep`` is not a
+            pause and does not acquire either.
         """
         return self.instance.kind == PAUSE_STEP
+
+    @property
+    def acquires(self) -> bool:
+        """Return whether this step's kind is one that carries a protocol.
+
+        Read from the instance kind, where :attr:`runs_a_protocol` reads the
+        content. The two must always agree, and a test asserts they do across
+        the corpus: either alone could be wrong, and the pair is what noticed
+        ``EdfInteractionStep`` existing at all.
+
+        Returns
+        -------
+        bool
+            ``True`` for an ``EdfMeasurementStep``.
+        """
+        return self.instance.kind == MEASUREMENT_STEP
 
     @property
     def runs_a_protocol(self) -> bool:

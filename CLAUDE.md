@@ -254,10 +254,16 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past
-  that -- CMRR, MGH, UIUC, Manus Donahue -- was supplied by the user and lives
-  in each signature's `note`. Do not "correct" one of these from a plausible
-  inference: the note says where it came from, and a guess overwriting a
-  confirmation is a silent regression. `dual-echo-pcasl` is deliberately left
+  that -- CMRR, MGH, UIUC, DZNE Bonn, Manus Donahue -- was supplied by the
+  user and lives in each signature's `note`. Do not "correct" one of these
+  from a plausible inference: the note says where it came from, and a guess
+  overwriting a confirmation is a silent regression. The binary name is the
+  most tempting inference and the one to resist hardest. Two of these
+  sequences carry their author's initials in it -- `ZPL_epsi_fid` for Zhi-Pei
+  Liang, `rslh_ep3d_vaso` for Renzo Huber -- which makes the prefix look like
+  a reliable key, and it is not: the VASO sequence was attributed to the wrong
+  institution on exactly that basis before its owner corrected it to DZNE
+  Bonn. Read the initials as a hint worth asking about, never as an answer. `dual-echo-pcasl` is deliberately left
   `unattributed (site-installed)` because that one is genuinely unknown.
 - **`sequence_owner` is the export saying so, so it decides the verdict.** VB17A
   introduces the binary with `SIEMENS:` or `USER:`; `profiles/vb17a.py` has
@@ -382,6 +388,35 @@ before/after pair is the only way to learn where a printed value is stored --
   console's listing, not a mirror of the printout -- a multi-echo scan prints
   `TE 1`..`TE 4` and `Preview` carries only the first, the rest living in
   `alTE[1..3]` alone.
+- **The per-slice array is computed, not stored, so do not try to map it.**
+  Every element of `sSliceArray.asSlice[]` is a function of six group
+  quantities -- centre position, normal, in-plane rotation, thickness,
+  distance factor and slice count::
+
+      position[i] = centre + normal * ((i - (n - 1) / 2) * step)
+      step        = thickness * (1 + distance factor)
+
+  with `sNormal`, `dThickness` and `dInPlaneRot` identical on every slice.
+  Verified on a 60-slice EPI to a worst deviation of 14 nanometres. This is
+  why the geometry labels look like a cascade: `Position`, `Orientation`,
+  `Rotation`, `Slices`, `Slice Thickness` and `Distance Factor` each move six
+  to twelve `asSlice[]` fields, and none of those fields is independent. The
+  right target is the six inputs plus this recomputation -- and under the
+  consistency rule above that is not merely tidier, it is the only safe
+  option: a recomputed array is internally consistent by construction, where
+  a partly written one never is.
+- **Three geometry objects share the frame and must not be assumed to follow
+  each other.** `sAAInitialOffset.SliceInformation` carries the slice normal
+  on 395 of 445 corpus scans, so it largely tracks the slice geometry;
+  `sAdjData.sAdjVolume` matches on 3, so the adjust volume is a separate
+  object that has to be written on its own. Nothing in the corpus varies the
+  adjust volume while holding the slices still, so which of the two it is --
+  independent, or derived by a rule not yet seen -- is open.
+- **Multi-group slice arrays are effectively unexercised.** 420 of 445 scans
+  carry one slice group and the 25 with three never vary it, so
+  `sGroupArray.asGroup[]` indexing has no evidence behind it. Anything
+  reaching into a second group is writing into a shape the corpus has never
+  demonstrated.
 - **`dThickness` is the slice on a 2D acquisition and the whole slab on a 3D
   one.** `sKSpace.ucDimension` is 2 or 4 and decides which; on all eight 3D
   protocols `dThickness` is exactly the displayed thickness times
