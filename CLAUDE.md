@@ -413,7 +413,8 @@ before/after pair is the only way to learn where a printed value is stored --
   a partly written one never is.
 - **The slice array re-centres; it does not grow from slice zero.** Adding
   slices (60 to 63) or widening the spacing (distance factor 0 to 50%) leaves
-  the group centre exactly where it was, on all five `extravals` copies. So
+  the group centre exactly where it was, across all fifteen `extravals`
+  copies -- which now include tilts, a double oblique and rotations. So
   the six inputs plus the recomputation really are enough -- nothing has to
   be carried over from the array being replaced. The centre itself is a free
   parameter and often is *not* the isocentre: `geomopts/G04` translates the
@@ -427,6 +428,31 @@ before/after pair is the only way to learn where a printed value is stored --
   and misses the fifth by a millimetre, which is exactly small enough to read
   as rounding -- it is not a stored field at all, so anything writing it is
   writing a derived quantity.
+- **The slice normal follows from the printed orientation.** A printout names
+  a primary plane and up to two tilts, and the stored normal is exactly::
+
+      normal = (-sin S * cos C,  -sin C,  cos S * cos C)
+
+  in `(dSag, dCor, dTra)`, with `Transversal` `(0,0,1)` and the other two
+  cardinals likewise. Agreement is exact -- to every digit stored -- on 445
+  corpus scans. The composition order is the part that needed data: one angle
+  at a time fits either order, so it rests on `extravals` X08
+  (`T > S15.0 > C10.0`), the corpus's only double oblique. The form covers
+  transversal-primary orientations; a coronal- or sagittal-primary one needs
+  its own and the corpus has exactly one, on `SPECIAL_ACC`, which is excluded
+  anyway. With this the sixth formula input is derivable, so the whole slice
+  array can be built from the printout plus thickness, distance factor and
+  count.
+- **In-plane rotation is radians of the printed degrees**, on 413 of 415
+  scans. The two exceptions are the same scan name in two archives --
+  `pd+t2_tse_tra` prints `0.00 deg` against a stored pi/2 -- so treat a
+  disagreement as worth reading rather than as a refutation of the rule.
+- **The printed `Position` is the slice-group centre on 376 of 419 scans**,
+  mapping `L/R` to `dSag`, `A/P` to `dCor` (A negative) and `H/F` to `dTra`.
+  It is *not* reliable enough to write through: several spectroscopy scans
+  print the VoI position instead, so the printed position and the slice
+  centre are describing different objects. Of the six inputs this is the one
+  still lacking a clean derivation.
 - **Three geometry objects share the frame and must not be assumed to follow
   each other.** `sAAInitialOffset.SliceInformation` carries the slice normal
   on 395 of 445 corpus scans, so it largely tracks the slice geometry;

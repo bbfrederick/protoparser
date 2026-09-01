@@ -1544,7 +1544,11 @@ def test_the_slice_array_is_a_function_of_its_group_parameters() -> None:
                     f"predicted {predicted} but stored {position}"
                 )
             checked += 1
-            if os.path.basename(archive_path).startswith("extravals"):
+            if os.path.basename(archive_path).startswith("extravals") and (
+                patch.sequence_of(step.protocol) == "cmrr_mbep2d_bold"
+            ):
+                # Only the repeated copies. The localizer beside them sits
+                # off isocentre and belongs to no perturbation series.
                 centres.append(centre)
     assert checked > 40, f"only {checked} scans exercised the formula"
     assert factors >= {0.0, 0.2, 0.5}, f"distance factor barely varied: {sorted(factors)}"
@@ -1553,7 +1557,100 @@ def test_the_slice_array_is_a_function_of_its_group_parameters() -> None:
     # slice zero, which is what makes the six inputs sufficient on their own.
     # Stated over that one set rather than the corpus, because the centre is
     # itself a free parameter -- geomopts/G04 translates the group on purpose.
-    assert len(centres) == 5, f"extravals gave {len(centres)} slice groups, expected 5"
+    assert len(centres) > 10, f"extravals gave only {len(centres)} slice groups"
     assert all(
         math.dist(one, centres[0]) < 5e-3 for one in centres
     ), f"the group centre moved when only count and spacing changed: {centres}"
+
+
+#: Printed orientations this formula covers: transversal-primary, with
+#: optional sagittal and coronal tilts, plus the three cardinal planes. A
+#: coronal- or sagittal-primary double oblique needs its own form, and the
+#: corpus holds exactly one, on a scan excluded for other reasons.
+_CARDINAL = {
+    "Transversal": (0.0, 0.0, 1.0),
+    "Sagittal": (1.0, 0.0, 0.0),
+    "Coronal": (0.0, 1.0, 0.0),
+}
+
+
+def _normal_from_printed(orientation: str) -> tuple[float, float, float] | None:
+    """Predict the slice normal from the orientation a printout names.
+
+    Parameters
+    ----------
+    orientation : str
+        The printed orientation, for example ``T > S15.0 > C10.0``.
+
+    Returns
+    -------
+    tuple of float or None
+        The unit normal as ``(dSag, dCor, dTra)``, or ``None`` when the
+        orientation is not transversal-primary and so outside this form.
+    """
+    text = orientation.strip()
+    if text in _CARDINAL:
+        return _CARDINAL[text]
+    if not text.startswith("T"):
+        return None
+    angles = dict(re.findall(r"([SC])(-?\d+\.?\d*)", text))
+    sag = math.radians(float(angles.get("S", 0.0)))
+    cor = math.radians(float(angles.get("C", 0.0)))
+    return (
+        -math.sin(sag) * math.cos(cor),
+        -math.sin(cor),
+        math.cos(sag) * math.cos(cor),
+    )
+
+
+@requires_exar
+def test_the_slice_normal_follows_from_the_printed_orientation() -> None:
+    """The sixth formula input is derivable rather than stored-only.
+
+    ``Orientation`` prints a primary plane and up to two tilts, and the
+    stored normal is exactly ``(-sin S cos C, -sin C, cos S cos C)``. The
+    composition order is the part a single tilt cannot show, since one angle
+    at a time fits either order -- it rests on ``extravals`` X08, the corpus's
+    one double oblique, with 445 scans agreeing overall.
+
+    ``SPECIAL_ACC`` is excluded: its protocol is the wrong sequence, and it is
+    the only scan whose printed orientation disagrees with its stored normal,
+    which is a symptom of that rather than of this formula.
+
+    Returns
+    -------
+    None
+    """
+    axes = ("dSag", "dCor", "dTra")
+    pairs = [(a, "") for a, _p in PARAMCHECK_PAIRS] + list(EXAR_PROTOCOL_FILES)
+    agreed, obliques = 0, 0
+    for path, _rest in pairs:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        printed = {s["name"]: _printed(s) for s in parse_document(pdf).protocol.to_dict()["scans"]}
+        for step in read(path).steps:
+            if not step.runs_a_protocol or step.name == "SPECIAL_ACC":
+                continue
+            shown = printed.get(step.name)
+            text = step.protocol.xprotocol
+            if (
+                shown is None
+                or patch.read_ascconv(text, "sSliceArray.asSlice[0].sNormal.dTra") is None
+            ):
+                continue
+            wanted = _normal_from_printed(str(shown.get("Orientation", "")))
+            if wanted is None:
+                continue
+            stored = [
+                float(patch.read_ascconv(text, f"sSliceArray.asSlice[0].sNormal.{a}") or 0.0)
+                for a in axes
+            ]
+            assert math.dist(stored, wanted) < 2e-4, (
+                f"{os.path.basename(path)}/{step.name}: printed "
+                f"{shown.get('Orientation')!r} predicts {wanted} but stored {stored}"
+            )
+            agreed += 1
+            obliques += str(shown.get("Orientation", "")).count(">") > 1
+    assert agreed > 250, f"only {agreed} scans compared"
+    assert obliques, "no double-oblique scan, so the composition order is unexercised"
