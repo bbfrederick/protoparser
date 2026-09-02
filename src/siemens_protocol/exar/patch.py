@@ -76,6 +76,7 @@ SPARSE_KEYS = frozenset(
         "sWorkflow.ucWaitForUserStart",
         "sAAInitialOffset.SliceInformation.dInPlaneRot",
         "sPrepPulses.ucMTC",
+        "sGroupArray.asGroup[0].dDistFact",
     }
 )
 
@@ -131,6 +132,7 @@ SPARSE_ANCHORS: dict[str, tuple[str, ...]] = {
     "sSliceArray.ucImageNumbSag": ("sSliceArray.ucMode",),
     "sSliceArray.ucImageNumbTra": ("sSliceArray.ucMode",),
     "sWorkflow.ucWaitForUserStart": ("sInversionArray.asElm.__attribute__.size",),
+    "sGroupArray.asGroup[0].dDistFact": ("sGroupArray.asGroup[0].nSize",),
     "sPrepPulses.ucMTC": ("sPrepPulses.ucTIScout",),
     "ucReconstructionPrio": ("ulWrapUpMagn",),
 }
@@ -352,6 +354,17 @@ MAPPINGS: tuple[Mapping, ...] = (
         offset=-1.0,
         evidence="controlled edit: contrastopts/C09, 4->3 measurements. The card counts "
         "measurements and lRepetitions counts repeats, so the stored value trails by one.",
+    ),
+    Mapping(
+        label="Distance Factor",
+        ascconv_key="sGroupArray.asGroup[*].dDistFact",
+        scale=0.01,
+        evidence="controlled edit: extravals X03 and X04, 0%->20%->50% stored as 0.2 and "
+        "0.5. Sparse: absent on 245 corpus scans, which is a gap of zero. One of the six "
+        "inputs the per-slice array is computed from -- writing it without recomputing "
+        "sSliceArray leaves the slice positions describing the old spacing. Written to "
+        "every slice group, which is exact for the 420 single-group scans and unverified "
+        "for the 25 that carry three.",
     ),
     Mapping(
         label="Acceleration Factor PE",

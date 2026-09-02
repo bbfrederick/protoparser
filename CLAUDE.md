@@ -397,7 +397,13 @@ before/after pair is the only way to learn where a printed value is stored --
       step        = thickness * (1 + distance factor)
 
   with `sNormal`, `dThickness` and `dInPlaneRot` identical on every slice.
-  Verified on a 60-slice EPI to a worst deviation of 14 nanometres. This is
+  Verified on a 60-slice EPI to a worst deviation of 14 nanometres, and then
+  against `paramcheck/XA60/extravals`, which varies the inputs independently:
+  the step is exactly `thickness * (1 + distance factor)` at distance factors
+  0, 20% and 50% and thicknesses 2.5 and 3.0 mm. Before that pair the two
+  factors had only ever been seen at values where they could not be told
+  apart -- one scan with a distance factor of zero, where `step` and
+  `thickness` are the same number. This is
   why the geometry labels look like a cascade: `Position`, `Orientation`,
   `Rotation`, `Slices`, `Slice Thickness` and `Distance Factor` each move six
   to twelve `asSlice[]` fields, and none of those fields is independent. The
@@ -405,6 +411,48 @@ before/after pair is the only way to learn where a printed value is stored --
   consistency rule above that is not merely tidier, it is the only safe
   option: a recomputed array is internally consistent by construction, where
   a partly written one never is.
+- **The slice array re-centres; it does not grow from slice zero.** Adding
+  slices (60 to 63) or widening the spacing (distance factor 0 to 50%) leaves
+  the group centre exactly where it was, across all fifteen `extravals`
+  copies -- which now include tilts, a double oblique and rotations. So
+  the six inputs plus the recomputation really are enough -- nothing has to
+  be carried over from the array being replaced. The centre itself is a free
+  parameter and often is *not* the isocentre: `geomopts/G04` translates the
+  group deliberately, which is what makes "centred on the isocentre" a
+  property of those particular copies rather than a rule, and a test written
+  that way fails on G04.
+- **The printed slab extent is edge-to-edge, and the obvious formula is
+  wrong in a way that hides.** `F >> H` is `(n - 1) * step + thickness`, the
+  distance from the outer face of the first slice to the outer face of the
+  last. The naive `n * step` agrees on four of the five `extravals` copies
+  and misses the fifth by a millimetre, which is exactly small enough to read
+  as rounding -- it is not a stored field at all, so anything writing it is
+  writing a derived quantity.
+- **The slice normal follows from the printed orientation.** A printout names
+  a primary plane and up to two tilts, and the stored normal is exactly::
+
+      normal = (-sin S * cos C,  -sin C,  cos S * cos C)
+
+  in `(dSag, dCor, dTra)`, with `Transversal` `(0,0,1)` and the other two
+  cardinals likewise. Agreement is exact -- to every digit stored -- on 445
+  corpus scans. The composition order is the part that needed data: one angle
+  at a time fits either order, so it rests on `extravals` X08
+  (`T > S15.0 > C10.0`), the corpus's only double oblique. The form covers
+  transversal-primary orientations; a coronal- or sagittal-primary one needs
+  its own and the corpus has exactly one, on `SPECIAL_ACC`, which is excluded
+  anyway. With this the sixth formula input is derivable, so the whole slice
+  array can be built from the printout plus thickness, distance factor and
+  count.
+- **In-plane rotation is radians of the printed degrees**, on 413 of 415
+  scans. The two exceptions are the same scan name in two archives --
+  `pd+t2_tse_tra` prints `0.00 deg` against a stored pi/2 -- so treat a
+  disagreement as worth reading rather than as a refutation of the rule.
+- **The printed `Position` is the slice-group centre on 376 of 419 scans**,
+  mapping `L/R` to `dSag`, `A/P` to `dCor` (A negative) and `H/F` to `dTra`.
+  It is *not* reliable enough to write through: several spectroscopy scans
+  print the VoI position instead, so the printed position and the slice
+  centre are describing different objects. Of the six inputs this is the one
+  still lacking a clean derivation.
 - **Three geometry objects share the frame and must not be assumed to follow
   each other.** `sAAInitialOffset.SliceInformation` carries the slice normal
   on 395 of 445 corpus scans, so it largely tracks the slice geometry;
