@@ -381,6 +381,15 @@ the two consistent.
 - **`Children` holds .NET mixed-endian GUIDs** (`uuid.UUID(bytes_le=...)`),
   sixteen bytes each. Reading them big-endian gives well-formed GUIDs that match
   no element, so the failure is an empty tree rather than an error.
+- **A generated archive inherits its template's program name, and the
+  console disambiguates rather than complaining.** An archive seeded from
+  `Potpourri_P1` arrives on the scanner as `Potpourri_P1 (2)`, so a protocol
+  built from a template is named after whichever export seeded it unless
+  something says otherwise. `generate.rename` is that: a program, a step or a
+  directory is renamed by rewriting the locale table on its label node, which
+  re-hashes nothing else -- the protocols come back byte-identical. It refuses
+  a node whose label is shared with another, which no corpus archive does but
+  the format does not forbid.
 - **Scan names are not in the protocol.** They hang off `Instance.LabelElement_id`
   on an `EdfString` node whose content is a locale table. That is deliberate:
   renaming a scan must not re-hash the protocol. The key is not always the same
