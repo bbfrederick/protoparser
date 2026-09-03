@@ -12,6 +12,7 @@ tests reintroduce each defect and require it to be reported.
 
 from __future__ import annotations
 
+import copy
 import pathlib
 import re
 import uuid
@@ -842,3 +843,107 @@ def test_a_step_no_program_runs_is_reported(tmp_path: pathlib.Path) -> None:
 
     problems = validate.problems(read(str(orphaned)))
     assert any("no program's running order" in one for one in problems), problems
+
+
+@requires_exar
+def test_a_created_link_reproduces_the_console_byte_for_byte(tmp_path: pathlib.Path) -> None:
+    """Stripping an export's links and rewriting them must restore them exactly.
+
+    ``copyparametertest`` slaves eleven scans to a twelfth and exercises all
+    ten copy-reference groups plus both flags, so it is the answer key rather
+    than a sample. The payload is compared as the stored string, not as
+    decoded fields: it is an XML element the console emits, and attribute
+    order is a guess until something checks it.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archives.
+
+    Returns
+    -------
+    None
+    """
+    source = read(find_exar("copyparametertest.exar1"))
+    program = source.programs[0]
+    wanted = _relations(source, program.instance)
+    assert len(wanted) == 10 or len(wanted) >= 10, f"{len(wanted)} relations to reproduce"
+    groups = {one.group for one in program.copy_references}
+    assert len(groups) >= 10, f"the answer key exercises only {len(groups)} groups"
+
+    document = copy.deepcopy(source.document(program.instance))
+    for table in ("RelationsFrom", "RelationsTo"):
+        for key in [k for k in document[table] if k != "$id"]:
+            document[table][key]["$values"] = []
+    source.replace_content(program.instance, generate.renumber_references(document))
+    stripped = tmp_path / "stripped.exar1"
+    source.write(str(stripped))
+
+    blank = read(str(stripped))
+    assert not blank.programs[0].copy_references, "the strip left links behind"
+    steps = {s.instance.object_id: s for s in blank.programs[0].steps}
+    for link in read(find_exar("copyparametertest.exar1")).programs[0].copy_references:
+        generate.link_steps(
+            blank,
+            steps[link.source],
+            steps[link.target],
+            group=link.group,
+            copy_phase_encoding=link.copies_phase_encoding_direction,
+            copy_steps=link.copies_steps,
+            ignore_last_step=link.ignores_last_step,
+            ignore_measurements=link.ignores_measurements,
+        )
+    relinked = tmp_path / "relinked.exar1"
+    blank.write(str(relinked))
+
+    final = read(str(relinked))
+    assert validate.problems(final) == []
+    rebuilt = _relations(final, final.programs[0].instance)
+    assert set(rebuilt) == set(wanted), "a link went missing or moved between steps"
+    for key, console in wanted.items():
+        for field in ("Data", "Kind", "Constraint", "State", "$type"):
+            assert rebuilt[key][field] == console[field], (
+                f"{field} differs from the console: {console[field]!r} "
+                f"against {rebuilt[key][field]!r}"
+            )
+
+
+def _relations(archive: object, program: object) -> dict[tuple[str, str], dict]:
+    """Return a program's relations keyed by the pair of steps they join.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive holding the program.
+    program : Instance
+        The program node.
+
+    Returns
+    -------
+    dict
+        ``(source, target)`` to the raw relation object.
+    """
+    document = archive.document(program)
+    found = {}
+    for key in [k for k in document.get("RelationsFrom", {}) if k != "$id"]:
+        for relation in document["RelationsFrom"][key].get("$values", []):
+            found[(relation["SourceId"], relation["TargetId"])] = relation
+    return found
+
+
+@requires_exar
+def test_an_unknown_copy_reference_group_is_refused() -> None:
+    """A group the console does not offer must not be written.
+
+    The vocabulary is the console's menu, established by one export that
+    exercises every item. Accepting a name outside it would put a payload in
+    the archive that no dialog can have produced.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    first, second = archive.steps[0], archive.steps[1]
+    with pytest.raises(ValueError, match="not a copy-reference group"):
+        generate.link_steps(archive, first, second, group="SlicesAndEverything")

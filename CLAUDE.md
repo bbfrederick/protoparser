@@ -769,6 +769,34 @@ the two consistent.
   scanner checks, so an import across releases is refused rather than
   producing a well-formed archive that will not load. Every corpus archive is
   `VA60A`, so that guard is staged in a test rather than found.
+- **A scanner has loaded links this library wrote, and repaired a coupled
+  set rather than refusing it.** 54 scans in and 54 out: 25 sequences that
+  print a Special card, drawn from five exports, each carrying one edit; and
+  ten copy references from one source, one per menu group, on eleven
+  deliberately identical scans. Every edit survived, all six Special-card
+  ones included. All ten links came back with the same source, target, group
+  and constraint, and the eleven copies were still byte-identical -- so
+  `link_steps` writes a link the console accepts, which nothing before this
+  had shown.
+- **The console reconciles what it can on import, which is a second outcome
+  beside greying a scan out.** Fifteen of the 25 came back byte-identical in
+  ASCCONV; nine differed only in `lScanTimeSec`/`lTotalScanTimeSec`, the
+  derived times `Manifest.stale` already names. The interesting one is
+  `rslh_ep3d_vaso`, where moving TR by 10 ms left three coupled fields
+  stale and the console recomputed all three exactly::
+
+      alTI[0] = 24 * TR + 10320
+      alTI[1] = 72 * TR + 10320
+      alTR[1] = 96 * TR + 20640
+
+  exact at both the old and the new TR. So an incomplete write of a coupled
+  set is not automatically the greyed-out scan: where the sequence can derive
+  the rest, it does, and the protocol comes back consistent and changed in
+  more places than were written. That does not weaken the rule -- which
+  outcome you get is still only knowable on a scanner, and `Include Nav. =
+  Off` is the same shape and was refused -- but "rejected" and "silently
+  repaired" are both live, and a diff of what came back is the only way to
+  tell which happened.
 - **A scanner has loaded a cross-archive assembly.** Forty scans, 22 of them
   appended by the library and six imported out of a *different* export; 33
   loaded. Every imported scan that loaded kept its own content -- three
