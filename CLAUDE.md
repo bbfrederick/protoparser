@@ -1030,6 +1030,49 @@ the two consistent.
   the corpus, and the sweeps that need scans take `protocol_archive_path`
   while the structural ones (envelope, hashing, GUID layout) still take
   `archive_path` and are exercised by it.
+- **Driving an archive from its own PDF must write nothing, and sweeping
+  every pair rather than one is what makes that check bite.** It exercises
+  units, scales, the derived basis, sparse arrays and change detection at
+  once, so a mapping that writes when asked to reproduce what is already
+  there is wrong about something. Run across the whole corpus it found
+  `Table Position` writing a sign flip on the nineteen scans holding -32.
+  Five pairs are named exceptions where the printout and the
+  storage legitimately disagree: four scanner returns, where an off-grid
+  value is stored faithfully and displayed snapped, and the 31P export, whose
+  spectroscopy scan prints 400 under `FOV Phase` where the stored ratio is
+  100% of a 400 mm read FOV. A second test requires each of those to *still*
+  write something, so an exception that stops being one is removed rather
+  than left hiding the next offender.
+- **A printed coordinate is a magnitude plus a direction letter, and the
+  letter carries the sign.** Siemens prints `F32` for a protocol holding
+  `-32`: L, P, F and I are the negative halves of the three axes and R, A, S
+  and H the positive ones. On a two-column card the letter lands in a field
+  of its own, which the parser names `Table Position #2`, so a mapping
+  reading only the number is reading a magnitude. That is what flipped the
+  sign, and `Mapping.sign_from` is the fix -- `H` against a non-negative
+  stored value and `F` against a negative one on all 300 corpus comparisons,
+  none against. A letter that is neither is refused rather than read as
+  positive by default, since the alternative is a silent sign flip on a
+  release that spells one differently. The same shape is why the printed
+  `Position` is still unmapped -- there the letters are recoverable too, but
+  several spectroscopy scans print the VoI position under that label rather
+  than the slice centre, which no letter can disambiguate.
+- **`expand` must ask which array *elements* exist, not which carry the
+  field.** A sparse member such as `sGroupArray.asGroup[0].dDistFact` is left
+  out while the group it belongs to is right there, so searching for the
+  field found nothing and `Distance Factor` was refused with a reason that
+  was not true. `lRepetitions` is sparse the same way -- absent on 585 corpus
+  scans, which is one measurement -- and `Measurements` was unwritable on
+  every one of them. Both were found by the driver reporting refusals, which
+  is the manifest earning its keep.
+- **A driver-built archive has been checked against an answer key.** Driving
+  `Potpourri_P1` with the `Potpourri_P1_changed` printout, against the
+  console's own edit of the same protocol: 157 fields written match exactly,
+  174 the console moved were left alone as unmapped, and 0 are wrong. The 68
+  that differ are the two documented classes and nothing else -- 67
+  `dPhaseFOV` off by at most 0.083 mm from the console's quantised ratio, and
+  one `alFree[0]` differing in bit 29, which no mapping claims. Coverage is
+  now about 30% of printed parameters, up from a tenth.
 - **`siemens-protocol-tool exar <archive> <pdf>` is the driver**, and its
   manifest is as much the point as its output. Roughly a tenth of what a
   protocol prints has a verified mapping, so a built archive is mostly the

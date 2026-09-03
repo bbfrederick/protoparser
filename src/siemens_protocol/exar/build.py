@@ -427,6 +427,52 @@ def _moved(record: patch.Applied) -> bool:
     return str(record.previous) != str(record.value)
 
 
+def apply_direction(magnitude: Any, letter: Any, mapping: patch.Mapping) -> Any:
+    """Turn a printed magnitude and its direction letter into a signed value.
+
+    Siemens prints a position as a magnitude beside a letter naming the
+    direction -- ``F32`` for a protocol holding ``-32`` -- and on a
+    two-column card the letter lands in a field of its own. The magnitude on
+    its own does not say which side of zero the value is on.
+
+    Parameters
+    ----------
+    magnitude : Any
+        The printed number, already stripped of its unit.
+    letter : Any
+        The companion field, or ``None`` when the printout does not carry one.
+    mapping : Mapping
+        The parameter being written, for its
+        :attr:`~.patch.Mapping.negative_letters`.
+
+    Returns
+    -------
+    Any
+        The signed value, or ``None`` when the letter is absent or is not one
+        this mapping knows -- which the caller must treat as "leave it alone"
+        rather than writing the magnitude.
+    """
+    if letter is None:
+        return None
+    direction = str(letter).strip().upper()
+    if not direction:
+        return None
+    if direction not in mapping.negative_letters and direction not in POSITIVE_LETTERS:
+        return None
+    try:
+        number = float(str(magnitude).strip())
+    except (TypeError, ValueError):
+        return None
+    return -abs(number) if direction in mapping.negative_letters else abs(number)
+
+
+#: The letters naming the positive half of each axis. Right, anterior,
+#: superior and head; their opposites are the negative half. Listed so a
+#: letter belonging to neither -- a release spelling one differently -- is
+#: refused rather than read as positive by default.
+POSITIVE_LETTERS = ("R", "A", "S", "H")
+
+
 def _apply_scan(
     archive: Archive, step: Any, scan: MappingType[str, Any], report: BuildReport
 ) -> None:
@@ -448,12 +494,20 @@ def _apply_scan(
     None
     """
     requests: dict[str, Any] = {}
-    for label, value in printed_parameters(scan).items():
+    printed = printed_parameters(scan)
+    for label, value in printed.items():
         mapping, _reason = patch.resolve(step.protocol, label)
         if mapping is None:
             report.inherited[label] += 1
             continue
         wanted = printed_value(value)
+        if mapping.sign_from is not None:
+            wanted = apply_direction(wanted, printed.get(mapping.sign_from), mapping)
+            if wanted is None:
+                # The magnitude without its letter does not say which side of
+                # zero the value is on, and guessing would flip a sign.
+                report.inherited[label] += 1
+                continue
         entry = (
             step.protocol.preview.get(mapping.preview_path)
             if mapping.preview_path is not None

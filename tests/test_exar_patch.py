@@ -1654,3 +1654,152 @@ def test_the_slice_normal_follows_from_the_printed_orientation() -> None:
             obliques += str(shown.get("Orientation", "")).count(">") > 1
     assert agreed > 250, f"only {agreed} scans compared"
     assert obliques, "no double-oblique scan, so the composition order is unexercised"
+
+
+#: Archive/PDF pairs where driving an archive from its own printout writes
+#: something, with the reason. Both are the printout and the storage
+#: legitimately disagreeing rather than a mapping being wrong, and both are
+#: named so a *third* one fails rather than joining them quietly.
+SELF_DRIVE_EXCEPTIONS = {
+    # Returned from a scanner: an off-grid value is stored faithfully and
+    # displayed snapped, so MT Flip Angle 371 prints as 370 and driving the
+    # archive from that printout writes the snapped number back.
+    "Potpourri_P1_loadtest.exar1",
+    "Potpourri_P2_loadtest.exar1",
+    "CMRR_optionscan_P1_loadtest.exar1",
+    "NAV_optionscan_P1_loadtest.exar1",
+    # A spectroscopy scan prints 400 under "FOV Phase" where the stored ratio
+    # is 100% of a 400 mm read FOV -- the label carries a different quantity
+    # there, which is the same trap as the printed Position.
+    "31P CSI 20230503 NOE.exar1",
+}
+
+
+@requires_exar
+def test_driving_every_console_archive_from_its_own_pdf_writes_nothing() -> None:
+    """A self-drive must be a no-op on every console-authored pair.
+
+    The single-archive version of this check has been here for a while and it
+    is the strongest one available offline: it exercises units, scales, the
+    derived basis, sparse arrays and change detection at once, and a mapping
+    that writes when asked to reproduce what is already there is wrong about
+    something. Sweeping every pair is what found `Table Position` writing a
+    sign flip -- the printout carries the magnitude, so the mapping was
+    removed.
+
+    Returns
+    -------
+    None
+    """
+    checked, offenders = 0, []
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        name = os.path.basename(path)
+        if not os.path.exists(pdf) or name in SELF_DRIVE_EXCEPTIONS:
+            continue
+        archive = read(path)
+        report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict())
+        if not report.matched:
+            continue
+        checked += 1
+        written = [one for one in report.applied if build._moved(one)]
+        if written:
+            offenders.append((name, [f"{o.step}: {o.label}" for o in written[:3]]))
+    assert checked >= 10, f"only {checked} pairs self-driven; this proves little"
+    assert not offenders, f"driving an archive from its own PDF wrote values: {offenders}"
+
+
+@requires_exar
+def test_the_self_drive_exceptions_are_all_still_exceptions() -> None:
+    """Each named exception must still write something.
+
+    An exception that has stopped being one is a mapping that improved, and
+    leaving it listed would hide the next real offender behind it.
+
+    Returns
+    -------
+    None
+    """
+    available, quiet = 0, []
+    for path, _version in EXAR_PROTOCOL_FILES:
+        name = os.path.basename(path)
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if name not in SELF_DRIVE_EXCEPTIONS or not os.path.exists(pdf):
+            continue
+        available += 1
+        archive = read(path)
+        report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict())
+        if not [one for one in report.applied if build._moved(one)]:
+            quiet.append(name)
+    assert available >= 4, f"only {available} of the named exceptions are present"
+    assert not quiet, f"these no longer write anything; drop them from the list: {quiet}"
+
+
+@requires_exar
+def test_a_printed_direction_letter_decides_the_sign() -> None:
+    """A coordinate prints as a magnitude and a letter, never as a signed number.
+
+    Siemens shows ``F32`` for a protocol holding ``-32``, and on a two-column
+    card the letter lands in a field of its own. Reading the number alone is
+    reading a magnitude, which is what once wrote a sign flip onto every scan
+    whose table position is negative.
+
+    Returns
+    -------
+    None
+    """
+    mapping = next(one for one in patch.MAPPINGS if one.label == "Table Position")
+    assert mapping.sign_from, "Table Position no longer reads its direction letter"
+
+    agree, letters = 0, collections.Counter()
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        archive = read(path)
+        scans = {
+            build.match_name(scan["name"]): scan
+            for scan in parse_document(pdf).protocol.to_dict()["scans"]
+        }
+        for program in archive.programs:
+            for step in program.steps:
+                if not step.runs_a_protocol:
+                    continue
+                scan = scans.get(build.match_name(step.name))
+                stored = patch.read_ascconv(step.protocol.xprotocol, mapping.ascconv_key)
+                if scan is None or stored is None:
+                    continue
+                printed = _printed(scan)
+                if mapping.label not in printed:
+                    continue
+                wanted = build.apply_direction(
+                    build.printed_value(printed[mapping.label]),
+                    printed.get(mapping.sign_from),
+                    mapping,
+                )
+                if wanted is None:
+                    continue
+                letters[printed.get(mapping.sign_from)] += 1
+                assert abs(wanted - float(stored)) < 0.5, (
+                    f"{step.name}: printed {printed[mapping.label]!r} "
+                    f"{printed.get(mapping.sign_from)!r} against stored {stored}"
+                )
+                agree += 1
+    assert agree > 250, f"only {agree} coordinates compared"
+    # Not vacuous: the negative half of the axis has to actually appear, or
+    # every letter could be read as positive and this would still pass.
+    assert letters["F"] > 10, f"no negative direction exercised: {dict(letters)}"
+
+
+def test_a_direction_letter_that_is_neither_is_refused() -> None:
+    """An unknown letter must not be read as positive by default.
+
+    Returns
+    -------
+    None
+    """
+    mapping = next(one for one in patch.MAPPINGS if one.label == "Table Position")
+    assert build.apply_direction(32, "F", mapping) == -32.0
+    assert build.apply_direction(32, "H", mapping) == 32.0
+    for unusable in (None, "", "X", "posterior"):
+        assert build.apply_direction(32, unusable, mapping) is None, unusable

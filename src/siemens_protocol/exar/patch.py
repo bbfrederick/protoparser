@@ -77,6 +77,7 @@ SPARSE_KEYS = frozenset(
         "sAAInitialOffset.SliceInformation.dInPlaneRot",
         "sPrepPulses.ucMTC",
         "sGroupArray.asGroup[0].dDistFact",
+        "lRepetitions",
     }
 )
 
@@ -132,6 +133,7 @@ SPARSE_ANCHORS: dict[str, tuple[str, ...]] = {
     "sSliceArray.ucImageNumbSag": ("sSliceArray.ucMode",),
     "sSliceArray.ucImageNumbTra": ("sSliceArray.ucMode",),
     "sWorkflow.ucWaitForUserStart": ("sInversionArray.asElm.__attribute__.size",),
+    "lRepetitions": ("dAveragesDouble",),
     "sGroupArray.asGroup[0].dDistFact": ("sGroupArray.asGroup[0].nSize",),
     "sPrepPulses.ucMTC": ("sPrepPulses.ucTIScout",),
     "ucReconstructionPrio": ("ulWrapUpMagn",),
@@ -165,6 +167,16 @@ class Mapping:
         Multiplier taking the displayed value to the stored one. ``1000`` for
         the times, which are displayed in milliseconds and stored in
         microseconds.
+    sign_from : str or None
+        A printed label carrying the direction letter for this parameter. A
+        Siemens printout gives a position as a magnitude and a letter -- the
+        console shows ``F32`` where the protocol holds ``-32`` -- and on a
+        two-column card the letter lands in its own field. Without it the
+        magnitude alone does not determine the stored value.
+    negative_letters : tuple of str
+        The letters of that pair meaning a negative value. L, P, F and I are
+        the negative halves of the three axes; only the H/F pair is exercised
+        by the corpus, so only it is listed.
     offset : float
         Added to the displayed value before :attr:`scale`. ``Measurements``
         needs it: the card counts measurements from one and ``lRepetitions``
@@ -210,6 +222,8 @@ class Mapping:
     evidence: str
     preview_path: str | None = None
     scale: float = 1.0
+    sign_from: str | None = None
+    negative_letters: tuple[str, ...] = ()
     offset: float = 0.0
     basis: str | None = None
     sequences: tuple[str, ...] = ()
@@ -393,7 +407,14 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Table Position",
         ascconv_key="lScanRegionPosTra",
-        evidence="controlled edit: geomopts/G24, 6->7 mm",
+        sign_from="Table Position #2",
+        negative_letters=("F", "I", "L", "P"),
+        evidence="controlled edit: geomopts/G24, 6->7 mm. The card prints a magnitude "
+        "and a direction letter in a field of its own, and the letter is what carries "
+        "the sign: H against a non-negative value and F against a negative one on all "
+        "300 corpus comparisons, none against. Reading the magnitude alone flipped the "
+        "sign on the nineteen scans holding -32, which is what driving an archive from "
+        "its own printout exposed.",
     ),
     Mapping(
         label="Image Scaling",
@@ -1340,6 +1361,15 @@ def expand(pattern: str, text: str) -> list[tuple[str, int | None]]:
     prefix, suffix = pattern.split("[*]", 1)
     found = re.compile(rf"^[ \t]*{re.escape(prefix)}\[(\d+)\]{re.escape(suffix)}[ \t]*=", re.M)
     indices = sorted({int(m.group(1)) for m in found.finditer(text, start, end)})
+    if not indices and suffix.startswith("."):
+        # The field is absent from every element, which is not the same as the
+        # array being absent: a sparse member such as
+        # sGroupArray.asGroup[0].dDistFact is simply left out while the group
+        # it belongs to is right there. Ask which *elements* exist instead, or
+        # a sparse field can never be created -- it resolves to nothing and
+        # the write is refused for a reason that is not true.
+        element = re.compile(rf"^[ \t]*{re.escape(prefix)}\[(\d+)\]\.", re.M)
+        indices = sorted({int(m.group(1)) for m in element.finditer(text, start, end)})
     return [(f"{prefix}[{i}]{suffix}", i) for i in indices]
 
 
