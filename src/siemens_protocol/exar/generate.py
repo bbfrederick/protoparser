@@ -513,3 +513,66 @@ def link_steps(
     # marker on both, which is what keeps the $ref resolving.
     incoming[target.instance.object_id]["$values"].append({"$ref": marker})
     archive.replace_content(program, renumber_references(document))
+
+
+def rename(archive: Archive, instance: Instance, name: str) -> str:
+    """Change the displayed name of a program, step or directory.
+
+    Names are not in the protocol. They hang off ``Instance.LabelElement_id``
+    on an ``EdfString`` node holding a locale table, which is what lets a scan
+    or a protocol be renamed without re-hashing the content -- so this rewrites
+    that table and nothing else.
+
+    An archive built from a template inherits the template's program name, and
+    the console disambiguates on import rather than complaining: a copy of
+    ``Potpourri_P1`` arrives as ``Potpourri_P1 (2)``. That is tidy and it is
+    also how a generated protocol ends up named after whichever export it was
+    seeded from.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to edit, in place.
+    instance : Instance
+        The node to rename -- a program, a step, or a directory.
+    name : str
+        The new displayed name. The console keeps 35 characters of a scan
+        name; this does not truncate, since the limit is the console's and
+        applies where it applies.
+
+    Returns
+    -------
+    str
+        The label's new content hash.
+
+    Raises
+    ------
+    ValueError
+        If the node carries no label, or if its label is shared with another
+        node -- renaming would then silently rename both. No corpus archive
+        shares one, but the store is content-addressed and nothing in the
+        format forbids it.
+    """
+    if not instance.label_element_id:
+        raise ValueError(f"{instance.kind} {instance.id[:8]} carries no label to change")
+    label = archive.by_element.get(instance.label_element_id)
+    if label is None:
+        raise ValueError(f"{instance.kind} {instance.id[:8]} names a label that is not live")
+    sharing = [
+        one
+        for one in archive.instances.values()
+        if one.label_element_id == instance.label_element_id and one.id != instance.id
+    ]
+    if sharing:
+        kinds = ", ".join(sorted({one.kind for one in sharing}))
+        raise ValueError(
+            f"that label is shared with {len(sharing)} other node(s) ({kinds}); "
+            "renaming it would rename them too"
+        )
+
+    document = dict(archive.document(label))
+    texts = document.get("Texts", {})
+    # Which locale key an export uses varies -- most write "" and some write
+    # "en" -- so every entry is set rather than assuming one.
+    document["Texts"] = {k: (v if k == "$id" else name) for k, v in texts.items()}
+    return archive.replace_content(label, document)

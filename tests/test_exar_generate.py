@@ -947,3 +947,77 @@ def test_an_unknown_copy_reference_group_is_refused() -> None:
     first, second = archive.steps[0], archive.steps[1]
     with pytest.raises(ValueError, match="not a copy-reference group"):
         generate.link_steps(archive, first, second, group="SlicesAndEverything")
+
+
+@requires_exar
+def test_a_program_can_be_renamed_without_touching_its_protocols(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The name is a label node, so changing it re-hashes nothing else.
+
+    An archive built from a template inherits the template's program name and
+    the console disambiguates on import -- a copy of ``Potpourri_P1`` arrives
+    as ``Potpourri_P1 (2)`` -- so a generated protocol ends up named after
+    whichever export seeded it unless this is called.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    before = [step.name for step in archive.steps]
+    protocols = {
+        step.name: step.protocol.xprotocol for step in archive.steps if step.runs_a_protocol
+    }
+    assert archive.programs[0].name != "RENAMED_PROTOCOL"
+
+    generate.rename(archive, archive.program_nodes[0], "RENAMED_PROTOCOL")
+    written = tmp_path / "renamed.exar1"
+    archive.write(str(written))
+
+    final = read(str(written))
+    assert validate.problems(final) == []
+    assert final.programs[0].name == "RENAMED_PROTOCOL"
+    assert [step.name for step in final.steps] == before, "renaming disturbed the scans"
+    for step in final.steps:
+        if step.runs_a_protocol:
+            assert step.protocol.xprotocol == protocols[step.name], f"{step.name} was rewritten"
+
+
+@requires_exar
+def test_a_scan_can_be_renamed_and_a_labelless_node_is_refused(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The same call renames a step, and declines a node with no label.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    victim = archive.steps[2]
+    original = victim.protocol.xprotocol
+    generate.rename(archive, victim.instance, "RENAMED_SCAN")
+    written = tmp_path / "renamed.exar1"
+    archive.write(str(written))
+
+    final = read(str(written))
+    assert validate.problems(final) == []
+    names = [step.name for step in final.steps]
+    assert names[2] == "RENAMED_SCAN" and names.count("RENAMED_SCAN") == 1
+    renamed = final.steps[2]
+    assert renamed.protocol.xprotocol == original, "renaming rewrote the protocol"
+
+    # A protocol node carries no label of its own; the step above it does.
+    with pytest.raises(ValueError, match="no label"):
+        generate.rename(final, renamed.protocol.instance, "NOWHERE")
