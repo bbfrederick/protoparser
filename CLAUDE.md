@@ -381,6 +381,15 @@ the two consistent.
 - **`Children` holds .NET mixed-endian GUIDs** (`uuid.UUID(bytes_le=...)`),
   sixteen bytes each. Reading them big-endian gives well-formed GUIDs that match
   no element, so the failure is an empty tree rather than an error.
+- **A renamed program arrives under its new name, and the whole assembly
+  round-trips unchanged.** The capabilities archive was rebuilt as
+  `CAPABILITIES_TEST` and came back as `CAPABILITIES_TEST`: 54 scans, running
+  order preserved, all 25 edits held, all ten links identical and their
+  eleven copies still byte-identical. 44 of the 54 protocols returned
+  byte-identical in ASCCONV; nine differed only in the derived scan times,
+  and `rslh_ep3d_vaso` reproduced the same three coupled formulas to the
+  digit -- on a rebuild with every GUID regenerated, so that is two
+  independent scanner passes agreeing rather than one observation repeated.
 - **A generated archive inherits its template's program name, and the
   console disambiguates rather than complaining.** An archive seeded from
   `Potpourri_P1` arrives on the scanner as `Potpourri_P1 (2)`, so a protocol
