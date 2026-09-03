@@ -28,7 +28,15 @@ import uuid
 from typing import Any
 
 from . import envelope
-from .archive import Archive, Instance, Step, pack_guids, unpack_guids
+from .archive import (
+    COPY_REFERENCE,
+    COPY_REFERENCE_GROUPS,
+    Archive,
+    Instance,
+    Step,
+    pack_guids,
+    unpack_guids,
+)
 
 #: The maps in ``EdfProgramContent`` keyed by measurement-step id. Every step
 #: must appear in all of them.
@@ -388,4 +396,120 @@ def _attach_to_program(archive: Archive, program: Any, step_ids: tuple[str, str,
     document["RelationsFrom"][new] = {"$id": f"rf-{new}", "$values": []}
     document["RelationsTo"][new] = {"$id": f"rt-{new}", "$values": []}
     document["LastStepId"] = new
+    archive.replace_content(program, renumber_references(document))
+
+
+#: .NET type moniker Newtonsoft writes on a relation between two steps.
+RELATION_TYPE = (
+    "syngo.MR.ExamDataFoundation.Data.EdfProgramRelation, syngo.MR.ExamDataFoundation.Data"
+)
+
+#: The namespace the copy-reference payload declares. Written verbatim: it is
+#: part of the element the console emits, and a payload without it is not the
+#: same document.
+COPY_REFERENCE_NS = "http://syngo.MR.ExamDataFoundation.Data"
+
+
+def link_steps(
+    archive: Archive,
+    source: Step,
+    target: Step,
+    group: str = "Slices",
+    program: Instance | None = None,
+    copy_phase_encoding: bool = False,
+    copy_steps: bool = False,
+    ignore_last_step: bool = False,
+    ignore_measurements: bool = False,
+) -> None:
+    """Slave ``target`` to ``source``, the way the console's copy dialog does.
+
+    A prescription link is a property of the *program*, not of either
+    protocol: nothing in a scan's own XProtocol says it is linked, and the PDF
+    export does not record it at all. So it lives in ``RelationsFrom`` keyed
+    by the source step, mirrored into ``RelationsTo`` on the target as a
+    ``$ref`` back-pointer to the same relation object rather than a second
+    copy of it.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to edit, in place.
+    source : Step
+        The step being copied *from*.
+    target : Step
+        The step slaved to it.
+    group : str
+        Which menu item the link represents, one of
+        :data:`~.archive.COPY_REFERENCE_GROUPS`.
+    program : Instance or None
+        The program holding both steps. ``None`` means the archive's only
+        one, which raises if it holds several.
+    copy_phase_encoding : bool
+        ``CopyPhaseEncodingDirection``. Orthogonal to ``group`` rather than a
+        further value of it.
+    copy_steps : bool
+        ``CopySteps``.
+    ignore_last_step : bool
+        ``IgnoreLastStep``. ``False`` on every relation in the corpus, so its
+        spelling is established and its effect is not.
+    ignore_measurements : bool
+        ``IgnoreMeasurements``. The same.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If the archive has no program, if ``group`` is not a known menu item,
+        or if either step is missing from the program's relation maps -- a
+        step absent from one of the five leaves the console unable to build
+        the program, which it shows as a folder tree with no protocols in it.
+    """
+    if group not in COPY_REFERENCE_GROUPS:
+        offered = ", ".join(COPY_REFERENCE_GROUPS)
+        raise ValueError(f"{group!r} is not a copy-reference group; expected one of: {offered}")
+    if program is None:
+        program = archive.program
+    if program is None:
+        raise ValueError("archive has no program to link within")
+
+    document = archive.document(program)
+    outgoing, incoming = document.get("RelationsFrom", {}), document.get("RelationsTo", {})
+    for name, table, step in (
+        ("RelationsFrom", outgoing, source),
+        ("RelationsTo", incoming, target),
+    ):
+        if step.instance.object_id not in table:
+            raise ValueError(f"{step.name!r} is missing from the program's {name}")
+
+    flags = {
+        "CopyPhaseEncodingDirection": copy_phase_encoding,
+        "CopySteps": copy_steps,
+        "IgnoreLastStep": ignore_last_step,
+        "IgnoreMeasurements": ignore_measurements,
+    }
+    # Attribute order is the console's: the flags around Group alphabetically,
+    # then the namespace last.
+    written = {"Group": group} | {k: str(v) for k, v in flags.items()}
+    attributes = " ".join(f'{k}="{written[k]}"' for k in sorted(written))
+    payload = f'<EdfCopyReferenceParameters {attributes} xmlns="{COPY_REFERENCE_NS}" />'
+
+    marker = f"rel-{source.instance.object_id}-{target.instance.object_id}"
+    outgoing[source.instance.object_id]["$values"].append(
+        {
+            "$id": marker,
+            "$type": RELATION_TYPE,
+            "Constraint": 1,
+            "Data": payload,
+            "Kind": COPY_REFERENCE,
+            "SourceId": source.instance.object_id,
+            "State": "",
+            "TargetId": target.instance.object_id,
+        }
+    )
+    # The incoming side references the same object. Renumbering rewrites the
+    # marker on both, which is what keeps the $ref resolving.
+    incoming[target.instance.object_id]["$values"].append({"$ref": marker})
     archive.replace_content(program, renumber_references(document))
