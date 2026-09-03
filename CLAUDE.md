@@ -515,11 +515,44 @@ the two consistent.
   object that has to be written on its own. Nothing in the corpus varies the
   adjust volume while holding the slices still, so which of the two it is --
   independent, or derived by a rule not yet seen -- is open.
-- **Multi-group slice arrays are effectively unexercised.** 420 of 445 scans
-  carry one slice group and the 25 with three never vary it, so
-  `sGroupArray.asGroup[]` indexing has no evidence behind it. Anything
-  reaching into a second group is writing into a shape the corpus has never
-  demonstrated.
+- **`geometry.py` recomputes the array rather than mapping it.** `read_group`
+  reads the six inputs, `SliceGroup.position` places each slice and `rebuild`
+  writes them back; `agrees` reports how far a stored array sits from the
+  recomputed one, which is under 7e-12 mm on all 351 single-group arrays in
+  the corpus. Two mappings made this necessary rather than merely nice:
+  `Slice Thickness` and `Distance Factor` are both written today, and both
+  change the *spacing*, so writing either without recomputing leaves sixty
+  positions describing the old geometry -- an inconsistent set, and the
+  console answers those by greying the scan out.
+- **A rebuild only writes what actually changed.** Recomputing the centre
+  slice of a 63-slice array gives 8.81e-19 where the console wrote 5.55e-17;
+  both are zero, and rewriting one for the other would make every later diff
+  of that protocol useless. `rebuild` therefore skips any assignment already
+  within `TOLERANCE`, which is what makes it a provable no-op on an untouched
+  protocol -- the one check that exercises reading, computing and formatting
+  at once.
+- **The table-positioning mode is a program property with no effect on the
+  geometry.** `paramcheck/XA60/extravals_{FIX,ISO,LOC,derive}` are the same
+  nineteen scans saved under each mode, and all nineteen protocols are
+  byte-identical across the four. The setting lives in `EdfProgramContent` as
+  `TablePositioningMode`, taking `FIX`, `ISO`, `LocalRange` or an empty
+  string for derive-from-protocol. So it cannot be what explains the printed
+  `Position` disagreeing with the stored slice centre.
+- **A multi-group array interleaves its groups, and the formula holds within
+  each.** `extravals`' localizers carry one, two and three groups.
+  `sSliceArray.lSize` is the total; `sGroupArray.asGroup[i].nSize` is each
+  group's share; and the array is ordered by *acquisition*, so with three
+  groups the first slice of each comes first and group 0 occupies indices 0,
+  3 and 4. Reading such an array as one progression takes the step between
+  indices 0 and 1 -- two different groups -- and yields a number belonging to
+  neither, so `read_group` refuses rather than describing the first group.
+  Membership is recoverable: slice *i* opens group *i*, and
+  `sGroupArray.anMember` lists the rest in group order, terminated by `-1`.
+- **Multi-group slice arrays are still unexercised for writing.** 420 of 445 scans
+  carry one slice group; `extravals` adds localizers with two and three, which
+  is enough to read the layout and not enough to write one -- no copy varies a
+  group's own count, spacing or position. Anything reaching into a second
+  group is writing into a shape the corpus has never demonstrated.
 - **`dThickness` is the slice on a 2D acquisition and the whole slab on a 3D
   one.** `sKSpace.ucDimension` is 2 or 4 and decides which; on all eight 3D
   protocols `dThickness` is exactly the displayed thickness times
