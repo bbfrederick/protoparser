@@ -350,9 +350,19 @@ def test_the_examples_are_mostly_accounted_for() -> None:
     # quietly stops matching cannot pass unnoticed. The healthy figure is
     # under 2%.
     catalog = default_catalog()
-    found = [i for _, p in GOLDEN_PROTOCOLS for i in identify_protocol(p, catalog)]
-    counts = summarize(found)
-    assert counts[UNRECOGNIZED] / len(found) < 0.05
+    curated = [
+        i
+        for n, p in GOLDEN_PROTOCOLS
+        if not n.startswith(INVESTIGATOR_PREFIX)
+        for i in identify_protocol(p, catalog)
+    ]
+    counts = summarize(curated)
+    # Stated over the curated examples. The bulk import is a directory of
+    # protocols nobody selected, carrying 26 unseen binaries, so folding it in
+    # would move this floor for a reason that has nothing to do with the
+    # catalog regressing -- it went to 7.8% on import alone. Its own share is
+    # pinned by test_the_bulk_import_is_unaccounted_to_a_pinned_extent.
+    assert counts[UNRECOGNIZED] / len(curated) < 0.05
     assert counts[THIRD_PARTY] > counts[STOCK]
 
 
@@ -736,6 +746,37 @@ UNACCOUNTED = (
     | UNACCOUNTED_AFTER_LOAD
 )
 
+#: Snapshots from the investigator-level export, which is a bulk import rather
+#: than a curated example: 31 protocols saved from one directory, added to
+#: widen the sequence corpus rather than because each was chosen. It roughly
+#: doubles the scan count and brings 26 sequence binaries the catalog has never
+#: seen, none of which can be given a signature here -- attribution comes from
+#: the protocol's owner, never from a plausible reading of a kernel name.
+#:
+#: So it is held to a *counted* pin rather than the named one above. The named
+#: set still applies exactly to every curated example, which is where a
+#: regression in the catalog would show; this second pin says only "the bulk
+#: import contributes this many, over these kernels", so a change to either is
+#: still visible without pretending the scans are identified.
+INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
+
+#: How many of that export's scans no signature claims, and the kernels they
+#: run. Both are observations awaiting attribution, not targets.
+INVESTIGATOR_UNACCOUNTED = 73
+INVESTIGATOR_UNACCOUNTED_BINARIES = {
+    "MDME",
+    "fl_r",
+    "fl_rr",
+    "fldyn",
+    "laser",
+    "pc",
+    "press",
+    "slasr",
+    "spcR",
+    "steam",
+    "svs_edit",
+}
+
 
 @requires_snapshots
 def test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few() -> None:
@@ -750,8 +791,30 @@ def test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few() -> Non
         for name, protocol in GOLDEN_PROTOCOLS
         for item in identify_protocol(protocol, catalog)
         if item.verdict == UNRECOGNIZED
+        if not name.startswith(INVESTIGATOR_PREFIX)
     }
     assert unaccounted == UNACCOUNTED
+
+
+@requires_snapshots
+def test_the_bulk_import_is_unaccounted_to_a_pinned_extent() -> None:
+    # The investigator export is held to a count and a kernel list rather than
+    # to named scans: nothing here has an attribution, and inventing one to
+    # make a set match is exactly what the catalog's rules forbid. Pinning the
+    # count still fails on drift -- a catalog change that stops matching, or a
+    # new protocol added to the directory -- without claiming these are
+    # identified. Both numbers drop as attributions arrive from the owner.
+    catalog = default_catalog()
+    found = [
+        item
+        for name, protocol in GOLDEN_PROTOCOLS
+        if name.startswith(INVESTIGATOR_PREFIX)
+        for item in identify_protocol(protocol, catalog)
+        if item.verdict == UNRECOGNIZED
+    ]
+    assert found, "the bulk import resolved entirely, which would be a first"
+    assert len(found) == INVESTIGATOR_UNACCOUNTED
+    assert {item.binary for item in found} == INVESTIGATOR_UNACCOUNTED_BINARIES
 
 
 def test_a_scan_flagged_only_by_its_owner_label_describes_without_a_dangling_dash() -> None:

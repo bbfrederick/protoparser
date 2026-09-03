@@ -37,13 +37,25 @@ def _snapshot_name(pdf: str) -> str:
     pdf : str
         Path to the example PDF.
 
+    The key is the whole path below ``examples/``, not just the parent folder.
+    An investigator-level export arrives as its own subdirectory, and keying on
+    the immediate parent would name its snapshots after that subdirectory --
+    dropping the release, and colliding the moment two releases carry a
+    subdirectory of the same name. Top-level examples are unaffected: their
+    relative path is already ``<VERSION>/<stem>``.
+
+    Parameters
+    ----------
+    pdf : str
+        Path to the example PDF.
+
     Returns
     -------
     str
-        ``"<VERSION>-<stem>.json"``, using the parent folder as the version.
+        ``"<VERSION>-<stem>.json"``, with any intervening folders joined in.
     """
-    version = os.path.basename(os.path.dirname(pdf))
-    return f"{version}-{os.path.splitext(os.path.basename(pdf))[0]}.json"
+    relative = os.path.relpath(os.path.splitext(pdf)[0], os.path.join(REPO_ROOT, "examples"))
+    return relative.replace(os.sep, "-") + ".json"
 
 
 def _snapshot(protocol: Protocol) -> dict:

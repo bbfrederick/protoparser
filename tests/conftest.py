@@ -80,9 +80,17 @@ def example_files() -> list[tuple[str, str]]:
         folder = os.path.join(EXAMPLES, version)
         if not os.path.isdir(folder):
             continue
-        for name in sorted(os.listdir(folder)):
-            if name.endswith(".pdf") and not name.startswith("."):
-                found.append((os.path.join(folder, name), version))
+        # Walk, rather than list. An export taken at the investigator level
+        # arrives as a directory of its own -- one archive and the printouts
+        # for some of its protocols -- and the CLI's batch mode already
+        # mirrors the tree that way. A flat listing here left those examples
+        # undiscovered while ``parse <examples>`` wrote them, which is how the
+        # two batch tests started disagreeing with the fixtures.
+        for root, dirs, names in os.walk(folder):
+            dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+            for name in sorted(names):
+                if name.endswith(".pdf") and not name.startswith("."):
+                    found.append((os.path.join(root, name), version))
     return found
 
 
@@ -185,9 +193,11 @@ def exar_files() -> list[tuple[str, str | None]]:
             folder = os.path.join(EXAMPLES, version)
             if not os.path.isdir(folder):
                 continue
-            for name in sorted(os.listdir(folder)):
-                if name.endswith(".exar1") and not name.startswith("."):
-                    found.append((os.path.join(folder, name), version))
+            for root, dirs, names in os.walk(folder):
+                dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+                for name in sorted(names):
+                    if name.endswith(".exar1") and not name.startswith("."):
+                        found.append((os.path.join(root, name), version))
     outside = os.environ.get(EXAR_DIR_VARIABLE)
     if outside and os.path.isdir(outside):
         for name in sorted(os.listdir(outside)):

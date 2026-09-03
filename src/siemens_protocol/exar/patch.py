@@ -1597,7 +1597,12 @@ def _apply_one(
             # is a legitimate state, not a missing target.
             literal = set_bit(existing, mapping.bit, bool(number))
             if not first_before:
-                first_before = existing or "0"
+                # Spell an absent word the same way on both sides. Reporting
+                # it as "0" before and ABSENT after makes a protocol whose
+                # flags are all unticked -- so the console omits the word
+                # entirely -- read as a change on every bit the card prints,
+                # and ten spurious writes is what that looked like.
+                first_before = existing if existing is not None else ABSENT
                 first_after = ABSENT if (sparse and _is_zero(literal)) else literal
             text = _store(text, key, literal, existing, sparse)
             continue

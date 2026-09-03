@@ -16,20 +16,29 @@ from __future__ import annotations
 
 from . import generate, patch, validate
 from .archive import (
+    COPY_REFERENCE,
+    COPY_REFERENCE_GROUPS,
+    SPLIT_JOIN,
     Archive,
     Instance,
+    Link,
     PreviewEntry,
     Program,
     Protocol,
     Step,
     pack_guids,
+    parse_link,
     read,
     unpack_guids,
 )
 from .envelope import Envelope
 
 __all__ = [
+    "COPY_REFERENCE",
+    "COPY_REFERENCE_GROUPS",
+    "SPLIT_JOIN",
     "Archive",
+    "Link",
     "Program",
     "generate",
     "patch",
@@ -40,6 +49,7 @@ __all__ = [
     "Protocol",
     "Step",
     "pack_guids",
+    "parse_link",
     "read",
     "unpack_guids",
 ]

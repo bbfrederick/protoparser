@@ -104,7 +104,9 @@ EXPECTED_SCAN_COUNT = {
     "CRISP.pdf": 21,
     "Copersino - TMS.pdf": 20,
     "Copersino - baseline.pdf": 16,
+    "copyparametertest.pdf": 15,
     "Halko_TMS.pdf": 14,
+    "K23EB_20210802.pdf": 24,
     "KRUSEGROUP.pdf": 16,
 }
 
@@ -260,6 +262,26 @@ def test_a_header_path_that_wraps_is_rejoined(parsed: ParseFixture) -> None:
 TOC_ENTRY_MAX_CHARS = 53
 
 
+def _starts_a_scan(lines: list[str]) -> bool:
+    """Return whether a page opens a scan rather than continuing the contents.
+
+    Every scan opens with its full protocol path followed by the ``TA:``
+    banner. A contents page prints names alone -- and the root path on its
+    heading page, which is why the banner and not the path is what decides.
+
+    Parameters
+    ----------
+    lines : list of str
+        The page's non-empty lines.
+
+    Returns
+    -------
+    bool
+        ``True`` when this page begins a scan.
+    """
+    return any(line.startswith("TA:") for line in lines[:3])
+
+
 def _table_of_contents(pdf: str) -> str | None:
     """The scan list printed on an export's front page, as one string.
 
@@ -267,6 +289,13 @@ def _table_of_contents(pdf: str) -> str | None:
     it an independent oracle for scan splitting. It is returned joined rather
     than as a list because a scan name containing spaces wraps across several
     printed lines, so line boundaries carry no meaning.
+
+    The listing runs for as many pages as it needs, and only the first carries
+    the heading. Reading one page made this oracle silently weaker than it
+    looks: it reported the 22 scans listed on the second page of a 74-scan
+    protocol as absent from a contents page that in fact names them. Follow
+    the spill to the first page that starts a scan instead -- a full protocol
+    path followed by the ``TA:`` banner, which no contents page has.
 
     Parameters
     ----------
@@ -291,14 +320,18 @@ def _table_of_contents(pdf: str) -> str | None:
     # The heading may lead the document or trail it: VE11C and the Numaris/X
     # releases put it first, VB17A last. It is never the running page header,
     # so allow it to be the first or second line of the page.
-    for lines in pages:
+    for first, lines in enumerate(pages):
         if "Table of contents" not in lines[:2]:
             continue
         entries: list[str] = []
-        for line in lines[lines.index("Table of contents") + 1 :]:
-            if line.startswith("SIEMENS MAGNETOM") or re.fullmatch(r"-\s*\d+\s*-", line):
+        for lines in pages[first:]:
+            if lines is not pages[first] and _starts_a_scan(lines):
                 break
-            entries.append(line)
+            start = lines.index("Table of contents") + 1 if "Table of contents" in lines[:2] else 0
+            for line in lines[start:]:
+                if line.startswith("SIEMENS MAGNETOM") or re.fullmatch(r"-\s*\d+\s*-", line):
+                    break
+                entries.append(line)
         return " ".join(entries)
     return None
 
