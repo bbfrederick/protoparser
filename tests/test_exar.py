@@ -1100,7 +1100,12 @@ def test_every_flag_bit_agrees_with_the_card_that_printed_it(protocol_archive_pa
     # skip reads like a pass.
     pairs = build.pair_programs(loaded, exports)
     if not pairs.matched:
-        pytest.skip(f"no printout pairs with {os.path.basename(protocol_archive_path)}")
+        # Not a skip. CI reads a skipped .exar1 test as the archives being
+        # unusable, which is the failure this suite exists to catch, and an
+        # archive with no paired printout is an ordinary member of a corpus
+        # where printouts are the exception. The count is guarded corpus-wide
+        # by test_the_flag_sweep_is_not_vacuous instead.
+        return
     programs = {build.match_name(one.name): one for one in loaded.programs}
 
     bits = [one for one in patch.MAPPINGS if one.bit is not None]
@@ -1145,5 +1150,34 @@ def test_every_flag_bit_agrees_with_the_card_that_printed_it(protocol_archive_pa
                     f"{program_name}/{name}: {one.label} is bit {one.bit}, "
                     f"stored {stored}, printed {shown.strip()}"
                 )
-    if not checked:
-        pytest.skip("this archive prints no mapped flag")
+    # `checked` may legitimately be zero: most sequences have no Special card.
+    # That is deliberately not asserted here and not skipped either, since a
+    # skip tells CI the archives are unusable -- see
+    # test_the_flag_sweep_is_not_vacuous for the guard that it is not always
+    # zero.
+
+
+@requires_exar
+def test_the_flag_sweep_is_not_vacuous() -> None:
+    """The per-archive flag check must actually compare something.
+
+    That check returns early on an archive with no paired printout or no
+    mapped flag, which is the right behaviour -- printouts are the exception
+    in this corpus and most sequences have no Special card -- but an early
+    return reads exactly like a pass, and so does a skip. Neither is visible
+    from inside a parametrized test, so the total is asserted here.
+
+    Returns
+    -------
+    None
+    """
+    bits = [one for one in patch.MAPPINGS if one.bit is not None]
+    assert bits, "no flag bits are mapped at all"
+    carrying = 0
+    for path, _version in EXAR_PROTOCOL_FILES:
+        for step in exar.read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            if any(str(patch.sequence_of(step.protocol)) in one.sequences for one in bits):
+                carrying += 1
+    assert carrying > 300, f"only {carrying} scans run a sequence whose flags are mapped"
