@@ -60,11 +60,21 @@ def problems(archive: Archive) -> list[str]:
 
 
 def _step_coverage(archive: Archive, programs: list[Program]) -> list[str]:
-    """Every live step belongs to exactly one program's running order.
+    """Every live step is run by at least one program.
 
     Counted independently of the chains, which is the whole point: a chain
     that stops early agrees with itself, so only a tally taken from the
     instance table can notice steps nothing runs.
+
+    "Exactly one" was the rule until an investigator-level export arrived, and
+    it was a property of the corpus rather than of the format: copying a
+    protocol within a directory reuses the source's step nodes for the scans
+    the copy did not change, so 67 of that file's 435 steps are run by two
+    programs or three -- ``BioTMS``/``BioTMS_old`` share 19,
+    ``multiecho_bids_test`` and its ``_small_fixed`` variant 14. The sharing is
+    real and not a confusion of GUID spaces: each is one element id, listed in
+    the ``Children`` of exactly one of its programs and parenting to that same
+    one. What still has to hold is that nothing is orphaned.
 
     Parameters
     ----------
@@ -84,8 +94,6 @@ def _step_coverage(archive: Archive, programs: list[Program]) -> list[str]:
     orphaned = existing - set(seen)
     if orphaned:
         found.append(f"{len(orphaned)} step(s) are in no program's running order")
-    if len(seen) != len(set(seen)):
-        found.append(f"{len(seen) - len(set(seen))} step(s) are claimed by two programs")
     return found
 
 
@@ -132,6 +140,12 @@ def _running_order(archive: Archive, program: Program, document: dict[str, Any])
     each program legitimately runs a fraction of the file's steps; the
     archive-wide version is :func:`_step_coverage`.
 
+    Only the children that are *steps* count. A program may also hold
+    ``EdfString`` children -- the converted ``K23EB_20210802`` holds two -- and
+    comparing the chain against every child reports such an archive as broken
+    when it is merely carrying something other than a step. The chain can only
+    ever contain steps, so the two sides have to be counted the same way.
+
     Parameters
     ----------
     archive : Archive
@@ -148,10 +162,16 @@ def _running_order(archive: Archive, program: Program, document: dict[str, Any])
     """
     found = []
     order = archive.step_order(program.instance)
-    if len(order) != len(program.instance.children):
+    by_element = archive.by_element
+    children = [
+        one
+        for one in program.instance.children
+        if one in by_element and by_element[one].kind in STEP_KINDS
+    ]
+    if len(order) != len(children):
         found.append(
             f"link chain covers {len(order)} steps but the program "
-            f"lists {len(program.instance.children)} children"
+            f"lists {len(children)} step children"
         )
     if order and document.get("FirstStepId") != order[0]:
         found.append("FirstStepId is not where the chain starts")
@@ -226,14 +246,28 @@ def _parents(archive: Archive) -> list[str]:
     # program is a real node with a real element id, so a check written
     # against a single "the program" would pass on nine steps out of ten and
     # fail on the rest for the wrong reason.
+    # A step may be run by several programs. Copying a protocol within a
+    # directory reuses the source's step nodes for the scans the copy did not
+    # change -- ``BioTMS``/``BioTMS_old`` share 19 that way -- and the shared
+    # node stays a child of, and parents to, exactly one of them. So the
+    # question is whether a step parents to *some* program that runs it, not
+    # to whichever one this loop reached first.
+    running: dict[str, set[str]] = {}
     for one in archive.programs:
         for step in one.steps:
-            found += _step_parents(archive, rows, step, one.instance.element_id)
+            running.setdefault(step.instance.id, set()).add(one.instance.element_id)
+    seen: set[str] = set()
+    for one in archive.programs:
+        for step in one.steps:
+            if step.instance.id in seen:
+                continue
+            seen.add(step.instance.id)
+            found += _step_parents(archive, rows, step, running[step.instance.id])
     return found
 
 
 def _step_parents(
-    archive: Archive, rows: dict[str, Any], step: Any, program_element: str
+    archive: Archive, rows: dict[str, Any], step: Any, program_elements: set[str]
 ) -> list[str]:
     """Check one step's protocol, label and own parent pointers.
 
@@ -245,24 +279,26 @@ def _step_parents(
         Instance rows keyed by id.
     step : Step
         The step to check.
-    program_element : str
-        Element id of the program that runs this step.
+    program_elements : set of str
+        Element ids of every program whose running order includes this step.
+        Usually one; a step shared by a protocol and a copy of it has several,
+        and parenting to any of them is correct.
 
     Returns
     -------
     list of str
         Broken rules.
     """
-    expected = {"step": (step.instance, program_element)}
+    expected: dict[str, tuple[Any, set[str]]] = {"step": (step.instance, program_elements)}
     if step.runs_a_protocol:
-        expected["protocol"] = (step.protocol.instance, step.instance.element_id)
+        expected["protocol"] = (step.protocol.instance, {step.instance.element_id})
     holder = archive.by_element.get(step.instance.label_element_id)
     if holder is not None:
-        expected["label"] = (holder, step.instance.element_id)
+        expected["label"] = (holder, {step.instance.element_id})
     found = []
     for tag, (node, wanted) in expected.items():
         actual = rows[node.id]["ParentElementId"]
-        if actual is not None and str(actual) != wanted:
+        if actual is not None and str(actual) not in wanted:
             found.append(f"{step.name}: its {tag} parents to another node, not {tag}'s own")
     return found
 

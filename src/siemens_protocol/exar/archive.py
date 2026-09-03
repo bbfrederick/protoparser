@@ -33,6 +33,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Iterator
+from xml.etree import ElementTree
 
 from . import envelope, store
 from .envelope import Envelope
@@ -63,13 +64,81 @@ PAUSE_STEP = "EdfPauseStep"
 #: whether to expect a protocol was answering the wrong one.
 INTERACTION_STEP = "EdfInteractionStep"
 
+#: Three more non-acquiring kinds, which arrive together on a protocol the
+#: scanner converted from VE11C. ``EdfSplitStep`` and ``EdfJoinStep`` bracket a
+#: *branch* in the running order and ``EdfWorkflowStep`` is a console action
+#: (``Patient View``) -- a shape no natively authored archive in the corpus
+#: has. The chain still walks them like any other step, so the only thing that
+#: had to change to read one is this list.
+WORKFLOW_STEP = "EdfWorkflowStep"
+SPLIT_STEP = "EdfSplitStep"
+JOIN_STEP = "EdfJoinStep"
+
 #: Every kind that appears in a program's running order. A step holds a
 #: protocol exactly when it is a ``MEASUREMENT_STEP``: that holds across all
-#: 481 steps in the corpus, and it is the rule to test against rather than
-#: enumerating the kinds that do not.
-STEP_KINDS = (MEASUREMENT_STEP, PAUSE_STEP, INTERACTION_STEP)
+#: 603 steps in the corpus, and it is the rule to test against rather than
+#: enumerating the kinds that do not -- which is what let the three kinds above
+#: be added without touching anything that asks whether a step scans.
+STEP_KINDS = (
+    MEASUREMENT_STEP,
+    PAUSE_STEP,
+    INTERACTION_STEP,
+    WORKFLOW_STEP,
+    SPLIT_STEP,
+    JOIN_STEP,
+)
 PROTOCOL = "EdfProtocol"
 STRING = "EdfString"
+
+#: ``EdfProgramRelation.Kind`` for a prescription link -- one scan slaved to
+#: another so the console keeps their geometry together. It is the only kind
+#: the corpus explains; ``31P CSI 20230503 NOE`` also carries relations with an
+#: empty kind, no payload and ``Constraint`` zero, so a relation is not
+#: necessarily a link and :attr:`Link.is_copy_reference` is what separates them.
+COPY_REFERENCE = "CopyReference"
+
+#: ``Kind`` for the relation that brackets a branch in the running order. It
+#: carries no payload and comes in a symmetric pair -- split to join and join
+#: back to split -- so it describes the structure the ``EdfSplitStep`` and
+#: ``EdfJoinStep`` bound rather than any parameter. Only the converted
+#: ``K23EB_20210802`` has one. It is a third kind beside ``CopyReference`` and
+#: the unexplained payload-less relations, which is why nothing may read
+#: "not a copy reference" as "meaningless".
+SPLIT_JOIN = "SplitJoin"
+
+#: The ``Group`` values seen in ``EdfCopyReferenceParameters``, which are the
+#: console's copy-reference menu items. ``copyparametertest`` exercises all ten
+#: in one protocol, one scan apiece, which is the only reason the list is a
+#: menu rather than a sample of what clinical use happens to reach for.
+#: ``AdjustmentVolume`` and ``MeasurementParameters`` are separate items and
+#: the first version of that export conflated them -- it carried no
+#: adjustment-volume scan, so the group looked absent and its scan looked like
+#: evidence that the adjustment-volume item wrote ``MeasurementParameters``.
+COPY_REFERENCE_GROUPS = (
+    "Slices",
+    "SaturationRegions",
+    "SlicesAndSaturationRegions",
+    "CenterOfSlicesAndSaturationRegions",
+    "AdjustmentVolume",
+    "SlicesAndAdjustmentVolume",
+    "MeasurementParameters",
+    "TablePosition",
+    "Navigators",
+    "Everything",
+)
+
+#: The boolean attributes that sit beside ``Group``, mapped to their field on
+#: :class:`Link`. They are orthogonal to the group rather than further values
+#: of it: the two scans exercising them are ordinary
+#: ``CenterOfSlicesAndSaturationRegions`` links with one flag flipped.
+#: ``IgnoreLastStep`` and ``IgnoreMeasurements`` are ``False`` on every
+#: relation in the corpus, so their spelling is known and their effect is not.
+COPY_REFERENCE_FLAGS = {
+    "CopyPhaseEncodingDirection": "copies_phase_encoding_direction",
+    "CopySteps": "copies_steps",
+    "IgnoreLastStep": "ignores_last_step",
+    "IgnoreMeasurements": "ignores_measurements",
+}
 
 
 def unpack_guids(blob: bytes | None) -> list[str]:
@@ -329,6 +398,113 @@ class Step:
 
 
 @dataclass
+class Link:
+    """One ``EdfProgramRelation``: a prescription link between two steps.
+
+    Linking scans is a console feature the PDF export does not record at all.
+    In ``copyparametertest`` eleven scans are slaved to a twelfth and print
+    byte-identical parameter sets, and their protocols differ from the
+    source's only in the churn fields -- so a link is a property of the
+    program, and nothing in a scan's own XProtocol says it has one.
+
+    Attributes
+    ----------
+    source : str
+        Object id of the step being copied *from*.
+    target : str
+        Object id of the step slaved to it.
+    kind : str
+        ``Kind`` verbatim -- :data:`COPY_REFERENCE` for a link, and empty for
+        the payload-less relations ``31P CSI 20230503 NOE`` carries.
+    constraint : int
+        ``Constraint`` verbatim: 1 on every copy reference in the corpus and 0
+        on every payload-less relation.
+    state : str
+        ``State`` verbatim, empty on all 54 corpus relations.
+    group : str or None
+        The copy-reference group, one of :data:`COPY_REFERENCE_GROUPS`, or
+        ``None`` when the relation carries no payload.
+    copies_phase_encoding_direction : bool
+        ``CopyPhaseEncodingDirection``, one of the dialog's options.
+    copies_steps : bool
+        ``CopySteps``, the other exercised option.
+    ignores_last_step : bool
+        ``IgnoreLastStep``, ``False`` throughout the corpus.
+    ignores_measurements : bool
+        ``IgnoreMeasurements``, ``False`` throughout the corpus.
+    extra : dict of str to str
+        Any attribute of the payload element this release does not name, kept
+        rather than dropped so a later one arriving is visible.
+    """
+
+    source: str
+    target: str
+    kind: str
+    constraint: int
+    state: str
+    group: str | None = None
+    copies_phase_encoding_direction: bool = False
+    copies_steps: bool = False
+    ignores_last_step: bool = False
+    ignores_measurements: bool = False
+    extra: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def is_copy_reference(self) -> bool:
+        """Return whether this relation is a prescription link.
+
+        Returns
+        -------
+        bool
+            ``True`` when :attr:`kind` is :data:`COPY_REFERENCE`. A caller
+            after links filters on this: the other relations in the corpus
+            carry no payload and are unexplained, so counting relations is not
+            counting links.
+        """
+        return self.kind == COPY_REFERENCE
+
+
+def parse_link(relation: dict[str, Any]) -> Link:
+    """Decode one ``EdfProgramRelation`` payload into a :class:`Link`.
+
+    The payload is an XML string rather than nested JSON -- a single
+    ``EdfCopyReferenceParameters`` element whose attributes are the group and
+    four ``"True"``/``"False"`` flags. It is empty on the payload-less
+    relations, which is not an error, so those decode to a link with no group.
+
+    Parameters
+    ----------
+    relation : dict
+        One entry of a ``RelationsFrom`` ``$values`` list.
+
+    Returns
+    -------
+    Link
+        The decoded relation. Unrecognized attributes land in
+        :attr:`Link.extra`.
+    """
+    fields: dict[str, Any] = {
+        "source": relation.get("SourceId", ""),
+        "target": relation.get("TargetId", ""),
+        "kind": relation.get("Kind", ""),
+        "constraint": relation.get("Constraint", 0),
+        "state": relation.get("State", ""),
+    }
+    extra: dict[str, str] = {}
+    data = relation.get("Data") or ""
+    if data:
+        element = ElementTree.fromstring(data)
+        for name, value in element.attrib.items():
+            if name == "Group":
+                fields["group"] = value
+            elif name in COPY_REFERENCE_FLAGS:
+                fields[COPY_REFERENCE_FLAGS[name]] = value == "True"
+            else:
+                extra[name] = value
+    return Link(extra=extra, **fields)
+
+
+@dataclass
 class Program:
     """One protocol: a program node and the steps it runs, in order.
 
@@ -350,6 +526,19 @@ class Program:
     instance: Instance
     name: str
     steps: list[Step] = field(default_factory=list)
+    links: list[Link] = field(default_factory=list)
+
+    @property
+    def copy_references(self) -> list["Link"]:
+        """Return only the relations that are prescription links.
+
+        Returns
+        -------
+        list of Link
+            Every link whose :attr:`Link.is_copy_reference` holds, in
+            :attr:`links` order.
+        """
+        return [one for one in self.links if one.is_copy_reference]
 
 
 @dataclass
@@ -525,7 +714,12 @@ class Archive:
             One entry per program node, in :attr:`program_nodes` order.
         """
         return [
-            Program(instance=node, name=self.label_of(node), steps=self.steps_of(node))
+            Program(
+                instance=node,
+                name=self.label_of(node),
+                steps=self.steps_of(node),
+                links=self.links_of(node),
+            )
             for node in self.program_nodes
         ]
 
@@ -595,6 +789,39 @@ class Archive:
                     protocols.append(Protocol(instance=held, document=self.document(held)))
             built.append(Step(instance=node, name=self.label_of(node), protocols=protocols))
         return built
+
+    def links_of(self, program: Instance) -> list[Link]:
+        """Return one program's prescription links, in stored order.
+
+        The links live in ``RelationsFrom``, a map keyed by step object id
+        alongside ``LinksFrom``. The two describe different graphs over the
+        same steps: ``LinksFrom`` is the running order, one outgoing edge per
+        step, while ``RelationsFrom`` is a star -- every scan slaved to one
+        source hangs off that source's entry.
+
+        Order within an entry is the order the console wrote the links, not
+        the targets' running order. The two agree in ``copyparametertest``,
+        where the links were made top to bottom, and disagree in ``CHR-MDD``,
+        so sorting here would look right on one file and be wrong on the next.
+
+        Parameters
+        ----------
+        program : Instance
+            The program node whose content holds the relations.
+
+        Returns
+        -------
+        list of Link
+            Every relation the program declares, links and payload-less ones
+            alike. Ask :attr:`Program.copy_references` for the links only.
+        """
+        content = self.document(program)
+        found: list[Link] = []
+        for source, payload in content.get("RelationsFrom", {}).items():
+            if source == "$id" or not isinstance(payload, dict):
+                continue
+            found.extend(parse_link(one) for one in payload.get("$values", []))
+        return found
 
     @property
     def steps(self) -> list[Step]:

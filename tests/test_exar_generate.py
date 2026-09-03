@@ -759,11 +759,19 @@ def test_asking_for_the_only_program_refuses_when_there_are_several(
 def test_every_step_in_a_corpus_archive_belongs_to_exactly_one_program(
     protocol_archive_path: str,
 ) -> None:
-    """No step is orphaned, and none is claimed twice.
+    """No step is orphaned, and a shared one really is shared.
 
-    Trivial while an archive holds one program, which every readable one in
-    the corpus does. It is written archive-wide rather than per-program so
-    that a backup tightens it rather than needing a new test.
+    Written archive-wide rather than per-program so that a multi-protocol
+    export tightens it rather than needing a new test -- which is what
+    happened. "Claimed exactly once" held across every single-protocol export
+    and turned out to be a fact about those rather than about the format:
+    copying a protocol within a directory reuses the source's step nodes for
+    the scans the copy did not change.
+
+    So a step run by several programs is legitimate, and what is checked is
+    that it is one node rather than a GUID-space confusion -- listed in the
+    ``Children`` of exactly one of its programs, which is the property that
+    would break if two distinct steps were being collapsed onto one object id.
 
     Parameters
     ----------
@@ -777,7 +785,19 @@ def test_every_step_in_a_corpus_archive_belongs_to_exactly_one_program(
     archive = read(protocol_archive_path)
     claimed = [s.instance.object_id for one in archive.programs for s in one.steps]
     live = {i.object_id for i in archive.instances.values() if i.kind in STEP_KINDS}
-    assert len(claimed) == len(set(claimed)), "a step is in two running orders"
+    running = {}
+    for one in archive.programs:
+        for step in one.steps:
+            running.setdefault(step.instance.object_id, []).append(one)
+    for object_id, programs in running.items():
+        if len(programs) == 1:
+            continue
+        element = archive.by_object[object_id].element_id
+        owners = [one for one in programs if element in set(one.instance.children)]
+        assert len(owners) == 1, (
+            f"a step run by {len(programs)} programs is a child of {len(owners)}; "
+            "one node shared is expected, two nodes collapsed is not"
+        )
     assert set(claimed) == live, "a step is in no running order"
 
 

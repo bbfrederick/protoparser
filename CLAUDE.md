@@ -278,7 +278,23 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   scan a person should look at, which is what that verdict means. No shipped
   example does it; the branch exists so a future one is visible rather than
   quietly resolved.
-- The corpus stands at 701 third-party, 299 stock and 31 unrecognized, pinned by
+- **The corpus now has two tiers, and only one is exactly pinned.**
+  `examples/XA60/Frederick_P2/` is an investigator-level export -- 31 protocols
+  from one directory, PDFs for 14 -- imported in bulk to widen the sequence
+  corpus rather than chosen example by example. It roughly doubles the scan
+  count and brings 26 binaries the catalog has never seen, so
+  `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few` now
+  excludes it and still holds *exactly* over every curated example, unchanged
+  by the import. The import gets its own counted pin instead --
+  `INVESTIGATOR_UNACCOUNTED` (73 scans over 11 kernels: `fl_r`, `pc`, `press`,
+  `slasr`, `spcR`, `steam`, `laser`, `svs_edit`, `fl_rr`, `MDME`, `fldyn`) --
+  which fails on drift without claiming those scans are identified. The 5%
+  unrecognized floor is likewise stated over the curated tier; folding the
+  import in took it to 7.8% for reasons that have nothing to do with the
+  catalog. Both numbers come down as attributions arrive **from the protocols'
+  owner**; writing signatures to make them fall would be attribution by
+  inference, which is the one thing this file forbids throughout.
+- The corpus stands at 750 third-party, 313 stock and 31 unrecognized, pinned by
   `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
   `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
   third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
@@ -315,22 +331,28 @@ the two consistent.
   which is why the XA30 backup holds seven.
 - **A program carries its own name, and it is the cheapest pairing check
   there is.** The label on the `EdfProgram` node matches the protocol
-  component of the path the PDF prints, on 20 of the 21 archive/PDF pairs in
-  the corpus. The exception is the finding: `31P CSI 20230503 NOE.exar1`
-  contains a program named **`CHR-MDD`** with 24 scans while its PDF prints a
-  13-scan protocol sharing only two scan names, so that "mismatched pair" was
-  never a pair at all -- it is a CHR-MDD export saved under the wrong file
-  name. Anything treating those two files as versions of one protocol is
-  comparing unrelated data. Check the program label before comparing
+  component of the path the PDF prints, on all 28 archive/PDF pairs in the
+  corpus. It reached that state by catching a real error rather than by
+  agreeing from the start: `31P CSI 20230503 NOE.exar1` once held a program
+  named `CHR-MDD` whose scans shared only two names with the PDF beside it --
+  a CHR-MDD export saved under the wrong file name, so anything treating the
+  two files as versions of one protocol was comparing unrelated data. That
+  file has since been replaced and the pair now agrees, which is why the check
+  survives as a guard rather than as a live exception. Run it before comparing
   anything: it is one string and it catches a whole class of error that
-  agreeing scan names does not. The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
-and `Potpourri_P2`, each with its PDF export. Two re-saved variants are the
-answer keys the mappings rest on: `Potpourri_P2_changed` moves TR alone on five
-scans, and `Potpourri_P1_changed` moves many parameters across five scans
-including the Special card, with its own PDF. Having the PDF beside the archive
-is what lets the two readers be checked against each other, and having a
-before/after pair is the only way to learn where a printed value is stored --
-`sWipMemBlock` in particular is unreadable without one.
+  agreeing scan names does not. Note it is a check on the *protocol*, not on
+  the scan count -- the replaced 31P pair is 14 steps against 13 printed
+  scans, the difference being an `EdfInteractionStep` the PDF rightly does not
+  print.
+
+  The corpus is one protocol carried on two XA60 scanners: `Potpourri_P1`
+  and `Potpourri_P2`, each with its PDF export. Two re-saved variants are the
+  answer keys the mappings rest on: `Potpourri_P2_changed` moves TR alone on five
+  scans, and `Potpourri_P1_changed` moves many parameters across five scans
+  including the Special card, with its own PDF. Having the PDF beside the archive
+  is what lets the two readers be checked against each other, and having a
+  before/after pair is the only way to learn where a printed value is stored --
+  `sWipMemBlock` in particular is unreadable without one.
 
 - **The format is five layers deep**: SQLite -> raw DEFLATE (`wbits=-15`, no
   zlib or gzip wrapper) -> a one-line `EDF V1: ContentType=...;` header -> a
@@ -398,7 +420,8 @@ before/after pair is the only way to learn where a printed value is stored --
 
   with `sNormal`, `dThickness` and `dInPlaneRot` identical on every slice.
   Verified on a 60-slice EPI to a worst deviation of 14 nanometres, and then
-  against `paramcheck/XA60/extravals`, which varies the inputs independently:
+  against `paramcheck/XA60/extravals_*`, which varies the inputs independently
+  (one archive per reference mode, the four otherwise identical):
   the step is exactly `thickness * (1 + distance factor)` at distance factors
   0, 20% and 50% and thicknesses 2.5 and 3.0 mm. Before that pair the two
   factors had only ever been seen at values where they could not be told
@@ -414,7 +437,9 @@ before/after pair is the only way to learn where a printed value is stored --
 - **The slice array re-centres; it does not grow from slice zero.** Adding
   slices (60 to 63) or widening the spacing (distance factor 0 to 50%) leaves
   the group centre exactly where it was, across all fifteen `extravals`
-  copies -- which now include tilts, a double oblique and rotations. So
+  copies, which include tilts, a double oblique and rotations. (Those fifteen
+  now ship four times over, once under each reference mode, so the sweep sees
+  60 -- repetitions rather than further evidence.) So
   the six inputs plus the recomputation really are enough -- nothing has to
   be carried over from the array being replaced. The centre itself is a free
   parameter and often is *not* the isocentre: `geomopts/G04` translates the
@@ -447,12 +472,42 @@ before/after pair is the only way to learn where a printed value is stored --
   scans. The two exceptions are the same scan name in two archives --
   `pd+t2_tse_tra` prints `0.00 deg` against a stored pi/2 -- so treat a
   disagreement as worth reading rather than as a refutation of the rule.
-- **The printed `Position` is the slice-group centre on 376 of 419 scans**,
+- **The printed `Position` is the slice-group centre on 463 of 517 scans**,
   mapping `L/R` to `dSag`, `A/P` to `dCor` (A negative) and `H/F` to `dTra`.
   It is *not* reliable enough to write through: several spectroscopy scans
   print the VoI position instead, so the printed position and the slice
   centre are describing different objects. Of the six inputs this is the one
-  still lacking a clean derivation.
+  still lacking a clean derivation. Of the 54 that disagree, 9 are multi-group
+  scans where the printed value is the *first* group's centre rather than the
+  mean over all of them and 6 are the spectroscopy case, leaving 39 -- mostly
+  `T1_MEMPRAGE_64ch` and other 3D scans -- genuinely unexplained.
+- **Read `Position` from the section that prints it, never from a flattened
+  scan.** A scan prints `Position` up to four times -- `Routine`,
+  `Geometry - Common`, `Geometry - AutoAlign` and `System - Adjust Volume` --
+  and the last of those describes a *different object*, per the three-frames
+  note above. Collapsing a scan's sections into one dict lets Adjust Volume
+  win, which turns every scan whose adjust volume sits at isocentre into a
+  spurious mismatch: measured that way the corpus reports 115 disagreements
+  instead of 54, and all four of `extravals`' apparent failures were
+  manufactured.
+- **The R/L sign of the printed position is not determined by the corpus.**
+  Taking `R` as positive `dSag` agrees on 463 scans and taking it as negative
+  agrees on 465, because almost every scan sits at `dSag = 0` and cannot tell
+  the two apart. Two scans is noise, so neither spelling is established --
+  do not "correct" the mapping in either direction on this evidence.
+- **The reference mode does not affect the slice geometry.** The console's
+  table-positioning choice is stored once per protocol, in
+  `EdfProgramContent.TablePositioningMode`: `FIX`, `ISO`, `LocalRange`, or
+  empty for derive-from-protocol. `paramcheck/XA60/extravals_{FIX,ISO,LOC,
+  derive}` are the same nineteen scans saved under each of the four, and they
+  are identical in every other respect -- zero differing ASCCONV fields across
+  all three comparisons against FIX, identical printed parameters in all four
+  PDFs, identical stored slice centres, and 19/19 printed-against-stored
+  agreement in each. So the mode is a setting beside the geometry rather than
+  in it, and it is not a candidate explanation for the 39 above. This is worth
+  more than the usual corpus correlation because it is a controlled four-way
+  split: the aggregate rates by mode differ (7% for FIX against 33% for
+  derive), and that is entirely which protocols happen to carry which mode.
 - **Three geometry objects share the frame and must not be assumed to follow
   each other.** `sAAInitialOffset.SliceInformation` carries the slice normal
   on 395 of 445 corpus scans, so it largely tracks the slice geometry;
@@ -754,11 +809,79 @@ before/after pair is the only way to learn where a printed value is stored --
 - **`EdfProgramContent` has five parallel maps keyed by step id, not one.**
   `LinksFrom` (outgoing), `LinksTo` (incoming, as `$ref` back-pointers into the
   link objects `LinksFrom` defines), `Ranks` (`{Rank: 0..N, StepId}`, the
-  running order), and `RelationsFrom`/`RelationsTo` (an empty list each). A step
-  present in only some of them leaves the console unable to build the program,
-  which it reports by showing the folder tree with no protocols in it -- the
-  same symptom as an archive exported from an empty folder node, and the first
-  duplication attempt was rejected exactly that way.
+  running order), and `RelationsFrom`/`RelationsTo`, which carry the
+  prescription links (below). A step present in only some of them leaves the
+  console unable to build the program, which it reports by showing the folder
+  tree with no protocols in it -- the same symptom as an archive exported from
+  an empty folder node, and the first duplication attempt was rejected exactly
+  that way. All five maps are keyed by every step and their keys are lexically
+  sorted; the lists inside them are not, so do not sort on re-encode.
+- **Prescription links live in `RelationsFrom`, and nowhere else.** Linking one
+  scan's slices, centre or table position to another's is a console feature the
+  printout does not record at all: in `examples/XA60/copyparametertest`, twelve
+  scans linked to a thirteenth print byte-identical parameter sets, and their
+  protocols differ from the source's only in the two churn fields. So the
+  linkage is a property of the *program*, not of any protocol, and nothing in a
+  scan's own XProtocol says it is linked -- which is why the archive is the only
+  place to read one from. An `EdfProgramRelation` carries `SourceId` and
+  `TargetId` as step `ObjectId`s, `Kind: "CopyReference"`, `Constraint: 1`, an
+  empty `State`, and a `Data` string holding one `EdfCopyReferenceParameters`
+  XML element. `RelationsTo` mirrors it with `$ref` back-pointers, exactly as
+  `LinksTo` mirrors `LinksFrom`. The edges form a star from the source, so one
+  `$values` list holds every scan slaved to that scan; the list is in creation
+  order, which coincides with rank order only by accident -- `copyparametertest`
+  agrees with it and `CHR-MDD` (ranks 11, 15, 22, 24, 26, 30, 19, 20) does not,
+  so sorting on re-encode looks right on one file and is wrong on the next.
+  `archive.Link` decodes one relation, `Archive.links_of` / `Program.links` read
+  a program's, and `Program.copy_references` filters to the ones that are links.
+- **The link's `Data` element is a group name plus four independent flags.**
+  `Group` takes ten values -- `Slices`, `SaturationRegions`,
+  `SlicesAndSaturationRegions`, `CenterOfSlicesAndSaturationRegions`,
+  `AdjustmentVolume`, `SlicesAndAdjustmentVolume`, `MeasurementParameters`,
+  `TablePosition`, `Navigators`, `Everything` -- and beside it sit
+  `CopyPhaseEncodingDirection`, `CopySteps`, `IgnoreLastStep` and
+  `IgnoreMeasurements`, all `"True"`/`"False"`. The flags are orthogonal to the
+  group rather than further values of it: the two scans exercising them are
+  `CenterOfSlicesAndSaturationRegions` with one flag flipped. `IgnoreLastStep`
+  and `IgnoreMeasurements` are `False` on every relation in the corpus, so
+  their spelling is known and their behaviour is not.
+- **`AdjustmentVolume` and `MeasurementParameters` are separate menu items,
+  and an export missing one is what makes them look like the same item.** The
+  first `copyparametertest` had eleven links and no adjustment-volume scan,
+  so `AdjustmentVolume` appeared absent from the vocabulary while the scan its
+  author had labelled `adj` sat on `MeasurementParameters` -- which reads
+  exactly like the console writing the adjustment-volume choice under a
+  surprising name. It is not: the second export adds a twelfth scan and the two
+  groups appear side by side. The lesson generalizes past this table, since it
+  is the same shape as a release that "lacks" a parameter no example prints:
+  a menu item no export exercises is a fact about the export.
+  `test_the_copy_parameter_export_exercises_every_link_group` therefore asserts
+  set *equality* against `COPY_REFERENCE_GROUPS` rather than containment, so a
+  vocabulary that outruns its evidence fails rather than passing quietly.
+- **A converted protocol is the corpus's only branching one, and it brings
+  three step kinds and a third relation kind.** `examples/XA60/K23EB_20210802`
+  is a VE11C protocol the scanner converted; `examples/VE11C/K23EB_20210802.pdf`
+  is the original. It carries an `EdfWorkflowStep` (`Patient View`) and an
+  `EdfSplitStep`/`EdfJoinStep` pair bracketing a *branch* in the running order,
+  joined by a `SplitJoin` relation that comes symmetrically -- split to join and
+  join back to split -- with no payload. So "not a `CopyReference`" does not
+  mean "meaningless": there are three kinds, and only the empty one is
+  unexplained.
+- **A program's children are not all steps.** That archive holds two
+  `EdfString` children beside its 45 steps, and it is the only one in the
+  corpus that does. Anything comparing the link chain against `Children` must
+  count only the step kinds on both sides; comparing against every child
+  reported the file as structurally broken -- `validate` said so, and so did
+  the step-order sweep, both for the same reason.
+- **A second relation shape exists and is unexplained.** `31P CSI 20230503 NOE`
+  carries 21 relations with `Kind: ""`, `Constraint: 0` and empty `Data`,
+  duplicated ten deep between the same two pairs of steps beside a real
+  `CopyReference`. Do not read `Constraint`/`Kind` as always populated, and do
+  not treat a relation count as a link count.
+- **Links are dropped by `duplicate_step`, correctly but silently.** It writes
+  empty `RelationsFrom`/`RelationsTo` entries for the new step, which is right
+  for a fresh scan and wrong for a copy of a linked one -- an imported scan
+  arrives unslaved with nothing announcing it.
 - **A protocol and a label each carry `ParentElementId` pointing at their own
   step**, and only the step points at the program. The console resolves a
   step's protocol through that reverse link rather than through the step's
@@ -837,6 +960,107 @@ before/after pair is the only way to learn where a printed value is stored --
   PDF must write nothing -- that one check exercises units, scales, the derived
   basis, sparse arrays and change detection at once, and it caught two spurious
   writes where a printed `0.00` met an assignment a sparse array omits.
+- **A flags word agrees with its own printout on every console-authored scan
+  in the corpus**: 3662 bit comparisons over 361 scans, none against, with all
+  fourteen mapped bits observed set somewhere -- so a bit in the wrong place
+  fails rather than agreeing by everything being off.
+  `test_every_flag_bit_agrees_with_the_card_that_printed_it` sweeps it.
+- **That check tests the decoder, not the conversion, and cannot tell the two
+  apart.** Whether the console remapped a converted protocol's bits or copied
+  the word verbatim, it *displays* what it stores under the current layout, so
+  printout-against-bitfield agreement is guaranteed either way. The question
+  "did conversion preserve the author's intent" needs the *original release's*
+  printout, which is why `K23EB_20210802` ships with its VE11C export beside
+  it: 304 of 304 shared Special-card readings identical across the conversion.
+  A verbatim copy under a changed layout would have shifted those. What that
+  still cannot establish is that some *other* old build shares the layout --
+  only that this one's did, or that the console fixed it.
+- **The one disagreement is a scan we wrote, not one a console authored.**
+  `CMRR_optionscan_P1_loadtest`'s `T10_Force_equal_slice_timing_True` comes
+  back from the scanner holding bits 1 and 20 while its returned printout shows
+  every flag off -- the console displaying something other than the word it
+  stored. The neighbouring `T01`-`T14` toggles all came back consistent, so it
+  is a property of that write. It is pinned in `KNOWN_FLAG_DISAGREEMENTS`
+  rather than excluded, so it stays visible and a *second* case fails. What
+  causes it is open and needs a scanner.
+- **A converted protocol's ASCCONV is trustworthy; its stamp says so and the
+  card confirms it.** `K23EB_20210802` was converted from VE11C in 2021, so its
+  CMRR scans look like a case where the mappings should not apply -- and they
+  are fine, because the scanner rebound the protocol to its own binary. Every
+  CMRR scan stamps `R017 nxva60a/main r/91b106c1e; May 15 2026`, the build the
+  mappings were derived from, and its `ulVersion` and ASCCONV header are
+  identical to a natively authored XA60 protocol: nothing inside marks it as
+  converted at all. Decoding its `alFree[0]` with the R017 bit table agrees
+  with the printed Special card on 166 comparisons with none against, and not
+  vacuously -- bits 0, 8, 9 and 12 all vary across four distinct words, and
+  `Pre_PA_CCF_distortion` is separated from its siblings by bit 8 alone. Bit 27
+  is not printed by the XA export but is by the VE11C one, and agrees on 17.
+  Across the conversion 304 of 304 shared Special-card readings are identical.
+  What changed is the card's *shape*: R017 drops `Fat sat. offset`,
+  `Fat saturation FA`, `Disable B1 control loop` and `Sinc exc. pulse BWTP` and
+  gains `Force GPA balance`. So regenerating ASCCONV from such a printout would
+  be a downgrade -- the card carries four fewer parameters and less precision
+  than the protocol it would overwrite. The file that would justify that work
+  is one whose scans still stamp an *old* build; `hcp_mbep2d_bold` is the
+  corpus's only one and it has no option scans.
+- **A converted export prints an asterisk after every scan name**, in the
+  contents listing and in the header path both
+  (`...\\K23EB_20210802\\localizer *`), while the archive's label carries none.
+  The parser is right to keep it -- it is really printed -- so the join is what
+  tolerates it: `build.match_name` strips it from both sides. Comparing raw
+  matched 0 of that export's 24 scans and wrote nothing, which reads exactly
+  like a template holding an unrelated protocol rather than like a name
+  mismatch.
+- **The printed-precision guard has to cover the mappings `Preview` does not.**
+  `Preview` carries about forty console-summary parameters, so `TE 2` and the
+  whole Special card reach the writer with no previous displayed value, and the
+  fallback comparison was on the ASCCONV literals -- exact. A stored 92.06 ms
+  met a printed `92` and was written, degrading the protocol on a run that
+  should have written nothing. `build.stored_display` inverts a plain scaled
+  mapping so the same printed-precision test applies; a flag bit, an enum and a
+  derived value are still compared as before.
+- **Report an absent sparse assignment the same way on both sides.** The flag
+  path spelled a missing `alFree[0]` as `"0"` before the write and `(absent)`
+  after, so a protocol with every box unticked -- where the console omits the
+  word entirely -- read as a change on every bit the card printed. That is ten
+  spurious writes on one scan, and it is why the self-drive check is worth more
+  than it looks: both this and the precision bug above surfaced only because
+  driving an archive from its own PDF must write *zero* values.
+- **A contents listing runs for as many pages as it needs, and the test oracle
+  has to follow it too.** `tests/test_scans._table_of_contents` read only the
+  page carrying the heading, so on a protocol whose listing spills it reported
+  scans as absent from a page that names them -- 22 of `Mair test`'s 74. The
+  parser was right and the oracle was narrow, which is the more dangerous way
+  round: for every smaller protocol it had been silently checking against a
+  partial list. It now follows the spill to the first page that opens a scan,
+  detected by the `TA:` banner rather than by the path, since the heading page
+  prints the protocol root and would match a path test. Verified it did not
+  get *weaker* in the process: no listing contains scan-body vocabulary, and a
+  fabricated scan name is still rejected.
+- **Match what you can and report the rest; never fail on an incomplete set.**
+  This applies to every tool that pairs an archive, a backup or an export with
+  PDFs. We rarely have a printout for every protocol -- `Frederick_P2` is an
+  investigator-level export with 31 programs and PDFs for 14 -- so an unmatched
+  program is the ordinary case, not an error. `build.pair_programs` returns a
+  `Pairing` of what matched plus both unmatched sides, and callers say what
+  they skipped rather than refusing to run.
+- **Pair on the program name from the printed header, never on the file name.**
+  The scanner requires a program name to be unique within an exam, so the
+  protocol component of the printed path identifies it exactly;
+  `build.program_name` reads it. A file name is whatever someone called the
+  export afterwards and can be renamed or duplicated. Take that component
+  alone, not the whole path: the root varies between exports -- this directory
+  prints `\\Research\Investigators - validated on FIT\Frederick` where the
+  rest of the corpus prints `\\Research\Investigators\...` -- so anything
+  matching on the full path fails across sites.
+- **A pairing is confirmed by the scans, and exact agreement is the wrong
+  bar.** All 14 `Frederick_P2` pairs agree on scan count and running order,
+  and three disagree on exactly one name: two protocols had a scan renamed
+  after the PDF was exported (`DWI_98Dir_InvPE-Off`/`-On`,
+  `eja_svs_press`/`eja_svs_laser`) and one holds `T1w_MPR  SAG` where the
+  console prints the double space as one. Requiring the name sets to match
+  would reject three good pairs, which is the argument for pairing on the
+  program name and *checking* with the scans rather than the reverse.
 - **Scans are matched to the template by name, and an unmatched one is
   reported rather than guessed at.** The PDF names a sequence by kernel
   (`epfid`) and the archive by sequence file (`cmrr_mbep2d_bold`), so there is
@@ -864,6 +1088,23 @@ before/after pair is the only way to learn where a printed value is stored --
   step across every program, which is unchanged for a single-protocol export.
   `duplicate_step` takes an explicit `program=`, since appending to whichever
   came first would put a scan in an unrelated protocol.
+- **A step can be run by several programs, so "exactly one" was a fact about
+  the corpus and not about the format.** Copying a protocol inside a directory
+  reuses the source's step nodes for the scans the copy did not change:
+  `Frederick_P2` shares 67 of its 435 steps -- `BioTMS`/`BioTMS_old` 19,
+  `multiecho_bids_test` and its `_small_fixed` variant 14, `MedwatchTest` and
+  `boxbreathe` 13. It is genuine sharing rather than a GUID-space confusion,
+  and the three checks that establish that are worth repeating: one element id
+  per shared object id, present in the `Children` of exactly *one* of its
+  programs, and parenting to that same one. So `_step_coverage` now asks only
+  that nothing is orphaned, and `_parents` asks that a step parents to *some*
+  program that runs it rather than to whichever the loop reached first.
+- **A step's `ParentElementId` is on the `Instance` row, not in its content.**
+  Step content is a handful of injector and voice-command fields and on some
+  steps is `{"$id": "1"}` alone. Reading the parent off the document therefore
+  returns `None` for every step and makes any check against it pass or fail
+  uniformly -- which is what "0 of 67 name their program" looked like before
+  the column was read instead, where the answer is 67 of 67.
 - **Per-program checks and archive-wide ones answer different questions.**
   A program's chain is compared against *its own* `Children`, because a
   backup's programs each legitimately run a fraction of the file's steps --
