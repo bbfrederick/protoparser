@@ -676,6 +676,121 @@ def _ascconv_differences(one: str, other: str) -> set[str]:
     return {k for k in set(a) | set(b) if a.get(k) != b.get(k)}
 
 
+#: The scan in ``driver_loadtest`` whose slice array went to the scanner
+#: without being recomputed, because the archive predates
+#: :func:`build.recentre`. Pinned by name so the exception below cannot widen
+#: to cover a scan that starts differing for some other reason.
+PREDATES_RECENTRE = "Minn_CMRR_2.3mm_S8_rest_6min"
+
+
+@requires_exar
+def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
+    """Every value the driver wrote came back from the scanner unchanged.
+
+    ``driver_loadtest`` is ``Potpourri_P1`` driven by the
+    ``Potpourri_P1_changed`` printout and then loaded and re-exported by a
+    scanner. The answer-key comparison shows the driver agrees with the
+    console's own edit of the same protocol; what it cannot show is that the
+    *hybrid* it produces -- mapped values from the printout beside inherited
+    ones from the template -- is a parameter set some sequence accepts. Only a
+    loader answers that, and a scan it refused would be missing here, since an
+    inconsistent scan has to be deleted before the protocol can be saved.
+
+    The written values are recomputed rather than pinned, so a mapping that
+    changes fails against the scanner instead of against a stale literal.
+
+    Returns
+    -------
+    None
+    """
+    template_path = find_exar("Potpourri_P1.exar1")
+    pdf = os.path.join(os.path.dirname(template_path), "Potpourri_P1_changed.pdf")
+    if not os.path.exists(pdf):
+        pytest.skip("Potpourri_P1_changed.pdf is not beside the template")
+    returned = read(find_exar("driver_loadtest.exar1"))
+
+    before = {step.name: step.protocol.xprotocol for step in read(template_path).steps}
+    built = read(template_path)
+    report = build.apply_protocol(built, parse_document(pdf).protocol.to_dict(include_flat=True))
+    assert report.applied, "the driver wrote nothing, so there is nothing to check"
+
+    assert [step.name for step in returned.steps] == list(before), "the loader dropped a scan"
+
+    was = {name: _ascconv(text) for name, text in before.items()}
+    ours = {step.name: _ascconv(step.protocol.xprotocol) for step in built.steps}
+    theirs = {step.name: _ascconv(step.protocol.xprotocol) for step in returned.steps}
+
+    # A flag word takes several labels and an array mapping takes one key per
+    # element, so expand each record into the assignments it really touched.
+    written = {
+        (one.step, key)
+        for one in report.applied
+        for key, _index in (
+            patch.expand(one.ascconv_key.split(" x")[0], before[one.step])
+            or [(one.ascconv_key, None)]
+        )
+    }
+    inert = sorted(k for k in written if ours[k[0]].get(k[1]) == was[k[0]].get(k[1]))
+    lost = [
+        (scan, key, ours[scan].get(key), theirs[scan].get(key))
+        for scan, key in sorted(written)
+        if ours[scan].get(key) != theirs[scan].get(key)
+    ]
+    assert not inert, f"these writes left the template alone, so agreement is vacuous: {inert[:4]}"
+    assert not lost, f"the scanner did not keep what the driver wrote: {lost[:4]}"
+    assert len(written) > 200, f"only {len(written)} fields compared; this proves little"
+
+
+@requires_exar
+def test_the_scanner_only_moved_fields_the_driver_left_to_the_template() -> None:
+    """What came back differs from a fresh drive only in churn and the slices.
+
+    The complement of the check above: that one asks whether our writes
+    survived, this one asks whether the scanner made changes of its own. Every
+    difference must be on the churn list -- the GUIDs and stamps a save
+    regenerates, and the derived scan time :class:`patch.Manifest` already
+    names -- because anything else would be the loader disagreeing with a value
+    it accepted.
+
+    The one exception is the slice positions of the scan pinned in
+    ``test_exar_geometry.KNOWN_INCONSISTENT_ARRAYS``. This archive was built
+    before :func:`build.recentre` existed, so it went to the scanner with a
+    64-slice array still describing the thickness it no longer had; a drive
+    today rebuilds those positions and the shipped return therefore cannot
+    match them. The difference is ours, not the scanner's -- it returned that
+    array exactly as we wrote it -- which is the whole point of keeping the
+    file.
+
+    Returns
+    -------
+    None
+    """
+    template = find_exar("Potpourri_P1.exar1")
+    sent = read(template)
+    parsed = parse_document(os.path.join(os.path.dirname(template), "Potpourri_P1_changed.pdf"))
+    build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
+    returned = read(find_exar("driver_loadtest.exar1"))
+
+    came_back = {step.name: step for step in returned.steps}
+    stray, rebuilt, compared = [], 0, 0
+    for step in sent.steps:
+        ours = _ascconv(step.protocol.xprotocol)
+        theirs = _ascconv(came_back[step.name].protocol.xprotocol)
+        compared += 1
+        for key in set(ours) | set(theirs):
+            if ours.get(key) == theirs.get(key) or OPTION_CHURN.search(key):
+                continue
+            if step.name == PREDATES_RECENTRE and ".sPosition." in key:
+                rebuilt += 1
+                continue
+            stray.append((step.name, key))
+    assert compared == len(came_back)
+    assert not stray, f"the scanner changed fields nothing accounts for: {stray[:6]}"
+    # If the rebuild stops firing, the exception above is quietly excusing
+    # nothing and would go on excusing a real difference later.
+    assert rebuilt, f"{PREDATES_RECENTRE}: the slice array was not rebuilt by this drive"
+
+
 @requires_exar
 def test_re_encoding_a_returned_archive_reproduces_the_scanner_bytes() -> None:
     """The scanner's own output round-trips through our serializer exactly.
@@ -1684,8 +1799,15 @@ def test_driving_every_console_archive_from_its_own_pdf_writes_nothing() -> None
     derived basis, sparse arrays and change detection at once, and a mapping
     that writes when asked to reproduce what is already there is wrong about
     something. Sweeping every pair is what found `Table Position` writing a
-    sign flip -- the printout carries the magnitude, so the mapping was
-    removed.
+    sign flip on the nineteen scans holding -32: a printed coordinate is a
+    magnitude beside a direction letter, and the mapping was reading only the
+    number. It now reads the letter through `Mapping.sign_from`.
+
+    "Console-authored" is a claim about the *printout*, not the protocol.
+    `driver_loadtest` is an archive this package built, and its PDF is still
+    the console's own export of what the scanner stored -- so the invariant
+    holds there too, and it is the one pair that exercises it on a protocol
+    we wrote rather than one we only read.
 
     Returns
     -------
@@ -1803,3 +1925,64 @@ def test_a_direction_letter_that_is_neither_is_refused() -> None:
     assert build.apply_direction(32, "H", mapping) == 32.0
     for unusable in (None, "", "X", "posterior"):
         assert build.apply_direction(32, unusable, mapping) is None, unusable
+
+
+@requires_exar
+def test_a_label_mapped_for_another_sequence_is_named_not_buried() -> None:
+    """A refusal with a reason must not read as a parameter nothing knows.
+
+    ``inherited`` counts everything the driver could not write, which puts a
+    label one derivation away from working beside forty that nothing has ever
+    looked at. `Averaging` is the case: it is mapped for ``tfl_mgh_multiecho``
+    and printed by ``tfl_mgh_epinav_ABCD``, whose protocol the driver
+    therefore leaves alone -- correctly, because a ``sWipMemBlock`` index
+    means whatever its own sequence says it means. The manifest's job is to
+    say where the next mapping is worth deriving, and that is exactly what
+    this entry says.
+
+    Returns
+    -------
+    None
+    """
+    template = find_exar("Potpourri_P1.exar1")
+    pdf = os.path.join(os.path.dirname(template), "Potpourri_P1_changed.pdf")
+    if not os.path.exists(pdf):
+        pytest.skip("Potpourri_P1_changed.pdf is not beside the template")
+    archive = read(template)
+    report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict(include_flat=True))
+
+    assert report.out_of_scope, "no label was reported as mapped elsewhere"
+    assert set(report.out_of_scope) <= set(report.inherited), (
+        "a label counted as out of scope must also be counted as inherited, "
+        "or the coverage arithmetic stops adding up"
+    )
+    for label in report.out_of_scope:
+        assert report.reasons.get(label), f"{label} was flagged with no reason"
+    rendered = report.report(limit=40)
+    assert "already mapped for another sequence or build" in rendered
+    for label in report.out_of_scope:
+        assert label in rendered
+
+
+@requires_exar
+def test_covered_elsewhere_asks_the_table_and_not_the_prose() -> None:
+    """The classification must follow the mappings, not a reason string.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    steps = {step.name: step for step in archive.steps}
+    navigator = steps["T1_MEMPRAGE_1.0mm_p4_vNav"].protocol
+
+    # Mapped, but derived from a different sequence in the same family.
+    assert build.covered_elsewhere(navigator, "Averaging")
+    assert patch.resolve(navigator, "Averaging")[0] is None
+    # Mapped and in scope here, so not "elsewhere".
+    assert not build.covered_elsewhere(navigator, "TR")
+    assert patch.resolve(navigator, "TR")[0] is not None
+    # Printed by the protocol and mapped by nothing at all.
+    assert not build.covered_elsewhere(navigator, "Inline Movie")
+    # Case and surrounding space must not decide it.
+    assert build.covered_elsewhere(navigator, "  averaging ")

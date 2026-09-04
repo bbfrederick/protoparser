@@ -1067,12 +1067,20 @@ the two consistent.
   is the manifest earning its keep.
 - **A driver-built archive has been checked against an answer key.** Driving
   `Potpourri_P1` with the `Potpourri_P1_changed` printout, against the
-  console's own edit of the same protocol: 157 fields written match exactly,
-  174 the console moved were left alone as unmapped, and 0 are wrong. The 68
-  that differ are the two documented classes and nothing else -- 67
-  `dPhaseFOV` off by at most 0.083 mm from the console's quantised ratio, and
-  one `alFree[0]` differing in bit 29, which no mapping claims. Coverage is
-  now about 30% of printed parameters, up from a tenth.
+  console's own edit of the same protocol: **201** of the fields the console
+  moved are reproduced exactly, 29 are left at the template as unmapped, and
+  153 differ. Coverage is about 30% of printed parameters, up from a tenth.
+  Three classes account for every difference: 67 `dPhaseFOV` off by at most
+  0.083 mm from the console's quantised ratio, one `alFree[0]` differing in
+  bit 29 which no mapping claims, and 85 slice positions carrying the
+  template's group centre because the printed `Position` is unmapped. That
+  last class is what recomputing the array *exposes* -- before `recentre`
+  those 128 assignments sat in the inherited column instead, where being
+  wrong was invisible, and the tally was 158 exact against 157 inherited. So
+  the honest reading of 158 to 201 is that 43 positions became right and 85
+  moved from silently wrong to visibly wrong; the array is now internally
+  consistent either way, which is the property that decides whether a scan
+  loads.
 - **`siemens-protocol-tool exar <archive> <pdf>` is the driver**, and its
   manifest is as much the point as its output. Roughly a tenth of what a
   protocol prints has a verified mapping, so a built archive is mostly the
@@ -1082,6 +1090,129 @@ the two consistent.
   PDF must write nothing -- that one check exercises units, scales, the derived
   basis, sparse arrays and change detection at once, and it caught two spurious
   writes where a printed `0.00` met an assignment a sparse array omits.
+- **A scanner has loaded a driver-built archive and kept every value it was
+  given.** `examples/XA60/driver_loadtest.exar1` is the answer-key build above
+  after a round trip: 18 scans in and 18 out, running order preserved, the
+  program still named `DRIVER_TEST` and nothing greyed out. All **226**
+  ASCCONV fields the driver wrote came back byte-identical, and all 226
+  genuinely differed from the template, so none of that agreement is the
+  template agreeing with itself. Fourteen of the eighteen XProtocol texts are
+  byte-identical and the other four differ only in churn; thirteen whole
+  protocol documents are identical, the fourteenth differing only in the
+  embedded ASCCONV block noted below. That is what the answer-key comparison
+  could not establish: a hybrid of two consistent parameter sets -- 226 fields
+  from the printout beside 173 inherited from the template -- is not consistent
+  by construction, and only a scanner can say. It says yes for this one, and
+  still says nothing about whether the result is the protocol anyone wanted.
+  Note what "kept every value" does not cover, which is the next bullet: the
+  archive also came back with an incoherent slice array, in fields no mapping
+  wrote and this comparison therefore never looked at.
+- **The self-drive check now covers a protocol this package wrote, not only
+  ones it read.** With its printout beside it, `driver_loadtest` joins the
+  sweep: 18 scans matched, **0 values written**, which is the same invariant
+  applied to a built archive rather than a console-authored one. It also adds
+  50 comparisons to the flag-bit sweep, against a card the scanner itself
+  printed from what we stored -- the first check that *our* flag words display
+  as intended, as opposed to that a console's word decodes correctly.
+  "Console-authored" in that test's name is a claim about the PDF, which is
+  still the console's export, and the docstring now says so.
+- **Measured at the printout, the driver reproduced 80 of the 87 parameters
+  the console changed -- 92%.** `examples/XA60/driver_loadtest.pdf` is the
+  return's own export, so the intended result can be compared against what
+  arrived: for every (section, label) the console moved between
+  `Potpourri_P1` and `Potpourri_P1_changed`, is the built protocol printing
+  the target or still the template? Do not confuse this with the ~30%
+  coverage figure, which is over *everything a protocol prints*. Both are
+  honest and they measure different things: most printed parameters are never
+  edited, and the mapped ones are disproportionately the ones people do edit.
+  Six of the seven misses are Special-card parameters no mapping claims --
+  `Physio recording` twice, `Triggering scheme`, `FFT scale factor`,
+  `Echoes in separate series` (the bit-29 word from the answer key) -- and
+  `Averaging`, refused for the sequence reason below. Compare per printed
+  section rather than through `flat`, for the reason the `Position` note
+  already gives.
+- **The console recomputes `Bandwidth` on import, so a parameter can move
+  without anyone writing it.** No mapping touches it; the template prints
+  2222 Hz/Px, the target 2186, and what came back is 2272. It follows from
+  base resolution and readout FOV, both of which the driver did change, so
+  the console derived it -- the same behaviour as `lScanTimeSec` and the VASO
+  TI formulas, now seen on an ordinary acquisition parameter. It is the one
+  difference in that sweep that is neither the target nor the template, which
+  is a useful shape to watch for: a third value means something downstream
+  recomputed.
+- **`Averaging` agrees on 37 of 37 scans across *two* sequences, and is still
+  refused on the second.** It was derived from `tfl_mgh_multiecho`, and
+  `tfl_mgh_epinav_ABCD` prints it too: decoding `sWipMemBlock.alFree[4]` with
+  the same table agrees on 27 of that sequence's scans with three distinct
+  values, and on 10 of the original's with all five. That is good evidence
+  and it is the wrong kind -- printout-against-stored tests the *decoder*,
+  since the console displays what it stores, exactly as the flag-bit sweep
+  does. Widening a `sWipMemBlock` mapping needs a controlled toggle on the
+  second sequence, which is what an option scan is for. Until then the driver
+  refuses and the manifest *says so*: `BuildReport.out_of_scope` separates a
+  label one derivation away from working from the forty nothing has looked
+  at, which `inherited` alone cannot. `build.covered_elsewhere` asks the
+  mapping table rather than parsing `resolve`'s prose, so rewording a reason
+  cannot reclassify anything.
+- **The duplicate-name trap bit a second time, in an analysis rather than a
+  test.** `MEMPRAGE_optionscan_P1` prints seven scans named
+  `T1_MEMPRAGE_64ch`, so a `{name: printed}` dict keeps only the last and
+  every archive step joins to it -- manufacturing six `Averaging`
+  disagreements that vanish when duplicated names are dropped. Same lesson as
+  `geomopts` printing `G22` twice, and worth restating because it appeared in
+  a throwaway sweep where nothing was there to catch it: any join on scan
+  name must drop names that are not unique, whether or not it is a test.
+- **An inconsistent slice array is not caught by the scanner, so "it loaded"
+  is a weaker signal than the greying-out rule suggests.** The driver wrote
+  `Slice Thickness` 2.3 to 2.2 across all 64 elements of a CMRR EPI and left
+  `sPosition` describing the 2.3 mm geometry, putting the outermost slices
+  `(64 - 1) / 2 * 0.1` = 3.15 mm from where they belong. The console loaded
+  the scan, did not grey it out, printed nothing about it, and returned the
+  array untouched -- while its own edit of the same protocol recomputed all
+  64 positions. So the consistency check the console runs does not cover the
+  slice array against its group inputs, and a protocol can come back from a
+  scanner incoherent in a way nothing announced. It is pinned as
+  `KNOWN_INCONSISTENT_ARRAYS` in `tests/test_exar_geometry.py` rather than
+  excluded, so a second one fails. `build.recentre` is the fix: it rebuilds
+  an array that *this* write invalidated, leaves one that arrived broken
+  alone, and skips multi-group arrays, which `read_group` refuses anyway.
+  This is the strongest argument yet for the corpus sweep -- the archive was
+  checked field by field against what we sent, agreed on all 226, and the
+  defect was in a field nobody wrote. Note the converse case, which looks like
+  the same bug and is not: a one-slice group puts its slice *at* the centre and
+  the step never enters, so `localizer_64ch_uncombined` -- a three-plane scout,
+  three groups of one -- takes a thickness write with nothing to recompute, and
+  `read_group` declining to describe it is correct rather than a gap.
+- **`insert_ascconv` is validated on a scanner, not merely against another
+  export.** `sWipMemBlock.adFree[3]` is absent from the template, was created
+  between `adFree[2]` and `adFree[4]`, and came back in that position with the
+  console's own spelling. Creating a sparse assignment is the part of the write
+  path with no console output to imitate, so this is the first evidence it
+  produces something a scanner accepts rather than something that merely parses.
+- **A `Preview` value can hold its own ASCCONV block, and it churns
+  separately.** `can_neuromelanin`'s `sub.0.msr.sg.0.ori` is a
+  `GradDirPatDblImpl` block carried inside a preview entry, and it returned
+  respelled `\t = \t` where we sent `  =  ` -- on a scan whose *main* ASCCONV
+  is byte-identical. So the whitespace churn is a property of each block the
+  console re-serializes, not of the protocol, and a preview diff has to
+  tolerate it exactly as an ASCCONV diff does. Beyond that block the only
+  preview movement across all eighteen scans is `sub.0.msr.time_sec` on the two
+  scans whose TR or TE moved, which is the derived scan time `Manifest.stale`
+  already names.
+- **The ABCD navigators' `tFree` is rewritten on import, so it is not a
+  faithful carrier.** It holds a `.prot` file name rather than a build stamp,
+  and the one scan the driver edited came back holding
+  `Prisma_epi_moco_navigator.prot` where we sent
+  `Prisma_epi_moco_navigator_ABCD_tfl.prot`; the five navigator scans we left
+  alone kept theirs. The name it lands on tracks `alFree[15]` (`ABCD
+  navigator`, which the driver moved 2 to 1) on every scan across the two
+  returns that carries both -- except `T09`/`T19` in the NAV option-scan
+  return, which
+  hold `alFree[15] = 1` beside an `_ABCD_*.prot` name. Those two were authored
+  by toggling the option on the console rather than imported, so the rule may
+  be about import and not about the value; that is not established, and a
+  counterexample is a counterexample. Either way the field is already churn, so
+  nothing reads it -- what changes is that "no GUID" did not mean "stable".
 - **A flags word agrees with its own printout on every console-authored scan
   in the corpus**: 3662 bit comparisons over 361 scans, none against, with all
   fourteen mapped bits observed set somewhere -- so a bit in the wrong place
@@ -1248,6 +1379,61 @@ the two consistent.
   out of a real export, and `test_every_step_in_a_corpus_archive_belongs_to_
   exactly_one_program` is written archive-wide so a readable backup tightens
   it rather than needing a new test.
+
+#### Reading an archive out
+
+`siemens-protocol-tool archive <file.exar1>` is the reading half, where `exar`
+is the writing half, and `exar/inspect.py` is the whole of it -- it composes
+`archive`, `patch` and `geometry` and establishes nothing new about the format
+beyond the three observations below. `list`, `sequences` and `check` take an
+archive wherever they take a PDF, through `inspect.as_protocol`.
+
+- **ASCCONV spells an array index two ways, and the second one is easy to miss.**
+  `alTE[0]` is the usual spelling; the corpus also carries
+  `sDiffusion.sFreeDiffusionData.sComment.0`, a bare digit as a path component
+  -- 2214 assignments over that one key family and the only such component in
+  1031 scans. A tokenizer built on the bracketed form alone parses 99.8% of the
+  corpus and silently declines the rest, which is why the nesting test counts
+  leaves against the flat table rather than spot-checking keys.
+- **An array node is a map as well as a sequence, so its indices cannot be JSON
+  list positions.** `sSliceArray.asSlice.__attribute__.size` sits beside
+  `sSliceArray.asSlice[0].dThickness`; `__attribute__` is the only non-index
+  member anywhere in the corpus (30029 occurrences) and a test asserts that
+  rather than the code assuming it. Indices nest as decimal *string* keys,
+  which also handles the sparseness -- `alTE` declares `size` 256 and defines
+  twelve elements -- where a list would pad 244 nulls or close the gaps and
+  renumber. The two key spaces cannot collide: a member name must start with a
+  letter or an underscore.
+- **`tSequenceFileName`'s prefix is the archive stating who supplied the
+  sequence.** `%SiemensSeq%\gre` against `%CustomerSeq%\cmrr_mbep2d_bold`. That
+  is Siemens writing it, so it has the same standing as VB17A's printed
+  `SIEMENS:`/`USER:` owner and is carried into the catalog as two more
+  `stock_owners`/`third_party_owners` spellings rather than translated into
+  VB17A's -- an evidence line should quote what the file says. Verified over
+  1031 scans in 31 archives: no binary appears under both prefixes, every
+  `%SiemensSeq%` binary the catalog knows is one of its Siemens kernels, and
+  every `%CustomerSeq%` binary it knows matches a third-party signature. It
+  matters most where the printout is weakest -- a Numaris/X page prints the
+  kernel (`epfid`) where the archive prints the sequence file
+  (`cmrr_mbep2d_bold`), so on `Potpourri_P1` the archive resolves all 18 scans
+  where the PDF leaves four `?`. Do not read the prefix as identifying *which*
+  sequence: like `sequence_owner`, it says the sequence is not Siemens', not
+  whose it is.
+- **The archive has no cards, so a scan read from one prints no Special
+  card.** What a page splits into Routine, Contrast and Geometry is a property
+  of the page. `inspect.scan_of` therefore emits one section, `Preview`, and
+  `sequences.special_keys` finds nothing in it -- which is correct, not a gap:
+  the binary and the stated owner are the two signals an archive carries, and
+  they are enough. It does mean the PDF-shaped view of an archive is the
+  console's ~40-parameter summary, not the several hundred a page prints, so a
+  policy written against a printout mostly misses. The complete set is the
+  `ascconv` tree.
+- **`lTotalScanTimeSec` reproduces the printed `TA`**, exactly, on every
+  corpus scan that stores one. It is absent rather than zero on the
+  one-second setter scans, which is why `Potpourri_P1` totals 51:51 from the
+  archive against 51:55 from the printout -- four scans the console omits.
+  It is a *derived* field the console recomputes, so a protocol this package
+  has patched carries a stale one until a scanner reopens it.
 
 ### Code Formatting
 
