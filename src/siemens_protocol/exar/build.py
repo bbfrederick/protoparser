@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from typing import Mapping as MappingType
 
-from . import patch
+from . import geometry, patch
 from .archive import Archive
 
 #: Units the card prints beside a value and the protocol does not store.
@@ -106,6 +106,14 @@ class BuildReport:
         Mapped parameters whose printed value already matched the template.
     inherited : collections.Counter
         Printed parameters no mapping covers, counted across matched scans.
+    out_of_scope : collections.Counter
+        The subset of ``inherited`` that some mapping *does* cover, for a
+        different sequence or a different build of the same one. These are
+        the next derivations worth making, so they are named rather than
+        left indistinguishable from parameters nothing knows about.
+    reasons : dict
+        One representative reason per label in ``out_of_scope``, as
+        :func:`patch.resolve` phrased it.
     matched : list of str
         Scan names present in both the PDF and the template.
     unmatched : list of str
@@ -118,6 +126,8 @@ class BuildReport:
     skipped: list[patch.Skipped] = field(default_factory=list)
     unchanged: int = 0
     inherited: collections.Counter = field(default_factory=collections.Counter)
+    out_of_scope: collections.Counter = field(default_factory=collections.Counter)
+    reasons: dict[str, str] = field(default_factory=dict)
     matched: list[str] = field(default_factory=list)
     unmatched: list[str] = field(default_factory=list)
     untouched: list[str] = field(default_factory=list)
@@ -169,6 +179,10 @@ class BuildReport:
             lines.append("most common printed parameters with no mapping:")
             for name, count in self.inherited.most_common(limit):
                 lines.append(f"  {count:4d}x {name}")
+        if self.out_of_scope:
+            lines.append("of those, already mapped for another sequence or build:")
+            for name, count in self.out_of_scope.most_common(limit):
+                lines.append(f"  {count:4d}x {name} -- {self.reasons.get(name, '')}")
         return "\n".join(lines)
 
 
@@ -427,6 +441,82 @@ def _moved(record: patch.Applied) -> bool:
     return str(record.previous) != str(record.value)
 
 
+def apply_direction(magnitude: Any, letter: Any, mapping: patch.Mapping) -> Any:
+    """Turn a printed magnitude and its direction letter into a signed value.
+
+    Siemens prints a position as a magnitude beside a letter naming the
+    direction -- ``F32`` for a protocol holding ``-32`` -- and on a
+    two-column card the letter lands in a field of its own. The magnitude on
+    its own does not say which side of zero the value is on.
+
+    Parameters
+    ----------
+    magnitude : Any
+        The printed number, already stripped of its unit.
+    letter : Any
+        The companion field, or ``None`` when the printout does not carry one.
+    mapping : Mapping
+        The parameter being written, for its
+        :attr:`~.patch.Mapping.negative_letters`.
+
+    Returns
+    -------
+    Any
+        The signed value, or ``None`` when the letter is absent or is not one
+        this mapping knows -- which the caller must treat as "leave it alone"
+        rather than writing the magnitude.
+    """
+    if letter is None:
+        return None
+    direction = str(letter).strip().upper()
+    if not direction:
+        return None
+    if direction not in mapping.negative_letters and direction not in POSITIVE_LETTERS:
+        return None
+    try:
+        number = float(str(magnitude).strip())
+    except (TypeError, ValueError):
+        return None
+    return -abs(number) if direction in mapping.negative_letters else abs(number)
+
+
+#: The letters naming the positive half of each axis. Right, anterior,
+#: superior and head; their opposites are the negative half. Listed so a
+#: letter belonging to neither -- a release spelling one differently -- is
+#: refused rather than read as positive by default.
+POSITIVE_LETTERS = ("R", "A", "S", "H")
+
+
+def covered_elsewhere(protocol: Any, label: str) -> bool:
+    """Say whether some mapping carries this label but not for this protocol.
+
+    A label nothing in :data:`patch.MAPPINGS` knows about and one that is
+    mapped for a different sequence -- or a different build of the same
+    sequence -- both reach the manifest as "inherited", and they are not the
+    same finding. The second is a mapping away from working, so the report
+    names it. `Averaging` is the example: derived from ``tfl_mgh_multiecho``
+    and therefore refused on ``tfl_mgh_epinav_ABCD``, which prints it too.
+
+    The question is asked of the table rather than of :func:`patch.resolve`'s
+    prose, so a reworded reason cannot silently reclassify anything.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol the label was printed by.
+    label : str
+        The printed label.
+
+    Returns
+    -------
+    bool
+        True when the label is mapped somewhere and out of scope here.
+    """
+    wanted = label.strip().casefold()
+    carried = [m for m in patch.MAPPINGS if m.label.strip().casefold() == wanted]
+    return bool(carried) and not any(patch.applies_to(m, protocol) for m in carried)
+
+
 def _apply_scan(
     archive: Archive, step: Any, scan: MappingType[str, Any], report: BuildReport
 ) -> None:
@@ -448,12 +538,23 @@ def _apply_scan(
     None
     """
     requests: dict[str, Any] = {}
-    for label, value in printed_parameters(scan).items():
-        mapping, _reason = patch.resolve(step.protocol, label)
+    printed = printed_parameters(scan)
+    for label, value in printed.items():
+        mapping, reason = patch.resolve(step.protocol, label)
         if mapping is None:
             report.inherited[label] += 1
+            if covered_elsewhere(step.protocol, label):
+                report.out_of_scope[label] += 1
+                report.reasons.setdefault(label, reason)
             continue
         wanted = printed_value(value)
+        if mapping.sign_from is not None:
+            wanted = apply_direction(wanted, printed.get(mapping.sign_from), mapping)
+            if wanted is None:
+                # The magnitude without its letter does not say which side of
+                # zero the value is on, and guessing would flip a sign.
+                report.inherited[label] += 1
+                continue
         entry = (
             step.protocol.preview.get(mapping.preview_path)
             if mapping.preview_path is not None
@@ -483,4 +584,44 @@ def _apply_scan(
     report.applied.extend(changed)
     report.skipped.extend(skipped)
     if changed:
+        document["Data"] = recentre(step.protocol.xprotocol, document["Data"])
         archive.replace_content(step.protocol.instance, document)
+
+
+def recentre(before: str, after: str) -> str:
+    """Replace the slice array when a write has invalidated it.
+
+    ``Slice Thickness`` and ``Distance Factor`` both set the *spacing* between
+    slices, and every ``sSliceArray.asSlice[]`` position is a function of it,
+    so writing either one alone leaves every position describing the geometry
+    that was replaced. The console recomputes; a patcher does not, and the
+    result is an array that still loads -- a scanner returned one 3.15 mm out
+    without complaint -- while describing no coherent slice group.
+
+    Only an array this write broke is rebuilt. One that arrived disagreeing
+    with its own inputs is left exactly as it was, because repairing it would
+    be a change nothing asked for, and a multi-group array is skipped outright
+    since :func:`geometry.read_group` refuses to describe one.
+
+    Parameters
+    ----------
+    before : str
+        The XProtocol text as the template held it.
+    after : str
+        The same text after this scan's values were written.
+
+    Returns
+    -------
+    str
+        ``after``, with the slice positions recomputed when they need to be.
+    """
+    was = geometry.agrees(before)
+    if was is None or was >= geometry.TOLERANCE:
+        return after
+    group = geometry.read_group(after)
+    if group is None:
+        return after
+    now = geometry.agrees(after, group)
+    if now is None or now < geometry.TOLERANCE:
+        return after
+    return geometry.rebuild(after, group)
