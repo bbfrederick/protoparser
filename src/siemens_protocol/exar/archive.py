@@ -46,9 +46,16 @@ GUID_BYTES = 16
 #: to read from.
 PLACEHOLDER_BASELINE = "-"
 
+#: An unset GUID reference in a ``ChangeSet`` row.
+EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
+
 #: Instance types, as ``Instance.InstanceType`` spells them.
 PROGRAM = "EdfProgram"
 MEASUREMENT_STEP = "EdfMeasurementStep"
+
+#: The node the folder tree hangs from, and the folders themselves.
+STRUCTURE = "EdfStructure"
+DIRECTORY = "EdfDirectory"
 
 #: A step in the running order that acquires nothing. Operators put pause and
 #: instruction steps between scans -- "Count down with RA to start of scan",
@@ -705,6 +712,109 @@ class Archive:
         return found[0] if found else None
 
     @property
+    def tree_root(self) -> Instance | None:
+        """Return the ``EdfStructure`` node the directory tree hangs from.
+
+        Returns
+        -------
+        Instance or None
+            The root, or ``None`` in an archive that carries none.
+        """
+        for instance in self.instances.values():
+            if instance.kind == STRUCTURE:
+                return instance
+        return None
+
+    @property
+    def directory_parents(self) -> dict[str, str]:
+        """Return the child-to-parent map that carries the folder hierarchy.
+
+        The tree is *not* in the ``Children`` blobs: an ``EdfDirectory``
+        carries none in any corpus archive, and an ``EdfProgram`` has no
+        ``ParentElementId``. It lives in the root ``EdfStructure``'s own
+        content document, under ``ParentDirectoryId``.
+
+        That map is keyed in **two GUID spaces at once**, which is the trap
+        here: a directory appears under its ``ObjectId`` and a program under
+        its ``Element_id``. Looking every key up in one space resolves the 61
+        directories and none of the 499 programs, which reads as a tree of
+        empty folders rather than as a lookup in the wrong space. Values are
+        always a directory ``ObjectId``, with the all-zero GUID for the root.
+
+        Returns
+        -------
+        dict of str to str
+            Child id to parent directory ``ObjectId``. Empty when the archive
+            has no root or its root records no parents.
+        """
+        root = self.tree_root
+        if root is None:
+            return {}
+        document = self.document(root)
+        parents = document.get("ParentDirectoryId")
+        if not isinstance(parents, dict):
+            return {}
+        return {k: str(v) for k, v in parents.items() if not k.startswith("$")}
+
+    def parent_of(
+        self, instance: Instance, parents: dict[str, str] | None = None
+    ) -> Instance | None:
+        """Return the directory a node sits in.
+
+        Parameters
+        ----------
+        instance : Instance
+            The node to place.
+        parents : dict of str to str or None, optional
+            A prebuilt :attr:`directory_parents`. Pass one when placing many
+            nodes: building it decodes and parses the root document, which is
+            a megabyte-scale JSON object on a whole-scanner export.
+
+        Returns
+        -------
+        Instance or None
+            The parent directory, or ``None`` at the top of the tree.
+        """
+        if parents is None:
+            parents = self.directory_parents
+        key = parents.get(instance.object_id)
+        if key is None:
+            key = parents.get(instance.element_id)
+        if key is None or key == EMPTY_GUID:
+            return None
+        return self.by_object.get(key)
+
+    def path_of(self, instance: Instance, parents: dict[str, str] | None = None) -> list[str]:
+        """Return the folder path to a node, outermost first.
+
+        Parameters
+        ----------
+        instance : Instance
+            The node to place.
+        parents : dict of str to str or None, optional
+            A prebuilt :attr:`directory_parents`, as for :meth:`parent_of`.
+
+        Returns
+        -------
+        list of str
+            Directory labels, ending with the node's own. A cycle stops the
+            walk rather than hanging, since nothing guarantees the console
+            wrote an acyclic map.
+        """
+        if parents is None:
+            parents = self.directory_parents
+        by_object = self.by_object
+        names: list[str] = []
+        seen: set[str] = set()
+        current: Instance | None = instance
+        while current is not None and current.id not in seen:
+            seen.add(current.id)
+            names.append(self.label_of(current))
+            key = parents.get(current.object_id) or parents.get(current.element_id)
+            current = None if key is None or key == EMPTY_GUID else by_object.get(key)
+        return list(reversed(names))
+
+    @property
     def programs(self) -> list["Program"]:
         """Return every protocol in the archive, each with its ordered steps.
 
@@ -969,6 +1079,56 @@ def _head_branch(container: store.Container) -> tuple[str, str]:
     return str(chosen[0].get("Baseline", "")), str(chosen[0].get("Head", ""))
 
 
+def _element_map(container: store.Container, head: str) -> set[str]:
+    """The instance versions a changeset's element map resolves to.
+
+    A ``ChangeSet`` names two rows of ``ElementToInstanceMap``: a
+    ``BaseElementMapId`` holding the whole tree as of some earlier point, and
+    a ``DeltaElementMapId`` holding what this changeset changed. Each map is a
+    flat run of 32-byte records -- an element id and an instance id, both as
+    .NET mixed-endian GUIDs -- and the delta supersedes the base element by
+    element. That pair *is* the live set, which is why
+    :func:`.generate._head_map_id` appends new pairs to it.
+
+    Reading the live set any other way works only on an archive written in a
+    single changeset. ``InstanceChangeSet`` records what each changeset
+    *touched*, so filtering it to the head yields the last save's delta and
+    calls it the whole file: on a 97 MB export written by twelve successive
+    ``CopyProgramsPipeline`` saves, that is 21 instances of 31164, and it
+    looks like a small archive rather than like a failure.
+
+    Parameters
+    ----------
+    container : store.Container
+        The loaded tables.
+    head : str
+        The changeset id to resolve at.
+
+    Returns
+    -------
+    set of str
+        Instance version ids, empty when the changeset names no map -- an
+        ``Initial creation`` row leaves both ids unset, and the caller then
+        falls back rather than reporting an empty archive.
+    """
+    changesets = {str(row["Id"]): row for row in container.rows("ChangeSet")}
+    row = changesets.get(head)
+    if row is None:
+        return set()
+    blobs = {str(entry["Id"]): entry["Data"] for entry in container.rows("ElementToInstanceMap")}
+    resolved: dict[str, str] = {}
+    for column in ("BaseElementMapId", "DeltaElementMapId"):
+        identifier = str(row.get(column, EMPTY_GUID))
+        blob = blobs.get(identifier)
+        if identifier == EMPTY_GUID or blob is None:
+            continue
+        raw = bytes(blob)
+        for offset in range(0, len(raw) - 31, 32):
+            element = str(uuid.UUID(bytes_le=raw[offset : offset + 16]))
+            resolved[element] = str(uuid.UUID(bytes_le=raw[offset + 16 : offset + 32]))
+    return set(resolved.values())
+
+
 def _live_instances(container: store.Container, head: str) -> dict[str, Instance]:
     """Resolve the instances that exist at one changeset.
 
@@ -984,11 +1144,13 @@ def _live_instances(container: store.Container, head: str) -> dict[str, Instance
     dict of str to Instance
         Live instances keyed by version id.
     """
-    live = {
-        str(row["InstanceId"])
-        for row in container.rows("InstanceChangeSet")
-        if str(row.get("ChangeSetId", "")) == head
-    }
+    live = _element_map(container, head)
+    if not live:
+        live = {
+            str(row["InstanceId"])
+            for row in container.rows("InstanceChangeSet")
+            if str(row.get("ChangeSetId", "")) == head
+        }
     resolved: dict[str, Instance] = {}
     for row in container.rows("Instance"):
         identifier = str(row["Id"])

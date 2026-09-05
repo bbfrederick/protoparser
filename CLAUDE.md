@@ -319,6 +319,23 @@ what a scan, protocol and session are, and how the scanner organizes them --
 supplied by the user rather than derived, so prefer it to inference and keep
 the two consistent.
 
+- **The folder tree is on the root node, not in the node hierarchy.** An
+  `EdfDirectory` carries no `Children` in any corpus archive -- 0 of 61 in the
+  whole-scanner export -- and an `EdfProgram` has no `ParentElementId`, so
+  reading the tree the way the rest of the format works gives 61 folders with
+  nothing in them and 499 orphan protocols. It is in the root `EdfStructure`'s
+  own content document, under `ParentDirectoryId`, and that map is keyed in
+  **two GUID spaces at once**: a directory appears under its `ObjectId` and a
+  program under its `Element_id`. Resolving every key in one space finds all
+  61 directories, misses all 499 programs, and reads as a tree of empty
+  folders rather than as a lookup in the wrong space -- the same trap the
+  three-GUID-space note above describes, inside a single map. Values are
+  always a directory `ObjectId`, with the all-zero GUID at the top.
+  `Archive.directory_parents`, `parent_of` and `path_of` read it; the
+  recovered path agrees with the printed one component for component
+  (`Investigators/Frederick/Potpourri_P1/localizer_64ch_uncombined`), the two
+  differing only at the root, where the archive says `Root/Export` and the
+  page prints `\\Research`.
 - **The scanner's tree is Region / Exam / Program, and a *Program* is what we
   call a protocol.** A Program is a group of scans; at this centre the Exam
   level groups protocols by investigator and the Region level separates
@@ -869,13 +886,46 @@ the two consistent.
   setter still expecting a navigator may contradict a vNav that has switched
   one off. Deriving option interdependencies needs an option scan whose
   baseline includes the setter.
-- **An export can hold more than one protocol tree, and reading at the head
-  picks one.** The archive returned from this test resolved to a 14-step
-  protocol from an unrelated session; the 33 saved scans were in a *prior*
-  changeset, still fully readable. That is useful rather than merely
-  confusing -- the dead changeset's rank count is what identified which seven
-  scans had been deleted, without asking. But a caller who wants a particular
-  tree cannot assume the head is it.
+- **The live set is the head changeset's element map, not the instances that
+  changeset touched.** A `ChangeSet` names two `ElementToInstanceMap` rows: a
+  `BaseElementMapId` holding the tree as of an earlier point and a
+  `DeltaElementMapId` holding this save's changes, each a flat run of 32-byte
+  records -- element id then instance id, both .NET mixed-endian GUIDs -- with
+  the delta superseding the base element by element. `InstanceChangeSet`
+  records what a changeset *touched*, so filtering it to the head describes
+  the last save's delta and calls it the file.
+
+  That is right on an archive written in one changeset and catastrophically
+  wrong otherwise, and it read as a *small archive* rather than as a failure:
+  `archive/P1/Investigators.exar1` is a 97 MB whole-scanner export written by
+  twelve successive `CopyProgramsPipeline` saves, and reading at the head
+  yielded **21 instances of 31164** -- 317 KB of JSON from a 97 MB file, with
+  no error anywhere. The map gives 28109 base plus 3056 delta, which is every
+  `Element` row: 499 programs, 61 directories, 8217 scans, 1953 pauses. Every
+  other corpus archive gains exactly the same four nodes under the fix -- two
+  `EdfDirectory` and their two `EdfString` labels, the scaffolding an earlier
+  changeset created and the last one never touched -- which is precisely what
+  made the folder tree look flat.
+
+  One archive gains far more than four. `NAV_optionscan_P1_loadtest` goes
+  from 104 instances to 203 and from one program to **two**, both named
+  `NAV_optionscan_P1 (2)` with the same 31 scans, sitting under
+  `Investigators/Frederick` and `Investigators (2)/Frederick`. So the console
+  disambiguates a repeated *directory* name exactly as it does a program
+  name, and the archive really was imported twice; the old reader saw one
+  copy and reported it as the file. Whether the other multi-tree observation
+  in this file -- the every-sequence return resolving to a 14-step protocol
+  with its 33 saved scans in a prior changeset -- is the same phenomenon is
+  not established, and that archive is not in the corpus to check.
+
+  Surfacing the duplicate broke the driver in a way worth keeping in mind:
+  `apply_protocol` paired against `archive.steps`, which flattens every
+  program, so each scan name appeared twice against a printout that names it
+  once, and the guard against pairing a repeated name to the wrong copy
+  refused all 31 -- a driver that writes nothing, reported as a clean run.
+  `build.target_steps` now picks one program: a lone one, or the one
+  `program_name` reads out of the printout's header, and `exar --program`
+  says which when that is ambiguous.
 - **The corpus holds 19 sequence binaries, 16 of which write into
   `sWipMemBlock`** and so print a Special card; `patch.MAPPINGS` covers eight.
   Detect them by an *indexed* assignment (`sWipMemBlock.alFree[0] =`), never

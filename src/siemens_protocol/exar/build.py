@@ -186,7 +186,47 @@ class BuildReport:
         return "\n".join(lines)
 
 
-def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildReport:
+def target_steps(
+    archive: Archive, parsed: MappingType[str, Any], program: Any = None
+) -> list[Any]:
+    """Choose which of an archive's steps a printout should be written into.
+
+    A printout covers one protocol, so writing into every step the archive
+    holds is only ever right when it holds one program. On a file with
+    several it doubles each scan name, and the guard against pairing a
+    repeated name to the wrong copy then refuses everything -- correctly, but
+    the result is a driver that silently writes nothing.
+
+    Parameters
+    ----------
+    archive : Archive
+        The template to write into.
+    parsed : mapping
+        The parsed printout, used to name the program when several are held.
+    program : Program or None, optional
+        The program to target. Default ``None``, which takes a lone program,
+        else the one the printout's header names.
+
+    Returns
+    -------
+    list of Step
+        The steps to pair against, empty when several programs are held and
+        the printout cannot pick between them -- reported by the caller
+        rather than raised, since a partial pairing is the ordinary case.
+    """
+    if program is not None:
+        return archive.steps_of(program.instance)
+    programs = archive.programs
+    if len(programs) <= 1:
+        return archive.steps
+    wanted = program_name(parsed)
+    named = [p for p in programs if match_name(p.name) == wanted]
+    return named[0].steps if len(named) == 1 else []
+
+
+def apply_protocol(
+    archive: Archive, parsed: MappingType[str, Any], program: Any = None
+) -> BuildReport:
     """Write every mapped parameter a parsed PDF and a template agree on.
 
     The archive is edited in memory; call :meth:`Archive.write` to save, and
@@ -198,6 +238,9 @@ def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildRepo
         Template archive, modified in place.
     parsed : mapping
         A protocol as ``siemens_protocol`` parses it, with a ``scans`` list.
+    program : Program or None, optional
+        Which protocol of a multi-program archive to write into. Default
+        ``None``; see :func:`target_steps` for how one is chosen.
 
     Returns
     -------
@@ -208,7 +251,7 @@ def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildRepo
     # A pause step carries no protocol and the PDF does not print it as a scan,
     # so it can never be the counterpart of one.
     steps: dict[str, list[Any]] = {}
-    for step in archive.steps:
+    for step in target_steps(archive, parsed, program):
         if step.runs_a_protocol:
             steps.setdefault(match_name(step.name), []).append(step)
 

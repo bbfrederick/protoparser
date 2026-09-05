@@ -628,10 +628,18 @@ def test_a_patched_protocol_survives_a_real_scanner_load(source: str, returned: 
     None
     """
     before, after = read(find_exar(source)), read(find_exar(returned))
-    assert len(after.steps) == len(before.steps), "the loader dropped a scan"
+    # A return may hold the protocol more than once: the console disambiguates
+    # a repeated import by name, and NAV_optionscan_P1_loadtest came back with
+    # two copies of its program under Investigators and Investigators (2).
+    # Each copy has to match the source, so every one is compared rather than
+    # the archive's flattened step list, which would just be twice as long.
+    returned_programs = after.programs or [None]
+    for program in returned_programs:
+        held = program.steps if program is not None else after.steps
+        assert len(held) == len(before.steps), "the loader dropped a scan"
 
     changed = touched = 0
-    for original, result in zip(before.steps, after.steps):
+    for original, result in zip(before.steps, returned_programs[0].steps):
         writable = {
             key
             for mapping in patch.MAPPINGS
@@ -1849,9 +1857,16 @@ def test_the_self_drive_exceptions_are_all_still_exceptions() -> None:
         if name not in SELF_DRIVE_EXCEPTIONS or not os.path.exists(pdf):
             continue
         available += 1
-        archive = read(path)
-        report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict())
-        if not [one for one in report.applied if build._moved(one)]:
+        parsed = parse_document(pdf).protocol.to_dict()
+        # Driven per program: a printout covers one protocol, and an archive
+        # holding the same one twice would otherwise double every scan name
+        # and be refused wholesale by the repeated-name guard.
+        moved = 0
+        for index, _program in enumerate(read(path).programs):
+            archive = read(path)
+            report = build.apply_protocol(archive, parsed, archive.programs[index])
+            moved += len([one for one in report.applied if build._moved(one)])
+        if not moved:
             quiet.append(name)
     assert available >= 4, f"only {available} of the named exceptions are present"
     assert not quiet, f"these no longer write anything; drop them from the list: {quiet}"
