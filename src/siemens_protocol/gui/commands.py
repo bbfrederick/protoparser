@@ -182,6 +182,26 @@ class Command:
         }
 
 
+def _program_field() -> Field:
+    """Describe the flag picking one protocol out of a multi-program archive.
+
+    Returns
+    -------
+    Field
+        The control, shared by every command that accepts an archive.
+    """
+    return Field(
+        name="program",
+        kind="text",
+        label="Protocol",
+        help=(
+            "Which protocol of an .exar1 archive to read. Needed only when the "
+            "archive holds more than one, which a scanner backup does."
+        ),
+        flag="--program",
+    )
+
+
 def _release_field(help_text: str) -> Field:
     """Build the release-profile drop-down shared by four commands.
 
@@ -468,11 +488,12 @@ def _check_command() -> Command:
                 name="input",
                 kind="path",
                 label="Input",
-                help="A PDF, a parsed JSON file, or a directory of PDFs.",
+                help="A PDF, an .exar1 archive, a parsed JSON file, or a directory of PDFs.",
                 picker="any",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
                 required=True,
             ),
+            _program_field(),
             Field(
                 name="policy",
                 kind="choice",
@@ -550,12 +571,13 @@ def _list_command() -> Command:
                 name="input",
                 kind="path",
                 label="Input",
-                help="A PDF, or JSON this tool wrote earlier.",
+                help="A PDF, an .exar1 archive, or JSON this tool wrote earlier.",
                 picker="file",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
                 required=True,
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
+            _program_field(),
             Field(
                 name="json",
                 kind="flag",
@@ -601,12 +623,13 @@ def _sequences_command() -> Command:
                 name="input",
                 kind="path",
                 label="Input",
-                help="A PDF, or JSON this tool wrote earlier.",
+                help="A PDF, an .exar1 archive, or JSON this tool wrote earlier.",
                 picker="file",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
                 required=True,
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
+            _program_field(),
             Field(
                 name="only",
                 kind="choice",
@@ -773,6 +796,67 @@ def _vocab_commands() -> tuple[Command, ...]:
     )
 
 
+def _archive_command() -> Command:
+    """Describe the ``archive`` subcommand.
+
+    Returns
+    -------
+    Command
+        Its form and its command line.
+    """
+    return Command(
+        name="archive",
+        group="Archive",
+        title="Read an .exar1 archive",
+        summary=(
+            "Read a protocol archive into JSON that can be browsed or queried. It "
+            "carries the console's Preview summary under each scan's printed labels, "
+            "the whole ASCCONV parameter block nested by the structure its key names "
+            "describe, the slice geometry, and the prescription links between scans "
+            "-- which a printout does not record at all."
+        ),
+        argv=("archive",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Archive",
+                help="The .exar1 archive to read. It is not modified.",
+                picker="file",
+                accept=(".exar1",),
+                required=True,
+            ),
+            _program_field(),
+            Field(
+                name="out",
+                kind="path",
+                label="Write JSON to",
+                help="Where to write the document. Left empty, it goes beside the archive.",
+                flag="--out",
+                picker="save",
+                accept=(".json",),
+            ),
+            Field(
+                name="stdout",
+                kind="flag",
+                label="Show instead of writing",
+                help="Write the JSON to the output pane rather than to a file.",
+                flag="--stdout",
+            ),
+            Field(
+                name="no_ascconv",
+                kind="flag",
+                label="Omit the parameter tree",
+                help=(
+                    "Leave out the ASCCONV block, which is the bulk of the document "
+                    "-- 514 to 2020 assignments a scan."
+                ),
+                flag="--no-ascconv",
+            ),
+        ),
+    )
+
+
 def _exar_command() -> Command:
     """Describe the archive-writing command.
 
@@ -813,6 +897,7 @@ def _exar_command() -> Command:
                 required=True,
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
+            _program_field(),
             Field(
                 name="out",
                 kind="path",
@@ -874,6 +959,7 @@ def command_specs() -> tuple[Command, ...]:
         _diff_command(),
         _check_command(),
         _list_command(),
+        _archive_command(),
         _exar_command(),
         _sequences_command(),
         *_vocab_commands(),

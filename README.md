@@ -456,6 +456,86 @@ PDF or a JSON file from `parse`, including one written with `--no-flatten`:
 the mark is derived from scan headers and sections, never from the flattened
 view.
 
+## Reading an `.exar1` archive
+
+`archive` reads a Numaris/X protocol archive into hierarchical JSON, the way
+`parse` reads a printout into JSON:
+
+```
+$ siemens-protocol-tool archive examples/XA60/Potpourri_P1.exar1
+XA60 | 1 protocol | 18 scans -> examples/XA60/Potpourri_P1.exar1.json
+```
+
+The suffix is appended rather than replaced, because an archive and its export
+share a stem — `Potpourri_P1.exar1` beside `Potpourri_P1.pdf` — and replacing
+it would let a reading of one silently overwrite a parse of the other.
+`--stdout` prints instead, `--out` names a destination, and `--no-ascconv`
+drops the parameter tree, which is the bulk of the document at 514 to 2020
+assignments a scan.
+
+The document is not a parsed printout and does not pretend to be one. Three
+things in it have no counterpart on the PDF side:
+
+- **The whole parameter block.** A page prints what the console chose to
+  display; the archive stores everything, in the classic XProtocol ASCCONV
+  text. It is emitted as `ascconv`, nested by the structure its own key names
+  describe, so `sSliceArray.asSlice[0].dThickness` reads as
+  `.sSliceArray.asSlice["0"].dThickness`. Indices are decimal string keys
+  rather than JSON list positions for two reasons that both come from the
+  file: an array node also carries a `__attribute__` member, so it is not a
+  pure sequence, and the arrays are sparse — `alTE[0]` and `alTE[3]` with
+  nothing between — so list positions would either close the gaps or pad
+  them. Values are kept as the literals the file spells: the console writes
+  `0x1` for some flags and `1` for others, and normalizing that would make the
+  document disagree with the file it describes.
+- **The folder tree.** A printout gives one protocol's path in its header;
+  the archive gives the whole tree it sits in. Each program and scan carries
+  its `path`, and `directories` lists every folder. The tree is not in the
+  node hierarchy it looks like it should be in -- an `EdfDirectory` carries no
+  children and an `EdfProgram` no parent -- but in a child-to-parent map on
+  the root node, so it is fully recoverable.
+- **Prescription links.** One scan slaved to another's slices, centre, table
+  position or adjustment volume is a console feature the printout does not
+  record at all — a linked scan prints byte-identically to an unlinked one.
+  Each program's `links` names the two scans, the menu group and the four
+  flags beside it.
+- **Who supplied the sequence.** The protocol names its binary under
+  `%SiemensSeq%` or `%CustomerSeq%`, which is Siemens stating the sequence's
+  owner rather than this tool inferring it. A Numaris/X printout gives only
+  the kernel — `epfid` for anything built on gradient-echo EPI — so the
+  archive identifies third-party sequences the printout of the same protocol
+  cannot.
+
+That last point is why `list`, `sequences` and `check` accept an `.exar1`
+wherever they accept a PDF. On the same protocol the archive leaves nothing
+unaccounted for where the printout leaves four scans marked `?`:
+
+```
+$ siemens-protocol-tool sequences examples/XA60/Potpourri_P1.exar1
+16 third-party, 0 unrecognized, 2 stock, of 18 scans
+```
+
+What those commands see of an archive is the console's own `Preview` map —
+roughly forty summary parameters a scan, under the labels a page prints — and
+not the several hundred a page carries. So a policy written against a printout
+will find most of its keys missing when run against an archive; the complete
+parameter set is the `ascconv` tree, which that shape has no room for.
+
+An archive may hold more than one protocol: an export taken at the exam or
+region level rather than at a single one, which is what a scanner backup is.
+Every command that reads one refuses to guess in that case and names the
+choices, so `--program` says which to read.
+
+These get large. A whole-scanner export -- 97 MB, 499 protocols across 61
+investigator folders, 8217 scans -- takes about four minutes and produces
+68 MB of JSON with `--no-ascconv`, and several hundred megabytes without it.
+Use `--program` to read one protocol out of such a file rather than rendering
+all of it.
+
+Writing parameters *into* an archive is the `exar` subcommand, which is a
+different job with a much narrower guarantee — see `CLAUDE.md`.
+
+
 ## Third-party sequences
 
 This is the reason the tool exists. Siemens' own conversion moves *stock*

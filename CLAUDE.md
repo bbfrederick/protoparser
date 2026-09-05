@@ -860,11 +860,18 @@ the two consistent.
   the timestamp separates `bold` from `se`, not one release from another.
   The refusal must also name the *build*, since blaming the sequence yields
   "mapped for cmrr_mbep2d_bold, but this protocol runs cmrr_mbep2d_bold".
-  Only CMRR stamps a build at all -- the ABCD navigators write a `.prot` file
-  name and `can_neuromelanin`/`tfl_mgh_multiecho` write nothing -- so those
-  mappings are unguardable this way and leave `builds` empty rather than
-  pretending. Two tests hold the gate honest: one that every gated mapping
-  still resolves across the corpus, one that a staged later build refuses.
+  CMRR is not quite the only sequence that stamps a build, though it is the
+  only *mapped* one: sweeping the corpus with `archive` found
+  `rslh_ep3d_vaso` writing `vx_ep3d 7b674ae rslh6.0`, a commit and a version
+  with no `;`, so `build_id` returns it whole and it can never match a gate.
+  That is the safe direction -- a refusal, not a loose match -- but do not
+  read `build_id`'s no-semicolon case as meaning "a `.prot` file name". The
+  ABCD navigators do write one of those (three spellings, not two:
+  `Prisma_epi_moco_navigator{,_ABCD_tfl,_ABCD_space}.prot`) and
+  `can_neuromelanin`/`tfl_mgh_multiecho` write nothing, so those mappings are
+  unguardable this way and leave `builds` empty rather than pretending. Two
+  tests hold the gate honest: one that every gated mapping still resolves
+  across the corpus, one that a staged later build refuses.
 - **An off-grid value is stored faithfully and displayed snapped to the grid.**
   `MT Flip Angle` written as 371 comes back from the scanner as 371 in the
   archive and prints `370 degrees`; `MT Offset` 1501 prints `1500 Hz`. Both
@@ -1002,11 +1009,19 @@ the two consistent.
   count only the step kinds on both sides; comparing against every child
   reported the file as structurally broken -- `validate` said so, and so did
   the step-order sweep, both for the same reason.
-- **A second relation shape exists and is unexplained.** `31P CSI 20230503 NOE`
-  carries 21 relations with `Kind: ""`, `Constraint: 0` and empty `Data`,
-  duplicated ten deep between the same two pairs of steps beside a real
-  `CopyReference`. Do not read `Constraint`/`Kind` as always populated, and do
-  not treat a relation count as a link count.
+- **A second relation shape exists, is unexplained, and is the common case.**
+  `31P CSI 20230503 NOE` carries 21 relations with `Kind: ""`, `Constraint: 0`
+  and empty `Data`, duplicated ten deep between the same two pairs of steps
+  beside five real `CopyReference`s. Sweeping the whole corpus with `archive`
+  puts that in proportion: **1248 of 1440 relations across 18 of 51 programs**
+  are this shape, so it is not a quirk of one export. The duplication holds
+  everywhere -- `K23EB_20210802` has 98 of them over 19 distinct step pairs,
+  the deepest repeated nine times -- and they are not the running order
+  mirrored into the relations map, which was the obvious guess: only 2 of
+  those 19 pairs are adjacent in the chain. Do not read `Constraint`/`Kind` as
+  always populated, and **do not treat a relation count as a link count**: the
+  first `archive` summary line did, and reported a 17-link protocol as having
+  117.
 - **Links are dropped by `duplicate_step`, correctly but silently.** It writes
   empty `RelationsFrom`/`RelationsTo` entries for the new step, which is right
   for a fresh scan and wrong for a copy of a linked one -- an imported scan
@@ -1257,12 +1272,28 @@ the two consistent.
   alone kept theirs. The name it lands on tracks `alFree[15]` (`ABCD
   navigator`, which the driver moved 2 to 1) on every scan across the two
   returns that carries both -- except `T09`/`T19` in the NAV option-scan
-  return, which
-  hold `alFree[15] = 1` beside an `_ABCD_*.prot` name. Those two were authored
-  by toggling the option on the console rather than imported, so the rule may
-  be about import and not about the value; that is not established, and a
-  counterexample is a counterexample. Either way the field is already churn, so
-  nothing reads it -- what changes is that "no GUID" did not mean "stable".
+  return, which hold `alFree[15] = 1` beside an `_ABCD_*.prot` name.
+
+  Sweeping the whole corpus with `archive` settles the part left open above,
+  and not the way it was guessed. **On console-authored scans the rule is
+  exception-free**: all 53 of them pair `alFree[15] = 2` with an `_ABCD_*`
+  name (20 space, 30 tfl) and `= 1` with the bare one (1 space, 2 tfl), with
+  nothing against. **`T09`/`T19` are not console-authored**, which was the
+  proposed explanation -- `NAV_optionscan_P1` holds them at `2/_ABCD_tfl` and
+  `2/_ABCD_space`, so the move to 1 is the driver's, exactly as in the
+  `driver_loadtest` scan. The two returns therefore disagree on identical
+  input: the console rewrote the name to bare on one and left `_ABCD_*`
+  standing on the other. So the rewrite is real and its trigger is *not* the
+  value -- it is something that differs between two imports, which is a
+  sharper open question than the one this bullet started with, and the
+  counterexample is on the import side rather than the authoring side.
+
+  The setter is outside the rule entirely: `ep_moco_nav_set_ABCD` carries no
+  `alFree[15]` on any of its 42 corpus scans and takes all three names, so
+  its `.prot` says which vNav it sets up rather than anything about the flag.
+  Three names, not two -- see the `build_id` note below for the vocabulary.
+  Either way the field is already churn, so nothing reads it -- what changes
+  is that "no GUID" did not mean "stable".
 - **A flags word agrees with its own printout on every console-authored scan
   in the corpus**: 3662 bit comparisons over 361 scans, none against, with all
   fourteen mapped bits observed set somewhere -- so a bit in the wrong place

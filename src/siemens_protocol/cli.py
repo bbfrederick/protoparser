@@ -6,7 +6,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Mapping, Sequence
+from typing import TYPE_CHECKING, Mapping, Sequence
 
 from . import __version__
 from .debug import write_debug
@@ -34,8 +34,45 @@ from .sequences import summarize
 from .vocabsuggest import suggest_aliases, verify_aliases
 from .vocabulary import available, check, load_vocabulary
 
+if TYPE_CHECKING:  # imported for annotations only -- reading an archive is
+    # a heavier import than the PDF path needs, so it stays deferred at runtime.
+    from .exar.archive import Archive, Program
+
 #: Suffixes treated as PDFs when walking a directory.
 PDF_SUFFIXES = (".pdf", ".PDF")
+
+#: Suffix identifying an XA protocol archive.
+#:
+#: Matched case-insensitively on the input path, which is what lets the
+#: commands that query a protocol take an archive wherever they take a PDF.
+EXAR_SUFFIX = ".exar1"
+
+
+def add_program_option(parser: argparse.ArgumentParser) -> None:
+    """Add the flag that picks one protocol out of a multi-program archive.
+
+    Only an archive needs it. A PDF export prints one protocol, and a backup
+    taken at the exam or region level holds several, so a command that accepts
+    both needs a way to say which -- and refusing to guess is why
+    :func:`_select_program` raises rather than taking the first.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The subcommand parser to add the flag to.
+
+    Returns
+    -------
+    None
+    """
+    parser.add_argument(
+        "--program",
+        metavar="NAME",
+        help=(
+            "which protocol of an .exar1 archive to read, needed only when it "
+            "holds more than one"
+        ),
+    )
 
 
 def add_release_option(parser: argparse.ArgumentParser, help_text: str) -> None:
@@ -221,7 +258,10 @@ def build_parser() -> argparse.ArgumentParser:
             "excitation stays silent on scans that never had the setting."
         ),
     )
-    check_cmd.add_argument("input", help="a PDF, a parsed JSON file, or a directory of PDFs")
+    check_cmd.add_argument(
+        "input", help="a PDF, an .exar1 archive, a parsed JSON file, or a directory of PDFs"
+    )
+    add_program_option(check_cmd)
     check_cmd.add_argument(
         "--policy",
         default="default",
@@ -255,7 +295,10 @@ def build_parser() -> argparse.ArgumentParser:
             "the total is normalized."
         ),
     )
-    list_cmd.add_argument("input", help="a PDF, or a previously parsed JSON file")
+    list_cmd.add_argument(
+        "input", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
+    )
+    add_program_option(list_cmd)
     add_release_option(list_cmd, "force a Siemens release profile for a PDF input (default: auto)")
     list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
     list_cmd.add_argument("--out", help="write the listing here instead of stdout")
@@ -272,7 +315,10 @@ def build_parser() -> argparse.ArgumentParser:
             "rather than guessed at in either direction."
         ),
     )
-    sequences_cmd.add_argument("input", help="a PDF, or a previously parsed JSON file")
+    sequences_cmd.add_argument(
+        "input", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
+    )
+    add_program_option(sequences_cmd)
     add_release_option(
         sequences_cmd, "force a Siemens release profile for a PDF input (default: auto)"
     )
@@ -341,6 +387,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
     vocab_suggest.add_argument("--vocabulary", metavar="DIR", help="an overlay directory")
 
+    archive_cmd = sub.add_parser(
+        "archive",
+        help="read an XA .exar1 archive into hierarchical JSON",
+        description=(
+            "Read a protocol archive into JSON that can be browsed or queried. "
+            "This is the reading half of the .exar1 support, where 'exar' is the "
+            "writing half. The document is not a parsed printout and does not "
+            "pretend to be one: it carries the console's Preview summary under "
+            "each scan's printed labels, the whole ASCCONV parameter block nested "
+            "by the structure its key names describe, the slice geometry, and the "
+            "prescription links between scans -- which a printout does not record "
+            "at all, since a linked scan prints exactly like an unlinked one."
+        ),
+    )
+    archive_cmd.add_argument("input", help="an .exar1 archive")
+    add_program_option(archive_cmd)
+    archive_cmd.add_argument(
+        "--out", metavar="FILE", help="write the JSON here (default: alongside the archive)"
+    )
+    archive_cmd.add_argument(
+        "--stdout", action="store_true", help="write the JSON to standard output instead"
+    )
+    archive_cmd.add_argument(
+        "--no-ascconv",
+        dest="ascconv",
+        action="store_false",
+        help=(
+            "omit the ASCCONV parameter tree, which is the bulk of the document "
+            "-- 514 to 2020 assignments a scan"
+        ),
+    )
+    archive_cmd.add_argument(
+        "--quiet", action="store_true", help="suppress the summary line on stderr"
+    )
+
     exar_cmd = sub.add_parser(
         "exar",
         help="write a protocol PDF's parameters into an XA .exar1 archive",
@@ -356,6 +437,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     exar_cmd.add_argument("archive", help="the template .exar1 archive")
     exar_cmd.add_argument("input", help="a protocol PDF, or a previously parsed JSON file")
+    add_program_option(exar_cmd)
     add_release_option(exar_cmd, "force a Siemens release profile for a PDF input (default: auto)")
     exar_cmd.add_argument("--out", help="write the resulting archive here")
     exar_cmd.add_argument(
@@ -607,22 +689,36 @@ def _list_versions() -> int:
     return 0
 
 
-def _load_protocol(path: str, version: str, need_flat: bool = True) -> dict:
-    """Load a protocol from a PDF, or from JSON this tool wrote earlier.
+def _load_protocol(
+    path: str, version: str, need_flat: bool = True, program: str | None = None
+) -> dict:
+    """Load a protocol from a PDF, an ``.exar1`` archive, or JSON.
 
     Accepting JSON means a protocol can be parsed once and used many times,
     which matters because parsing dominates the runtime.
 
+    An archive is rendered into the same shape a parsed PDF has, so the
+    listing, the sequence report and the policy checker read it unchanged.
+    What it carries there is the console's own ``Preview`` summary -- roughly
+    forty parameters a scan -- rather than the several hundred a page prints,
+    so a policy written against a printout will find most of its keys missing.
+    The whole parameter set is in the archive's ASCCONV block, which the
+    ``archive`` subcommand emits and this shape has no room for.
+
     Parameters
     ----------
     path : str
-        A ``.pdf`` to parse, or a ``.json`` file to read.
+        A ``.pdf`` to parse, an ``.exar1`` to read, or a ``.json`` file.
     version : str
-        Version profile to force for a PDF, or ``"auto"``.
+        Version profile to force for a PDF, or ``"auto"``. Ignored for an
+        archive, whose release is stated by its own baseline.
     need_flat : bool, optional
         Whether the caller reads the flattened view. Comparison and policy
         checking do; listing reads only the scan headers, so it accepts JSON
         written with ``--no-flatten``. Default ``True``.
+    program : str or None, optional
+        Which protocol of a multi-program archive to read. Default ``None``,
+        which is unambiguous only when the archive holds one.
 
     Returns
     -------
@@ -632,7 +728,9 @@ def _load_protocol(path: str, version: str, need_flat: bool = True) -> dict:
     Raises
     ------
     ValueError
-        If ``need_flat`` and a JSON input carries no flattened view.
+        If ``need_flat`` and a JSON input carries no flattened view, or if an
+        archive holds no protocol, or holds several and ``program`` names
+        none of them.
     """
     if path.lower().endswith(".json"):
         with open(path, encoding="utf-8") as handle:
@@ -645,8 +743,65 @@ def _load_protocol(path: str, version: str, need_flat: bool = True) -> dict:
                         "this command needs the flattened view"
                     )
         return payload
+    if path.lower().endswith(EXAR_SUFFIX):
+        from .exar import inspect as exar_inspect
+        from .exar import read as read_exar
+
+        archive = read_exar(path)
+        return exar_inspect.as_protocol(
+            archive, _select_program(archive, program, path), path, include_flat=need_flat
+        )
     result = parse_document(path, ParseOptions(version=version))
     return result.protocol.to_dict(include_flat=True)
+
+
+def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Program":
+    """Pick the protocol to read out of an archive.
+
+    An archive may hold several: an export taken at the exam or region level
+    rather than at one protocol, which is what a scanner backup is. Picking
+    the first would describe one protocol while looking like a reading of the
+    whole file, so this refuses instead and names the choices.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to choose from.
+    wanted : str or None
+        The program name asked for, or ``None`` to accept a lone one.
+    path : str
+        The archive's path, for the message.
+
+    Returns
+    -------
+    Program
+        The chosen protocol.
+
+    Raises
+    ------
+    ValueError
+        If the archive holds no protocol, if ``wanted`` names none of them, or
+        if it holds several and ``wanted`` is ``None``.
+    """
+    programs = archive.programs
+    if not programs:
+        raise ValueError(
+            f"{path} holds no protocol. An archive exported from an empty folder node "
+            "rather than from the protocol tree reads correctly and carries nothing"
+        )
+    if wanted is not None:
+        for program in programs:
+            if program.name == wanted:
+                return program
+        names = ", ".join(repr(p.name) for p in programs)
+        raise ValueError(f"{path} holds no protocol named {wanted!r}. It holds: {names}")
+    if len(programs) > 1:
+        names = ", ".join(repr(p.name) for p in programs)
+        raise ValueError(
+            f"{path} holds {len(programs)} protocols, so --program is needed to say "
+            f"which one. It holds: {names}"
+        )
+    return programs[0]
 
 
 def _select_scan(protocol: dict, wanted: str, label: str) -> dict:
@@ -759,7 +914,7 @@ def _run_list(args: argparse.Namespace) -> int:
         ``0`` on success, ``1`` when the input could not be read.
     """
     try:
-        protocol = _load_protocol(args.input, args.version, need_flat=False)
+        protocol = _load_protocol(args.input, args.version, need_flat=False, program=args.program)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -803,7 +958,7 @@ def _run_sequences(args: argparse.Namespace) -> int:
     """
     try:
         catalog = load_catalog(args.catalog)
-        protocol = _load_protocol(args.input, args.version, need_flat=False)
+        protocol = _load_protocol(args.input, args.version, need_flat=False, program=args.program)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1104,7 +1259,7 @@ def _run_check(args: argparse.Namespace) -> int:
     failures = 0
     for target in targets:
         try:
-            protocol = _load_protocol(target, args.version)
+            protocol = _load_protocol(target, args.version, program=args.program)
         except (OSError, ValueError) as exc:
             print(f"{exc}", file=sys.stderr)
             failures += 1
@@ -1289,6 +1444,126 @@ def use_utf8_output() -> None:
             pass
 
 
+def _archive_output_path(source: str) -> str:
+    """Where an archive's JSON goes when no destination is given.
+
+    The suffix is appended rather than replaced. ``Potpourri_P1.exar1`` and
+    ``Potpourri_P1.pdf`` share a stem, and several corpus directories hold
+    both, so replacing the extension the way ``parse`` does would let a
+    reading of the archive silently overwrite a parse of the printout.
+
+    Parameters
+    ----------
+    source : str
+        Path of the archive being read.
+
+    Returns
+    -------
+    str
+        The output path, such as ``Potpourri_P1.exar1.json``.
+    """
+    return source + ".json"
+
+
+def _run_archive(args: argparse.Namespace) -> int:
+    """Run the ``archive`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments carrying ``input``, ``program``, ``out``, ``stdout``,
+        ``ascconv`` and ``quiet``.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` when the archive could not be read or written.
+    """
+    from .exar import inspect as exar_inspect
+    from .exar import read as read_exar
+
+    try:
+        archive = read_exar(args.input)
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    document = exar_inspect.describe(archive, args.input, ascconv=args.ascconv)
+    if args.program is not None:
+        try:
+            wanted = _select_program(archive, args.program, args.input)
+        except ValueError as exc:
+            print(f"{exc}", file=sys.stderr)
+            return 1
+        document["programs"] = [p for p in document["programs"] if p["name"] == wanted.name]
+        document["program_count"] = len(document["programs"])
+
+    text = json.dumps(document, indent=2, ensure_ascii=False)
+    if args.stdout:
+        print(text)
+        destination = "<stdout>"
+    else:
+        destination = args.out or _archive_output_path(args.input)
+        try:
+            with open(destination, "w", encoding="utf-8") as handle:
+                handle.write(text + "\n")
+        except OSError as exc:
+            print(f"could not write {destination}: {exc}", file=sys.stderr)
+            return 1
+
+    if not args.quiet:
+        print(_summarize_archive(document, destination), file=sys.stderr)
+    for warning in document.get("warnings", []):
+        print(f"warning: {warning}", file=sys.stderr)
+    return 0
+
+
+def _summarize_archive(document: Mapping, destination: str) -> str:
+    """One line describing what was read out of an archive.
+
+    Counts copy references as well as scans because they are the part of an
+    archive a printout cannot carry, so a run that found some has recovered
+    something no PDF of the same protocol would have shown. It counts *those*
+    rather than every relation: most relations in the corpus have an empty
+    kind and no payload, and calling them links made a 19-link protocol
+    report 117.
+
+    Parameters
+    ----------
+    document : mapping
+        The document :func:`..exar.inspect.describe` built.
+    destination : str
+        Where it was written.
+
+    Returns
+    -------
+    str
+        The summary line.
+    """
+    from .exar import COPY_REFERENCE
+
+    programs = document.get("programs", [])
+    scans = sum(int(p.get("scan_count", 0)) for p in programs)
+    pauses = sum(int(p.get("pause_count", 0)) for p in programs)
+    links = sum(
+        sum(n for kind, n in p.get("relation_counts", {}).items() if kind == COPY_REFERENCE)
+        for p in programs
+    )
+    other = sum(sum(p.get("relation_counts", {}).values()) for p in programs) - links
+    parts = [
+        str(document.get("software_version") or document.get("major_version", "?")),
+        f"{len(programs)} protocols" if len(programs) != 1 else "1 protocol",
+        f"{scans} scans",
+    ]
+    if pauses:
+        parts.append(f"{pauses} pauses")
+    if links:
+        parts.append(f"{links} copy references")
+    if other:
+        parts.append(f"{other} other relations")
+    return f"{' | '.join(parts)} -> {destination}"
+
+
 def _run_exar(args: argparse.Namespace) -> int:
     """Write a PDF's mapped parameters into a template archive.
 
@@ -1313,7 +1588,16 @@ def _run_exar(args: argparse.Namespace) -> int:
         print(f"{exc}", file=sys.stderr)
         return 1
 
-    report = exar_build.apply_protocol(archive, protocol)
+    try:
+        target = (
+            _select_program(archive, args.program, args.archive)
+            if args.program is not None
+            else None
+        )
+    except ValueError as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+    report = exar_build.apply_protocol(archive, protocol, target)
     print(report.report(limit=args.show))
 
     problems = exar_validate.problems(archive)
@@ -1362,6 +1646,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         return _run_list(args)
+
+    if args.command == "archive":
+        return _run_archive(args)
 
     if args.command == "exar":
         return _run_exar(args)

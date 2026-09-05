@@ -4,10 +4,12 @@
     "CustomerSeq": "site-installed sequence (Siemens writes this into the protocol path)"
   },
   "third_party_owners": {
-    "USER": "site-installed sequence (the export labels the binary USER, not SIEMENS)"
+    "USER": "site-installed sequence (the export labels the binary USER, not SIEMENS)",
+    "%CustomerSeq%": "site-installed sequence (the protocol names its binary under the customer tree)"
   },
   "stock_owners": {
-    "SIEMENS": "the export labels the binary SIEMENS, naming the vendor as its owner"
+    "SIEMENS": "the export labels the binary SIEMENS, naming the vendor as its owner",
+    "%SiemensSeq%": "the protocol names its binary under the Siemens tree, not the customer one"
   },
   "stock_binaries": {
     "fl": "FLASH -- spoiled gradient echo",
