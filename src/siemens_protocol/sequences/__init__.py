@@ -117,6 +117,37 @@ def special_keys(scan: Mapping) -> set[str]:
     return found
 
 
+def card_names(scan: Mapping) -> set[str]:
+    """The cards a scan prints, by the group name at the head of each title.
+
+    A printed title is ``<group> - <page>``: ``Sequence - Special`` is the
+    Special page of the Sequence card, and ``Diff - Body`` is the Body page of
+    the Diff card. So the group is the *first* component where the page is the
+    last, which is why this reads the head and :func:`special_keys` reads the
+    tail. That is not a cosmetic difference. VE11C splits diffusion across
+    ``Diff - Body``, ``Diff - Neuro`` and ``Diff - Composing`` while the
+    Numaris/X releases print a single ``Diff``, so matching the tail finds
+    ``Body`` and ``Neuro`` and misses every VE11C diffusion scan there is.
+
+    Parameters
+    ----------
+    scan : mapping
+        A serialized scan, carrying ``sections``.
+
+    Returns
+    -------
+    set of str
+        Card group names. Empty for a scan read from an ``.exar1``, which has
+        no cards at all -- what a page splits into Routine, Contrast and
+        Geometry is a property of the page, not of the protocol.
+    """
+    return {
+        title.split(" - ")[0].strip()
+        for title in (scan.get("sections") or {})
+        if title.split(" - ")[0].strip()
+    }
+
+
 @dataclass(frozen=True)
 class Signature:
     """One catalog entry: how to recognize a sequence, and what it is.
@@ -147,6 +178,16 @@ class Signature:
         Special-card labels that must all be present.
     special_any : tuple of str, optional
         Special-card labels of which at least one must be present.
+    cards_all : tuple of str, optional
+        Card group names the scan must print, as :func:`card_names` reads
+        them. Where ``special_all`` matches a parameter the sequence author
+        chose to expose, this matches a card the console prints because of
+        what the sequence *is*: a diffusion scan has to prescribe directions
+        and b-values, so it always prints ``Diff``, and no checkbox turns
+        that off. Like ``base_binaries`` it gates the Special-card route
+        only, never ``binaries`` -- a scan read from an ``.exar1`` prints no
+        cards at all, and gating the binary route would make every archive
+        stop matching.
     priority : int, optional
         Breaks ties when a scan matches more than one signature, higher
         winning. Needed because the number of conditions does not say which
@@ -166,10 +207,13 @@ class Signature:
     base_binaries: tuple[str, ...] = ()
     special_all: tuple[str, ...] = ()
     special_any: tuple[str, ...] = ()
+    cards_all: tuple[str, ...] = ()
     priority: int = 0
     note: str = ""
 
-    def match(self, binary: str, special: set[str]) -> list[str] | None:
+    def match(
+        self, binary: str, special: set[str], cards: set[str] | None = None
+    ) -> list[str] | None:
         """Test one scan against this signature.
 
         The two routes are independent and either is sufficient. A binary
@@ -186,6 +230,9 @@ class Signature:
             The scan's sequence binary, empty when the export printed none.
         special : set of str
             The scan's Special-card labels, as :func:`special_keys` returns.
+        cards : set of str or None, optional
+            The card groups the scan prints, as :func:`card_names` returns.
+            Default ``None``, read as none printed.
 
         Returns
         -------
@@ -198,10 +245,10 @@ class Signature:
         evidence: list[str] = []
         if self.binaries and binary and binary in self.binaries:
             evidence.append(f"sequence binary {binary!r}")
-        evidence.extend(self._special_evidence(binary, special))
+        evidence.extend(self._special_evidence(binary, special, cards or set()))
         return evidence or None
 
-    def _special_evidence(self, binary: str, special: set[str]) -> list[str]:
+    def _special_evidence(self, binary: str, special: set[str], cards: set[str]) -> list[str]:
         """Evidence from the Special card, if that route applies and holds.
 
         Parameters
@@ -213,6 +260,8 @@ class Signature:
             fingerprint that also has a diffusion variant.
         special : set of str
             The scan's Special-card labels.
+        cards : set of str
+            The card groups the scan prints.
 
         Returns
         -------
@@ -220,11 +269,15 @@ class Signature:
             One entry per satisfied clause, empty when the route does not
             apply or does not hold.
         """
-        if not (self.special_all or self.special_any):
+        if not (self.special_all or self.special_any or self.cards_all):
             return []
         if self.base_binaries and binary not in self.base_binaries:
             return []
+        if self.cards_all and any(name not in cards for name in self.cards_all):
+            return []
         evidence: list[str] = []
+        if self.cards_all:
+            evidence.append("prints the " + ", ".join(self.cards_all) + " card")
         if self.special_all:
             if any(k not in special for k in self.special_all):
                 return []
@@ -251,6 +304,7 @@ class Signature:
         """
         return (
             len(self.special_all)
+            + len(self.cards_all)
             + (1 if self.special_any else 0)
             + (1 if self.binaries else 0)
             + (1 if self.base_binaries else 0)
@@ -436,6 +490,7 @@ def _signature_from(payload: Mapping, source: Path) -> Signature:
         base_binaries=words("base_binaries"),
         special_all=words("special_all"),
         special_any=words("special_any"),
+        cards_all=words("cards_all"),
         priority=number("priority"),
         note=text("note"),
     )
@@ -558,6 +613,7 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
     binary = str(header.get("sequence", "")).strip()
     owner = str(header.get("sequence_owner", "")).strip()
     special = special_keys(scan)
+    cards = card_names(scan)
     markers = _path_evidence(str(scan.get("path", "")), catalog.path_markers)
     common = dict(
         index=int(scan.get("index", 0)),
@@ -569,7 +625,7 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
     best: Signature | None = None
     best_evidence: list[str] = []
     for signature in catalog.signatures:
-        found = signature.match(binary, special)
+        found = signature.match(binary, special, cards)
         if found is None:
             continue
         if best is None or signature.rank() > best.rank():

@@ -271,11 +271,33 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 
   Two shipped scans *named* `cmrr_mbep2d_se` were reported as diffusion before
   this entry, because with multiband on they print the generic MB card on the
-  spin-echo kernel. Priority 30 is what corrects them -- condition count says
-  the opposite, as it did for the CMRR package entry. The residual risk is
-  that `Triggering scheme` is an option rather than a property of the binary,
-  so a diffusion protocol with it enabled would read as SE from a printout
-  alone; unobserved in the corpus, and the archive names the binary.
+  spin-echo kernel. It was first landed with `priority` 30 to correct them and
+  that was unnecessary: SE names three Special labels against diffusion's two,
+  so it already outranked it on weight at equal priority. Check `rank()`
+  before reaching for a priority -- the claim that condition count said the
+  opposite was simply false here, and a priority added on a wrong reading is
+  one nothing will ever question.
+
+  **What separates them properly is a card, not a label.** A diffusion scan
+  has to prescribe directions and b-values, so the console always prints a
+  `Diff` card; every Special-card label is a checkbox someone can clear. All
+  96 corpus scans matching `cmrr-mb-epi-diffusion` print one, nothing that is
+  not diffusion prints one, and `cards_all` is the clause that says so. That
+  makes diffusion positively identified rather than identified by SE beating
+  it, which is why SE is back at 20.
+
+  The card group is the *first* component of the printed title, where
+  `special_keys` reads the last: a title is `<group> - <page>`, so `Special`
+  is a page of the `Sequence` card while `Diff` is a group with pages. VE11C
+  splits diffusion into `Diff - Body`, `Diff - Neuro` and `Diff - Composing`
+  against Numaris/X's single `Diff`, so matching the tail yields `Body` and
+  `Neuro` and misses all 26 VE11C diffusion scans -- which is exactly the
+  first thing this got wrong.
+
+  `cards_all` gates the Special-card route only, never `binaries`, for the
+  same reason `base_binaries` does and a sharper one: a scan read from an
+  `.exar1` prints no cards at all, so gating the binary route would make every
+  archive stop matching.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past

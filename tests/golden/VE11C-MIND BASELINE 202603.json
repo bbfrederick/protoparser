@@ -3289,6 +3289,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 21
@@ -3554,6 +3555,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 21

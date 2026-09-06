@@ -64,8 +64,8 @@
       "id": "cmrr-mb-epi-diffusion",
       "vendor": "CMRR (University of Minnesota)",
       "family": "multiband EPI, diffusion",
-      "priority": 20,
-      "note": "Same CMRR multiband card as cmrr-mb-epi-bold, riding on the spin-echo kernel. Seen on dMRI_dir64_MGH, dMRI_dir99 and ABCD_dMRI scans in VE11C, XA30 and XA60 exports.",
+      "priority": 25,
+      "note": "Same CMRR multiband card as cmrr-mb-epi-bold, riding on the spin-echo kernel. Seen on dMRI_dir64_MGH, dMRI_dir99 and ABCD_dMRI scans in VE11C, XA30 and XA60 exports. The MB card alone cannot say which variant this is -- BOLD and spin echo print it too -- so the Diff card carries the identification: a diffusion scan has to prescribe directions and b-values, so the console always prints it, where every Special-card label is a checkbox someone can clear. All 96 scans this matched before the clause print one, and nothing that is not diffusion prints one. VE11C splits it into Diff - Body, Diff - Neuro and Diff - Composing against Numaris/X's single Diff, which is why the match is on the card group at the head of the title rather than the page at its tail. Priority 25 puts it above cmrr-mb-epi-se, which is not needed for any corpus scan -- the two never both match today -- but makes the answer deliberate rather than a consequence of file order. If a diffusion protocol ever enables 'Triggering scheme', the option the SE entry keys on, the card it cannot help printing is the better evidence and should win.",
       "match": {
         "binaries": [
           "cmrr_mbep2d_diff"
@@ -76,6 +76,9 @@
         "special_all": [
           "MB LeakBlock kernel",
           "Online multi-band recon."
+        ],
+        "cards_all": [
+          "Diff"
         ]
       }
     },
@@ -83,8 +86,8 @@
       "id": "cmrr-mb-epi-se",
       "vendor": "CMRR (University of Minnesota)",
       "family": "multiband EPI, spin echo",
-      "priority": 30,
-      "note": "Supplied by the protocols' owner. The third member of CMRR's multiband EPI family, on the spin-echo kernel like cmrr-mb-epi-diffusion, and the reason it needs two routes is that the two files say different things: an .exar1 names the sequence outright as cmrr_mbep2d_se, while a Numaris/X page prints only the kernel epse, which diffusion shares. Where both exist the archive is the better witness. The card separates them all the same: 'Triggering scheme' is on every one of the 17 SE scans a paired archive identifies and on none of the 23 diffusion scans, nor anywhere in their 22-label union, while 'Disable B1 control loop' and 'PF omits higher k-space' are on every diffusion card and no SE one. Of the 54 shipped scans this matches, an archive confirms 30 as cmrr_mbep2d_se and none as anything else. Priority 30 rather than 20 because it beats cmrr-mb-epi-diffusion on the two MB-on SE scans in Frederick_P2, which print the generic MB card on epse and were reported as diffusion before this entry; it is the narrower answer and condition count does not say so. The residual risk is that 'Triggering scheme' is an option rather than a property of the binary, so a diffusion protocol with it enabled would read as SE from a printout alone -- unobserved in the corpus, and the archive names the binary when you have one.",
+      "priority": 20,
+      "note": "Supplied by the protocols' owner. The third member of CMRR's multiband EPI family, on the spin-echo kernel like cmrr-mb-epi-diffusion, and the reason it needs two routes is that the two files say different things: an .exar1 names the sequence outright as cmrr_mbep2d_se, while a Numaris/X page prints only the kernel epse, which diffusion shares. Where both exist the archive is the better witness. On the page the two are told apart from opposite directions: diffusion is claimed positively by the Diff card it cannot help printing, and 'Triggering scheme' is on every one of the 17 SE scans a paired archive identifies and on none of the 23 diffusion scans, nor anywhere in their 22-label union. Of the 54 shipped scans this matches, an archive confirms 30 as cmrr_mbep2d_se and none as anything else.",
       "match": {
         "binaries": [
           "cmrr_mbep2d_se"

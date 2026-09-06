@@ -27,6 +27,7 @@ from siemens_protocol.sequences import (
     VERDICTS,
     Catalog,
     Signature,
+    card_names,
     check,
     default_catalog,
     describe,
@@ -169,6 +170,74 @@ def test_base_binaries_gate_the_special_card_route_but_not_the_binary_route() ->
     # The binary names the sequence outright, so the kernel gate is not its
     # business: a vendor binary is a statement, not an inference.
     assert signature.match("vendor_seq", set()) is not None
+
+
+def test_a_card_group_is_read_from_the_head_of_the_title_not_the_tail() -> None:
+    # A title is "<group> - <page>", so Special is a page of the Sequence card
+    # while Diff is a group with pages. VE11C splits diffusion into
+    # Diff - Body / Diff - Neuro / Diff - Composing where Numaris/X prints a
+    # single Diff, so reading the tail finds Body and Neuro and misses every
+    # VE11C diffusion scan there is.
+    ve11c = {"sections": {"Diff - Body": {}, "Diff - Neuro": {}, "Sequence - Special": {}}}
+    numaris = {"sections": {"Diff": {}, "Sequence - Special": {}}}
+    assert "Diff" in card_names(ve11c)
+    assert "Diff" in card_names(numaris)
+    assert card_names(ve11c) >= {"Diff", "Sequence"}
+    # And the two conventions genuinely disagree, so this is not a free choice.
+    assert "Diff" not in special_keys({"sections": {"Diff - Body": {"x": "1"}}})
+
+
+def test_a_scan_read_from_an_archive_prints_no_cards() -> None:
+    # inspect.scan_of emits one section, Preview, because the archive has no
+    # cards -- what a page splits into Routine and Geometry is a property of
+    # the page. cards_all must therefore never gate the binary route.
+    assert card_names({"sections": {"Preview": {"TR": "650 ms"}}}) == {"Preview"}
+
+
+def test_cards_all_gates_the_special_card_route_but_not_the_binary_route() -> None:
+    signature = Signature(
+        id="s",
+        vendor="v",
+        family="f",
+        binaries=("cmrr_mbep2d_diff",),
+        base_binaries=("epse",),
+        special_all=("A key",),
+        cards_all=("Diff",),
+    )
+    assert signature.match("epse", {"A key"}, {"Diff"}) is not None
+    # The card is absent: this is the spin-echo variant, not diffusion.
+    assert signature.match("epse", {"A key"}, {"BOLD"}) is None
+    # An archive names the sequence outright and prints no cards at all, so
+    # gating the binary route would make every archive stop matching.
+    assert signature.match("cmrr_mbep2d_diff", set(), set()) is not None
+
+
+def test_cards_all_counts_towards_the_weight_that_breaks_a_tie() -> None:
+    without = Signature(id="a", vendor="v", family="f", special_all=("K",))
+    with_card = Signature(id="b", vendor="v", family="f", special_all=("K",), cards_all=("Diff",))
+    assert with_card.weight() > without.weight()
+
+
+def test_a_diffusion_scan_is_claimed_by_its_card_not_by_the_shared_one() -> None:
+    # The CMRR multiband card is printed by BOLD, diffusion and spin echo
+    # alike, so on its own it cannot say which. The Diff card can, and a
+    # diffusion sequence cannot help printing it.
+    catalog = default_catalog()
+    diffusion = next(s for s in catalog.signatures if s.id == "cmrr-mb-epi-diffusion")
+    assert diffusion.cards_all == ("Diff",)
+    shared = {"MB LeakBlock kernel", "Online multi-band recon."}
+    assert diffusion.match("epse", shared, {"Diff"}) is not None
+    assert diffusion.match("epse", shared, {"BOLD"}) is None
+
+
+def test_diffusion_outranks_the_spin_echo_entry_deliberately() -> None:
+    # They never both match today. If a diffusion protocol ever enables
+    # 'Triggering scheme', the option the SE entry keys on, the card it cannot
+    # help printing is the better evidence -- and that must not be decided by
+    # which entry happens to come first in the file.
+    catalog = default_catalog()
+    by_id = {s.id: s for s in catalog.signatures}
+    assert by_id["cmrr-mb-epi-diffusion"].rank() > by_id["cmrr-mb-epi-se"].rank()
 
 
 def test_a_kernel_less_scan_does_not_satisfy_a_base_binary_gate() -> None:
