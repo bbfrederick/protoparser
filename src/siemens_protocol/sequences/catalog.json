@@ -80,6 +80,26 @@
       }
     },
     {
+      "id": "cmrr-mb-epi-se",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "multiband EPI, spin echo",
+      "priority": 30,
+      "note": "Supplied by the protocols' owner. The third member of CMRR's multiband EPI family, on the spin-echo kernel like cmrr-mb-epi-diffusion, and the reason it needs two routes is that the two files say different things: an .exar1 names the sequence outright as cmrr_mbep2d_se, while a Numaris/X page prints only the kernel epse, which diffusion shares. Where both exist the archive is the better witness. The card separates them all the same: 'Triggering scheme' is on every one of the 17 SE scans a paired archive identifies and on none of the 23 diffusion scans, nor anywhere in their 22-label union, while 'Disable B1 control loop' and 'PF omits higher k-space' are on every diffusion card and no SE one. Of the 54 shipped scans this matches, an archive confirms 30 as cmrr_mbep2d_se and none as anything else. Priority 30 rather than 20 because it beats cmrr-mb-epi-diffusion on the two MB-on SE scans in Frederick_P2, which print the generic MB card on epse and were reported as diffusion before this entry; it is the narrower answer and condition count does not say so. The residual risk is that 'Triggering scheme' is an option rather than a property of the binary, so a diffusion protocol with it enabled would read as SE from a printout alone -- unobserved in the corpus, and the archive names the binary when you have one.",
+      "match": {
+        "binaries": [
+          "cmrr_mbep2d_se"
+        ],
+        "base_binaries": [
+          "epse"
+        ],
+        "special_all": [
+          "Triggering scheme",
+          "SENSE1 coil combine",
+          "Force GPA balance"
+        ]
+      }
+    },
+    {
       "id": "cmrr-epi",
       "vendor": "CMRR (University of Minnesota)",
       "family": "EPI package (C2P), multiband off or not printed",
@@ -227,7 +247,9 @@
         "binaries": [
           "ZPL_epsi_fid",
           "ZPL_epsi_fid_v1h",
+          "ZPL_RG_EPSI_FID_v1h",
           "ZPL_epsi_se_v1b",
+          "ZPL_RG_EPSI_SE_v1b",
           "ZPL_JPSI_se"
         ],
         "special_any": [

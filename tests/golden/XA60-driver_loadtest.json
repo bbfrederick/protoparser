@@ -1,5 +1,5 @@
 {
-  "source_file": "examples/XA60/Potpourri_P1.pdf",
+  "source_file": "examples/XA60/driver_loadtest.pdf",
   "software_version": "XA60",
   "detection": {
     "method": "header-string",
@@ -14,11 +14,11 @@
     {
       "index": 0,
       "name": "localizer_64ch_uncombined",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\localizer_64ch_uncombined",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\localizer_64ch_uncombined",
       "header": {
         "ta": "14 sec",
         "coil_selection": "Manual",
-        "voxel_size_mm": "0.5×0.5×7.0",
+        "voxel_size_mm": "0.5×0.5×7.5",
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "fl"
@@ -70,10 +70,10 @@
           "Phase Encoding Dir. #3": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "250 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "7.0 mm",
+          "FOV Phase": "96.7 %",
+          "Slice Thickness": "7.5 mm",
           "TR": "8.6 ms",
-          "TE": "4.00 ms",
+          "TE": "4.01 ms",
           "Averages": "2",
           "Concatenations": "3",
           "AutoAlign": "---",
@@ -81,11 +81,11 @@
         },
         "Contrast - Common": {
           "TR": "8.6 ms",
-          "TE": "4.00 ms",
+          "TE": "4.01 ms",
           "TD": "0.00 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
-          "Flip Angle": "20 deg",
+          "Flip Angle": "21 deg",
           "Fat-Water Contrast": "Standard",
           "Dark Blood": "Off",
           "Contrasts": "1",
@@ -99,9 +99,9 @@
         },
         "Resolution - Common": {
           "FOV Read": "250 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "7.0 mm",
-          "Base Resolution": "256",
+          "FOV Phase": "96.7 %",
+          "Slice Thickness": "7.5 mm",
+          "Base Resolution": "240",
           "Phase Resolution": "91 %",
           "Interpolation": "On"
         },
@@ -139,8 +139,8 @@
           "Phase Encoding Dir. #3": "A >> P",
           "Phase Oversampling": "0 %",
           "FOV Read": "250 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "7.0 mm",
+          "FOV Phase": "96.7 %",
+          "Slice Thickness": "7.5 mm",
           "TR": "8.6 ms",
           "Multi-Slice Mode": "Sequential",
           "Series": "Interleaved",
@@ -211,7 +211,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -228,7 +228,7 @@
           "Magn. Preparation": "None",
           "Dark Blood": "Off",
           "FOV Read": "250 mm",
-          "FOV Phase": "100.0 %",
+          "FOV Phase": "96.7 %",
           "Phase Resolution": "91 %"
         },
         "Physio - PACE": {
@@ -274,7 +274,7 @@
           "RF Pulse Type": "Normal",
           "Gradient Mode": "Normal",
           "Flow Compensation": "None",
-          "Bandwidth": "320 Hz/Px",
+          "Bandwidth": "340 Hz/Px",
           "Asymmetric Echo": "Allowed",
           "Segments": "1"
         },
@@ -297,7 +297,7 @@
     {
       "index": 1,
       "name": "AAHead_Scout_64ch",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\AAHead_Scout_64ch",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\AAHead_Scout_64ch",
       "header": {
         "ta": "14 sec",
         "coil_selection": "Manual",
@@ -462,7 +462,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -519,7 +519,7 @@
     {
       "index": 2,
       "name": "T1w_setter",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\T1w_setter",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\T1w_setter",
       "header": {
         "ta": "1 sec",
         "coil_selection": "Manual",
@@ -681,7 +681,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -723,9 +723,9 @@
     {
       "index": 3,
       "name": "T1_MEMPRAGE_1.0mm_p4_vNav",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\T1_MEMPRAGE_1.0mm_p4_vNav",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\T1_MEMPRAGE_1.0mm_p4_vNav",
       "header": {
-        "ta": "4:09 min",
+        "ta": "4:06 min",
         "coil_selection": "Manual",
         "voxel_size_mm": "1.0×1.0×1.0",
         "pat": "4",
@@ -772,10 +772,10 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "1.00 mm",
           "TR": "2200.0 ms",
-          "TE 1": "1.69 ms",
-          "TE 2": "3.55 ms",
-          "TE 3": "5.41 ms",
-          "TE 4": "7.27 ms",
+          "TE 1": "1.79 ms",
+          "TE 2": "3.65 ms",
+          "TE 3": "5.51 ms",
+          "TE 4": "7.37 ms",
           "Averages": "1",
           "Concatenations": "1",
           "AutoAlign": "Head > Brain",
@@ -783,10 +783,10 @@
         },
         "Contrast - Common": {
           "TR": "2200.0 ms",
-          "TE 1": "1.69 ms",
-          "TE 2": "3.55 ms",
-          "TE 3": "5.41 ms",
-          "TE 4": "7.27 ms",
+          "TE 1": "1.79 ms",
+          "TE 2": "3.65 ms",
+          "TE 3": "5.51 ms",
+          "TE 4": "7.37 ms",
           "Magn. Preparation": "Non-sel. IR",
           "TI": "1100 ms",
           "Flip Angle": "7 deg",
@@ -898,7 +898,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -953,7 +953,7 @@
           "Bandwidth 2": "650 Hz/Px",
           "Bandwidth 3": "650 Hz/Px",
           "Bandwidth 4": "650 Hz/Px",
-          "Echo Spacing": "9.84 ms",
+          "Echo Spacing": "9.94 ms",
           "Asymmetric Echo": "Off",
           "Turbo Factor": "168"
         },
@@ -963,17 +963,17 @@
           "Incr. Gradient Spoiling": "Off"
         },
         "Sequence - Special": {
-          "Readout polarity": "Positive",
+          "Readout polarity": "Negative",
           "Nav. location": "Before",
-          "Apply moco to": "parent and nav",
-          "Remeasure": "20 TRs",
-          "Reacq. threshold": "0.50",
-          "Feedback Delay": "80 ms",
-          "Moco ref. image": "Use Temp Ref",
+          "Apply moco to": "nav only",
+          "Remeasure": "19 TRs",
+          "Reacq. threshold": "0.45",
+          "Feedback Delay": "79 ms",
+          "Moco ref. image": "Use Sess Ref",
           "K-space streaming": "None",
-          "ABCD navigator": "On",
-          "Add. grad time": "0.00 ms",
-          "Apply freq to": "parent and nav",
+          "ABCD navigator": "Off",
+          "Add. grad time": "0.10 ms",
+          "Apply freq to": "neither",
           "Averaging": "RMS Only"
         },
         "Sequence - Assistant": {
@@ -989,11 +989,11 @@
     {
       "index": 4,
       "name": "Minn_CMRR_2.3mm_S8_rest_6min",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\Minn_CMRR_2.3mm_S8_rest_6min",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\Minn_CMRR_2.3mm_S8_rest_6min",
       "header": {
-        "ta": "6:09 min",
+        "ta": "6:08 min",
         "coil_selection": "Manual",
-        "voxel_size_mm": "2.3×2.3×2.3",
+        "voxel_size_mm": "2.3×2.3×2.2",
         "pat": "None",
         "rel_snr": "1.00",
         "sequence": "epfid"
@@ -1028,23 +1028,23 @@
           "Slice Group": "1",
           "Slices": "64",
           "Distance Factor": "0 %",
-          "Position": "L0.0 P8.0 H6.0 mm",
+          "Position": "L0.0 P8.0 H12.0 mm",
           "Orientation": "T > C-25.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
-          "FOV Read": "207 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "2.3 mm",
-          "TR": "650.0 ms",
-          "TE": "34.80 ms",
+          "FOV Read": "206 mm",
+          "FOV Phase": "97.7 %",
+          "Slice Thickness": "2.2 mm",
+          "TR": "649.0 ms",
+          "TE": "34.60 ms",
           "Averages": "1",
           "Multi-band accel. factor": "8",
           "AutoAlign": "Head > Brain",
           "Coil Elements": "HC1-7"
         },
         "Contrast - Common": {
-          "TR": "650.0 ms",
-          "TE": "34.80 ms",
+          "TR": "649.0 ms",
+          "TE": "34.60 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle": "50 deg",
@@ -1058,10 +1058,10 @@
           "Delay in TR": "0.00 ms"
         },
         "Resolution - Common": {
-          "FOV Read": "207 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "2.3 mm",
-          "Base Resolution": "90",
+          "FOV Read": "206 mm",
+          "FOV Phase": "97.7 %",
+          "Slice Thickness": "2.2 mm",
+          "Base Resolution": "88",
           "Phase Resolution": "100 %",
           "Interpolation": "Off"
         },
@@ -1081,21 +1081,21 @@
           "Slice Group": "1",
           "Slices": "64",
           "Distance Factor": "0 %",
-          "Position": "L0.0 P8.0 H6.0 mm",
+          "Position": "L0.0 P8.0 H12.0 mm",
           "Orientation": "T > C-25.0",
           "Phase Encoding Dir.": "A >> P",
           "Phase Oversampling": "0 %",
-          "FOV Read": "207 mm",
-          "FOV Phase": "100.0 %",
-          "Slice Thickness": "2.3 mm",
-          "TR": "650.0 ms",
+          "FOV Read": "206 mm",
+          "FOV Phase": "97.7 %",
+          "Slice Thickness": "2.2 mm",
+          "TR": "649.0 ms",
           "Multi-Slice Mode": "Interleaved",
           "Series": "Interleaved",
           "Multi-band accel. factor": "8"
         },
         "Geometry - AutoAlign": {
           "Slice Group": "1",
-          "Position": "L0.0 P8.0 H6.0 mm",
+          "Position": "L0.0 P8.0 H12.0 mm",
           "Orientation": "T > C-25.0",
           "Phase Encoding Dir.": "A >> P",
           "AutoAlign": "Head > Brain",
@@ -1113,7 +1113,7 @@
         },
         "Geometry - Tim Planning Suite": {
           "Set-n-Go Protocol": "Off",
-          "Table Position": "0 mm",
+          "Table Position": "6 mm",
           "Table Position #2": "H",
           "Inline Composing": "Off"
         },
@@ -1137,12 +1137,12 @@
           "Assume Silicone": "Off"
         },
         "System - Adjust Volume": {
-          "Position": "L0.0 P8.0 H6.0 mm",
+          "Position": "L0.0 P8.0 H12.0 mm",
           "Orientation": "T > C-25.0",
           "Rotation": "0.00 deg",
-          "A >> P": "207 mm",
-          "R >> L": "207 mm",
-          "F >> H": "148 mm",
+          "A >> P": "202 mm",
+          "R >> L": "206 mm",
+          "F >> H": "141 mm",
           "Reset": "Off"
         },
         "System - pTx": {
@@ -1150,7 +1150,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1158,7 +1158,7 @@
         },
         "Physio - Signal": {
           "1st Signal/Mode": "None",
-          "TR": "650.0 ms",
+          "TR": "649.0 ms",
           "Log Signals": "Off",
           "Multi-band accel. factor": "8"
         },
@@ -1184,10 +1184,10 @@
           "Excitation": "Standard",
           "Gradient Mode": "Fast",
           "Flow Compensation": "None",
-          "Bandwidth": "2222 Hz/Px",
-          "Echo Spacing": "0.62 ms",
+          "Bandwidth": "2272 Hz/Px",
+          "Echo Spacing": "0.61 ms",
           "Free Echo Spacing": "Off",
-          "EPI Factor": "90"
+          "EPI Factor": "86"
         },
         "Sequence - Part 2": {
           "Introduction": "Off",
@@ -1198,16 +1198,16 @@
           "Min. prep scans": "0",
           "Min. prep scans SB": "0",
           "Delay before PC scans": "0 us",
-          "Single-band images": "On",
-          "MB LeakBlock kernel": "On",
-          "MB dual kernel": "Off",
-          "MB RF phase scramble": "On",
-          "Opt. MB RF pulse BW": "Off",
-          "SENSE1 coil combine": "Off",
-          "Invert RO/PE polarity": "Off",
-          "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
-          "Force equal slice timing": "Off",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "On",
+          "MB RF phase scramble": "Off",
+          "Opt. MB RF pulse BW": "On",
+          "SENSE1 coil combine": "On",
+          "Invert RO/PE polarity": "On",
+          "Disable freq. update": "On",
+          "Suppress 16-bit DICOM": "On",
+          "Force equal slice timing": "On",
           "Online multi-band recon.": "Online",
           "FFT scale factor": "1.00",
           "Physio recording": "Off",
@@ -1225,7 +1225,7 @@
     {
       "index": 5,
       "name": "CMRR_SEFieldMap_2.3mm_64sl_AP",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\CMRR_SEFieldMap_2.3mm_64sl_AP",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\CMRR_SEFieldMap_2.3mm_64sl_AP",
       "header": {
         "ta": "8 sec",
         "coil_selection": "Manual",
@@ -1388,7 +1388,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1455,7 +1455,7 @@
     {
       "index": 6,
       "name": "ABCD_T1w_MPR_vNav_setter",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ABCD_T1w_MPR_vNav_setter",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ABCD_T1w_MPR_vNav_setter",
       "header": {
         "ta": "1 sec",
         "coil_selection": "Manual",
@@ -1617,7 +1617,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1659,7 +1659,7 @@
     {
       "index": 7,
       "name": "ABCD_T1w_MPR_vNav",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ABCD_T1w_MPR_vNav",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ABCD_T1w_MPR_vNav",
       "header": {
         "ta": "7:12 min",
         "coil_selection": "Manual",
@@ -1828,7 +1828,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -1913,7 +1913,7 @@
     {
       "index": 8,
       "name": "ABCD_T2w_SPC_vNav_setter",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ABCD_T2w_SPC_vNav_setter",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ABCD_T2w_SPC_vNav_setter",
       "header": {
         "ta": "1 sec",
         "coil_selection": "Manual",
@@ -2075,7 +2075,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -2117,7 +2117,7 @@
     {
       "index": 9,
       "name": "ABCD_T2w_SPC_vNav",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ABCD_T2w_SPC_vNav",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ABCD_T2w_SPC_vNav",
       "header": {
         "ta": "6:35 min",
         "coil_selection": "Manual",
@@ -2287,7 +2287,7 @@
           "Excitation": "Non-sel."
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -2373,7 +2373,7 @@
     {
       "index": 10,
       "name": "rfMRI REST ME PA XA60",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\rfMRI REST ME PA XA60",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\rfMRI REST ME PA XA60",
       "header": {
         "ta": "7:04 min",
         "coil_selection": "Auto",
@@ -2420,20 +2420,20 @@
           "FOV Phase": "100.0 %",
           "Slice Thickness": "2.5 mm",
           "TR": "1330.0 ms",
-          "TE 1": "12.60 ms",
-          "TE 2": "29.16 ms",
-          "TE 3": "45.72 ms",
-          "TE 4": "62.28 ms",
+          "TE 1": "12.80 ms",
+          "TE 2": "29.36 ms",
+          "TE 3": "45.92 ms",
+          "TE 4": "62.48 ms",
           "Averages": "1",
           "Multi-band accel. factor": "4",
           "AutoAlign": "Head > Brain"
         },
         "Contrast - Common": {
           "TR": "1330.0 ms",
-          "TE 1": "12.60 ms",
-          "TE 2": "29.16 ms",
-          "TE 3": "45.72 ms",
-          "TE 4": "62.28 ms",
+          "TE 1": "12.80 ms",
+          "TE 2": "29.36 ms",
+          "TE 3": "45.92 ms",
+          "TE 4": "62.48 ms",
           "MTC": "Off",
           "Magn. Preparation": "None",
           "Flip Angle": "67 deg",
@@ -2543,7 +2543,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2608,17 +2608,17 @@
           "Min. prep scans SB": "0",
           "Inter-TE delay": "0 us",
           "Delay before PC scans": "0 us",
-          "Single-band images": "On",
-          "MB LeakBlock kernel": "On",
-          "MB dual kernel": "Off",
-          "MB RF phase scramble": "On",
-          "Opt. MB RF pulse BW": "Off",
-          "SENSE1 coil combine": "On",
-          "Invert RO/PE polarity": "On",
+          "Single-band images": "Off",
+          "MB LeakBlock kernel": "Off",
+          "MB dual kernel": "On",
+          "MB RF phase scramble": "Off",
+          "Opt. MB RF pulse BW": "On",
+          "SENSE1 coil combine": "Off",
+          "Invert RO/PE polarity": "Off",
           "Echoes in separate series": "Off",
-          "Disable freq. update": "Off",
-          "Suppress 16-bit DICOM": "Off",
-          "Force equal slice timing": "Off",
+          "Disable freq. update": "On",
+          "Suppress 16-bit DICOM": "On",
+          "Force equal slice timing": "On",
           "Online multi-band recon.": "Online",
           "FFT scale factor": "1.00",
           "Physio recording": "Off",
@@ -2637,7 +2637,7 @@
     {
       "index": 11,
       "name": "cmrr_mbep2d_diff",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\cmrr_mbep2d_diff",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\cmrr_mbep2d_diff",
       "header": {
         "ta": "9:15 min",
         "coil_selection": "Auto",
@@ -2796,7 +2796,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -2879,7 +2879,7 @@
     {
       "index": 12,
       "name": "ep2d_bold_mgh",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ep2d_bold_mgh",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ep2d_bold_mgh",
       "header": {
         "ta": "8 sec",
         "coil_selection": "Auto",
@@ -3034,7 +3034,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3115,7 +3115,7 @@
     {
       "index": 13,
       "name": "ep2d_diff_mgh",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ep2d_diff_mgh",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ep2d_diff_mgh",
       "header": {
         "ta": "1 sec",
         "coil_selection": "Auto",
@@ -3271,7 +3271,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3341,7 +3341,7 @@
     {
       "index": 14,
       "name": "ep2d_se_sms_mgh",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ep2d_se_sms_mgh",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ep2d_se_sms_mgh",
       "header": {
         "ta": "1 sec",
         "coil_selection": "Auto",
@@ -3500,7 +3500,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -3566,7 +3566,7 @@
     {
       "index": 15,
       "name": "ABCD_fMRI_rest_CMRR",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ABCD_fMRI_rest_CMRR",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ABCD_fMRI_rest_CMRR",
       "header": {
         "ta": "5:14 min",
         "coil_selection": "Manual",
@@ -3725,7 +3725,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Correction Factor": "1.00",
@@ -3800,7 +3800,7 @@
     {
       "index": 16,
       "name": "ABCD_fMRI_rest_MGH",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\ABCD_fMRI_rest_MGH",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\ABCD_fMRI_rest_MGH",
       "header": {
         "ta": "5:14 min",
         "coil_selection": "Auto",
@@ -3960,7 +3960,7 @@
           "Excitation": "Standard"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4042,7 +4042,7 @@
     {
       "index": 17,
       "name": "can_neuromelanin",
-      "path": "\\\\Research\\Investigators\\Frederick\\Potpourri_P1\\can_neuromelanin",
+      "path": "\\\\Research\\Investigators\\Frederick\\DRIVER_TEST\\can_neuromelanin",
       "header": {
         "ta": "14 sec",
         "coil_selection": "Auto",
@@ -4203,7 +4203,7 @@
           "LR Balancing": "Off"
         },
         "System - Tx/Rx": {
-          "Frequency 1H": "123.249549 MHz",
+          "Frequency 1H": "123.249445 MHz",
           "? Ref. Amplitude 1H": "0.000 V",
           "Reset": "Off",
           "Image Scaling": "1.000"
@@ -4275,8 +4275,8 @@
           "Acoustic noise reduction": "Off"
         },
         "Sequence - Special": {
-          "MT Flip Angle": "370 degrees",
-          "MT Offset": "1500 Hz"
+          "MT Flip Angle": "360 degrees",
+          "MT Offset": "1490 Hz"
         },
         "Sequence - Assistant": {
           "SAR Assistant": "Off",

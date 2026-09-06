@@ -1097,10 +1097,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "multiband EPI, diffusion",
-        "signature": "cmrr-mb-epi-diffusion",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 21
       },
@@ -1335,10 +1335,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "multiband EPI, diffusion",
-        "signature": "cmrr-mb-epi-diffusion",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 23
       },

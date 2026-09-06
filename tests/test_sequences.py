@@ -687,10 +687,12 @@ def test_the_stated_owner_never_contradicts_the_other_detectors() -> None:
 #: signatures for them would mean attributing sequences from inference alone,
 #: which the catalog's rule against guessed attributions forbids -- and
 #: 'unrecognized' is the honest verdict for a scan a person should look at.
-#: The five scans, and the three exports of the one protocol that prints them.
+#: The five scans, and the four exports of the one protocol that prints them.
 #: Potpourri now ships as P1 and P2 -- the same protocol imported onto two XA60
-#: scanners -- plus P1_changed, so the same five recur in each. Kept as a
-#: product of two small sets rather than fifteen literals, because the fact
+#: scanners -- plus P1_changed and driver_loadtest, the scanner's own export of
+#: the archive the driver built from P1, whose scans keep their original names
+#: rather than the load-test generator's. So the same five recur in each. Kept
+#: as a product of two small sets rather than twenty literals, because the fact
 #: being pinned is "these five scans, in every Potpourri export" and a flat
 #: list would obscure a case where one export gained a sixth.
 UNACCOUNTED_SCANS = {
@@ -704,6 +706,7 @@ UNACCOUNTED_EXPORTS = {
     "XA60-Potpourri_P1.json",
     "XA60-Potpourri_P1_changed.json",
     "XA60-Potpourri_P2.json",
+    "XA60-driver_loadtest.json",
 }
 
 #: Spectroscopy scans that no signature accounts for, in two VE11C protocols

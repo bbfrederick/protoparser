@@ -251,6 +251,31 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   list, so a new example folder tightens it. It fails if a shipped signature
   matches nothing in the examples: a signature no example exercises is one
   nothing verifies. Widen the examples rather than deleting the signature.
+- **Which detector can name a sequence depends on which file you have, and the
+  archive wins where both exist.** A Numaris/X page prints the *kernel*, so
+  `cmrr_mbep2d_se` and `cmrr_mbep2d_diff` both read as `epse` there and only
+  the Special card can separate them; an `.exar1` prints the sequence *file
+  name* and settles it outright. `cmrr-mb-epi-se` therefore carries both
+  routes -- `binaries` for the archive, `base_binaries` plus `special_all` for
+  the page -- and the two agree on every corpus scan that has both.
+
+  Deriving the card route needed the archive to label the page: joining the 18
+  archive/PDF pairs on scan name gives each printed Special card the binary
+  that actually wrote it, and the fingerprints then separate cleanly.
+  `Triggering scheme` is on all 17 SE scans and on none of the 23 diffusion
+  ones, nor anywhere in their 22-label union; `Disable B1 control loop` and
+  `PF omits higher k-space` are on every diffusion card and no SE one. That is
+  a method worth reusing for the next signature: the printout says what the
+  card holds and the archive says whose card it is, and neither file answers
+  both questions alone.
+
+  Two shipped scans *named* `cmrr_mbep2d_se` were reported as diffusion before
+  this entry, because with multiband on they print the generic MB card on the
+  spin-echo kernel. Priority 30 is what corrects them -- condition count says
+  the opposite, as it did for the CMRR package entry. The residual risk is
+  that `Triggering scheme` is an option rather than a property of the binary,
+  so a diffusion protocol with it enabled would read as SE from a printout
+  alone; unobserved in the corpus, and the archive names the binary.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past
