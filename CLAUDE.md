@@ -298,6 +298,24 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   same reason `base_binaries` does and a sharper one: a scan read from an
   `.exar1` prints no cards at all, so gating the binary route would make every
   archive stop matching.
+- **Two sequences can share a vendor, a family and almost a kernel name.**
+  CMRR ships two semi-LASERs by different authors: Deelchand's, which a VE11C
+  page calls `sead`, a Numaris/X page `slaser` and an archive
+  `svs_slaser_dkd`; and Auerbach's, which a page calls `slasr`. One character
+  separates the two kernels. They are told apart by their cards, which share
+  exactly one label out of 9 and 39 -- Deelchand's prints `GOIA/FOCI` and
+  `FA AutoCalib`, Auerbach's the `OVS` and `VAPOR` blocks -- and the corpus is
+  overwhelmingly Deelchand's, 421 scans against 7. Both attributions came from
+  the protocols' owner; neither is inferable from the binary name, and
+  `dkd-semilaser` carried the family label `semi-LASER single-voxel
+  spectroscopy` for both until he said otherwise.
+
+  It also shows the two files disagreeing about what they can resolve. An
+  archive names `eja_svs_slaser` and `eja_csi_slaser` apart; a page prints
+  `slasr` for both and their cards share 39 of 40 labels, the one difference
+  being an option that may simply be off. So the archive declines the CSI
+  variant correctly and the page claims it, which is the "prefer the archive"
+  rule with a visible cost rather than a slogan.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past

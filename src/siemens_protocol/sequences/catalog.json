@@ -190,20 +190,41 @@
       }
     },
     {
-      "id": "cmrr-slaser",
+      "id": "dkd-semilaser",
       "vendor": "CMRR (University of Minnesota)",
-      "family": "semi-LASER single-voxel spectroscopy",
+      "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
       "priority": 10,
-      "note": "Deelchand's semi-LASER. The binary is renamed across releases -- sead on VE11C, slaser on XA60 -- while the Special card is identical and both run scans named svs_slaser_dkd. That rename is exactly the kind of thing that breaks a conversion, so the parameter fingerprint rather than the binary is what identifies it.",
+      "note": "Deelchand's semi-LASER, and one of two distinct semi-LASER sequences from CMRR -- see cmrr-semilaser for Auerbach's. Supplied by the protocols' owner; the corpus is overwhelmingly this one, 421 scans in the whole-scanner export against 7 of the other. Three spellings because the two files and the two releases each name it differently: a VE11C page prints the kernel sead, a Numaris/X page prints slaser, and an .exar1 prints the sequence file name svs_slaser_dkd. That rename across releases is exactly the kind of thing that breaks a conversion, so the parameter fingerprint rather than the binary is what identifies it on a page. Its card shares only 'Inversion pulse' with Auerbach's, which is why the two cannot be confused: this one prints GOIA/FOCI and FA AutoCalib, and that one the OVS and VAPOR blocks.",
       "match": {
         "binaries": [
           "sead",
-          "slaser"
+          "slaser",
+          "svs_slaser_dkd"
         ],
         "special_all": [
           "OVS module 1",
           "GOIA/FOCI",
           "FA AutoCalib"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-semilaser",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "semi-LASER spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's semi-LASER, supplied by the protocols' owner and distinct from Deelchand's dkd-semilaser despite both coming from CMRR. The kernels are one character apart and easy to confuse -- Auerbach's prints slasr where Deelchand's prints slaser -- but the cards are unmistakable: this one prints the OVS and VAPOR blocks and 39 labels in all, none of which appear on any Deelchand scan. Only 7 scans in the whole-scanner export run it. Note what the two files can and cannot say here. An .exar1 names eja_svs_slaser and eja_csi_slaser apart; a page prints slasr for both and their cards share 39 of 40 labels, the single difference being one option that may simply be off. So the printed route claims the CSI variant too, and the family is worded without 'single-voxel' rather than asserting something the corpus cannot support on one scan of each.",
+      "match": {
+        "binaries": [
+          "eja_svs_slaser"
+        ],
+        "base_binaries": [
+          "slasr"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "OVS pulse duration",
+          "GOIA refoc. pulses"
         ]
       }
     },

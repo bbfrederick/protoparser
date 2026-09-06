@@ -2848,10 +2848,12 @@
         "sequence": "slasr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "semi-LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-semilaser",
         "evidence": [
-          "sequence binary 'slasr' is not a listed Siemens kernel",
-          "prints 40 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses"
         ],
         "special_parameters": 40
       },

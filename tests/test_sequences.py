@@ -252,6 +252,34 @@ def test_a_sequence_named_differently_by_the_two_files_lists_both_spellings() ->
     assert megapress.match("eja_svs_mpress", set()) is not None
 
 
+def test_the_two_cmrr_semi_lasers_are_kept_apart() -> None:
+    # Both come from CMRR and both are semi-LASER, but they are distinct
+    # sequences by different authors, and their kernels are one character
+    # apart: Auerbach's prints slasr where Deelchand's prints slaser. Nothing
+    # about that pair is forgiving of a typo, so the separation is asserted
+    # rather than assumed.
+    by_id = {s.id: s for s in default_catalog().signatures}
+    eja, dkd = by_id["cmrr-semilaser"], by_id["dkd-semilaser"]
+    assert "slasr" in eja.base_binaries and "slasr" not in dkd.binaries
+    assert "slaser" in dkd.binaries and "slaser" not in eja.base_binaries
+    assert not set(eja.special_all) & set(dkd.special_all)
+    # Neither claims the other's card. Tested with a binary neither names,
+    # because the binary route is sufficient on its own and would otherwise
+    # answer for the card route rather than letting it be checked.
+    assert eja.match("slasr", set(dkd.special_all)) is None
+    assert dkd.match("someone_elses_kernel", set(eja.special_all)) is None
+    assert dkd.match("someone_elses_kernel", set(dkd.special_all)) is not None
+
+
+def test_deelchand_semi_laser_is_named_by_all_three_spellings() -> None:
+    # A VE11C page prints sead, a Numaris/X page slaser, an .exar1 the
+    # sequence file name svs_slaser_dkd. It is one sequence seen three ways,
+    # and the archive spelling is what makes the 421 whole-scanner scans
+    # resolve.
+    dkd = next(s for s in default_catalog().signatures if s.id == "dkd-semilaser")
+    assert {"sead", "slaser", "svs_slaser_dkd"} == set(dkd.binaries)
+
+
 def test_a_kernel_less_scan_does_not_satisfy_a_base_binary_gate() -> None:
     # Otherwise a scan with no readable kernel would match both the BOLD and
     # the diffusion variant of one fingerprint, and take whichever sorted
@@ -845,8 +873,10 @@ UNACCOUNTED = (
 INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
 
 #: How many of that export's scans no signature claims, and the kernels they
-#: run. Both are observations awaiting attribution, not targets.
-INVESTIGATOR_UNACCOUNTED = 73
+#: run. Both are observations awaiting attribution, not targets, and both come
+#: down when one arrives: this was 73 over eleven kernels until the owner named
+#: Auerbach's semi-LASER, which accounts for the three that ran ``slasr``.
+INVESTIGATOR_UNACCOUNTED = 70
 INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "MDME",
     "fl_r",
@@ -855,7 +885,6 @@ INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "laser",
     "pc",
     "press",
-    "slasr",
     "spcR",
     "steam",
     "svs_edit",

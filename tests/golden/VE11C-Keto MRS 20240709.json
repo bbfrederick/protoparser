@@ -3044,8 +3044,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'sead'",
           "Special card prints OVS module 1, GOIA/FOCI, FA AutoCalib"
@@ -3214,8 +3214,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'sead'",
           "Special card prints OVS module 1, GOIA/FOCI, FA AutoCalib"
@@ -3382,8 +3382,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'sead'",
           "Special card prints OVS module 1, GOIA/FOCI, FA AutoCalib"
@@ -3547,8 +3547,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'sead'"
         ],
