@@ -14,3 +14,5 @@ src/siemens_protocol/_version.py
 private_examples
 
 loadtest
+archive
+comparetest
