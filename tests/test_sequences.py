@@ -240,6 +240,18 @@ def test_diffusion_outranks_the_spin_echo_entry_deliberately() -> None:
     assert by_id["cmrr-mb-epi-diffusion"].rank() > by_id["cmrr-mb-epi-se"].rank()
 
 
+def test_a_sequence_named_differently_by_the_two_files_lists_both_spellings() -> None:
+    # A page prints the kernel and an .exar1 prints the sequence file name, so
+    # an entry knowing only one matches only one kind of input. cmrr-megapress
+    # knowing only 'mpres' matched every printout and no archive, which left
+    # 427 whole-scanner scans on the owner statement alone. The two are the
+    # same sequence, joined archive-to-printout on five Frederick_P2 scans.
+    megapress = next(s for s in default_catalog().signatures if s.id == "cmrr-megapress")
+    assert {"mpres", "eja_svs_mpress"} <= set(megapress.binaries)
+    assert megapress.match("mpres", set()) is not None
+    assert megapress.match("eja_svs_mpress", set()) is not None
+
+
 def test_a_kernel_less_scan_does_not_satisfy_a_base_binary_gate() -> None:
     # Otherwise a scan with no readable kernel would match both the BOLD and
     # the diffusion variant of one fingerprint, and take whichever sorted
