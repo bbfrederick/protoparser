@@ -211,9 +211,9 @@
     {
       "id": "cmrr-semilaser",
       "vendor": "CMRR (University of Minnesota)",
-      "family": "semi-LASER spectroscopy (Auerbach)",
+      "family": "semi-LASER single-voxel spectroscopy (Auerbach)",
       "priority": 10,
-      "note": "Auerbach's semi-LASER, supplied by the protocols' owner and distinct from Deelchand's dkd-semilaser despite both coming from CMRR. The kernels are one character apart and easy to confuse -- Auerbach's prints slasr where Deelchand's prints slaser -- but the cards are unmistakable: this one prints the OVS and VAPOR blocks and 39 labels in all, none of which appear on any Deelchand scan. Only 7 scans in the whole-scanner export run it. Note what the two files can and cannot say here. An .exar1 names eja_svs_slaser and eja_csi_slaser apart; a page prints slasr for both and their cards share 39 of 40 labels, the single difference being one option that may simply be off. So the printed route claims the CSI variant too, and the family is worded without 'single-voxel' rather than asserting something the corpus cannot support on one scan of each.",
+      "note": "Auerbach's semi-LASER, supplied by the protocols' owner and distinct from Deelchand's dkd-semilaser despite both coming from CMRR. The kernels are one character apart and easy to confuse -- Auerbach's prints slasr where Deelchand's prints slaser -- but the cards are unmistakable: this one prints the OVS and VAPOR blocks and 39 labels in all, none of which appear on any Deelchand scan. Only 7 scans in the whole-scanner export run it. The same kernel and very nearly the same card also serve the CSI variant, eja_csi_slaser: an .exar1 names the two apart and a page does not, their Special cards sharing 39 of 40 labels. What separates them is the Resolution card, which prints a phase-encoding matrix only when there is one -- absent on all 27 single-voxel spectroscopy scans in the corpus and 8 or 16 on all 6 CSI ones, with nothing against. The bound is 'at most 1' rather than 'absent' because a 1 x 1 matrix would mean the same thing; the corpus shows only absence.",
       "match": {
         "binaries": [
           "eja_svs_slaser"
@@ -225,7 +225,11 @@
           "VAPOR delay 1",
           "OVS pulse duration",
           "GOIA refoc. pulses"
-        ]
+        ],
+        "parameters_at_most": {
+          "Scan Res. A >> P": 1,
+          "Scan Res. R >> L": 1
+        }
       }
     },
     {

@@ -312,10 +312,21 @@ handles stock sequences and third-party ones are what force a manual rebuild.
 
   It also shows the two files disagreeing about what they can resolve. An
   archive names `eja_svs_slaser` and `eja_csi_slaser` apart; a page prints
-  `slasr` for both and their cards share 39 of 40 labels, the one difference
-  being an option that may simply be off. So the archive declines the CSI
-  variant correctly and the page claims it, which is the "prefer the archive"
-  rule with a visible cost rather than a slogan.
+  `slasr` for both and their Special cards share 39 of 40 labels, the one
+  difference being an option that may simply be off.
+
+  **What the page does say is whether there is a phase-encoding matrix, and
+  that is what single-voxel means.** `Scan Res. A >> P` and `R >> L` are
+  absent on all 27 single-voxel spectroscopy scans in the corpus and are 8 or
+  16 on all 6 CSI ones, with nothing against; they are printed only on
+  `Resolution - Common`. `parameters_at_most` is the clause -- the only one
+  that reads a printed *value* rather than a label's presence -- and it is
+  satisfied by absence as well as by a small number, because a sequence with
+  no such setting prints none. The bound is 1 rather than 0 on the owner's
+  reading that a 1 x 1 matrix would mean the same thing; only absence is
+  observed. A label printed on several cards must satisfy the bound on every
+  one, which is the flattening trap the `Position` note describes, met here in
+  the matching rules rather than in a reader.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past

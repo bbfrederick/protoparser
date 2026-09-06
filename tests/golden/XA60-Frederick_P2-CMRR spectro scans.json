@@ -2850,9 +2850,11 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER spectroscopy (Auerbach)",
+        "family": "semi-LASER single-voxel spectroscopy (Auerbach)",
         "signature": "cmrr-semilaser",
         "evidence": [
+          "prints no Scan Res. A >> P",
+          "prints no Scan Res. R >> L",
           "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses"
         ],
         "special_parameters": 40

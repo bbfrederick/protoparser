@@ -34,6 +34,7 @@ from siemens_protocol.sequences import (
     identify,
     identify_protocol,
     load_catalog,
+    parameter_values,
     render,
     special_keys,
     summarize,
@@ -269,6 +270,74 @@ def test_the_two_cmrr_semi_lasers_are_kept_apart() -> None:
     assert eja.match("slasr", set(dkd.special_all)) is None
     assert dkd.match("someone_elses_kernel", set(eja.special_all)) is None
     assert dkd.match("someone_elses_kernel", set(dkd.special_all)) is not None
+
+
+def test_a_bound_is_satisfied_by_absence_as_well_as_by_a_small_value() -> None:
+    # A sequence that has no setting prints none, so absence is the ordinary
+    # way "not phase encoded" appears. The bound is written as "at most 1"
+    # rather than "absent" because a 1 x 1 matrix would mean the same thing --
+    # unobserved in the corpus, and cheaper to allow than to be wrong about.
+    signature = Signature(
+        id="s",
+        vendor="v",
+        family="f",
+        special_all=("K",),
+        parameters_at_most=(("Scan Res. A >> P", 1.0),),
+    )
+
+    def scan_with(resolution: dict) -> dict:
+        return {"sections": {"Resolution - Common": resolution, "Sequence - Special": {"K": "1"}}}
+
+    def check_scan(sc: dict) -> object:
+        return signature.match("", special_keys(sc), card_names(sc), parameter_values(sc))
+
+    assert check_scan(scan_with({"Vector Size": "2048"})) is not None
+    assert check_scan(scan_with({"Scan Res. A >> P": "1"})) is not None
+    assert check_scan(scan_with({"Scan Res. A >> P": "16"})) is None
+    # An unreadable value is refused rather than assumed to be small.
+    assert check_scan(scan_with({"Scan Res. A >> P": "auto"})) is None
+
+
+def test_a_value_printed_on_several_cards_must_satisfy_the_bound_everywhere() -> None:
+    # Position is printed on four cards and they do not agree, so collapsing a
+    # label to one reading is how the flattening trap gets in. Every reading
+    # has to hold.
+    signature = Signature(
+        id="s",
+        vendor="v",
+        family="f",
+        special_all=("K",),
+        parameters_at_most=(("N", 1.0),),
+    )
+    both = {"sections": {"A": {"N": "1"}, "B": {"N": "16"}, "Sequence - Special": {"K": "1"}}}
+    assert parameter_values(both)["N"] == ["1", "16"]
+    assert (
+        signature.match("", special_keys(both), card_names(both), parameter_values(both)) is None
+    )
+
+
+def test_the_csi_variant_is_declined_by_the_phase_encoding_matrix() -> None:
+    # eja_svs_slaser and eja_csi_slaser share the kernel slasr and 39 of 40
+    # Special-card labels, so nothing on that card separates them. The
+    # Resolution card does: a single-voxel scan prints no matrix, and every
+    # CSI scan in the corpus prints 8 or 16.
+    eja = next(s for s in default_catalog().signatures if s.id == "cmrr-semilaser")
+    assert dict(eja.parameters_at_most) == {"Scan Res. A >> P": 1.0, "Scan Res. R >> L": 1.0}
+    card = set(eja.special_all)
+    svs = {
+        "sections": {
+            "Resolution - Common": {"Vector Size": "2048"},
+            "Sequence - Special": {k: "1" for k in card},
+        }
+    }
+    csi = {
+        "sections": {
+            "Resolution - Common": {"Scan Res. A >> P": "16", "Scan Res. R >> L": "16"},
+            "Sequence - Special": {k: "1" for k in card},
+        }
+    }
+    assert eja.match("slasr", special_keys(svs), card_names(svs), parameter_values(svs))
+    assert eja.match("slasr", special_keys(csi), card_names(csi), parameter_values(csi)) is None
 
 
 def test_deelchand_semi_laser_is_named_by_all_three_spellings() -> None:
@@ -875,8 +944,12 @@ INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
 #: How many of that export's scans no signature claims, and the kernels they
 #: run. Both are observations awaiting attribution, not targets, and both come
 #: down when one arrives: this was 73 over eleven kernels until the owner named
-#: Auerbach's semi-LASER, which accounts for the three that ran ``slasr``.
-INVESTIGATOR_UNACCOUNTED = 70
+#: Auerbach's semi-LASER, which accounts for two of the three that ran
+#: ``slasr``. The third is that sequence's CSI variant, which shares its kernel
+#: and all but one of its Special-card labels; the entry declines it on the
+#: phase-encoding matrix, so ``slasr`` stays in this set with one scan under it
+#: rather than leaving with all three.
+INVESTIGATOR_UNACCOUNTED = 71
 INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "MDME",
     "fl_r",
@@ -885,6 +958,7 @@ INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "laser",
     "pc",
     "press",
+    "slasr",
     "spcR",
     "steam",
     "svs_edit",

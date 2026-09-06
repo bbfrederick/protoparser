@@ -148,6 +148,57 @@ def card_names(scan: Mapping) -> set[str]:
     }
 
 
+def parameter_values(scan: Mapping) -> dict[str, list[str]]:
+    """Every printed parameter, as label to the values printed under it.
+
+    A label can be printed on more than one card -- ``Position`` appears on
+    four -- so this keeps a list rather than collapsing to one reading. A
+    caller testing a value has to decide what several mean; requiring all of
+    them to hold is the conservative choice and the one :meth:`Signature.match`
+    makes.
+
+    Parameters
+    ----------
+    scan : mapping
+        A serialized scan, carrying ``sections``.
+
+    Returns
+    -------
+    dict of str to list of str
+        Values in printed order. Empty for a scan read from an ``.exar1``
+        beyond its ``Preview`` summary.
+    """
+    found: dict[str, list[str]] = {}
+    for params in (scan.get("sections") or {}).values():
+        for key, value in (params or {}).items():
+            found.setdefault(key, []).append(str(value))
+    return found
+
+
+def _at_most(values: list[str], bound: float) -> bool:
+    """Whether every printed reading of one parameter is within a bound.
+
+    Parameters
+    ----------
+    values : list of str
+        The readings, as printed. A unit or any other trailing text after the
+        number is ignored; a reading with no leading number at all fails,
+        because refusing is safer than assuming what an unparsable value meant.
+    bound : float
+        The largest value that still satisfies the clause.
+
+    Returns
+    -------
+    bool
+        ``True`` when every reading parses and is at or below ``bound``.
+    """
+    for value in values:
+        match = re.match(r"\s*(-?\d+(?:\.\d+)?)", value)
+        if match is None or float(match.group(1)) > bound:
+            return False
+    return True
+
+
 @dataclass(frozen=True)
 class Signature:
     """One catalog entry: how to recognize a sequence, and what it is.
@@ -178,6 +229,17 @@ class Signature:
         Special-card labels that must all be present.
     special_any : tuple of str, optional
         Special-card labels of which at least one must be present.
+    parameters_at_most : tuple of tuple, optional
+        ``(label, bound)`` pairs, each satisfied when the scan does not print
+        that parameter at all or prints it at or below the bound. Absence
+        counts as satisfied because a sequence that does not have a setting
+        does not print one: a single-voxel spectroscopy scan prints no
+        ``Scan Res.`` where a CSI scan of the same sequence family prints 8 or
+        16, so ``Scan Res. A >> P`` at most 1 says "not phase encoded" and
+        covers both spellings of that. It is the one clause that reads a
+        printed *value* rather than the presence of a label, which is why it
+        is expressed as a bound and not an equality -- the corpus shows only
+        absence, and a 1 would mean the same thing.
     cards_all : tuple of str, optional
         Card group names the scan must print, as :func:`card_names` reads
         them. Where ``special_all`` matches a parameter the sequence author
@@ -208,11 +270,16 @@ class Signature:
     special_all: tuple[str, ...] = ()
     special_any: tuple[str, ...] = ()
     cards_all: tuple[str, ...] = ()
+    parameters_at_most: tuple[tuple[str, float], ...] = ()
     priority: int = 0
     note: str = ""
 
     def match(
-        self, binary: str, special: set[str], cards: set[str] | None = None
+        self,
+        binary: str,
+        special: set[str],
+        cards: set[str] | None = None,
+        values: Mapping[str, list[str]] | None = None,
     ) -> list[str] | None:
         """Test one scan against this signature.
 
@@ -233,6 +300,10 @@ class Signature:
         cards : set of str or None, optional
             The card groups the scan prints, as :func:`card_names` returns.
             Default ``None``, read as none printed.
+        values : mapping or None, optional
+            Every printed parameter, as :func:`parameter_values` returns.
+            Default ``None``, read as nothing printed -- under which every
+            ``parameters_at_most`` bound is satisfied by absence.
 
         Returns
         -------
@@ -245,10 +316,16 @@ class Signature:
         evidence: list[str] = []
         if self.binaries and binary and binary in self.binaries:
             evidence.append(f"sequence binary {binary!r}")
-        evidence.extend(self._special_evidence(binary, special, cards or set()))
+        evidence.extend(self._special_evidence(binary, special, cards or set(), values or {}))
         return evidence or None
 
-    def _special_evidence(self, binary: str, special: set[str], cards: set[str]) -> list[str]:
+    def _special_evidence(
+        self,
+        binary: str,
+        special: set[str],
+        cards: set[str],
+        values: Mapping[str, list[str]],
+    ) -> list[str]:
         """Evidence from the Special card, if that route applies and holds.
 
         Parameters
@@ -262,6 +339,8 @@ class Signature:
             The scan's Special-card labels.
         cards : set of str
             The card groups the scan prints.
+        values : mapping
+            Every printed parameter and its readings.
 
         Returns
         -------
@@ -275,9 +354,14 @@ class Signature:
             return []
         if self.cards_all and any(name not in cards for name in self.cards_all):
             return []
+        if any(not _at_most(values.get(key, []), bound) for key, bound in self.parameters_at_most):
+            return []
         evidence: list[str] = []
         if self.cards_all:
             evidence.append("prints the " + ", ".join(self.cards_all) + " card")
+        for key, bound in self.parameters_at_most:
+            printed = values.get(key)
+            evidence.append(f"{key} is {printed[0]}" if printed else f"prints no {key}")
         if self.special_all:
             if any(k not in special for k in self.special_all):
                 return []
@@ -305,6 +389,7 @@ class Signature:
         return (
             len(self.special_all)
             + len(self.cards_all)
+            + len(self.parameters_at_most)
             + (1 if self.special_any else 0)
             + (1 if self.binaries else 0)
             + (1 if self.base_binaries else 0)
@@ -471,6 +556,15 @@ def _signature_from(payload: Mapping, source: Path) -> Signature:
             raise ValueError(f"{source}: signature field {name!r} must be a list of strings")
         return tuple(value)
 
+    def bounds(name: str) -> tuple[tuple[str, float], ...]:
+        value = payload.get(name, {})
+        if not isinstance(value, dict) or not all(
+            isinstance(k, str) and k and isinstance(v, (int, float)) and not isinstance(v, bool)
+            for k, v in value.items()
+        ):
+            raise ValueError(f"{source}: signature field {name!r} must map labels to numbers")
+        return tuple((k, float(v)) for k, v in value.items())
+
     def number(name: str) -> int:
         value = payload.get(name, 0)
         if not isinstance(value, int) or isinstance(value, bool):
@@ -491,6 +585,7 @@ def _signature_from(payload: Mapping, source: Path) -> Signature:
         special_all=words("special_all"),
         special_any=words("special_any"),
         cards_all=words("cards_all"),
+        parameters_at_most=bounds("parameters_at_most"),
         priority=number("priority"),
         note=text("note"),
     )
@@ -614,6 +709,7 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
     owner = str(header.get("sequence_owner", "")).strip()
     special = special_keys(scan)
     cards = card_names(scan)
+    values = parameter_values(scan)
     markers = _path_evidence(str(scan.get("path", "")), catalog.path_markers)
     common = dict(
         index=int(scan.get("index", 0)),
@@ -625,7 +721,7 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
     best: Signature | None = None
     best_evidence: list[str] = []
     for signature in catalog.signatures:
-        found = signature.match(binary, special, cards)
+        found = signature.match(binary, special, cards, values)
         if found is None:
             continue
         if best is None or signature.rank() > best.rank():
