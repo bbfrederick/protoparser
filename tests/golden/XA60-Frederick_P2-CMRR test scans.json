@@ -2177,10 +2177,12 @@
         "sequence": "mslsr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-mega-semilaser",
         "evidence": [
-          "sequence binary 'mslsr' is not a listed Siemens kernel",
-          "prints 46 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "Special card prints MEGA flip angle, GOIA refoc. pulses"
         ],
         "special_parameters": 46
       },
@@ -3079,10 +3081,12 @@
         "sequence": "mslsr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-mega-semilaser",
         "evidence": [
-          "sequence binary 'mslsr' is not a listed Siemens kernel",
-          "prints 45 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "Special card prints MEGA flip angle, GOIA refoc. pulses"
         ],
         "special_parameters": 45
       },
@@ -3475,10 +3479,14 @@
         "sequence": "slasr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "semi-LASER CSI spectroscopy (Auerbach)",
+        "signature": "cmrr-semilaser-csi",
         "evidence": [
-          "sequence binary 'slasr' is not a listed Siemens kernel",
-          "prints 39 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "Scan Res. A >> P is 16",
+          "Scan Res. R >> L is 16",
+          "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses"
         ],
         "special_parameters": 39
       },

@@ -175,6 +175,38 @@ def parameter_values(scan: Mapping) -> dict[str, list[str]]:
     return found
 
 
+def _at_least(values: list[str], bound: float) -> bool:
+    """Whether a parameter is printed, and every reading is at or above a bound.
+
+    The mirror of :func:`_at_most`, and deliberately not its negation: absence
+    fails here where it satisfies there. That is what makes a pair of entries
+    partition rather than overlap -- ``at most 1`` and ``at least 2`` cannot
+    both hold, and neither can both fail on a value, so a scan printing a 1
+    goes to the single-voxel entry alone instead of matching both.
+
+    Parameters
+    ----------
+    values : list of str
+        The readings, as printed. Empty means the scan does not print the
+        parameter, which fails.
+    bound : float
+        The smallest value that still satisfies the clause.
+
+    Returns
+    -------
+    bool
+        ``True`` when at least one reading is present and all of them parse
+        and are at or above ``bound``.
+    """
+    if not values:
+        return False
+    for value in values:
+        match = re.match(r"\s*(-?\d+(?:\.\d+)?)", value)
+        if match is None or float(match.group(1)) < bound:
+            return False
+    return True
+
+
 def _at_most(values: list[str], bound: float) -> bool:
     """Whether every printed reading of one parameter is within a bound.
 
@@ -240,6 +272,13 @@ class Signature:
         printed *value* rather than the presence of a label, which is why it
         is expressed as a bound and not an equality -- the corpus shows only
         absence, and a 1 would mean the same thing.
+    parameters_at_least : tuple of tuple, optional
+        ``(label, bound)`` pairs, each satisfied only when the scan prints
+        that parameter at or above the bound. The mirror of
+        ``parameters_at_most``, with absence failing rather than passing, so
+        the two are exact complements: a CSI entry asking for a phase-encoding
+        matrix of at least 2 and a single-voxel one allowing at most 1 cannot
+        both claim a scan.
     cards_all : tuple of str, optional
         Card group names the scan must print, as :func:`card_names` reads
         them. Where ``special_all`` matches a parameter the sequence author
@@ -271,6 +310,7 @@ class Signature:
     special_any: tuple[str, ...] = ()
     cards_all: tuple[str, ...] = ()
     parameters_at_most: tuple[tuple[str, float], ...] = ()
+    parameters_at_least: tuple[tuple[str, float], ...] = ()
     priority: int = 0
     note: str = ""
 
@@ -348,7 +388,9 @@ class Signature:
             One entry per satisfied clause, empty when the route does not
             apply or does not hold.
         """
-        if not (self.special_all or self.special_any or self.cards_all):
+        if not (
+            self.special_all or self.special_any or self.cards_all or self.parameters_at_least
+        ):
             return []
         if self.base_binaries and binary not in self.base_binaries:
             return []
@@ -356,12 +398,18 @@ class Signature:
             return []
         if any(not _at_most(values.get(key, []), bound) for key, bound in self.parameters_at_most):
             return []
+        if any(
+            not _at_least(values.get(key, []), bound) for key, bound in self.parameters_at_least
+        ):
+            return []
         evidence: list[str] = []
         if self.cards_all:
             evidence.append("prints the " + ", ".join(self.cards_all) + " card")
         for key, bound in self.parameters_at_most:
             printed = values.get(key)
             evidence.append(f"{key} is {printed[0]}" if printed else f"prints no {key}")
+        for key, _bound in self.parameters_at_least:
+            evidence.append(f"{key} is {values[key][0]}")
         if self.special_all:
             if any(k not in special for k in self.special_all):
                 return []
@@ -390,6 +438,7 @@ class Signature:
             len(self.special_all)
             + len(self.cards_all)
             + len(self.parameters_at_most)
+            + len(self.parameters_at_least)
             + (1 if self.special_any else 0)
             + (1 if self.binaries else 0)
             + (1 if self.base_binaries else 0)
@@ -586,6 +635,7 @@ def _signature_from(payload: Mapping, source: Path) -> Signature:
         special_any=words("special_any"),
         cards_all=words("cards_all"),
         parameters_at_most=bounds("parameters_at_most"),
+        parameters_at_least=bounds("parameters_at_least"),
         priority=number("priority"),
         note=text("note"),
     )

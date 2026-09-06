@@ -327,6 +327,20 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   observed. A label printed on several cards must satisfy the bound on every
   one, which is the flattening trap the `Position` note describes, met here in
   the matching rules rather than in a reader.
+
+  `parameters_at_least` is its mirror and deliberately not its negation:
+  absence *fails* there where it satisfies here. That is what lets the
+  single-voxel and CSI entries partition rather than overlap -- "at most 1"
+  and "at least 2" cannot both hold, and a scan printing a 1 goes to the
+  single-voxel entry alone. Written as two negations it would have had a gap
+  at 1 that both entries claimed, on a value neither the corpus nor the owner
+  rules out.
+
+  Four eja spectroscopy sequences now sit on three kernels and are told apart
+  three different ways, which is a compact illustration of what each clause is
+  for: `slasr` splits by phase-encoding matrix, `mslsr` and `mpres` split by
+  kernel, and MEGA-semi-LASER against MEGA-PRESS splits by a card carrying one
+  label from each of the two techniques its name names.
 - **A card fingerprint can name a technique rather than a sequence, and then
   it over-claims.** `cmrr-megapress` matched on `MEGA flip angle` and
   `Editing pulse BW`, which are what *any* MEGA-edited sequence prints, so it

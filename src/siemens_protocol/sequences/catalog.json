@@ -233,6 +233,50 @@
       }
     },
     {
+      "id": "cmrr-semilaser-csi",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "semi-LASER CSI spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "The chemical-shift-imaging variant of cmrr-semilaser, and the same author's: an .exar1 names it eja_csi_slaser beside eja_svs_slaser, and a page prints the kernel slasr and the same 39 Special-card labels for both. Only the Resolution card tells them apart, which is what the two entries key on -- this one requires a phase-encoding matrix of at least 2 where the single-voxel entry allows at most 1, so the pair partitions and a scan printing a 1 goes to that one alone. Every CSI spectroscopy scan in the corpus prints 8 or 16 and every single-voxel one prints none, so the bound sits in a gap the corpus never occupies.",
+      "match": {
+        "binaries": [
+          "eja_csi_slaser"
+        ],
+        "base_binaries": [
+          "slasr"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "OVS pulse duration",
+          "GOIA refoc. pulses"
+        ],
+        "parameters_at_least": {
+          "Scan Res. A >> P": 2,
+          "Scan Res. R >> L": 2
+        }
+      }
+    },
+    {
+      "id": "cmrr-mega-semilaser",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's MEGA-edited semi-LASER, supplied by the protocols' owner and a different sequence from his MEGA-PRESS -- which is why cmrr-megapress is gated to the mpres kernel and no longer claims these. Its own kernel is mslsr, unique to it in the corpus, and its card is exactly the pair of techniques its name says: the MEGA editing labels that MEGA-PRESS also prints, over the semi-LASER refocusing block -- GOIA refoc. pulses, HS refoc. pulse N and R -- that MEGA-PRESS does not. Keying on one of each is what makes the fingerprint name this sequence rather than either technique. Both the single-voxel and the CSI spelling are listed for the archive route; they are not split the way the plain semi-LASER is, because the owner named them together.",
+      "match": {
+        "binaries": [
+          "eja_svs_mslaser",
+          "eja_csi_mslaser"
+        ],
+        "base_binaries": [
+          "mslsr"
+        ],
+        "special_all": [
+          "MEGA flip angle",
+          "GOIA refoc. pulses"
+        ]
+      }
+    },
+    {
       "id": "cmrr-megapress",
       "vendor": "CMRR (University of Minnesota)",
       "family": "MEGA-PRESS edited spectroscopy",

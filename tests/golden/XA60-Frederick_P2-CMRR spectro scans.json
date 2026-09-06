@@ -2312,10 +2312,12 @@
         "sequence": "mslsr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-mega-semilaser",
         "evidence": [
-          "sequence binary 'mslsr' is not a listed Siemens kernel",
-          "prints 46 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "Special card prints MEGA flip angle, GOIA refoc. pulses"
         ],
         "special_parameters": 46
       },

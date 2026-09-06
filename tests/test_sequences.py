@@ -340,6 +340,54 @@ def test_the_csi_variant_is_declined_by_the_phase_encoding_matrix() -> None:
     assert eja.match("slasr", special_keys(csi), card_names(csi), parameter_values(csi)) is None
 
 
+def test_the_two_semi_laser_variants_partition_rather_than_overlap() -> None:
+    # They share a kernel and 39 of 40 Special-card labels, so only the
+    # Resolution card separates them. "At most 1" and "at least 2" are exact
+    # complements: absence fails the second where it satisfies the first, so a
+    # scan printing a 1 x 1 matrix goes to the single-voxel entry alone rather
+    # than to both.
+    by_id = {s.id: s for s in default_catalog().signatures}
+    svs, csi = by_id["cmrr-semilaser"], by_id["cmrr-semilaser-csi"]
+    assert dict(svs.parameters_at_most) == {"Scan Res. A >> P": 1.0, "Scan Res. R >> L": 1.0}
+    assert dict(csi.parameters_at_least) == {"Scan Res. A >> P": 2.0, "Scan Res. R >> L": 2.0}
+    card = set(svs.special_all)
+
+    def scan_with(matrix: str | None) -> dict:
+        res = {"Vector Size": "2048"}
+        if matrix is not None:
+            res["Scan Res. A >> P"] = res["Scan Res. R >> L"] = matrix
+        return {
+            "sections": {"Resolution - Common": res, "Sequence - Special": {k: "1" for k in card}}
+        }
+
+    claimed_by = {}
+    for matrix in (None, "1", "16"):
+        sc = scan_with(matrix)
+        args = (special_keys(sc), card_names(sc), parameter_values(sc))
+        claimed = [s.id for s in (svs, csi) if s.match("slasr", *args) is not None]
+        assert len(claimed) == 1, f"matrix {matrix!r} was claimed by {claimed}"
+        claimed_by[matrix] = claimed[0]
+    # And each goes to the right one: absence and 1 are both single voxel.
+    assert claimed_by == {
+        None: "cmrr-semilaser",
+        "1": "cmrr-semilaser",
+        "16": "cmrr-semilaser-csi",
+    }
+
+
+def test_mega_semi_laser_is_named_by_both_techniques_its_card_prints() -> None:
+    # Its card is the pair of techniques its name says: the MEGA editing
+    # labels that MEGA-PRESS also prints, over the semi-LASER refocusing block
+    # that MEGA-PRESS does not. One of each is what names the sequence rather
+    # than either technique.
+    mega = next(s for s in default_catalog().signatures if s.id == "cmrr-mega-semilaser")
+    assert set(mega.special_all) == {"MEGA flip angle", "GOIA refoc. pulses"}
+    assert mega.base_binaries == ("mslsr",)
+    assert mega.match("mslsr", set(mega.special_all)) is not None
+    # MEGA-PRESS prints the editing label and not the refocusing one.
+    assert mega.match("mpres", {"MEGA flip angle"}) is None
+
+
 def test_megapress_does_not_claim_a_mega_edited_semi_laser() -> None:
     # The two card labels are editing parameters that any MEGA-edited sequence
     # prints, so the card route alone claimed three mslsr scans as MEGA-PRESS.
@@ -958,24 +1006,21 @@ INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
 
 #: How many of that export's scans no signature claims, and the kernels they
 #: run. Both are observations awaiting attribution, not targets, and neither
-#: only falls. Naming Auerbach's semi-LASER took it from 73 to 70; declining
-#: that sequence's CSI variant, which shares its kernel and all but one of its
-#: Special-card labels, put one back; and gating cmrr-megapress to its own
-#: kernel put three more back, because MEGA-PRESS and MEGA-semi-LASER are
-#: different sequences and the editing parameters on the card belong to both.
-#: A number that rises because a wrong claim was withdrawn is the honest
-#: direction, and this pin exists to make either direction visible.
-INVESTIGATOR_UNACCOUNTED = 74
+#: only falls. This went 73 -> 70 when the owner named Auerbach's semi-LASER,
+#: 70 -> 71 when that sequence's CSI variant was correctly declined, 71 -> 74
+#: when cmrr-megapress was gated off three MEGA-semi-LASER scans it had been
+#: claiming, and 74 -> 70 when the owner named those two as well. A count that
+#: rises because a wrong claim was withdrawn is as healthy as one that falls,
+#: which is the whole reason it is pinned rather than bounded.
+INVESTIGATOR_UNACCOUNTED = 70
 INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "MDME",
     "fl_r",
     "fl_rr",
     "fldyn",
     "laser",
-    "mslsr",
     "pc",
     "press",
-    "slasr",
     "spcR",
     "steam",
     "svs_edit",
