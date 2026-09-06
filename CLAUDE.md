@@ -327,6 +327,22 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   observed. A label printed on several cards must satisfy the bound on every
   one, which is the flattening trap the `Position` note describes, met here in
   the matching rules rather than in a reader.
+- **A card fingerprint can name a technique rather than a sequence, and then
+  it over-claims.** `cmrr-megapress` matched on `MEGA flip angle` and
+  `Editing pulse BW`, which are what *any* MEGA-edited sequence prints, so it
+  also claimed three `mslsr` scans -- and MEGA-PRESS and MEGA-semi-LASER are
+  different sequences, per the protocols' owner. `base_binaries: ["mpres"]`
+  gates the card route to its own kernel and costs nothing, since `mpres` is
+  the kernel on both VE11C and XA60 and the binary route is never gated, so an
+  archive still resolves by the sequence file name. The three scans are
+  `unrecognized` now, which is the right answer until someone names them.
+
+  The general shape is worth watching for: labels that describe a *technique*
+  -- editing, multiband, navigation -- are shared by every sequence using it,
+  where labels naming a sequence's own implementation are not. The CMRR
+  multiband card had the same problem and is why `base_binaries` exists at
+  all; this is the second instance, so treat a two-label fingerprint of common
+  parameters as needing a gate rather than as a signature.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past

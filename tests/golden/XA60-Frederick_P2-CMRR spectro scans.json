@@ -2312,12 +2312,10 @@
         "sequence": "mslsr"
       },
       "provenance": {
-        "verdict": "third-party",
-        "vendor": "CMRR (University of Minnesota)",
-        "family": "MEGA-PRESS edited spectroscopy",
-        "signature": "cmrr-megapress",
+        "verdict": "unrecognized",
         "evidence": [
-          "Special card prints MEGA flip angle, Editing pulse BW"
+          "sequence binary 'mslsr' is not a listed Siemens kernel",
+          "prints 46 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
         ],
         "special_parameters": 46
       },

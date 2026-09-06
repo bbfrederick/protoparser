@@ -237,11 +237,14 @@
       "vendor": "CMRR (University of Minnesota)",
       "family": "MEGA-PRESS edited spectroscopy",
       "priority": 10,
-      "note": "Auerbach's eja_svs_mpress; the eja_ prefix is CMRR's spectroscopy suite. Both spellings are listed because the two files name the sequence differently: a page prints the kernel mpres, an .exar1 prints the sequence file name eja_svs_mpress. They are the same sequence, joined archive-to-printout on five scans in Frederick_P2 -- same scan names, kernel mpres, and both Special-card labels present on every one. Without the file-name spelling the entry matches every printout and no archive, which left 427 scans in the whole-scanner export reported as third-party on the owner statement alone.",
+      "note": "Auerbach's eja_svs_mpress; the eja_ prefix is CMRR's spectroscopy suite. Both spellings are listed because the two files name the sequence differently: a page prints the kernel mpres, an .exar1 prints the sequence file name eja_svs_mpress. They are the same sequence, joined archive-to-printout on five scans in Frederick_P2 -- same scan names, kernel mpres, and both Special-card labels present on every one. The kernel gate is what keeps it to MEGA-PRESS. Its two card labels are editing parameters that any MEGA-edited sequence prints, so ungated the card route also claimed three mslsr scans -- eja_svs_mslaser and eja_csi_mslaser -- and MEGA-semi-LASER is a different sequence, per the protocols' owner. Those are unrecognized now rather than misattributed, which is the honest state until someone names them.",
       "match": {
         "binaries": [
           "mpres",
           "eja_svs_mpress"
+        ],
+        "base_binaries": [
+          "mpres"
         ],
         "special_all": [
           "MEGA flip angle",

@@ -340,6 +340,21 @@ def test_the_csi_variant_is_declined_by_the_phase_encoding_matrix() -> None:
     assert eja.match("slasr", special_keys(csi), card_names(csi), parameter_values(csi)) is None
 
 
+def test_megapress_does_not_claim_a_mega_edited_semi_laser() -> None:
+    # The two card labels are editing parameters that any MEGA-edited sequence
+    # prints, so the card route alone claimed three mslsr scans as MEGA-PRESS.
+    # MEGA-semi-LASER is a different sequence, per the protocols' owner. The
+    # kernel gate is what keeps the entry to its own, and it costs nothing:
+    # mpres is the kernel on both VE11C and XA60, and the binary route is not
+    # gated at all, so archives still resolve by the sequence file name.
+    mega = next(s for s in default_catalog().signatures if s.id == "cmrr-megapress")
+    assert mega.base_binaries == ("mpres",)
+    card = set(mega.special_all)
+    assert mega.match("mpres", card) is not None
+    assert mega.match("mslsr", card) is None
+    assert mega.match("eja_svs_mpress", set()) is not None
+
+
 def test_deelchand_semi_laser_is_named_by_all_three_spellings() -> None:
     # A VE11C page prints sead, a Numaris/X page slaser, an .exar1 the
     # sequence file name svs_slaser_dkd. It is one sequence seen three ways,
@@ -942,20 +957,22 @@ UNACCOUNTED = (
 INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
 
 #: How many of that export's scans no signature claims, and the kernels they
-#: run. Both are observations awaiting attribution, not targets, and both come
-#: down when one arrives: this was 73 over eleven kernels until the owner named
-#: Auerbach's semi-LASER, which accounts for two of the three that ran
-#: ``slasr``. The third is that sequence's CSI variant, which shares its kernel
-#: and all but one of its Special-card labels; the entry declines it on the
-#: phase-encoding matrix, so ``slasr`` stays in this set with one scan under it
-#: rather than leaving with all three.
-INVESTIGATOR_UNACCOUNTED = 71
+#: run. Both are observations awaiting attribution, not targets, and neither
+#: only falls. Naming Auerbach's semi-LASER took it from 73 to 70; declining
+#: that sequence's CSI variant, which shares its kernel and all but one of its
+#: Special-card labels, put one back; and gating cmrr-megapress to its own
+#: kernel put three more back, because MEGA-PRESS and MEGA-semi-LASER are
+#: different sequences and the editing parameters on the card belong to both.
+#: A number that rises because a wrong claim was withdrawn is the honest
+#: direction, and this pin exists to make either direction visible.
+INVESTIGATOR_UNACCOUNTED = 74
 INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "MDME",
     "fl_r",
     "fl_rr",
     "fldyn",
     "laser",
+    "mslsr",
     "pc",
     "press",
     "slasr",
