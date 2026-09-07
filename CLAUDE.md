@@ -975,6 +975,17 @@ the two consistent.
   target scanner can use what it holds. Do not read "not printed in its own
   PDF" as the same signal: `BIAS_BC` and `T1_MEMPRAGE_64ch_gr2` are unprinted
   too and loaded fine.
+
+  **"Rejected" was too strong, and the distinction matters.** Sent on their
+  own in a four-scan archive, all three imported, came back byte-identical
+  and kept the running order -- and every one was greyed out, so the console
+  stored them faithfully and refused to run them. What the earlier assembly
+  showed was those scans not arriving at all; what this shows is that the
+  same protocols can arrive and be inconsistent. So the outcome is not a
+  property of the protocol alone, and a scan being greyed out here is the
+  ordinary consistency verdict rather than the old-build reconciliation
+  failing. The reconciliation account still fits the first observation; it no
+  longer explains both.
 - **A `sWipMemBlock` bit mapping is gated on the sequence build, not just the
   sequence.** `Mapping.builds` names the builds a mapping was derived from and
   `applies_to` refuses outside them; all fourteen CMRR flag bits carry
@@ -1210,6 +1221,29 @@ the two consistent.
   costs nothing and removes a difference from every known-good file.
   `generate.sort_step_maps` restores it and `validate` now refuses both this
   and the stranded content, so neither can ship again.
+- **The blocker is one scan, it is not the exotic ones, and nothing offline
+  finds it.** The 48 stranded sequences went back as nine groups of six and
+  six imported; 3, 4 and 8 were refused. Group 4 is six small ordinary
+  protocols -- `ciss`, three `csi_*`, two `can_neuromelanin` -- at 16 coils
+  and one slice, while group 1's three `hcp_mbep2d_*` at 130-172 KB imported
+  without complaint, so it is not size, coil count, slice count or how
+  unusual the sequence is. `csi_st` imported while `csi_fid`, `csi_se` and
+  `csi_slaser` did not; `se_mc` imported while `se` did not. Sweeping every
+  ASCCONV key and XProtocol tag over the 38 accepted scans and the 18
+  refused ones finds **no** key present in even two of the three refused
+  groups and absent from every accepted scan. So there is no offline
+  discriminator to write a check against, and the only instrument left is
+  bisection on a scanner.
+- **The console repairs an imported protocol in the XProtocol as well as in
+  ASCCONV, and it can remove a reconstruction step.** `fl3d_vibe` and
+  `se_mc` came back with their parametric-mapping functor gone --
+  `<Connection."c1">` losing its `T1mapFunctor`/`T2mapFunctor`, `EXECUTE`
+  emptied and `sParametricMapping.*` changed -- and `BEAT` and `space` came
+  back with `sCommonIterRecon.*`, `sPat.*` and the derived scan times
+  recomputed. Every repair recorded before this was an ASCCONV assignment, so
+  a diff that reads only the ASCCONV block will report these four protocols
+  as returning unchanged. 45 of 49 did return byte-identical, which is what
+  makes the four legible rather than lost in churn.
 - **`tSequenceFileName` can carry a subdirectory under the owner prefix.**
   `%CustomerSeq%\Andre\tfl_mgh_multiecho`, `%CustomerSeq%\MGH_Moco\
   ep_moco_nav_set`, and one scan spelling it `%CustomerSeq%\\MGH\
