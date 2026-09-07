@@ -1234,6 +1234,24 @@ the two consistent.
   groups and absent from every accepted scan. So there is no offline
   discriminator to write a check against, and the only instrument left is
   bisection on a scanner.
+- **The blocker is one scan per group, and bisection has it down to three
+  pairs.** The eighteen went back as nine pairs; six imported and exactly one
+  pair from each of the three refused groups came back refused --
+  `{ZPL_RG_EPSI_FID_v2f, blade}`, `{ciss, csi_fid}`,
+  `{jn_svs_special_ve11c, medic}`. One offender per group of six, so the
+  count is small and the cause is still unnamed. All eighteen returned
+  protocols were byte-identical this round, with no repairs at all.
+
+  Repeating the key sweep against every scan now *known* to import -- a
+  1067-key vocabulary over three rounds -- leaves `blade` as the only
+  candidate carrying anything unseen, `sBladePara.*`. That is weak evidence
+  rather than an answer: it is the corpus's only BLADE sequence, so a unique
+  parameter family is what it would have whether or not it is the offender,
+  and the other two pairs show nothing at all. Note also what the pairs rule
+  out on their own: `csi_se` and `csi_slaser` import while one of `ciss` and
+  `csi_fid` does not, and `resolve`, `se` and `petra` import while one of
+  `medic` and `jn_svs_special_ve11c` does not -- so it is not stock-versus-
+  third-party, and it is not the sequence family.
 - **The console repairs an imported protocol in the XProtocol as well as in
   ASCCONV, and it can remove a reconstruction step.** `fl3d_vibe` and
   `se_mc` came back with their parametric-mapping functor gone --
