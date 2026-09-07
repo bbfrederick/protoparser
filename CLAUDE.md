@@ -1160,10 +1160,35 @@ the two consistent.
   export, and no `$ref` precedes its `$id`. Two real defects were found and
   fixed anyway (below), and **neither is established as the cause**: the
   40-scan assembly that loaded 33 back went through the same code and carried
-  both. What is left is scale -- the largest program any console archive in the
-  corpus holds is 74 (`Mair test`), whose document is structurally identical to
-  ours -- or something about these particular protocols, which are by
-  construction the corpus's rarest sequences. Neither is decidable offline.
+  both.
+
+  **Size is not the answer, and a single protocol can stop a whole program
+  from importing.** The same 96 sequences were then sent as four chunks of
+  25, and 2 and 4 imported while 1 and 3 were refused -- same size, same
+  build path, same seed, so what differs is which protocols are in them.
+  That is a stronger failure than the greying-out rule describes: a scan the
+  console dislikes normally arrives and is greyed out, and six scans whose
+  binaries were missing were simply dropped from the 40-scan assembly while
+  the program still built. Here nothing arrives at all. Which scan does it is
+  not decidable offline -- the chunks were split alphabetically and the
+  failures follow no category -- so the retry is nine groups of six, where one
+  bad scan costs five others instead of twenty-four. The three
+  `hcp_mbep2d_*` are grouped together deliberately, being already known to be
+  refused whatever we write.
+- **A scanner has imported and re-exported 49 generated scans with every
+  protocol byte-identical**, running order preserved and no scan missing --
+  including the 26 it greyed out. So "inconsistent" is a verdict the console
+  records against a protocol it has stored faithfully, not an edit to it, and
+  a re-export is not an edit (which is what the churn list already predicted).
+  It is the cleanest evidence yet that the write path is sound: what fails is
+  the console's judgement of these protocols, not our construction of them.
+- **Moving a protocol into a new program can make it inconsistent, and for
+  the corpus's rarest sequences that is the common case rather than the
+  exception.** 26 of the 49 that imported were greyed out, each a byte-exact
+  copy of a protocol some console authored -- so consistency really is a
+  property of the whole parameter set in its context, as the greying-out rule
+  says, and a protocol lifted out of the export it was written in has lost
+  that context. The 23 that survived are the ones with printouts now.
 - **Every archive a console wrote carries exactly one orphaned content row,
   and it is an `EdfStructureContent`.** That is the placeholder branch's;
   `NAV_optionscan_P1_loadtest` has two, and nothing else in 21 archives has
