@@ -336,11 +336,20 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   at 1 that both entries claimed, on a value neither the corpus nor the owner
   rules out.
 
-  Four eja spectroscopy sequences now sit on three kernels and are told apart
-  three different ways, which is a compact illustration of what each clause is
-  for: `slasr` splits by phase-encoding matrix, `mslsr` and `mpres` split by
-  kernel, and MEGA-semi-LASER against MEGA-PRESS splits by a card carrying one
-  label from each of the two techniques its name names.
+  The eja spectroscopy suite now runs to eight sequences over six kernels, and
+  it is where each clause earns its place: `slasr` splits single voxel from CSI
+  by the phase-encoding matrix, `press`/`laser`/`steam`/`mslsr`/`mpres` split
+  by kernel, and MEGA-semi-LASER against MEGA-PRESS splits by a card carrying
+  one label from each of the two techniques its name names.
+
+  **The card names the author and the kernel names the technique, and neither
+  is sufficient.** 22 labels -- the VAPOR delays, the spoiler and timing
+  controls -- are printed by every eja sequence, so the card says only whose
+  implementation this is. PRESS, LASER and STEAM are techniques anyone may
+  implement, so the kernel says only which one. The entries pair them, and a
+  test asserts every scan printing those five kernels in the corpus is an
+  `eja_` scan, because keying on a technique name would be reckless if Siemens
+  shipped a sequence using it.
 - **A card fingerprint can name a technique rather than a sequence, and then
   it over-claims.** `cmrr-megapress` matched on `MEGA flip angle` and
   `Editing pulse BW`, which are what *any* MEGA-edited sequence prints, so it
@@ -357,6 +366,17 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   multiband card had the same problem and is why `base_binaries` exists at
   all; this is the second instance, so treat a two-label fingerprint of common
   parameters as needing a gate rather than as a signature.
+- **A sequence only the unshipped corpus runs cannot be given a signature.**
+  `eja_svs_slaser_diff` is Auerbach's diffusion-weighted semi-LASER, named by
+  the protocols' owner, and it appears 22 times in
+  `archive/P1/Investigators.exar1` and nowhere in `examples/`. An entry for it
+  would be one `test_every_shipped_signature_matches_something_in_the_examples`
+  fails on, correctly: nothing shipped would exercise it. The fix that rule
+  names is to widen the examples, which means shipping one of the seven DWS
+  protocols that run it -- not to relax the test, and not to write the entry
+  and let it sit unverified. It is recorded here so the attribution is not
+  lost while the example is missing. The same applies to `eja_svs_press_diff`
+  and `eja_svs_steam_diff`, which sit beside it unnamed.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past

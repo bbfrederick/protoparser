@@ -10,6 +10,7 @@ new example folder tightens them instead of editing them.
 
 from __future__ import annotations
 
+import collections
 import json
 import os
 from pathlib import Path
@@ -338,6 +339,47 @@ def test_the_csi_variant_is_declined_by_the_phase_encoding_matrix() -> None:
     }
     assert eja.match("slasr", special_keys(svs), card_names(svs), parameter_values(svs))
     assert eja.match("slasr", special_keys(csi), card_names(csi), parameter_values(csi)) is None
+
+
+def test_the_eja_suite_is_split_by_kernel_over_a_shared_card() -> None:
+    # PRESS, LASER and STEAM are techniques anyone may implement, so the card
+    # cannot name a sequence on its own: 22 labels are printed by every eja
+    # sequence, and those say only whose implementation it is. The kernel says
+    # which technique. Both halves are needed, and neither is sufficient.
+    by_id = {s.id: s for s in default_catalog().signatures}
+    families = {
+        "cmrr-press": "press",
+        "cmrr-laser": "laser",
+        "cmrr-steam": "steam",
+    }
+    shared = set(by_id["cmrr-press"].special_all)
+    for sid, kernel in families.items():
+        entry = by_id[sid]
+        assert entry.base_binaries == (kernel,)
+        assert set(entry.special_all) == shared
+        assert entry.match(kernel, shared) is not None
+        # The same card on a sibling's kernel is a different sequence.
+        for other in set(families.values()) - {kernel}:
+            assert entry.match(other, shared) is None
+
+
+def test_no_siemens_sequence_prints_the_kernels_the_eja_entries_gate_on() -> None:
+    # press, laser and steam are technique names rather than product ones, so
+    # keying on them would be reckless if Siemens shipped a sequence using one.
+    # Every scan printing them in the corpus is an eja_ scan, and the archives
+    # put all of those under %CustomerSeq%.
+    gated = {"press", "laser", "steam", "slasr", "mslsr"}
+    seen = collections.Counter()
+    for _name, protocol in GOLDEN_PROTOCOLS:
+        for scan in protocol.get("scans", []):
+            kernel = (scan.get("header") or {}).get("sequence", "")
+            if kernel in gated:
+                seen[kernel] += 1
+                assert scan["name"].startswith("eja_"), (
+                    f"{scan['name']} prints {kernel!r} and is not an eja_ sequence, so "
+                    "the kernel gates in the eja entries are claiming something else"
+                )
+    assert gated <= set(seen), f"kernels never exercised: {sorted(gated - set(seen))}"
 
 
 def test_the_two_semi_laser_variants_partition_rather_than_overlap() -> None:
@@ -1009,20 +1051,18 @@ INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
 #: only falls. This went 73 -> 70 when the owner named Auerbach's semi-LASER,
 #: 70 -> 71 when that sequence's CSI variant was correctly declined, 71 -> 74
 #: when cmrr-megapress was gated off three MEGA-semi-LASER scans it had been
-#: claiming, and 74 -> 70 when the owner named those two as well. A count that
+#: claiming, 74 -> 70 when the owner named those two as well, and 70 -> 62 when
+#: he named the PRESS, LASER and STEAM members of the same suite. A count that
 #: rises because a wrong claim was withdrawn is as healthy as one that falls,
 #: which is the whole reason it is pinned rather than bounded.
-INVESTIGATOR_UNACCOUNTED = 70
+INVESTIGATOR_UNACCOUNTED = 62
 INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "MDME",
     "fl_r",
     "fl_rr",
     "fldyn",
-    "laser",
     "pc",
-    "press",
     "spcR",
-    "steam",
     "svs_edit",
 }
 

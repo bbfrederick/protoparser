@@ -277,6 +277,68 @@
       }
     },
     {
+      "id": "cmrr-press",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "PRESS spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's PRESS, supplied by the protocols' owner, in its single-voxel and CSI spellings -- 136 and 6 scans in the whole-scanner export. They share the entry rather than being split the way the semi-LASERs are, because the owner named them together; the Resolution card would separate them if wanted, since the CSI scans print a 16 x 16 matrix and the single-voxel ones none. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "match": {
+        "binaries": [
+          "eja_svs_press",
+          "eja_csi_press"
+        ],
+        "base_binaries": [
+          "press"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-laser",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "LASER spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's LASER, supplied by the protocols' owner, in both spellings. Its card carries the GOIA and hyperbolic-secant refocusing controls that the semi-LASER entries also print -- the two techniques share their refocusing train -- so the kernel is what tells them apart. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "match": {
+        "binaries": [
+          "eja_svs_laser",
+          "eja_csi_laser"
+        ],
+        "base_binaries": [
+          "laser"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-steam",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "STEAM spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's STEAM, supplied by the protocols' owner. Only the single-voxel spelling is named; the corpus also holds eja_svs_steam_diff, which is not claimed here because nobody has said what it is. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "match": {
+        "binaries": [
+          "eja_svs_steam"
+        ],
+        "base_binaries": [
+          "steam"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping"
+        ]
+      }
+    },
+    {
       "id": "cmrr-megapress",
       "vendor": "CMRR (University of Minnesota)",
       "family": "MEGA-PRESS edited spectroscopy",
