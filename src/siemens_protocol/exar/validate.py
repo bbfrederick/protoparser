@@ -56,6 +56,7 @@ def problems(archive: Archive) -> list[str]:
     found += _step_coverage(archive, programs)
     found += _parents(archive)
     found += _identity(archive)
+    found += _content_hygiene(archive)
     return found
 
 
@@ -121,13 +122,15 @@ def _program_maps(program: Program, document: dict[str, Any]) -> list[str]:
         if not isinstance(table, dict):
             found.append(f"program content has no {name} map")
             continue
-        keys = {k for k in table if k != "$id"}
-        missing = steps - keys
+        keys = [k for k in table if k != "$id"]
+        missing = steps - set(keys)
         if missing:
             found.append(f"{name} is missing {len(missing)} step(s): {sorted(missing)[:3]}")
         stray = {k for k in keys if GUID.match(k)} - steps
         if stray:
             found.append(f"{name} names {len(stray)} step(s) that do not exist")
+        if keys != sorted(keys):
+            found.append(f"{name} keys are not in lexical order")
     return found
 
 
@@ -338,3 +341,47 @@ def _identity(archive: Archive) -> list[str]:
             found.append(f"{content.kind} does not re-encode to its own address")
             break
     return found
+
+
+def _content_hygiene(archive: Archive) -> list[str]:
+    """Orphaned content is an ``EdfStructureContent`` or it is litter.
+
+    A ``Content`` row nothing points at is normal in one narrow case: every
+    archive in the corpus carries one -- ``NAV_optionscan_P1_loadtest`` two --
+    and in all of them it is the placeholder branch's ``EdfStructureContent``.
+    Anything else orphaned was created and then superseded, which is what an
+    append loop does to the program document: it rewrites it once per step, so
+    a ninety-six-scan program left ninety-five dead copies of itself beside one
+    live program instance. That is a shape no console archive has, and it
+    shipped because the checks here asked only whether live nodes resolved.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive under test.
+
+    Returns
+    -------
+    list of str
+        Broken rules.
+    """
+    instances = archive.container.tables["Instance"]
+    at = instances.index_of("ContentHash")
+    referenced = {str(row[at]) for row in instances.rows if row[at] is not None}
+    kinds: dict[str, int] = {}
+    for digest, content in archive.contents.items():
+        if digest in referenced:
+            continue
+        # What :meth:`Archive.prune` will collect at write time is not a defect
+        # in the archive; an edit strands its old content in memory and the
+        # written file never carries it. Reading a file back gives an archive
+        # that has displaced nothing, so real litter still reports.
+        if digest in archive.displaced or digest not in archive.as_read:
+            continue
+        kind = content.content_type.rsplit(".", 1)[-1]
+        if kind != "EdfStructureContent":
+            kinds[kind] = kinds.get(kind, 0) + 1
+    if not kinds:
+        return []
+    detail = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
+    return [f"content nothing references: {detail}"]

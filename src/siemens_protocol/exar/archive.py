@@ -565,6 +565,16 @@ class Archive:
         scanner checks -- ``MAJORVERSION:VA60A, PROTOCOL:66010002, ...``.
     head : str
         The changeset id the instances were resolved at.
+    as_read : frozenset of str
+        Every content hash the file held when it was read. What is *not* in
+        it was created by this library, which is half of what lets
+        :meth:`prune` tell its own litter from an orphan the console shipped
+        -- every corpus archive carries exactly one of the latter.
+    displaced : set of str
+        Hashes this library pointed an instance *away* from. The other half:
+        content that arrived with the file and became unreachable because we
+        edited the node holding it is ours to collect too, and `as_read`
+        alone would preserve it forever.
     """
 
     container: store.Container
@@ -572,6 +582,8 @@ class Archive:
     instances: dict[str, Instance]
     baseline: str
     head: str
+    as_read: frozenset[str] = frozenset()
+    displaced: set[str] = field(default_factory=set)
 
     @property
     def by_element(self) -> dict[str, Instance]:
@@ -957,10 +969,16 @@ class Archive:
         Content is addressed by hash, so an edit re-addresses the node rather
         than overwriting anything: the new document gets a new ``Content`` row
         and the instance's ``ContentHash`` is repointed at it. The old row is
-        left in place, both because another instance may still share it -- the
-        table is deduplicated, and identical protocols do collide -- and
-        because discarding superseded content in a version-control store is
-        not this layer's decision to make.
+        left in place here, because another instance may still share it -- the
+        table is deduplicated, and identical protocols do collide.
+
+        Whether it *survives* is decided at :meth:`write`, which drops the
+        rows this library created and then superseded. That split matters
+        because appending is a loop: building a program of ninety-six scans
+        rewrites the program document ninety-six times, and keeping every
+        intermediate leaves ninety-five documents no instance references. No
+        console archive has that shape -- each carries exactly one orphan, an
+        ``EdfStructureContent`` -- so the garbage is this library's to collect.
 
         The repoint is done by instance ``Id`` and never by hash, for the same
         deduplication reason: rewriting every row that happened to share the
@@ -988,6 +1006,8 @@ class Archive:
         previous = self.contents[instance.content_hash]
         fresh = previous.replace(document)
         digest = fresh.hash
+        if digest != instance.content_hash:
+            self.displaced.add(instance.content_hash)
         if digest not in self.contents:
             self.contents[digest] = fresh
             self.container.tables["Content"].append(
@@ -1010,6 +1030,9 @@ class Archive:
     def write(self, path: str) -> None:
         """Write the archive out as a new ``.exar1`` file.
 
+        Superseded content of this library's own making is dropped first; see
+        :meth:`prune`.
+
         Parameters
         ----------
         path : str
@@ -1019,7 +1042,46 @@ class Archive:
         -------
         None
         """
+        self.prune()
         store.write(self.container, path)
+
+    def prune(self) -> int:
+        """Drop content this library created and then superseded.
+
+        A ``Content`` row is dropped when no ``Instance`` row points at it
+        *and* this library either created it or displaced it. Everything
+        else is left alone, so a file that is read and written unchanged
+        keeps every row it arrived with -- including the one orphan every
+        corpus archive carries, the placeholder branch's
+        ``EdfStructureContent``.
+
+        Displacement is the half that is easy to miss. Editing a node that
+        came with the file strands the content it used to hold, and that
+        content *was* in the file as read, so a rule written on origin alone
+        preserves it forever: seeding a program from a one-scan export and
+        appending to it left the original one-scan program document behind.
+
+        The referenced set is taken from the raw ``Instance`` table rather
+        than from the live instances, so content belonging to a superseded
+        *version* of a node is kept -- that is the store's history, not this
+        library's litter.
+
+        Returns
+        -------
+        int
+            How many rows were dropped.
+        """
+        instances = self.container.tables["Instance"]
+        at = instances.index_of("ContentHash")
+        referenced = {str(row[at]) for row in instances.rows if row[at] is not None}
+        ours = self.displaced.union(one for one in self.contents if one not in self.as_read)
+        dead = {one for one in ours if one not in referenced and one in self.contents}
+        if not dead:
+            return 0
+        removed = self.container.tables["Content"].discard("Hash", dead)
+        for one in dead:
+            self.contents.pop(one, None)
+        return removed
 
 
 def _refresh_content_tag(tags: Any, document: dict[str, Any]) -> Any:
@@ -1191,4 +1253,5 @@ def read(path: str) -> Archive:
         instances=_live_instances(container, head),
         baseline=baseline,
         head=head,
+        as_read=frozenset(contents),
     )

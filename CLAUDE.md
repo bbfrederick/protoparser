@@ -1148,6 +1148,53 @@ the two consistent.
   always populated, and **do not treat a relation count as a link count**: the
   first `archive` summary line did, and reported a 17-link protocol as having
   117.
+- **A generated archive can be rejected whole, and the symptom is the folder
+  tree with no protocols under it.** `outbound/corpus_gaps.exar1` (96 scans)
+  and `corpus_all.exar1` (117) both opened on the scanner, navigated to
+  `Investigators/Frederick`, and showed nothing there -- and in scanner terms a
+  *Program* is a protocol, so that is the program failing to build, not a
+  program opening empty. Every offline check passed: the tree resolves to
+  `.../Frederick/CORPUS_GAPS`, all five step-keyed maps carry all 96 steps,
+  ranks are 0..95, `Element.Type`, `InstanceChangeSet.State`, the element map,
+  link field-sets, `Children` refs and every content hash match a console
+  export, and no `$ref` precedes its `$id`. Two real defects were found and
+  fixed anyway (below), and **neither is established as the cause**: the
+  40-scan assembly that loaded 33 back went through the same code and carried
+  both. What is left is scale -- the largest program any console archive in the
+  corpus holds is 74 (`Mair test`), whose document is structurally identical to
+  ours -- or something about these particular protocols, which are by
+  construction the corpus's rarest sequences. Neither is decidable offline.
+- **Every archive a console wrote carries exactly one orphaned content row,
+  and it is an `EdfStructureContent`.** That is the placeholder branch's;
+  `NAV_optionscan_P1_loadtest` has two, and nothing else in 21 archives has
+  any. A generated one carried **95**, all `EdfProgramContent`: content is
+  addressed by hash, so rewriting the program document re-addresses it and
+  strands the old row, and appending is a loop -- 96 scans left 96 program
+  documents beside one program instance. Every check that walked live nodes
+  passed, because the stranded rows are by definition unreachable.
+  `Archive.prune` collects them at `write`, and only what this library
+  created *or displaced*: origin alone is not enough, since seeding from a
+  one-scan export and appending to it strands that export's own program
+  document, which arrived with the file. A plain read-and-write still drops
+  nothing, on all 20 corpus archives.
+- **Appending a step broke the lexical key order this file already
+  recorded.** The five maps are keyed in sorted order with `$id` first in
+  every archive the scanner has accepted, ours included; appending puts the
+  new key last. Newtonsoft reads these into dictionaries and so probably does
+  not care, which is the argument for matching rather than debating -- it
+  costs nothing and removes a difference from every known-good file.
+  `generate.sort_step_maps` restores it and `validate` now refuses both this
+  and the stranded content, so neither can ship again.
+- **`tSequenceFileName` can carry a subdirectory under the owner prefix.**
+  `%CustomerSeq%\Andre\tfl_mgh_multiecho`, `%CustomerSeq%\MGH_Moco\
+  ep_moco_nav_set`, and one scan spelling it `%CustomerSeq%\\MGH\
+  ep2d_bold_mgh` with a doubled separator. Four binaries appear under both a
+  bare and a subdirectory spelling, so the field is not a flat
+  `prefix\binary` pair and counting distinct *values* overcounts the
+  sequences by four. Nothing is broken by it -- `sequence_owner` splits on the
+  first separator and `header_of` takes the binary with `rsplit`, which are
+  the right readings by luck rather than by design, and worth keeping
+  deliberately: a `split("\\")[1]` would hand the catalog `Andre`.
 - **Links are dropped by `duplicate_step`, correctly but silently.** It writes
   empty `RelationsFrom`/`RelationsTo` entries for the new step, which is right
   for a fresh scan and wrong for a copy of a linked one -- an imported scan
