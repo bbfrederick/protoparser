@@ -1234,8 +1234,34 @@ the two consistent.
   groups and absent from every accepted scan. So there is no offline
   discriminator to write a check against, and the only instrument left is
   bisection on a scanner.
-- **The blocker is one scan per group, and bisection has it down to three
-  pairs.** The eighteen went back as nine pairs; six imported and exactly one
+- **Three protocols stop a program importing, and nothing in them says why.**
+  Bisection ran to singles: `blade`, `ciss` and `medic` are refused **alone**,
+  in a two-scan archive holding nothing but the control -- so the cause is
+  inside those protocols and is not an interaction between scans, which a
+  single-scan program is the smallest possible test of. `ZPL_RG_EPSI_FID_v2f`,
+  `csi_fid` and `jn_svs_special_ve11c` imported alone and clear their pairs.
+
+  What the search excludes is more useful than what it found. Against the 93
+  scans now observed to import -- a 1067-key vocabulary -- there is **no**
+  ASCCONV key or XProtocol tag the three blockers share and the accepted
+  scans lack (`ciss` and `medic` have none at all; `blade` has only
+  `sBladePara.*`, which is what the corpus's one BLADE sequence would carry
+  regardless). Sweeping *values* rather than keys finds seven keys where all
+  three hold something unseen, and all seven are per-scan unique by nature --
+  `alTR`, `dRefSNR`, `lScanTimeSec`, `tProtocolName`. It is not size, coils,
+  slices, sequence family or stock-versus-third-party: `csi_se`/`csi_slaser`
+  import while `ciss` does not, `resolve`/`se`/`petra` import while `medic`
+  does not, and all three blockers are `%SiemensSeq%`. Nor is it provenance:
+  `petra` and `se` appear only in the same unshipped whole-scanner export and
+  import fine.
+
+  All three are licensed Siemens product options (BLADE/PROPELLER, CISS,
+  MEDIC), which is the leading explanation -- a sequence the scanner does not
+  have cannot be reconciled and the program does not build -- and it is not
+  established: `petra` is an option too and imported. What settles it is a
+  question for the console rather than the archive, and the protocol is the
+  wrong place to keep looking.
+- **The earlier bisection, for the record: one scan per group of six.** The eighteen went back as nine pairs; six imported and exactly one
   pair from each of the three refused groups came back refused --
   `{ZPL_RG_EPSI_FID_v2f, blade}`, `{ciss, csi_fid}`,
   `{jn_svs_special_ve11c, medic}`. One offender per group of six, so the
