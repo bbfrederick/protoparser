@@ -1247,6 +1247,43 @@ the two consistent.
   property of the whole parameter set in its context, as the greying-out rule
   says, and a protocol lifted out of the export it was written in has lost
   that context. The 23 that survived are the ones with printouts now.
+- **Every sequence in the corpus now has a scanner verdict, and the split is
+  68 / 46 / 3.** Six rounds of import-and-export classified all 117: **68
+  consistent** (53 of them gap sequences that had no printout at all before,
+  now covered by one 53-scan export), **46 imported and greyed out**, and
+  **3 that refuse to import** -- `blade`, `ciss`, `medic`. The three counts
+  are exhaustive and disjoint, which is the check that the classification is
+  complete rather than merely large.
+
+  The final round is what makes the classification trustworthy. The verdicts
+  were derived over four rounds of differently-shaped archives; the fifth
+  rebuilt them into one 53-scan `CORPUS_CONSISTENT` and **all 53 printed**,
+  with `CORPUS_INCONSISTENT` returning all 41 protocols byte-identical and
+  only its anchor printable. So the split predicts behaviour in a build the
+  predictions were not derived from, rather than merely describing the rounds
+  that produced it.
+
+  53 scans in one program is also the largest this library has had a scanner
+  accept, against the 74 of the biggest console-authored program in the
+  corpus.
+- **A catalogued sequence can be greyed out too, and six of twenty-one were.**
+  `ZPL_RG_EPSI_FID_v1h`, `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb`,
+  `ep2d_se_VASO`, `mjd_mclean_flipback` and `svs_slaser_dkd` all carry catalog
+  signatures *because shipped examples exercise them* -- `svs_slaser_dkd`
+  runs 421 corpus scans -- and all six went inconsistent on being moved into a
+  new program. Having a signature, a printout and hundreds of corpus scans
+  says nothing about whether a protocol lifted out of its export will load
+  somewhere else, which is the context rule again and the sharpest instance of
+  it: these are the sequences we know best.
+- **The console's repairs are reproducible.** Importing `CORPUS_CONSISTENT`
+  changed exactly four protocols -- `BEAT`, `fl3d_vibe`, `se_mc`, `space` --
+  and they are the same four, with the same field sets, that it changed when
+  the same protocols arrived in differently-shaped archives a round earlier:
+  the parametric-mapping functor stripped from `fl3d_vibe` and `se_mc`,
+  `sCommonIterRecon.*`/`sPat.*`/the derived times recomputed on `BEAT` and
+  `space`. Two independent imports agreeing field for field makes these
+  repairs a property of the protocol meeting this console, not an artefact of
+  one import. 49 of 53 came back untouched.
 - **Every archive a console wrote carries exactly one orphaned content row,
   and it is an `EdfStructureContent`.** That is the placeholder branch's;
   `NAV_optionscan_P1_loadtest` has two, and nothing else in 21 archives has
