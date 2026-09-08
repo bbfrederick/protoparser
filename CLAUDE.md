@@ -1266,6 +1266,45 @@ the two consistent.
   53 scans in one program is also the largest this library has had a scanner
   accept, against the 74 of the biggest console-authored program in the
   corpus.
+- **`sProtConsistencyInfo.tBaselineString` is `"ConversionNeeded"` on a
+  protocol the console will grey out, and it never appears on one that
+  loads.** Across the 96 scans with a scanner verdict: **43 of 43** carrying
+  it were greyed out, and **0 of 53** consistent scans carry it. So it is a
+  *sufficient* predictor, checkable offline, and the first thing found that
+  anticipates the greying-out rule instead of merely restating that only a
+  scanner can say.
+
+  It is not *necessary*: three greyed-out scans do not carry it --
+  `ep2d_asl`, `svs_edit`, `BEAT_FQ_nav` -- so absence means "not predicted to
+  fail", never "will load". Keep the asymmetry, because inverting it is the
+  expensive error.
+
+  The field beside it says where the protocol came from:
+  `sProtConsistencyInfo.tMeasuredBaselineString` on `ZPL_RG_EPSI_FID_v1h` is
+  `"N4_VE11C_LATEST_20160120"` -- the Numaris 4 baseline spelling, which is
+  only recognisable at all because a Siemens-published VE11S archive was read
+  a day earlier. `ulVersion` is useless here: all six greyed-out catalogued
+  protocols read `66010002`, the XA60 value, because the archive was written
+  by an XA60 console. The protocol's *origin* release is in
+  `sProtConsistencyInfo`, not in the protocol version.
+
+  This also separates the two failure modes. `blade`, `ciss` and `medic` --
+  the three that stop a program building outright -- carry no
+  `tBaselineString` at all, so whatever refuses them is not conversion.
+- **The owner's account of the greyed-out catalogued sequences, and what the
+  archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
+  `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at
+  this centre, which is why they cannot load -- supplied by the protocols'
+  owner, not inferred. `svs_slaser_dkd` and `ZPL_RG_EPSI_FID_v1h` he reports
+  as installed and working, and could not explain; `ep2d_se_VASO` he did not
+  address.
+
+  `ConversionNeeded` covers all six, which resolves the puzzle without
+  contradicting him: the *protocol* is stale even where the *sequence* is
+  current. `svs_slaser_dkd` runs 421 corpus scans and its sequence is
+  installed -- what fails is this protocol, saved under an older baseline and
+  never converted. Do not read a greyed-out scan as evidence its sequence is
+  missing.
 - **A catalogued sequence can be greyed out too, and six of twenty-one were.**
   `ZPL_RG_EPSI_FID_v1h`, `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb`,
   `ep2d_se_VASO`, `mjd_mclean_flipback` and `svs_slaser_dkd` all carry catalog
