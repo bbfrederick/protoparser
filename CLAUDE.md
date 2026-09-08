@@ -1291,6 +1291,28 @@ the two consistent.
   This also separates the two failure modes. `blade`, `ciss` and `medic` --
   the three that stop a program building outright -- carry no
   `tBaselineString` at all, so whatever refuses them is not conversion.
+- **Choose an exemplar by baseline, not by which export is shipped.** When one
+  sequence has several copies in the corpus, the copy to keep is the one
+  needing no conversion -- `sProtConsistencyInfo.tBaselineString` absent
+  rather than `"ConversionNeeded"` -- and among stale copies the later
+  measured baseline (`N4_VE11C_LATEST_20160120` over
+  `N4_VE11B_LATEST_20150530`). The rule was supplied by the protocols' owner
+  as later-release-wins; the mechanism above is what implements it, since
+  `tBaselineString` never holds a release string, only that flag.
+
+  Applied to the whole corpus it moves exactly one exemplar of 117:
+  `ZPL_RG_EPSI_FID_v1h` has 9 copies, 4 of them current, and all 4 are in the
+  unshipped whole-scanner export -- so the old picker's
+  prefer-a-shipped-donor rule chose a stale one and that scan was greyed out.
+  Everything else is already the best available.
+
+  What the sweep also settles is that most of the greyed-out set cannot be
+  rescued this way: 42 sequences have *no* current copy anywhere, including
+  `svs_slaser_dkd` at **421 of 421** copies needing conversion, on a sequence
+  the owner confirms is installed and working. So this centre's protocols for
+  it all predate XA60 and none was ever re-saved. A better exemplar cannot be
+  chosen where none exists, and the fix for those is a fresh save on the
+  scanner rather than a better search.
 - **The owner's account of the greyed-out catalogued sequences, and what the
   archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
   `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at
