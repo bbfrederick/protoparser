@@ -38,6 +38,11 @@ from xml.etree import ElementTree
 from . import envelope, store
 from .envelope import Envelope
 
+#: The release token in a Numaris 4 baseline, which names no ``MAJORVERSION``
+#: field: ``N4_VE11S_LATEST_20170215`` yields ``VE11S``. Anchored and narrow
+#: on purpose -- see :attr:`Archive.major_version`.
+BASELINE_RELEASE = re.compile(r"VE\d\d[A-Z]?")
+
 #: Width of a packed GUID in a ``Children`` blob.
 GUID_BYTES = 16
 
@@ -621,15 +626,35 @@ class Archive:
     def major_version(self) -> str:
         """Return the release named in the baseline, for example ``VA60A``.
 
+        Two baseline spellings exist and the second was found only when a
+        Siemens-published VE11S archive was read. Numaris/X writes a keyed
+        list, ``MAJORVERSION:VA60A, PROTOCOL:66010002, ...``; Numaris 4 writes
+        a single token, ``N4_VE11S_LATEST_20170215``. The keyed field is
+        preferred and the underscore form is only reached when there is none,
+        so a future release adding a `MAJORVERSION` cannot be shadowed by an
+        accidental match.
+
+        The fallback is deliberately narrow -- an anchored ``VE`` plus two
+        digits and an optional letter -- rather than a general "find a
+        version-looking token". The profile modules make the same point about
+        release discriminators: a loose pattern yields a confident wrong
+        answer, which is worse here than the empty string a caller already
+        handles by saying the release is unknown.
+
         Returns
         -------
         str
-            The ``MAJORVERSION`` field, or an empty string if absent.
+            The release, or an empty string when the baseline names none. An
+            unknown release is not an error: the archive still reads, and
+            nothing in this module is release-dependent.
         """
         for part in self.baseline.split(","):
             name, _, value = part.partition(":")
             if name.strip() == "MAJORVERSION":
                 return value.strip()
+        for token in self.baseline.split("_"):
+            if BASELINE_RELEASE.fullmatch(token):
+                return token
         return ""
 
     def document(self, instance: Instance) -> dict[str, Any]:

@@ -1240,3 +1240,60 @@ def test_shared_objectids_resolve_to_their_own_protocols() -> None:
                 )
     assert seen.get("eja_svs_laser") == {"eja_svs_laser"}
     assert seen.get("eja_svs_press") == {"eja_svs_press"}
+
+
+@pytest.mark.parametrize(
+    "baseline, expected",
+    [
+        ("MAJORVERSION:VA60A, PROTOCOL:66010002, ADDIN:NXMAINLINE, EDF:1, SEQUENCE:1", "VA60A"),
+        ("MAJORVERSION:VA30A, PROTOCOL:63010001", "VA30A"),
+        ("N4_VE11S_LATEST_20170215", "VE11S"),
+        ("N4_VE11C_LATEST_20150101", "VE11C"),
+        ("-", ""),
+        ("", ""),
+        ("SOMETHING_ELSE_ENTIRELY", ""),
+    ],
+)
+def test_the_baseline_names_the_release_in_two_spellings(baseline: str, expected: str) -> None:
+    """Numaris/X keys the release; Numaris 4 writes one underscored token.
+
+    ``MAJORVERSION:VA60A, ...`` is the only spelling the corpus has. A
+    Siemens-published VE11S archive turned out to write
+    ``N4_VE11S_LATEST_20170215`` instead, so a reader keyed on the field alone
+    reports the release as unknown -- which is harmless, nothing here being
+    release-dependent, but it is recoverable and so worth recovering.
+
+    The keyed field wins where both could match, and the fallback is narrow
+    rather than a general search for a version-looking token: a loose pattern
+    gives a confident wrong answer, which is worse than the empty string a
+    caller already handles.
+
+    Parameters
+    ----------
+    baseline : str
+        The ``Branch.Baseline`` string to read.
+    expected : str
+        The release it names, or an empty string.
+
+    Returns
+    -------
+    None
+    """
+    read = archive.Archive(container=None, contents={}, instances={}, baseline=baseline, head="")
+    assert read.major_version == expected
+
+
+@requires_exar
+def test_every_corpus_archive_still_names_its_release(archive_path: str) -> None:
+    """The fallback must not disturb the spelling the corpus actually uses.
+
+    Parameters
+    ----------
+    archive_path : str
+        Any corpus archive.
+
+    Returns
+    -------
+    None
+    """
+    assert archive.read(archive_path).major_version.startswith("VA")

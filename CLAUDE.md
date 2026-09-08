@@ -1729,6 +1729,44 @@ the two consistent.
   is labelled the same way, so resolving through it follows the printout
   instead of duplicating every spelling in the table. Without that the driver
   silently skipped TE on exactly the scans that print it differently.
+- **A Siemens-published VE11S archive reads, round-trips and re-hashes
+  exactly, which is the first evidence from outside this centre.**
+  `shoulder_4ch_flex.exar1` (0.53 MB) is a shoulder protocol Siemens
+  distributes from magnetomworld; the Stack Overflow question links it. Every
+  archive in the corpus came from one site's two scanners, so this is the
+  first independent file the reader has met, and it is not even the same
+  Numaris generation: **`.exar1` is not an XA format**. Its baseline is
+  `N4_VE11S_LATEST_20170215` -- Numaris 4, VE11S, and a different baseline
+  *spelling* with no keyed fields at all, against XA's
+  `MAJORVERSION:VA60A, PROTOCOL:66010002, ...`.
+
+  Nothing had to change to read it. 33 steps in one program, the folder tree
+  resolving to `Root/New Tree/Shouolder/Flex_4Ch/routine` (the typo is the
+  file's), `validate` clean, all **76 content blobs re-encoding to their
+  stored hash** -- so the Newtonsoft serializer derived from XA60 reproduces
+  a 2017 Numaris 4 file byte for byte. A read-and-write round trip is
+  identical in every table, every content row, the running order and all 28
+  protocols. `sequences` names all 28 scans as stock Siemens; one step is an
+  `EdfPauseStep` used as a section divider (`----T1----`).
+
+  **The slice-geometry model holds too**: 24 groups read, worst deviation of
+  the stored array from the recomputed one 7.1e-15 mm. That formula was
+  derived entirely from XA60 `extravals` copies, and this is a release eight
+  years older agreeing with it.
+
+  Two differences worth knowing. `major_version` returned empty until the
+  underscore spelling was handled, since the release is a token rather than a
+  field. And a VE11S protocol *names* its first `<XProtocol>` block
+  `MultiStep Controller` where an XA60 one leaves it unnamed -- both carry
+  two blocks and the ASCCONV sits in the second, so this is a labelling
+  difference rather than a structural one. It is what the Stack Overflow
+  answer printed, and reading it as "a protocol document with no parameters"
+  would be wrong.
+
+  The file is not in `examples/`: it is Siemens' to distribute, and whether
+  to redistribute it in this repository is not a decision this layer should
+  make. It lives outside the corpus and is named here so it can be fetched
+  again.
 - **The first XA30 archive says the format model is release-independent.**
   `MAJORVERSION:VA30A, PROTOCOL:63010001` against XA60's `66010002`, and all
   39 protocols decode with an ASCCONV block and a `Preview` map while all
