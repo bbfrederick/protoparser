@@ -1144,3 +1144,108 @@ def test_writing_an_unchanged_archive_drops_nothing(
     assert set(after.contents) == set(before.contents)
     for name, table in before.container.tables.items():
         assert len(after.container.tables[name].rows) == len(table.rows), f"{name} lost rows"
+
+
+@requires_exar
+def test_the_folder_tree_agrees_with_itself(protocol_archive_path: str) -> None:
+    """The structure document states the hierarchy twice, and the two match.
+
+    ``ParentDirectoryId`` reads upwards; ``SubdirectoryIds`` and
+    ``SubprogramElementIds`` read downwards, with ``RootDirectoryId`` naming
+    the top. Only the upward map was known while the format was being worked
+    out, and reading it wrongly is what produced 61 empty folders and 499
+    orphan protocols from a 97 MB export -- which looked like a small file
+    rather than an error. Two independent statements of one tree turn that
+    into a failing line.
+
+    The downward maps were found in Tobias Rautenkranz's ``exar1-read``
+    rather than in the corpus, and they agree here on every archive.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    up = archive.directory_parents
+    down = archive.directory_children
+    assert up and down, "a protocol archive should state its tree both ways"
+
+    rebuilt = {kid: parent for parent, kids in down.items() for kid in kids}
+    rebuilt[archive.declared_root] = generate.NO_GUID
+    assert rebuilt == up
+    assert [one for one, parent in up.items() if parent == generate.NO_GUID] == [
+        archive.declared_root
+    ]
+    assert validate.problems(archive) == []
+
+
+@requires_exar
+def test_a_tree_that_disagrees_with_itself_is_reported(tmp_path: pathlib.Path) -> None:
+    """Breaking either direction of the folder tree must be caught.
+
+    The negative half of the check above. A validator that cannot fire is
+    worse than none, and this one guards the single most expensive mistake
+    made against this format.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Unused; kept for symmetry with the other generate tests.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    root = archive.tree_root
+    document = archive.document(root)
+    first = next(one for one in document["SubdirectoryIds"] if not one.startswith("$"))
+    document["SubdirectoryIds"][first] = {"$id": "broken", "$values": []}
+    archive.replace_content(root, document)
+    assert any("tree disagrees with itself" in line for line in validate.problems(archive))
+
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    root = archive.tree_root
+    document = archive.document(root)
+    document["RootDirectoryId"] = "deadbeef-0000-0000-0000-000000000000"
+    archive.replace_content(root, document)
+    assert any("RootDirectoryId" in line for line in validate.problems(archive))
+
+
+@requires_exar
+def test_tree_root_picks_the_structure_that_carries_the_tree(
+    protocol_archive_path: str,
+) -> None:
+    """Exactly one live structure node exists, and it declares the tree.
+
+    The ``Instance`` table holds a second structure -- the placeholder
+    branch's, which is the one orphaned content row every archive carries --
+    but it is not live, so the live set has one. That is what makes
+    :attr:`Archive.tree_root` unambiguous, and a reader reaching the other
+    would report a flat archive rather than an error, the same shape as
+    reading at the placeholder branch.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    structures = [one for one in archive.instances.values() if one.kind == "EdfStructure"]
+    assert len(structures) == 1, "the placeholder branch's structure is not live"
+    carriers = [
+        one
+        for one in structures
+        if one.content_hash and "ParentDirectoryId" in archive.document(one)
+    ]
+    assert len(carriers) == 1
+    assert archive.tree_root is carriers[0]

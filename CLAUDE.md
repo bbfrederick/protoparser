@@ -445,6 +445,53 @@ what a scan, protocol and session are, and how the scanner organizes them --
 supplied by the user rather than derived, so prefer it to inference and keep
 the two consistent.
 
+- **Three published sources describe this format, and they agree with what
+  was derived here.** Tobias Rautenkranz's `exar1-read`
+  (https://gitlab.com/tobiasrautenkranz/exar1-read, GPL-3.0), the NeuroStars
+  thread "Parsing EXAR files" (https://neurostars.org/t/parsing-exar-files/20237)
+  and a Stack Overflow answer
+  (https://stackoverflow.com/questions/79412814/). They independently confirm
+  the container (SQLite), raw DEFLATE at `wbits=-15`, the
+  `EDF V1: ContentType=syngo.MR.ExamDataFoundation.Data.<Kind>;` header line,
+  JSON beneath it, XProtocol in `Data`, SHA-1 content addressing, .NET
+  `Guid.ToByteArray` ordering, the `Instance`/`Element`/`Content`/`Branch`/
+  `ChangeSet`/`InstanceChangeSet`/`ElementToInstanceMap` tables, the
+  `FirstStepId`/`LinksFrom`/`LastStepId` chain, and that **the Card grouping a
+  printout shows is not in the archive** -- which is the same conclusion the
+  `inspect.scan_of` note reaches. Nothing already established had to change.
+
+  Four things they add. `Content.Format` is the literal `"DS"`, checked rather
+  than assumed (confirmed on all 20 corpus archives). `InstanceChangeSet.State`
+  is `0` current, `1` change, `2` delete -- the corpus has only 0 and 1, so
+  the delete state is taken on their word and nothing here depends on it, the
+  live set coming from the element map. `EdfDecisionStep` is a seventh step
+  kind, absent from the corpus and now in `STEP_KINDS`: listing a kind that
+  never appears costs nothing, while omitting one drops its step from the
+  running order and reports the file as corrupt. And a `.exar1-journal`
+  beside an archive means an interrupted write rather than a second file.
+- **The structure document states the folder tree twice, and only one
+  direction was known here.** Beside `ParentDirectoryId` it carries
+  `RootDirectoryId`, `SubdirectoryIds` and `SubprogramElementIds` -- the tree
+  downwards, and the top named outright. `Archive.directory_children` and
+  `declared_root` read them, and `validate` now checks the two directions
+  against each other.
+
+  This is the one place a source would have saved real work. Reading the tree
+  wrongly is what turned a 97 MB whole-scanner export into 61 empty folders
+  and 499 orphan protocols, and it presented as a *small file* rather than as
+  an error -- with both directions in hand it is a one-line disagreement.
+  They agree on all 20 corpus archives, and `RootDirectoryId` is the unique
+  zero-parent directory in every one, so this is pure redundancy, which is
+  exactly what makes it worth checking. Note `SubprogramElementIds` appears
+  in none of the three sources; it was found by dumping the document once the
+  others named where to look.
+- **Exactly one *live* instance is an `EdfStructure`.** The `Instance` table
+  holds a second, the placeholder branch's, which is the single orphaned
+  content row every console archive carries -- so a raw-table count says two
+  and the live set says one. `tree_root` now picks the node that actually
+  declares `ParentDirectoryId` rather than the first it meets: on the corpus
+  they are the same node, and a reader reaching the other would report a flat
+  archive rather than an error.
 - **The folder tree is on the root node, not in the node hierarchy.** An
   `EdfDirectory` carries no `Children` in any corpus archive -- 0 of 61 in the
   whole-scanner export -- and an `EdfProgram` has no `ParentElementId`, so

@@ -81,6 +81,15 @@ WORKFLOW_STEP = "EdfWorkflowStep"
 SPLIT_STEP = "EdfSplitStep"
 JOIN_STEP = "EdfJoinStep"
 
+#: A seventh step kind, taken from Rautenkranz's ``exar1-read`` and the
+#: NeuroStars thread rather than from the corpus, which has none. It belongs
+#: beside the split and join steps -- a branch has to be decided somewhere --
+#: and the cost of the two errors is lopsided: listing a kind that never
+#: appears costs nothing, while omitting one drops its step from the running
+#: order, orphans it in :func:`validate.problems`, and reads as a corrupt
+#: file rather than as an unknown kind.
+DECISION_STEP = "EdfDecisionStep"
+
 #: Every kind that appears in a program's running order. A step holds a
 #: protocol exactly when it is a ``MEASUREMENT_STEP``: that holds across all
 #: 603 steps in the corpus, and it is the rule to test against rather than
@@ -93,6 +102,7 @@ STEP_KINDS = (
     WORKFLOW_STEP,
     SPLIT_STEP,
     JOIN_STEP,
+    DECISION_STEP,
 )
 PROTOCOL = "EdfProtocol"
 STRING = "EdfString"
@@ -727,15 +737,88 @@ class Archive:
     def tree_root(self) -> Instance | None:
         """Return the ``EdfStructure`` node the directory tree hangs from.
 
+        Exactly one *live* instance is a structure on every corpus archive,
+        so the choice is not in doubt there. The ``Instance`` table holds a
+        second one belonging to the placeholder branch -- it is the orphaned
+        ``EdfStructureContent`` every archive carries -- and it is not live,
+        which is why reading at the wrong branch yields an empty tree.
+        Choosing the node that actually declares ``ParentDirectoryId``, rather
+        than the first structure encountered, costs nothing and keeps that
+        distinction from mattering: a reader that picked the other would
+        report a flat archive rather than an error.
+
         Returns
         -------
         Instance or None
-            The root, or ``None`` in an archive that carries none.
+            The root, or ``None`` in an archive that carries none. Falls back
+            to the first structure node when none declares a tree, so an
+            archive exported from an empty folder still resolves.
         """
-        for instance in self.instances.values():
-            if instance.kind == STRUCTURE:
+        structures = [one for one in self.instances.values() if one.kind == STRUCTURE]
+        for instance in structures:
+            if instance.content_hash and "ParentDirectoryId" in self.document(instance):
                 return instance
-        return None
+        return structures[0] if structures else None
+
+    @property
+    def directory_children(self) -> dict[str, list[str]]:
+        """Return the folder tree read downwards rather than upwards.
+
+        The structure document carries the hierarchy twice. Beside the
+        ``ParentDirectoryId`` map that :attr:`directory_parents` reads, it
+        holds ``SubdirectoryIds`` and ``SubprogramElementIds`` -- a directory
+        to the directories and programs under it -- and names the top
+        explicitly in ``RootDirectoryId``. Only the upward map was known
+        while the tree was being worked out, which is why an early reader
+        reported 61 folders with nothing in them and 499 orphan protocols:
+        with both directions in hand that is a one-line disagreement rather
+        than a plausible-looking answer.
+
+        The two agree on every corpus archive, so this is redundancy, and
+        redundancy is exactly what it is for. :func:`validate.problems`
+        compares them.
+
+        Returns
+        -------
+        dict of str to list of str
+            Directory ``ObjectId`` to the ids beneath it, directories and
+            programs together, in stored order. Empty when the archive has no
+            root or its root records no children.
+        """
+        root = self.tree_root
+        if root is None or not root.content_hash:
+            return {}
+        document = self.document(root)
+        children: dict[str, list[str]] = {}
+        for name in ("SubdirectoryIds", "SubprogramElementIds"):
+            table = document.get(name)
+            if not isinstance(table, dict):
+                continue
+            for key, value in table.items():
+                if key.startswith("$") or not isinstance(value, dict):
+                    continue
+                children.setdefault(key, []).extend(str(one) for one in value.get("$values", []))
+        return children
+
+    @property
+    def declared_root(self) -> str:
+        """Return the directory the structure document names as the top.
+
+        Read from ``RootDirectoryId``. The root is also findable as the one
+        directory whose ``ParentDirectoryId`` entry is the all-zero GUID, and
+        the two agree on every corpus archive; this is the file saying so
+        rather than the reader inferring it.
+
+        Returns
+        -------
+        str
+            The root directory's ``ObjectId``, or an empty string when the
+            archive declares none.
+        """
+        root = self.tree_root
+        if root is None or not root.content_hash:
+            return ""
+        return str(self.document(root).get("RootDirectoryId") or "")
 
     @property
     def directory_parents(self) -> dict[str, str]:

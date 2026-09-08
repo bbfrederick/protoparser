@@ -57,6 +57,7 @@ def problems(archive: Archive) -> list[str]:
     found += _parents(archive)
     found += _identity(archive)
     found += _content_hygiene(archive)
+    found += _directory_tree(archive)
     return found
 
 
@@ -385,3 +386,56 @@ def _content_hygiene(archive: Archive) -> list[str]:
         return []
     detail = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
     return [f"content nothing references: {detail}"]
+
+
+def _directory_tree(archive: Archive) -> list[str]:
+    """The folder tree read downwards matches the one read upwards.
+
+    The structure document states the hierarchy twice -- ``ParentDirectoryId``
+    upwards, ``SubdirectoryIds`` and ``SubprogramElementIds`` downwards -- and
+    names the top in ``RootDirectoryId``. They agree on every corpus archive,
+    which makes the disagreement worth checking rather than assuming: reading
+    the tree wrongly is the failure that produced 61 empty folders and 499
+    orphan protocols out of a 97 MB export, and it looked like a small file
+    rather than an error. Two independent statements of the same tree turn
+    that into one failing line.
+
+    An archive that declares neither direction is passed over rather than
+    reported: exporting an empty folder node yields a valid file with no tree
+    at all.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive under test.
+
+    Returns
+    -------
+    list of str
+        Broken rules.
+    """
+    up = archive.directory_parents
+    down = archive.directory_children
+    if not up and not down:
+        return []
+    found = []
+    rebuilt: dict[str, str] = {}
+    for parent, kids in down.items():
+        for kid in kids:
+            rebuilt[kid] = parent
+    root = archive.declared_root
+    if root:
+        rebuilt[root] = NO_GUID
+    if up and down and rebuilt != up:
+        only_down = sorted(set(rebuilt) - set(up))[:3]
+        only_up = sorted(set(up) - set(rebuilt))[:3]
+        found.append(
+            f"the folder tree disagrees with itself: {len(rebuilt)} entries downwards "
+            f"against {len(up)} upwards (only downwards {only_down}, only upwards {only_up})"
+        )
+    tops = [one for one, parent in up.items() if parent == NO_GUID]
+    if root and tops and tops != [root]:
+        found.append(
+            f"RootDirectoryId is {root[:8]} but the tree tops out at {[t[:8] for t in tops]}"
+        )
+    return found
