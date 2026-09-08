@@ -981,10 +981,29 @@ class Archive:
             PDF export.
         """
         by_element = self.by_element
+        # A step's ObjectId is *not* unique across the file. Copying a
+        # protocol within a directory gives the copy its own element and its
+        # own instance while keeping the source's ObjectId, so 67 objects in
+        # the investigator export carry two live step instances each -- and
+        # the global object index keeps only one of them. Since the running
+        # order is a chain of ObjectIds, resolving through that index serves
+        # both programs the same instance: 39 of those 67 pairs hold
+        # *different* protocols, one pair being eja_svs_laser beside
+        # eja_svs_press, so the wrong scan is returned and the other's
+        # protocol is never read at all.
+        #
+        # The program's own ``Children`` disambiguates, being element ids.
+        # The global index stays as the fallback for a chain naming a step
+        # the program does not list, which no corpus archive does.
+        mine: dict[str, Instance] = {}
+        for child in program.children:
+            node = by_element.get(child)
+            if node is not None and node.kind in STEP_KINDS:
+                mine.setdefault(node.object_id, node)
         by_object = self.by_object
         built: list[Step] = []
         for object_id in self.step_order(program):
-            node = by_object.get(object_id)
+            node = mine.get(object_id) or by_object.get(object_id)
             if node is None:
                 continue
             protocols = []

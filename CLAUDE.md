@@ -1745,17 +1745,29 @@ the two consistent.
   step across every program, which is unchanged for a single-protocol export.
   `duplicate_step` takes an explicit `program=`, since appending to whichever
   came first would put a scan in an unrelated protocol.
-- **A step can be run by several programs, so "exactly one" was a fact about
-  the corpus and not about the format.** Copying a protocol inside a directory
-  reuses the source's step nodes for the scans the copy did not change:
-  `Frederick_P2` shares 67 of its 435 steps -- `BioTMS`/`BioTMS_old` 19,
-  `multiecho_bids_test` and its `_small_fixed` variant 14, `MedwatchTest` and
-  `boxbreathe` 13. It is genuine sharing rather than a GUID-space confusion,
-  and the three checks that establish that are worth repeating: one element id
-  per shared object id, present in the `Children` of exactly *one* of its
-  programs, and parenting to that same one. So `_step_coverage` now asks only
-  that nothing is orphaned, and `_parents` asks that a step parents to *some*
-  program that runs it rather than to whichever the loop reached first.
+- **A step's `ObjectId` is not unique, and reading it as one serves the wrong
+  protocol.** This corrects what stood here before, which claimed copying a
+  protocol inside a directory *reuses* the source's step node -- "one element
+  id per shared object id". It is the other way round: the copy gets its own
+  element and its own live instance and keeps the source's `ObjectId`, so
+  `Frederick_P2` has 510 live step instances over 510 elements but only 435
+  distinct object ids, 67 objects carrying two instances apiece.
+
+  That matters because the running order is a chain of *object* ids. Resolving
+  it through an archive-wide object index keeps one instance per object and
+  hands both programs the same one, so 75 step elements were never walked and
+  27 protocol documents never read. **39 of the 67 pairs hold different
+  protocols**, one being `eja_svs_laser` beside `eja_svs_press` -- different
+  sequences, and the wrong one was returned. `steps_of` now resolves each
+  chain id against the program's own `Children`, which are element ids, with
+  the global index as a fallback no corpus archive needs.
+
+  The check that should have caught it was passing vacuously, and for the same
+  reason: `_step_coverage` compared *object* ids, 435 against 435, while 75
+  elements sat in no running order. It counts elements now. The earlier claim
+  had all three of its "checks" phrased in the space that hides the problem,
+  which is the general lesson -- a GUID-space error cannot be checked in the
+  space it occurs in.
 - **A step's `ParentElementId` is on the `Instance` row, not in its content.**
   Step content is a handful of injector and voice-command fields and on some
   steps is `{"$id": "1"}` alone. Reading the parent off the document therefore

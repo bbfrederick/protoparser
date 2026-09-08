@@ -68,15 +68,14 @@ def _step_coverage(archive: Archive, programs: list[Program]) -> list[str]:
     that stops early agrees with itself, so only a tally taken from the
     instance table can notice steps nothing runs.
 
-    "Exactly one" was the rule until an investigator-level export arrived, and
-    it was a property of the corpus rather than of the format: copying a
-    protocol within a directory reuses the source's step nodes for the scans
-    the copy did not change, so 67 of that file's 435 steps are run by two
-    programs or three -- ``BioTMS``/``BioTMS_old`` share 19,
-    ``multiecho_bids_test`` and its ``_small_fixed`` variant 14. The sharing is
-    real and not a confusion of GUID spaces: each is one element id, listed in
-    the ``Children`` of exactly one of its programs and parenting to that same
-    one. What still has to hold is that nothing is orphaned.
+    Counted by *element*, which is the correction that matters here. Copying
+    a protocol within a directory does not reuse the source's step node: the
+    copy gets its own element and its own instance and keeps the source's
+    ``ObjectId``, so 67 objects in the investigator export carry two live
+    step instances each. Counting object ids therefore compares 435 against
+    435 and passes while 75 step elements are in no running order at all --
+    which is precisely the state this check exists to detect, and it was
+    passing vacuously.
 
     Parameters
     ----------
@@ -90,8 +89,8 @@ def _step_coverage(archive: Archive, programs: list[Program]) -> list[str]:
     list of str
         Broken rules.
     """
-    existing = {i.object_id for i in archive.instances.values() if i.kind in STEP_KINDS}
-    seen: list[str] = [step.instance.object_id for one in programs for step in one.steps]
+    existing = {i.element_id for i in archive.instances.values() if i.kind in STEP_KINDS}
+    seen: list[str] = [step.instance.element_id for one in programs for step in one.steps]
     found = []
     orphaned = existing - set(seen)
     if orphaned:

@@ -26,7 +26,7 @@ from conftest import (  # noqa: F401  (fixtures)
     requires_paramcheck,
 )
 from siemens_protocol import exar
-from siemens_protocol.exar import archive, build, envelope, patch, store
+from siemens_protocol.exar import archive, build, envelope, inspect, patch, store
 from siemens_protocol.pipeline import parse_document
 
 #: The double that used to be the one divergence between our serializer and
@@ -1181,3 +1181,62 @@ def test_the_flag_sweep_is_not_vacuous() -> None:
             if any(str(patch.sequence_of(step.protocol)) in one.sequences for one in bits):
                 carrying += 1
     assert carrying > 300, f"only {carrying} scans run a sequence whose flags are mapped"
+
+
+@requires_exar
+def test_a_step_objectid_is_not_unique_and_the_program_decides(
+    protocol_archive_path: str,
+) -> None:
+    """Two live steps may share an ``ObjectId``, and each program gets its own.
+
+    Copying a protocol inside a directory does not reuse the source's step
+    node. The copy gets its own element and its own instance and keeps the
+    source's ``ObjectId``, so the investigator export carries 67 objects with
+    two live step instances apiece. The running order is a chain of
+    ``ObjectId``s, so resolving it through an archive-wide object index hands
+    both programs the same instance: 39 of those 67 pairs hold *different*
+    protocols -- one pair being ``eja_svs_laser`` beside ``eja_svs_press`` --
+    so the wrong scan is served and the other's protocol is never read.
+
+    Every live step must therefore be walked exactly once across all
+    programs, counted by element rather than by object.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+
+    Returns
+    -------
+    None
+    """
+    read = archive.read(protocol_archive_path)
+    live = [one for one in read.instances.values() if one.kind in archive.STEP_KINDS]
+    walked = [step.instance for one in read.programs for step in one.steps]
+    assert len(walked) == len(live)
+    assert {one.element_id for one in walked} == {one.element_id for one in live}
+    assert len({one.element_id for one in walked}) == len(walked), "a step walked twice"
+
+
+@requires_exar
+def test_shared_objectids_resolve_to_their_own_protocols() -> None:
+    """The scan whose ObjectId is shared still reads its own protocol.
+
+    The positive half of the check above, on the one corpus archive that has
+    the shape. Before the program's own ``Children`` was used to disambiguate,
+    one of these two scans was served the other's protocol.
+
+    Returns
+    -------
+    None
+    """
+    read = archive.read(find_exar("Frederick_P2.exar1"))
+    seen = {}
+    for program in read.programs:
+        for step in program.steps:
+            if step.name in ("eja_svs_laser", "eja_svs_press"):
+                seen.setdefault(step.name, set()).add(
+                    inspect.sequence_file(step.protocol).split("\\")[-1]
+                )
+    assert seen.get("eja_svs_laser") == {"eja_svs_laser"}
+    assert seen.get("eja_svs_press") == {"eja_svs_press"}
