@@ -445,13 +445,16 @@ def test_megapress_does_not_claim_a_mega_edited_semi_laser() -> None:
     assert mega.match("eja_svs_mpress", set()) is not None
 
 
-def test_deelchand_semi_laser_is_named_by_all_three_spellings() -> None:
-    # A VE11C page prints sead, a Numaris/X page slaser, an .exar1 the
-    # sequence file name svs_slaser_dkd. It is one sequence seen three ways,
-    # and the archive spelling is what makes the 421 whole-scanner scans
-    # resolve.
+def test_deelchand_semi_laser_is_named_by_all_four_spellings() -> None:
+    # A VE11C page prints sead, a Numaris/X page slaser, and the archives
+    # print the sequence file name -- of which there are two, one per release.
+    # svs_slaser_dkd is the VE11C build and dkd_svs_sLASER the XA60 one, and
+    # they split cleanly: all 422 svs_slaser_dkd protocols in the corpus need
+    # conversion, all 10 dkd_svs_sLASER ones are current. Missing the second
+    # spelling reported the *current* build as an unrecognized sequence while
+    # naming the superseded one, which is the wrong way round.
     dkd = next(s for s in default_catalog().signatures if s.id == "dkd-semilaser")
-    assert {"sead", "slaser", "svs_slaser_dkd"} == set(dkd.binaries)
+    assert {"sead", "slaser", "svs_slaser_dkd", "dkd_svs_sLASER"} == set(dkd.binaries)
 
 
 def test_a_kernel_less_scan_does_not_satisfy_a_base_binary_gate() -> None:
@@ -1026,10 +1029,51 @@ UNACCOUNTED_AFTER_LOAD = {
     ("XA60-Potpourri_P2_loadtest.json", "T01_MT_Offset_15010"),
 }
 
+#: The scanner returns, which are the one part of the corpus *built* to hold
+#: unaccounted scans: one scan per sequence the catalog cannot name, sent to a
+#: scanner and printed. So every entry here is a sequence that was already
+#: unaccounted -- shipping them changes what the corpus exercises, not what
+#: the catalog knows -- and none of the pinned scans above resolved when they
+#: arrived.
+#:
+#: They are listed per export rather than as a product, because the two files
+#: hold different sets: `CORPUS_CONSISTENT` carries every gap sequence that
+#: prints, and `GAPS_ONE_4` is one scan on its own. Attributions from the
+#: protocols' owner will empty this set from the top, one sequence at a time.
+UNACCOUNTED_RETURNS = {
+    ("XA60-scanner_returns-CORPUS_CONSISTENT.json", scan)
+    for scan in (
+        "BEAT",
+        "NoiseSensitivityMap",
+        "can_neuromelanin",
+        "can_neuromelanin_pk",
+        "csi_fid",
+        "csi_slaser",
+        "csi_st",
+        "eja_csi_fid",
+        "eja_fid",
+        "ep2d_bold_MGH",
+        "ep2d_bold_mgh",
+        "ep2d_diff_mgh",
+        "ep2d_se_sms_mgh",
+        "ep_seg_se",
+        "fid",
+        "fl3d_rd",
+        "fl_pc",
+        "haste",
+        "petra",
+        "space",
+        "tse_MDME",
+        "tse_dixon",
+        "twist",
+    )
+} | {("XA60-scanner_returns-GAPS_ONE_4.json", "csi_fid")}
+
 UNACCOUNTED = (
     {(export, scan) for export in UNACCOUNTED_EXPORTS for scan in UNACCOUNTED_SCANS}
     | UNACCOUNTED_ELSEWHERE
     | UNACCOUNTED_AFTER_LOAD
+    | UNACCOUNTED_RETURNS
 )
 
 #: Snapshots from the investigator-level export, which is a bulk import rather

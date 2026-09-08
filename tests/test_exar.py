@@ -416,6 +416,20 @@ def test_protocol_previews_carry_the_labels_the_pdf_prints(archive_path: str) ->
     That map is what lets a PDF value be located in the protocol without a
     hand-written table for every parameter.
 
+    Two rules the scanner returns established, neither a special case:
+
+    A protocol may carry an *empty* ``Preview``, and only one that needs
+    conversion does -- 24 of 24 empty ones across 973 corpus protocols carry
+    ``sProtConsistencyInfo.tBaselineString = "ConversionNeeded"``, and none of
+    the 928 current protocols is empty. So the emptiness is asserted to imply
+    staleness rather than merely tolerated, which makes this stricter than
+    demanding a preview outright: an unexplained empty map now fails.
+
+    And the repetition time is labelled ``TR 1`` where a sequence has more
+    than one, exactly as a multi-echo scan prints ``TE 1``..``TE 4`` and no
+    bare ``TE``. ``petra`` and ``WIP_epsi`` do this, so the lookup follows the
+    printout rather than the two being excused.
+
     Parameters
     ----------
     archive_path : str
@@ -429,10 +443,19 @@ def test_protocol_previews_carry_the_labels_the_pdf_prints(archive_path: str) ->
         if not step.runs_a_protocol:
             continue
         entries = step.protocol.preview
-        assert entries
         assert "$id" not in entries
-        matched = step.protocol.by_label("TR")
-        assert matched, f"{step.name} has no TR preview entry"
+        if not entries:
+            stale = patch.read_ascconv(
+                step.protocol.xprotocol, "sProtConsistencyInfo.tBaselineString"
+            )
+            assert (stale or "").strip(
+                '"'
+            ) == "ConversionNeeded", (
+                f"{step.name} has an empty Preview but is not awaiting conversion"
+            )
+            continue
+        matched = step.protocol.by_label("TR") or step.protocol.by_label("TR 1")
+        assert matched, f"{step.name} has neither a TR nor a TR 1 preview entry"
         assert matched[0].unit == "ms"
         assert isinstance(matched[0].value, (int, float))
 

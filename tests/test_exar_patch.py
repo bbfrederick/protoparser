@@ -38,7 +38,9 @@ from conftest import (  # noqa: F401
     requires_exar,
     requires_paramcheck,
 )
-from siemens_protocol.exar import build, envelope, patch, read
+from siemens_protocol.exar import build, envelope
+from siemens_protocol.exar import inspect as ins
+from siemens_protocol.exar import patch, read
 from siemens_protocol.exar.archive import Protocol
 from siemens_protocol.pipeline import parse_document
 
@@ -1697,13 +1699,19 @@ _CARDINAL = {
 }
 
 
-def _normal_from_printed(orientation: str) -> tuple[float, float, float] | None:
+def _normal_from_printed(
+    orientation: str, swap: bool = False
+) -> tuple[float, float, float] | None:
     """Predict the slice normal from the orientation a printout names.
 
     Parameters
     ----------
     orientation : str
         The printed orientation, for example ``T > S15.0 > C10.0``.
+    swap : bool, optional
+        Compose the two tilts in the other order. Only a test of whether a
+        given scan *could* tell the orders apart uses this; the established
+        form is the default.
 
     Returns
     -------
@@ -1719,6 +1727,12 @@ def _normal_from_printed(orientation: str) -> tuple[float, float, float] | None:
     angles = dict(re.findall(r"([SC])(-?\d+\.?\d*)", text))
     sag = math.radians(float(angles.get("S", 0.0)))
     cor = math.radians(float(angles.get("C", 0.0)))
+    if swap:
+        return (
+            -math.sin(sag),
+            -math.sin(cor) * math.cos(sag),
+            math.cos(sag) * math.cos(cor),
+        )
     return (
         -math.sin(sag) * math.cos(cor),
         -math.sin(cor),
@@ -1740,27 +1754,61 @@ def test_the_slice_normal_follows_from_the_printed_orientation() -> None:
     the only scan whose printed orientation disagrees with its stored normal,
     which is a symptom of that rather than of this formula.
 
+    Single-voxel spectroscopy is excluded too, on the same grounds as the
+    printed ``Position``: what such a scan prints is its *volume of interest*,
+    a different object from the slice group. Of the 21 in the corpus, 10 print
+    ``Coronal`` against a stored transversal normal and the other 11 print
+    ``Transversal``, which matches only because ``(0, 0, 1)`` is what an
+    unused slice normal already holds. Not one of them is evidence for this
+    formula, and keeping the agreeing half while dropping the rest would be
+    counting a coincidence as a confirmation.
+
+    The tolerance follows the *printed* precision rather than being a fixed
+    number. Angles are printed to a tenth of a degree, so a scan whose true
+    tilt is off that grid predicts a normal up to ``radians(0.05)`` per angle
+    away from the stored one -- 8.7e-4, which a flat 2e-4 bound treated as a
+    failure. `tgse_asl` at ``T > C7.0 > S0.8`` sits 5.9e-4 out for exactly
+    that reason and is the only one of 421 comparisons above 2e-4; every
+    other agrees to 1.4e-6 or better.
+
+    Widening cannot hide a wrong composition order, which is what the bound
+    is protecting. On `extravals` X08, ``T > S15.0 > C10.0``, the two orders
+    differ by 7.1e-3, four times the allowance at two tilts. What the slack
+    does cost is `tgse_asl` itself as evidence: with tilts of 7 and 0.8
+    degrees its two orders differ by 1.0e-4, *below* the allowance, so that
+    scan could never have settled the order either way. X08 remains the only
+    scan that can, which is what the note in CLAUDE.md already says.
+
     Returns
     -------
     None
     """
     axes = ("dSag", "dCor", "dTra")
     pairs = [(a, "") for a, _p in PARAMCHECK_PAIRS] + list(EXAR_PROTOCOL_FILES)
-    agreed, obliques = 0, 0
+    agreed, obliques, discriminating = 0, 0, 0
     for path, _rest in pairs:
         pdf = os.path.splitext(path)[0] + ".pdf"
         if not os.path.exists(pdf):
             continue
-        printed = {s["name"]: _printed(s) for s in parse_document(pdf).protocol.to_dict()["scans"]}
-        for step in read(path).steps:
-            if not step.runs_a_protocol or step.name == "SPECIAL_ACC":
+        # Drop names that are not unique before joining. `Keto MRS` prints
+        # five scans called `fastestmap`, and a {name: printed} dict keeps
+        # only the last, and then pairs every stored copy with it -- which is
+        # how a printed `Coronal` came to be compared against a different
+        # scan's transversal normal. Repeating a name is ordinary: an option
+        # scan runs thirty copies of one sequence and `Keto MRS` prints
+        # `fastestmap` five times, so the copies are paired in running order,
+        # which both sides preserve.
+        archive = read(path)
+        shown_all = parse_document(pdf).protocol.to_dict()["scans"]
+        for step, scan in build.pair_scans(archive.steps, shown_all):
+            if step.name == "SPECIAL_ACC":
                 continue
-            shown = printed.get(step.name)
+            header = scan["header"]
+            if header.get("voi_mm") and not header.get("voxel_size_mm"):
+                continue
+            shown = _printed(scan)
             text = step.protocol.xprotocol
-            if (
-                shown is None
-                or patch.read_ascconv(text, "sSliceArray.asSlice[0].sNormal.dTra") is None
-            ):
+            if patch.read_ascconv(text, "sSliceArray.asSlice[0].sNormal.dTra") is None:
                 continue
             wanted = _normal_from_printed(str(shown.get("Orientation", "")))
             if wanted is None:
@@ -1769,33 +1817,112 @@ def test_the_slice_normal_follows_from_the_printed_orientation() -> None:
                 float(patch.read_ascconv(text, f"sSliceArray.asSlice[0].sNormal.{a}") or 0.0)
                 for a in axes
             ]
-            assert math.dist(stored, wanted) < 2e-4, (
+            # Half a printed step per tilt, plus room for the stored value's
+            # own rounding on a cardinal orientation.
+            tilts = str(shown.get("Orientation", "")).count(">")
+            allowed = 2e-5 + math.radians(0.05) * tilts
+            assert math.dist(stored, wanted) < allowed, (
                 f"{os.path.basename(path)}/{step.name}: printed "
                 f"{shown.get('Orientation')!r} predicts {wanted} but stored {stored}"
             )
             agreed += 1
-            obliques += str(shown.get("Orientation", "")).count(">") > 1
+            if tilts > 1:
+                obliques += 1
+                other = _normal_from_printed(str(shown.get("Orientation", "")), swap=True)
+                if other is not None and math.dist(wanted, other) > allowed:
+                    discriminating += 1
     assert agreed > 250, f"only {agreed} scans compared"
     assert obliques, "no double-oblique scan, so the composition order is unexercised"
+    # A double oblique only settles the order if its tilts are large enough
+    # for the two orders to differ by more than the printed precision allows.
+    # tgse_asl's are not, so its presence must not be read as evidence.
+    assert discriminating, (
+        "every double oblique has tilts too small to separate the two "
+        "composition orders, so the order is unexercised"
+    )
 
 
-#: Archive/PDF pairs where driving an archive from its own printout writes
-#: something, with the reason. Both are the printout and the storage
-#: legitimately disagreeing rather than a mapping being wrong, and both are
-#: named so a *third* one fails rather than joining them quietly.
-SELF_DRIVE_EXCEPTIONS = {
+#: Individual writes to tolerate when an archive is driven from its own
+#: printout, as ``archive -> {"scan: label"}``. An empty set means every write
+#: in that archive is excused; anything else names them one by one, so a
+#: *different* write in the same archive still fails rather than hiding behind
+#: a file-level exemption.
+#:
+#: Every entry is the printout and the storage legitimately disagreeing, not a
+#: mapping being wrong. Two mechanisms account for all of them: the console
+#: quantises a value to something the hardware can realise and prints the
+#: rounded result -- ``FOV Phase`` as a ratio of the read FOV, ``Distance
+#: Factor`` in thirty-seconds -- and a spectroscopy scan prints a different
+#: quantity under ``FOV Phase`` altogether.
+SELF_DRIVE_EXCEPTIONS: dict[str, set[str]] = {
     # Returned from a scanner: an off-grid value is stored faithfully and
     # displayed snapped, so MT Flip Angle 371 prints as 370 and driving the
     # archive from that printout writes the snapped number back.
-    "Potpourri_P1_loadtest.exar1",
-    "Potpourri_P2_loadtest.exar1",
-    "CMRR_optionscan_P1_loadtest.exar1",
-    "NAV_optionscan_P1_loadtest.exar1",
+    "Potpourri_P1_loadtest.exar1": set(),
+    "Potpourri_P2_loadtest.exar1": set(),
+    "CMRR_optionscan_P1_loadtest.exar1": set(),
+    "NAV_optionscan_P1_loadtest.exar1": set(),
     # A spectroscopy scan prints 400 under "FOV Phase" where the stored ratio
     # is 100% of a 400 mm read FOV -- the label carries a different quantity
     # there, which is the same trap as the printed Position.
-    "31P CSI 20230503 NOE.exar1",
+    "31P CSI 20230503 NOE.exar1": set(),
+    # BEAT prints a distance factor of -22 % against a stored -0.21875, seven
+    # thirty-seconds: the console quantises it and prints the rounded result,
+    # the same mechanism FOV Phase shows. It is also the corpus's only
+    # negative distance factor, so its slices overlap.
+    "CORPUS_CONSISTENT.exar1": {"BEAT: Distance Factor"},
 }
+
+#: Labels that name a *volume of interest* on a chemical-shift imaging scan
+#: rather than a slice geometry, so the printed number is not the quantity
+#: the mapping stores and driving the scan from its own printout writes.
+#: Already recorded for `31P CSI`'s ``FOV Phase``; the scanner returns show
+#: it across nine CSI and EPSI kernels and on ``Slice Thickness`` too.
+VOI_LABELS = frozenset({"FOV Phase", "Slice Thickness"})
+
+#: The kernels that print those labels as VoI dimensions. Named rather than
+#: matched on a substring: ``EPSI`` and ``csi`` share no spelling, and a rule
+#: written to cover both by pattern would quietly excuse anything.
+VOI_KERNELS = frozenset(
+    {
+        "ZPL_RG_EPSI_SE_v1b",
+        "ZPL_RG_EPSI_FID_v1h",
+        "ZPL_RG_EPSI_FID_v2e",
+        "csi_fid",
+        "csi_se",
+        "csi_slaser",
+        "csi_st",
+        "eja_csi_fid",
+        "eja_csi_laser",
+        "eja_csi_mslaser",
+        "eja_csi_press",
+        "eja_csi_slaser",
+    }
+)
+
+
+def _is_voi_dimension(step: object, label: str) -> bool:
+    """Whether this write is a CSI scan's VoI printed under a slice label.
+
+    Parameters
+    ----------
+    step : Step or None
+        The step the write landed on, or ``None`` if it cannot be resolved.
+    label : str
+        The printed label written.
+
+    Returns
+    -------
+    bool
+        True when the label names a volume of interest rather than a slice.
+    """
+    if step is None or label not in VOI_LABELS:
+        return False
+    try:
+        kernel = ins.sequence_file(step.protocol).rsplit("\\", 1)[-1]
+    except Exception:
+        return False
+    return kernel in VOI_KERNELS
 
 
 @requires_exar
@@ -1825,14 +1952,22 @@ def test_driving_every_console_archive_from_its_own_pdf_writes_nothing() -> None
     for path, _version in EXAR_PROTOCOL_FILES:
         pdf = os.path.splitext(path)[0] + ".pdf"
         name = os.path.basename(path)
-        if not os.path.exists(pdf) or name in SELF_DRIVE_EXCEPTIONS:
+        allowed = SELF_DRIVE_EXCEPTIONS.get(name)
+        if not os.path.exists(pdf) or (allowed is not None and not allowed):
             continue
         archive = read(path)
         report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict())
         if not report.matched:
             continue
         checked += 1
-        written = [one for one in report.applied if build._moved(one)]
+        steps = {one.name: one for one in archive.steps}
+        written = [
+            one
+            for one in report.applied
+            if build._moved(one)
+            and f"{one.step}: {one.label}" not in (allowed or set())
+            and not _is_voi_dimension(steps.get(one.step), one.label)
+        ]
         if written:
             offenders.append((name, [f"{o.step}: {o.label}" for o in written[:3]]))
     assert checked >= 10, f"only {checked} pairs self-driven; this proves little"

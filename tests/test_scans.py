@@ -20,6 +20,11 @@ from siemens_protocol.profiles import REGISTRY
 from siemens_protocol.profiles.base import SIZE_FIELDS
 from siemens_protocol.split import HeaderBox, in_contents_listing
 
+#: The one kernel that may print no spatial extent. An unlocalized FID has
+#: neither a slice nor a voxel; the CSI sequences built on the same kernel do
+#: print one, so this exempts the acquisition rather than the kernel's name.
+UNLOCALIZED_KERNEL = "fid"
+
 #: Hand-checked scan counts, one per example file.
 EXPECTED_SCAN_COUNT = {
     # VB17A counts are cross-checked against the number of "TA:" summary
@@ -415,7 +420,16 @@ def test_every_scan_reports_a_spatial_extent(
     """Each scan records either a voxel size or a volume of interest.
 
     Both are printed in the header box by every release, so a scan carrying
-    neither means the line was parsed with the wrong grammar.
+    neither usually means the line was parsed with the wrong grammar.
+
+    One kernel genuinely prints neither. An unlocalized FID has no slice and
+    no voxel to report, so ``eja_fid`` and ``fid`` print a header with a
+    ``TA``, a coil selection, a relative SNR and a sequence, and no extent at
+    all. They are the only two such scans in 1426, and both run the ``fid``
+    kernel -- while ``eja_csi_fid``, which runs it *with* phase encoding,
+    prints a voxel size like anything else. So the exemption is the kernel
+    rather than the two scan names, and a scan on any other kernel losing its
+    extent still fails, which is the parse failure this is here to catch.
 
     Parameters
     ----------
@@ -434,6 +448,7 @@ def test_every_scan_reports_a_spatial_extent(
         scan.name
         for scan in parsed(pdf).protocol.scans
         if not any(scan.header.get(key) for key in SIZE_FIELDS)
+        and scan.header.get("sequence") != UNLOCALIZED_KERNEL
     ]
     assert not missing, f"scans with neither a voxel size nor a VoI: {missing}"
 

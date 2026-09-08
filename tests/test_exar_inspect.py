@@ -458,6 +458,33 @@ KNOWN_PROT_DISAGREEMENTS = {
     ("NAV_optionscan_P1_loadtest.exar1", "T19_ABCD_navigator_Off"),
 }
 
+#: The vNav *setter* binaries, which configure a navigator rather than run
+#: one. Neither carries ``sWipMemBlock.alFree[15]`` on any corpus scan --
+#: `ep_moco_nav_set` on 7, `ep_moco_nav_set_ABCD` on 144 -- so a `.prot` name
+#: on one of these says which vNav it sets up, not anything about a flag.
+SETTER_BINARIES = ("ep_moco_nav_set", "ep_moco_nav_set_ABCD")
+
+
+def base_binary(protocol: object) -> str:
+    """The sequence binary a protocol runs, without prefix or subdirectory.
+
+    ``tSequenceFileName`` may carry a subdirectory under the owner prefix --
+    ``%CustomerSeq%\\MGH_Moco\\ep_moco_nav_set`` -- so the last component is
+    the binary and a prefix test on the whole field is not.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to read.
+
+    Returns
+    -------
+    str
+        The binary name.
+    """
+    return ins.sequence_file(protocol).rsplit("\\", 1)[-1]
+
+
 #: The ``.prot`` name each ``alFree[15]`` value pairs with on the navigators.
 PROT_FOR_FLAG = {"2": "_ABCD_", "1": "Prisma_epi_moco_navigator.prot"}
 
@@ -497,11 +524,18 @@ def test_the_navigator_prot_name_tracks_its_flag_on_console_authored_scans(
             continue
         flag = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[15]")
         if flag is None:
-            # The setter carries no such flag on any corpus scan, so its name
-            # says which vNav it configures rather than anything about a flag.
-            assert ins.sequence_file(step.protocol).endswith("ep_moco_nav_set_ABCD"), (
-                f"::error::{name}: {step.name} writes a .prot name with no alFree[15] "
-                "and is not the setter, which the rule does not cover"
+            # ``alFree[15]`` is an ABCD-generation field. Every navigator
+            # whose binary ends `_ABCD` carries it -- space_mgh_epinav_ABCD,
+            # tfl_mgh_epinav_ABCD, tse_vfl_mgh_epinav_ABCD, 226 scans with no
+            # exception -- and the older navigators never do:
+            # tfl_mgh_multiecho_epinav, tfl_multiecho_epinav_711 and
+            # tse_vfl_mgh_epinav write a `.prot` name with no flag at all.
+            # Both setters are outside it whatever they are called, the
+            # `_ABCD` one included, so being a setter is checked first.
+            binary = base_binary(step.protocol)
+            assert binary in SETTER_BINARIES or not binary.endswith("_ABCD"), (
+                f"::error::{name}: {step.name} runs {binary}, an ABCD navigator "
+                "writing a .prot name with no alFree[15], which the rule does not cover"
             )
             continue
         expected = PROT_FOR_FLAG.get(flag.strip())

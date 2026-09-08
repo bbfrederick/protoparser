@@ -1291,6 +1291,74 @@ the two consistent.
   This also separates the two failure modes. `blade`, `ciss` and `medic` --
   the three that stop a program building outright -- carry no
   `tBaselineString` at all, so whatever refuses them is not conversion.
+- **A repeated scan name is ordinary, not a hazard to route around.** An
+  option scan runs thirty copies of one sequence, `Keto MRS` prints
+  `fastestmap` five times, and `MEMPRAGE_optionscan` repeats its name six
+  times over seven scans. Earlier notes here said to *drop* names that are
+  not unique before joining a printout to an archive; that was a workaround
+  and it silently discarded real scans. **Pair them instead**: group by name
+  and zip the groups in running order, which both sides preserve.
+  `build.pair_scans` is that rule in one place, and `apply_protocol` already
+  worked this way -- the tests were the half still dropping duplicates, which
+  is how a printed `Coronal` came to be compared against a *different*
+  scan's stored normal.
+
+  A group whose two sides differ in length is still skipped rather than
+  guessed at. That is the scanner-return case -- the printouts were taken
+  after the inconsistent scans were deleted, so the PDF is a subset -- and
+  choosing which stored copy a printed one refers to would write one scan's
+  values into another. Positional pairing across the whole list is *not* the
+  fallback: `geomopts` prints 27 scans against 26 steps.
+- **The `Sequence` card belongs to the binary, so a label printed only there
+  is sequence-private.** `Keto MRS`'s spectroscopy scans print
+  `Measurements` on `Sequence - Common` and `Sequence - Special` reading 9,
+  counting transients, while `lRepetitions` is absent -- one measurement.
+  That is a different parameter from the `Measurements` a Contrast, Inline or
+  BOLD card prints, which is the one `lRepetitions` stores, and the driver
+  was writing the first into the second. `build.sequence_card_only` refuses
+  a general mapping for such a label; only a mapping scoped to `sequences`
+  may claim one. Exactly one label is affected across the corpus, on 76
+  scans, so this excludes a genuine collision rather than a class.
+
+  Note the shape: `Sequence - Special` is a *page* of the `Sequence` card, so
+  the Special-card rule and this one are the same rule. It is the flattening
+  trap the `Position` note describes, met a third time.
+- **An empty `Preview` means the protocol is awaiting conversion.** 24 of 24
+  empty ones across 973 corpus protocols carry `ConversionNeeded`, and none
+  of the 928 current protocols is empty. So the test asserts emptiness
+  *implies* staleness rather than tolerating it, which is stricter than
+  demanding a preview outright.
+- **Three printout readings the wider corpus corrected.** A sequence with
+  more than one repetition time prints `TR 1` and no bare `TR`, exactly as a
+  multi-echo scan prints `TE 1`..`TE 4`. An unlocalized FID prints neither a
+  voxel size nor a VoI -- `eja_fid` and `fid` are the only two such scans in
+  1426, and `eja_csi_fid`, the same kernel with phase encoding, prints a
+  voxel like anything else. And an acquisition time can run to hours:
+  `1:42:33 h`, which the clock pattern had anticipated as `1:02:03` while
+  allowing only `min` after it.
+- **`sWipMemBlock.alFree[15]` is an ABCD-generation field.** Every navigator
+  whose binary ends `_ABCD` carries it -- 226 scans, no exception -- and the
+  older ones never do: `tfl_mgh_multiecho_epinav`, `tfl_multiecho_epinav_711`
+  and `tse_vfl_mgh_epinav` write a `.prot` name with no flag at all. Both
+  setters are outside it whatever they are called, `ep_moco_nav_set` beside
+  `ep_moco_nav_set_ABCD`. The rule was previously written as "must be the
+  setter", which was true of a narrower corpus.
+- **The printed orientation of a single-voxel spectroscopy scan describes its
+  VoI, not a slice.** Of the 21 in the corpus, 10 print `Coronal` against a
+  stored transversal normal and 11 print `Transversal`, which matches only
+  because `(0, 0, 1)` is what an unused slice normal already holds -- so not
+  one is evidence for the normal formula, and keeping the agreeing half would
+  count a coincidence as a confirmation. Same object confusion as the printed
+  `Position`.
+
+  The tolerance on that formula now follows the *printed* precision rather
+  than being a fixed number: angles print to a tenth of a degree, so a
+  prediction may sit `radians(0.05)` per tilt away. `tgse_asl` at
+  `T > C7.0 > S0.8` is 5.9e-4 out for that reason and was the only one of 421
+  comparisons above the old 2e-4 bound. Widening cannot hide a wrong
+  composition order -- on `extravals` X08 the two orders differ by 7.1e-3 --
+  but it does cost `tgse_asl` as evidence, since its own two orders differ by
+  1.0e-4, below the allowance. X08 remains the only scan that can settle it.
 - **Choose an exemplar by baseline, not by which export is shipped.** When one
   sequence has several copies in the corpus, the copy to keep is the one
   needing no conversion -- `sProtConsistencyInfo.tBaselineString` absent

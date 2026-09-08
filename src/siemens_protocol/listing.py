@@ -26,10 +26,18 @@ from .sequences import STOCK, THIRD_PARTY, UNRECOGNIZED, default_catalog, identi
 #: reader moving between the two commands reads the same symbols.
 _VERDICT_MARK = {THIRD_PARTY: "*", UNRECOGNIZED: "?", STOCK: " "}
 
-#: ``6:02 min``, ``6:02``, and defensively ``1:02:03`` -- a colon-separated
-#: clock, optionally followed by a unit word that adds nothing.
+#: ``6:02 min``, ``6:02``, ``1:42:33 h`` -- a colon-separated clock,
+#: optionally followed by a unit word that adds nothing to the digits.
+#:
+#: The three-field form was written defensively before anything printed one.
+#: It arrived with an `eja_csi_fid` CSI scan at ``1:42:33 h``, and the guess
+#: was half right: the clock matched and the trailing ``h`` did not, because
+#: only ``min`` and ``m`` were allowed there. A scan over an hour is rare
+#: enough that the gap survived 973 protocols, and the printed banner is the
+#: only place the total comes from, so an unreadable one drops that scan out
+#: of the sum rather than failing loudly.
 _CLOCK_RE = re.compile(
-    r"^(?:(?P<h>\d+):)?(?P<m>\d+):(?P<s>\d{1,2})(?:\s*(?:min|m))?$",
+    r"^(?:(?P<h>\d+):)?(?P<m>\d+):(?P<s>\d{1,2})(?:\s*(?:mins|min|m|hours|hrs|hr|h))?$",
     re.IGNORECASE,
 )
 #: ``9 sec``, ``8.0 s``, ``90 ms``, ``7 min`` -- a bare number plus a unit.
