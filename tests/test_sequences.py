@@ -17,7 +17,14 @@ from pathlib import Path
 
 import pytest
 
-from conftest import GOLDEN, ParseFixture, find_example, requires_examples
+from conftest import (
+    EXAR_PROTOCOL_FILES,
+    GOLDEN,
+    ParseFixture,
+    find_example,
+    requires_examples,
+    requires_exar,
+)
 from siemens_protocol.cli import main
 from siemens_protocol.sequences import (
     FLAGGED,
@@ -1167,3 +1174,50 @@ def test_no_family_in_any_report_starts_with_a_separator() -> None:
         text = render(protocol, identify_protocol(protocol, catalog))
         for line in text.splitlines():
             assert not line.startswith("  - --"), f"{name}: {line}"
+
+
+@requires_exar
+def test_a_renamed_binary_splits_cleanly_by_release() -> None:
+    """Deelchand's semi-LASER is one sequence under two binary names.
+
+    `svs_slaser_dkd` is the VE11C build and `dkd_svs_sLASER` the XA60 one, so
+    an XA60 save of this sequence is named the second. The split is what says
+    it is a rename rather than two sequences: every protocol under the old
+    name carries ``sProtConsistencyInfo.tBaselineString = "ConversionNeeded"``
+    and every one under the new name is current, with nothing on either side
+    against.
+
+    It matters beyond the catalog because an exemplar search keyed on the
+    binary concluded this sequence had no current copy anywhere and that none
+    of its protocols had ever been re-saved. Both are false: they were
+    re-saved under the other spelling. A search must therefore ask which
+    binaries are one sequence before deciding none is current.
+
+    A current protocol appearing under the old name would break the account,
+    which is why the assertion is two-sided rather than a count.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import archive as exar_archive
+    from siemens_protocol.exar import inspect as exar_inspect
+    from siemens_protocol.exar import patch as exar_patch
+
+    key = "sProtConsistencyInfo.tBaselineString"
+    seen: dict[str, set[bool]] = {"svs_slaser_dkd": set(), "dkd_svs_sLASER": set()}
+    for path, _version in EXAR_PROTOCOL_FILES:
+        for step in exar_archive.read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            binary = exar_inspect.sequence_file(step.protocol).rsplit("\\", 1)[-1]
+            if binary not in seen:
+                continue
+            stale = exar_patch.read_ascconv(step.protocol.xprotocol, key)
+            seen[binary].add((stale or "").strip('"') == "ConversionNeeded")
+
+    assert seen["svs_slaser_dkd"] == {True}, "a current protocol under the old name"
+    assert seen["dkd_svs_sLASER"] == {False}, "a stale protocol under the new name"
+
+    named = next(s for s in default_catalog().signatures if s.id == "dkd-semilaser")
+    assert {"svs_slaser_dkd", "dkd_svs_sLASER"} <= set(named.binaries)

@@ -1374,13 +1374,20 @@ the two consistent.
   prefer-a-shipped-donor rule chose a stale one and that scan was greyed out.
   Everything else is already the best available.
 
-  What the sweep also settles is that most of the greyed-out set cannot be
-  rescued this way: 42 sequences have *no* current copy anywhere, including
-  `svs_slaser_dkd` at **421 of 421** copies needing conversion, on a sequence
-  the owner confirms is installed and working. So this centre's protocols for
-  it all predate XA60 and none was ever re-saved. A better exemplar cannot be
-  chosen where none exists, and the fix for those is a fresh save on the
-  scanner rather than a better search.
+  **Choose it per sequence, not per binary name**, because a binary can be
+  renamed between releases. This file said 42 sequences have no current copy
+  anywhere, `svs_slaser_dkd` among them at 422 of 422 needing conversion, and
+  concluded that none of this centre's protocols for it was ever re-saved.
+  That was wrong, and wrong in the way a binary-keyed sweep always will be:
+  the sequence *was* re-saved, under `dkd_svs_sLASER`, which is what an XA60
+  console writes. Grouping the corpus by sequence identity rather than by
+  spelling gives **41**, and `dkd-semilaser` is the one signature whose
+  binaries split that way -- 14 current under the new name, 0 under the old.
+
+  So an exemplar search must ask the catalog which binaries are one sequence
+  before concluding that none is current. For the remaining 41 there is
+  genuinely no current copy and the fix is a fresh save on the scanner, but
+  "no current copy of this *binary*" is never that finding on its own.
 - **The owner's account of the greyed-out catalogued sequences, and what the
   archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
   `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at
@@ -1391,10 +1398,15 @@ the two consistent.
 
   `ConversionNeeded` covers all six, which resolves the puzzle without
   contradicting him: the *protocol* is stale even where the *sequence* is
-  current. `svs_slaser_dkd` runs 421 corpus scans and its sequence is
+  current. `svs_slaser_dkd` runs 422 corpus scans and its sequence is
   installed -- what fails is this protocol, saved under an older baseline and
   never converted. Do not read a greyed-out scan as evidence its sequence is
   missing.
+
+  For this one the sequence is not merely installed, it is *re-saved and in
+  the corpus* under `dkd_svs_sLASER`. The binary was renamed between
+  releases, so the two spellings are one sequence and the current protocols
+  are filed under the name the old sweep was not looking for.
 - **A catalogued sequence can be greyed out too, and six of twenty-one were.**
   `ZPL_RG_EPSI_FID_v1h`, `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb`,
   `ep2d_se_VASO`, `mjd_mclean_flipback` and `svs_slaser_dkd` all carry catalog
