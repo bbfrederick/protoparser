@@ -478,6 +478,49 @@ def test_a_protocol_without_the_field_is_skipped_not_invented() -> None:
     assert "no sub.0.msr.ips" in skipped[0].reason
 
 
+@requires_exar
+def test_a_choice_the_sequence_shows_for_an_absent_element_is_not_rewritten() -> None:
+    """Asking for the default of an unset element writes nothing.
+
+    A ``sWipMemBlock`` array omits an element nobody has set, and the sequence
+    then supplies its own default -- which need not be the choice stored as
+    zero. The navigator setter in ``allcustomer_20260909`` prints
+    ``Protocol filename: Generic`` with no ``alFree[1]`` at all, while every
+    setter in the corpus that stores a value stores 1 for Generic. So the two
+    states display the same thing, and writing the number into the second
+    would change bytes without changing the card.
+
+    The write itself must still happen when the protocol holds a *different*
+    choice, which is the other half of this test: absence is a second spelling
+    of Generic, not a licence to skip the mapping.
+
+    Returns
+    -------
+    None
+    """
+    default = next(
+        s
+        for s in read(find_exar("allcustomer_20260909.exar1")).steps
+        if s.name == "ep_moco_nav_set_ABCD"
+    )
+    assert patch.read_ascconv(default.protocol.xprotocol, "sWipMemBlock.alFree[1]") is None
+    document, applied, skipped = patch.patch_document(
+        default.protocol, {"Protocol filename": "Generic"}
+    )
+    assert not skipped
+    assert [(a.ascconv_previous, a.ascconv_value) for a in applied] == [("(absent)", "(absent)")]
+    assert document["Data"] == default.protocol.xprotocol
+
+    other = next(
+        s
+        for s in read(find_exar("Potpourri_P1.exar1")).steps
+        if s.name == "ABCD_T2w_SPC_vNav_setter"
+    )
+    _, applied, skipped = patch.patch_document(other.protocol, {"Protocol filename": "Generic"})
+    assert not skipped
+    assert [(a.ascconv_previous, a.ascconv_value) for a in applied] == [("3", "1")]
+
+
 # --------------------------------------------------------------------------
 # The container: re-addressing, and leaving untouched content alone
 # --------------------------------------------------------------------------
@@ -1569,6 +1612,12 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
     stored 2 in two such scans, because the navigator was switched off by a
     different field.
 
+    An absent assignment has two legitimate readings and no others. A sparse
+    array leaves out an element holding zero, so absence is zero; and where
+    the sequence supplies a default for an element nobody set, absence is the
+    choice ``Mapping.absent_choice`` names -- ``Protocol filename`` shows
+    ``Generic`` that way, which is stored as ``1`` whenever it is stored.
+
     Returns
     -------
     None
@@ -1602,9 +1651,17 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
                 stored = (
                     patch.read_ascconv(step.protocol.xprotocol, targets[0][0]) if targets else None
                 )
-                got = 0 if stored is None else int(str(stored), 0)
                 checked += 1
-                if got != wanted:
+                if stored is None:
+                    # A sparse array omits an element holding zero, so an
+                    # absent assignment reads as zero -- and, where the
+                    # sequence supplies a default instead, as the choice
+                    # `absent_choice` names. Both are legitimate; anything
+                    # else is a table that disagrees with the console.
+                    if wanted != 0 and not patch.displays_when_absent(mapping, float(wanted)):
+                        wrong.append(f"{step.name}: {mapping.label}={shown!r} stored nothing")
+                    continue
+                if int(str(stored), 0) != wanted:
                     wrong.append(f"{step.name}: {mapping.label}={shown!r} stored {stored}")
     assert checked > 500, f"only {checked} choices compared; this proves little"
     assert not wrong, f"choices disagree with the corpus: {wrong[:5]}"

@@ -261,10 +261,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "STEAM spectroscopy (Auerbach)",
-        "signature": "cmrr-steam",
+        "family": "diffusion-weighted STEAM spectroscopy (Auerbach)",
+        "signature": "cmrr-steam-diff",
         "evidence": [
-          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping, Diffusion weighting"
         ],
         "special_parameters": 37
       },
@@ -6378,10 +6378,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "PRESS spectroscopy (Auerbach)",
-        "signature": "cmrr-press",
+        "family": "diffusion-weighted PRESS spectroscopy (Auerbach)",
+        "signature": "cmrr-press-diff",
         "evidence": [
-          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping, Diffusion weighting"
         ],
         "special_parameters": 39
       },
@@ -6563,12 +6563,12 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy (Auerbach)",
-        "signature": "cmrr-semilaser",
+        "family": "diffusion-weighted semi-LASER single-voxel spectroscopy (Auerbach)",
+        "signature": "cmrr-semilaser-diff",
         "evidence": [
           "prints no Scan Res. A >> P",
           "prints no Scan Res. R >> L",
-          "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses"
+          "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses, Diffusion weighting"
         ],
         "special_parameters": 41
       },

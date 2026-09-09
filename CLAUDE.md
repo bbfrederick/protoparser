@@ -336,11 +336,12 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   at 1 that both entries claimed, on a value neither the corpus nor the owner
   rules out.
 
-  The eja spectroscopy suite now runs to eight sequences over six kernels, and
+  The eja spectroscopy suite now runs to eleven sequences over six kernels, and
   it is where each clause earns its place: `slasr` splits single voxel from CSI
   by the phase-encoding matrix, `press`/`laser`/`steam`/`mslsr`/`mpres` split
-  by kernel, and MEGA-semi-LASER against MEGA-PRESS splits by a card carrying
-  one label from each of the two techniques its name names.
+  by kernel, MEGA-semi-LASER against MEGA-PRESS splits by a card carrying
+  one label from each of the two techniques its name names, and the three
+  diffusion-weighted builds split from their parents on one label.
 
   **The card names the author and the kernel names the technique, and neither
   is sufficient.** 22 labels -- the VAPOR delays, the spoiler and timing
@@ -377,6 +378,48 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   and let it sit unverified. It is recorded here so the attribution is not
   lost while the example is missing. The same applies to `eja_svs_press_diff`
   and `eja_svs_steam_diff`, which sit beside it unnamed.
+
+  **That blocker is lifted and the three entries are written.** All three run
+  in `scanner_returns/CORPUS_CONSISTENT.exar1` and again in
+  `allcustomer_20260909`, the second with a printout beside it -- which is
+  what a card fingerprint needs, since an archive prints no cards at all.
+- **A diffusion-weighted eja build is its parent plus one label, and no
+  card.** `cmrr-press-diff`, `cmrr-semilaser-diff` and `cmrr-steam-diff` are
+  each their parent's Special card with `Diffusion weighting` added -- 38 to
+  39, 40 to 41, 36 to 37 -- and that label is on 6 of 1487 corpus scans, which
+  are exactly these three sequences in those two exports. The kernel is the
+  parent's, one character for one character, so neither the page nor the
+  archive separates the pair alone; joining them on scan name over 12 pairs,
+  6 each way in three archives, is what gives each printed card the binary
+  that wrote it.
+
+  **The obvious first reach is wrong here.** CMRR's multiband EPI diffusion is
+  identified by the `Diff` card it cannot help printing, and these print *no*
+  `Diff` card at all -- their card groups are identical to their parents' --
+  so `cards_all` matches nothing. A diffusion-weighted single-voxel scan
+  prescribes b-values on the sequence's own card rather than on the geometry
+  cards an imaging diffusion scan needs.
+
+  `Diffusion weighting` alone names a *technique*, which is the trap
+  `cmrr-megapress` fell into, so each entry carries it on top of its parent's
+  implementation labels and behind the same kernel gate. That also settles the
+  ranking without a priority: naming one more condition outranks the parent on
+  weight, which is what `rank()` compares after priority. Both entries really
+  do match a diff scan -- the parent's conditions are a subset -- so the
+  ordering is load-bearing and a test says so.
+
+  **Two of the three attributions were derived and then confirmed, which is
+  the order that makes them safe.** The owner had named only
+  `eja_svs_slaser_diff` as Auerbach's diffusion-weighted semi-LASER;
+  `eja_svs_press_diff` and `eja_svs_steam_diff` were read off the
+  card-and-kernel pairing the suite is already identified by -- the card is
+  Auerbach's own implementation, the kernel is PRESS or STEAM, the extra label
+  says diffusion-weighted -- and put to him as a derivation to check rather
+  than written as settled. He confirmed both, so all three now stand on the
+  same footing as the rest of the suite. Note what was *not* done: the binary
+  names would have given the same two answers directly, and reading them that
+  way is what the attribution rule forbids -- `rslh_ep3d_vaso` looked just as
+  obvious and was wrong.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past
@@ -420,7 +463,29 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   catalog. Both numbers come down as attributions arrive **from the protocols'
   owner**; writing signatures to make them fall would be attribution by
   inference, which is the one thing this file forbids throughout.
-- The corpus stands at 750 third-party, 313 stock and 31 unrecognized, pinned by
+- **A roster export weights sequences, not scans, so it must stay out of the
+  rate.** `examples/XA60/allcustomer_20260909.{exar1,pdf}` is one scan per
+  customer sequence installed on the scanners -- 35 of them, every one
+  current, none carrying `ConversionNeeded`. So all 35 are exemplar-grade by
+  the baseline rule at once, and twelve of them
+  (`CMRR_XFL_mbPCASL`, `NoiseSensitivityMap`, `ZPL_RG_EPSI_FID_v1h`,
+  `ZPL_RG_EPSI_FID_v2e`, `ZPL_RG_EPSI_SE_v1b`, `can_neuromelanin_pk`,
+  `dkd_svs_sLASER`, `eja_csi_fid`, `eja_fid`, `eja_svs_press_diff`,
+  `eja_svs_slaser_diff`, `eja_svs_steam_diff`) get their first
+  *console-authored* copy in `examples/` -- until now they appeared only
+  inside archives this library assembled and a scanner handed back, which are
+  current but are our own construction round-tripped. It is also, by
+  construction, a list of
+  the catalog's gaps stated exactly once each: 8 of its 35 are unrecognized,
+  against 60 in the other 1211 curated scans, and folding it in took the
+  unrecognized floor from 4.96% to 5.46%. That is arithmetic about how the
+  file was built, not a catalog regression, so `ROSTER_EXPORTS` excludes it
+  from `test_the_examples_are_mostly_accounted_for` -- the same move
+  `Frederick_P2` gets, for a sharper reason. Its scans are pinned by *name*
+  in `UNACCOUNTED_ROSTER`, which is stricter than the count the bulk import
+  gets, since all 35 are chosen and every gap is a sequence already
+  unaccounted for elsewhere.
+- The corpus stands at 947 third-party, 410 stock and 130 unrecognized, pinned by
   `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
   `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
   third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
@@ -890,6 +955,18 @@ the two consistent.
   one means inserting it among its siblings and not appending. A patcher that
   only overwrites existing assignments cannot turn a first flag on, which is
   how this was found.
+- **An absent element has two readings, and "zero" is only the first.** Where
+  the sequence supplies its own default for an element nobody has set, absence
+  displays *that*, which need not be the choice stored as zero.
+  `Protocol filename` is the case: 46 corpus setters store 1, 2 or 3, Generic
+  is 1, and the setter in `allcustomer_20260909` prints `Generic` with no
+  `alFree[1]` at all -- corroborated by `sWipMemBlock.tFree`, which names
+  `Prisma_epi_moco_navigator.prot` there and tracks the same three-way choice
+  on every setter that stores one. `Mapping.absent_choice` records it, and
+  only a mapping actually observed in that state may claim one: reading
+  absence as the first choice generally would be inference. Both readings have
+  to stand together -- dropping "absent is zero" turns `MTC`, `Prio Recon` and
+  three others red at once, since those really are choice 0 omitted.
 - **A flags word carries bits no mapping claims.** Comparing a whole `alFree[0]`
   against the console's is therefore wrong; compare the bit a mapping claims.
   The Potpourri edit toggled `Echoes in separate series`, which no option scan

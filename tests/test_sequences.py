@@ -25,6 +25,7 @@ from conftest import (
     requires_examples,
     requires_exar,
 )
+from siemens_protocol import parse_document
 from siemens_protocol.cli import main
 from siemens_protocol.sequences import (
     FLAGGED,
@@ -370,6 +371,90 @@ def test_the_eja_suite_is_split_by_kernel_over_a_shared_card() -> None:
             assert entry.match(other, shared) is None
 
 
+@requires_exar
+@requires_examples
+def test_the_diffusion_variants_are_separated_by_one_printed_label() -> None:
+    """One Special-card label tells a diffusion-weighted eja build from its parent.
+
+    The two files each answer half of this and neither answers it alone. An
+    ``.exar1`` names ``eja_svs_press_diff`` beside ``eja_svs_press``; a page
+    prints ``press`` for both and no ``Diff`` card for either, so unlike
+    CMRR's multiband EPI there is no card group to key on. Joining the two on
+    scan name gives every printed card the binary that wrote it, and the diff
+    card is then its parent's plus exactly ``Diffusion weighting``.
+
+    Asserted in both directions, because only one of them is interesting: the
+    label appearing on a parent would make the fingerprint claim it, and the
+    label missing from a diff build would make it claim nothing.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import archive as exar_archive
+    from siemens_protocol.exar import inspect as exar_inspect
+
+    families = ("eja_svs_press", "eja_svs_slaser", "eja_svs_steam")
+    seen = collections.Counter()
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        printed = collections.defaultdict(list)
+        for scan in parse_document(pdf).protocol.to_dict()["scans"]:
+            printed[scan["name"]].append(scan)
+        for step in exar_archive.read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            binary = exar_inspect.sequence_file(step.protocol).rsplit("\\", 1)[-1]
+            if not binary.startswith(families):
+                continue
+            held = printed.get(step.name)
+            if not held or len(held) != 1:
+                continue
+            weighted = "Diffusion weighting" in special_keys(held[0])
+            diffusion = binary.endswith("_diff")
+            assert weighted == diffusion, (
+                f"{os.path.basename(path)}/{step.name} runs {binary} and "
+                f"{'prints' if weighted else 'does not print'} Diffusion weighting"
+            )
+            seen[diffusion] += 1
+    assert seen[True] >= 3, f"only {seen[True]} diffusion-weighted eja scan(s) joined"
+    assert seen[False] >= 3, f"only {seen[False]} plain eja scan(s) joined"
+
+
+def test_a_diffusion_variant_outranks_its_parent_without_a_priority() -> None:
+    """The extra label is what wins, not a hand-set priority.
+
+    Both entries genuinely match a diffusion-weighted scan -- the parent's
+    conditions are a subset of the variant's -- so something has to decide,
+    and `rank()` compares priority before weight. Naming one more condition is
+    enough at equal priority, which is why no priority is set here. A test
+    says so, because a later edit that adds a condition to a parent would
+    silently reverse the order.
+
+    Returns
+    -------
+    None
+    """
+    by_id = {s.id: s for s in default_catalog().signatures}
+    card = {
+        "cmrr-press": ("press", "cmrr-press-diff"),
+        "cmrr-steam": ("steam", "cmrr-steam-diff"),
+        "cmrr-semilaser": ("slasr", "cmrr-semilaser-diff"),
+    }
+    for parent_id, (kernel, variant_id) in card.items():
+        parent, variant = by_id[parent_id], by_id[variant_id]
+        assert parent.priority == variant.priority
+        assert variant.rank() > parent.rank()
+        assert set(parent.special_all) < set(variant.special_all)
+        assert set(variant.special_all) - set(parent.special_all) == {"Diffusion weighting"}
+        # The parent still matches, so the ordering is load-bearing.
+        labels = set(variant.special_all)
+        assert parent.match(kernel, labels) is not None
+        assert variant.match(kernel, labels) is not None
+
+
 def test_no_siemens_sequence_prints_the_kernels_the_eja_entries_gate_on() -> None:
     # press, laser and steam are technique names rather than product ones, so
     # keying on them would be reckless if Siemens shipped a sequence using one.
@@ -646,7 +731,7 @@ def test_the_examples_are_mostly_accounted_for() -> None:
     curated = [
         i
         for n, p in GOLDEN_PROTOCOLS
-        if not n.startswith(INVESTIGATOR_PREFIX)
+        if not n.startswith(INVESTIGATOR_PREFIX) and n not in ROSTER_EXPORTS
         for i in identify_protocol(p, catalog)
     ]
     counts = summarize(curated)
@@ -654,7 +739,10 @@ def test_the_examples_are_mostly_accounted_for() -> None:
     # protocols nobody selected, carrying 26 unseen binaries, so folding it in
     # would move this floor for a reason that has nothing to do with the
     # catalog regressing -- it went to 7.8% on import alone. Its own share is
-    # pinned by test_the_bulk_import_is_unaccounted_to_a_pinned_extent.
+    # pinned by test_the_bulk_import_is_unaccounted_to_a_pinned_extent. A
+    # roster export is excluded for a sharper version of the same reason: it
+    # holds one scan per sequence, so it states the catalog's gap list once
+    # rather than in proportion to anything, and it took this to 5.5%.
     assert counts[UNRECOGNIZED] / len(curated) < 0.05
     assert counts[THIRD_PARTY] > counts[STOCK]
 
@@ -1076,11 +1164,31 @@ UNACCOUNTED_RETURNS = {
     )
 } | {("XA60-scanner_returns-GAPS_ONE_4.json", "csi_fid")}
 
+#: The roster export: one scan per customer sequence installed on the
+#: scanners, so the catalog's gaps appear here exactly once each rather than
+#: in proportion to how often those sequences run. Every entry is a sequence
+#: already unaccounted for elsewhere in the corpus -- the file adds a
+#: console-authored, current-baseline copy of each, not a new gap.
+UNACCOUNTED_ROSTER = {
+    ("XA60-allcustomer_20260909.json", scan)
+    for scan in (
+        "NoiseSensitivityMap",
+        "can_neuromelanin",
+        "can_neuromelanin_pk",
+        "eja_csi_fid",
+        "eja_fid",
+        "ep2d_bold_mgh",
+        "ep2d_diff_mgh",
+        "ep2d_se_sms_mgh",
+    )
+}
+
 UNACCOUNTED = (
     {(export, scan) for export in UNACCOUNTED_EXPORTS for scan in UNACCOUNTED_SCANS}
     | UNACCOUNTED_ELSEWHERE
     | UNACCOUNTED_AFTER_LOAD
     | UNACCOUNTED_RETURNS
+    | UNACCOUNTED_ROSTER
 )
 
 #: Snapshots from the investigator-level export, which is a bulk import rather
@@ -1096,6 +1204,15 @@ UNACCOUNTED = (
 #: import contributes this many, over these kernels", so a change to either is
 #: still visible without pretending the scans are identified.
 INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
+
+#: Roster exports: one scan per sequence installed on the scanners, exported
+#: to give every one of them a current, console-authored copy. They weight
+#: *sequences* equally, where every other example weights scans -- an ordinary
+#: protocol runs one unnamed sequence among forty known ones, and this runs
+#: each exactly once -- so folding one into a scan-weighted rate says nothing
+#: about the catalog. Its scans are pinned by name in ``UNACCOUNTED_ROSTER``
+#: instead, which is the stricter check anyway.
+ROSTER_EXPORTS = {"XA60-allcustomer_20260909.json"}
 
 #: How many of that export's scans no signature claims, and the kernels they
 #: run. Both are observations awaiting attribution, not targets, and neither

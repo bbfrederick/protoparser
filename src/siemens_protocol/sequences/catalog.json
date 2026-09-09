@@ -258,6 +258,31 @@
       }
     },
     {
+      "id": "cmrr-semilaser-diff",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "diffusion-weighted semi-LASER single-voxel spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's diffusion-weighted semi-LASER, named by the protocols' owner; the fingerprint is what was missing, and it is cmrr-semilaser's 40 Special-card labels and a 41st. The fingerprint was derived here rather than supplied: joining the archive to the printout on scan name in two independent exports -- allcustomer_20260909, a console export of one scan per installed customer sequence, and scanner_returns/CORPUS_CONSISTENT -- gives each printed Special card the binary that wrote it, and the diff card is then exactly its parent's card plus one label, 'Diffusion weighting'. That label is on 6 of 1487 corpus scans, which are these three sequences in those two exports, and on nothing else. Note what it is *not*: unlike CMRR's multiband EPI, a diffusion-weighted spectroscopy scan prints no Diff card at all -- its card groups are identical to its parent's -- so cards_all, the clause that positively identifies epi diffusion, matches nothing here. The kernel is the parent's too, one character for one character, so neither file separates the pair on its own. 'Diffusion weighting' alone names a technique rather than a sequence, which is the trap cmrr-megapress fell into, so it is carried on top of the parent's own implementation labels and behind the same kernel gate: the card says whose implementation this is, the kernel says which technique, and the extra label says it is the diffusion-weighted build. Outranks its parent on weight at equal priority, by naming one more condition; no priority is needed. It carries the same phase-encoding bound as its parent, for the same reason: slasr serves a CSI variant as well, so an entry on that kernel has to say which of the two it is. The corpus holds no eja_csi_slaser_diff, so the bound is inherited from the sibling pair rather than exercised against one.",
+      "match": {
+        "binaries": [
+          "eja_svs_slaser_diff"
+        ],
+        "base_binaries": [
+          "slasr"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "OVS pulse duration",
+          "GOIA refoc. pulses",
+          "Diffusion weighting"
+        ],
+        "parameters_at_most": {
+          "Scan Res. A >> P": 1,
+          "Scan Res. R >> L": 1
+        }
+      }
+    },
+    {
       "id": "cmrr-mega-semilaser",
       "vendor": "CMRR (University of Minnesota)",
       "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
@@ -299,6 +324,27 @@
       }
     },
     {
+      "id": "cmrr-press-diff",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "diffusion-weighted PRESS spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "The diffusion-weighted build of cmrr-press, printing that entry's 38 Special-card labels and a 39th. The fingerprint was derived here rather than supplied: joining the archive to the printout on scan name in two independent exports -- allcustomer_20260909, a console export of one scan per installed customer sequence, and scanner_returns/CORPUS_CONSISTENT -- gives each printed Special card the binary that wrote it, and the diff card is then exactly its parent's card plus one label, 'Diffusion weighting'. That label is on 6 of 1487 corpus scans, which are these three sequences in those two exports, and on nothing else. Note what it is *not*: unlike CMRR's multiband EPI, a diffusion-weighted spectroscopy scan prints no Diff card at all -- its card groups are identical to its parent's -- so cards_all, the clause that positively identifies epi diffusion, matches nothing here. The kernel is the parent's too, one character for one character, so neither file separates the pair on its own. 'Diffusion weighting' alone names a technique rather than a sequence, which is the trap cmrr-megapress fell into, so it is carried on top of the parent's own implementation labels and behind the same kernel gate: the card says whose implementation this is, the kernel says which technique, and the extra label says it is the diffusion-weighted build. Outranks its parent on weight at equal priority, by naming one more condition; no priority is needed. The attribution was derived here from the card-and-kernel pairing -- the card is Auerbach's own implementation, the kernel says which technique, the extra label says diffusion-weighted -- and then confirmed by the protocols' owner, who had previously named only eja_svs_slaser_diff of the three. So it stands on the same footing as the rest of the suite: supplied, not inferred.",
+      "match": {
+        "binaries": [
+          "eja_svs_press_diff"
+        ],
+        "base_binaries": [
+          "press"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping",
+          "Diffusion weighting"
+        ]
+      }
+    },
+    {
       "id": "cmrr-laser",
       "vendor": "CMRR (University of Minnesota)",
       "family": "LASER spectroscopy (Auerbach)",
@@ -324,7 +370,7 @@
       "vendor": "CMRR (University of Minnesota)",
       "family": "STEAM spectroscopy (Auerbach)",
       "priority": 10,
-      "note": "Auerbach's STEAM, supplied by the protocols' owner. Only the single-voxel spelling is named; the corpus also holds eja_svs_steam_diff, which is not claimed here because nobody has said what it is. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "note": "Auerbach's STEAM, supplied by the protocols' owner. Only the single-voxel spelling is named. The corpus also holds eja_svs_steam_diff, which is cmrr-steam-diff and not this: it prints the same kernel and the same card plus 'Diffusion weighting', so the two are separated on that label alone. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
       "match": {
         "binaries": [
           "eja_svs_steam"
@@ -336,6 +382,27 @@
           "VAPOR delay 1",
           "Acq. window shift",
           "Check RF clipping"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-steam-diff",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "diffusion-weighted STEAM spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "The diffusion-weighted build of cmrr-steam, printing that entry's 36 Special-card labels and a 37th. The fingerprint was derived here rather than supplied: joining the archive to the printout on scan name in two independent exports -- allcustomer_20260909, a console export of one scan per installed customer sequence, and scanner_returns/CORPUS_CONSISTENT -- gives each printed Special card the binary that wrote it, and the diff card is then exactly its parent's card plus one label, 'Diffusion weighting'. That label is on 6 of 1487 corpus scans, which are these three sequences in those two exports, and on nothing else. Note what it is *not*: unlike CMRR's multiband EPI, a diffusion-weighted spectroscopy scan prints no Diff card at all -- its card groups are identical to its parent's -- so cards_all, the clause that positively identifies epi diffusion, matches nothing here. The kernel is the parent's too, one character for one character, so neither file separates the pair on its own. 'Diffusion weighting' alone names a technique rather than a sequence, which is the trap cmrr-megapress fell into, so it is carried on top of the parent's own implementation labels and behind the same kernel gate: the card says whose implementation this is, the kernel says which technique, and the extra label says it is the diffusion-weighted build. Outranks its parent on weight at equal priority, by naming one more condition; no priority is needed. The attribution was derived here from the card-and-kernel pairing -- the card is Auerbach's own implementation, the kernel says which technique, the extra label says diffusion-weighted -- and then confirmed by the protocols' owner, who had previously named only eja_svs_slaser_diff of the three. So it stands on the same footing as the rest of the suite: supplied, not inferred.",
+      "match": {
+        "binaries": [
+          "eja_svs_steam_diff"
+        ],
+        "base_binaries": [
+          "steam"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping",
+          "Diffusion weighting"
         ]
       }
     },
