@@ -722,28 +722,59 @@ def test_every_shipped_signature_matches_something_in_the_examples() -> None:
 
 
 @requires_snapshots
-def test_the_examples_are_mostly_accounted_for() -> None:
-    # Not a demand for perfection: 'unrecognized' is a legitimate answer and
-    # the corpus contains a few. It is a floor, so a catalog change that
-    # quietly stops matching cannot pass unnoticed. The healthy figure is
-    # under 2%.
+def test_no_unrecognized_scan_escapes_every_pin() -> None:
+    """Every unrecognized scan is one a pin already names.
+
+    This was a rate -- unrecognized scans over curated scans, under 5% -- and
+    a rate is the wrong instrument, because it moves with what the corpus
+    happens to hold rather than with the catalog. Measured per export the
+    legitimate figures run from 4.2% to 50%: `GAPS_ONE_4` is one scan of two,
+    `CORPUS_CONSISTENT` is 43% because it was *built* to carry the sequences
+    nothing names, and the roster export is 23% because it states the gap
+    list once instead of in proportion to anything. The aggregate sat under
+    5% only because the corpus also holds many large, fully-named protocols
+    diluting them, so the bound was measuring dilution. It had already been
+    raised from 2% to 5% and had two tiers excluded from it, and the next
+    curated example carrying three unnamed sequences would have tripped it
+    again.
+
+    What the bound was a proxy for is exact and stated elsewhere:
+    ``test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few``
+    names every unaccounted curated scan, and
+    ``test_the_bulk_import_is_unaccounted_to_a_pinned_extent`` counts the
+    import's. Both catch a signature that stops matching *and* one that
+    starts over-claiming, immediately and by name, which no rate can do.
+
+    So this covers the one thing those two leave open: each looks at its own
+    tier, and an export excluded from both would be answered by neither. It
+    sweeps the whole corpus and subtracts what each pin claims, so a new
+    exclusion, or a new example nobody pinned, leaves a scan standing here.
+
+    Returns
+    -------
+    None
+    """
     catalog = default_catalog()
-    curated = [
-        i
-        for n, p in GOLDEN_PROTOCOLS
-        if not n.startswith(INVESTIGATOR_PREFIX) and n not in ROSTER_EXPORTS
-        for i in identify_protocol(p, catalog)
-    ]
-    counts = summarize(curated)
-    # Stated over the curated examples. The bulk import is a directory of
-    # protocols nobody selected, carrying 26 unseen binaries, so folding it in
-    # would move this floor for a reason that has nothing to do with the
-    # catalog regressing -- it went to 7.8% on import alone. Its own share is
-    # pinned by test_the_bulk_import_is_unaccounted_to_a_pinned_extent. A
-    # roster export is excluded for a sharper version of the same reason: it
-    # holds one scan per sequence, so it states the catalog's gap list once
-    # rather than in proportion to anything, and it took this to 5.5%.
-    assert counts[UNRECOGNIZED] / len(curated) < 0.05
+    claimed: collections.Counter[str] = collections.Counter()
+    loose = []
+    for name, protocol in GOLDEN_PROTOCOLS:
+        bulk = name.startswith(INVESTIGATOR_PREFIX)
+        for item in identify_protocol(protocol, catalog):
+            if item.verdict != UNRECOGNIZED:
+                continue
+            if (name, item.name) in UNACCOUNTED:
+                claimed["named"] += 1
+            elif bulk and item.binary in INVESTIGATOR_UNACCOUNTED_BINARIES:
+                claimed["counted"] += 1
+            else:
+                loose.append(f"{name}: {item.name}")
+    assert not loose, f"unrecognized and claimed by no pin: {loose[:5]}"
+    # Both halves, so a sweep that stopped finding anything cannot pass here
+    # by finding nothing loose either.
+    assert claimed["named"] and claimed["counted"], f"a pin went unexercised: {dict(claimed)}"
+    # The corpus is a research centre's, so third-party sequences outnumber
+    # stock ones by a margin nothing has to tune: 947 against 410.
+    counts = summarize([i for _n, p in GOLDEN_PROTOCOLS for i in identify_protocol(p, catalog)])
     assert counts[THIRD_PARTY] > counts[STOCK]
 
 
@@ -1204,15 +1235,6 @@ UNACCOUNTED = (
 #: import contributes this many, over these kernels", so a change to either is
 #: still visible without pretending the scans are identified.
 INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
-
-#: Roster exports: one scan per sequence installed on the scanners, exported
-#: to give every one of them a current, console-authored copy. They weight
-#: *sequences* equally, where every other example weights scans -- an ordinary
-#: protocol runs one unnamed sequence among forty known ones, and this runs
-#: each exactly once -- so folding one into a scan-weighted rate says nothing
-#: about the catalog. Its scans are pinned by name in ``UNACCOUNTED_ROSTER``
-#: instead, which is the stricter check anyway.
-ROSTER_EXPORTS = {"XA60-allcustomer_20260909.json"}
 
 #: How many of that export's scans no signature claims, and the kernels they
 #: run. Both are observations awaiting attribution, not targets, and neither

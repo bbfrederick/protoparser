@@ -457,14 +457,34 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   by the import. The import gets its own counted pin instead --
   `INVESTIGATOR_UNACCOUNTED` (73 scans over 11 kernels: `fl_r`, `pc`, `press`,
   `slasr`, `spcR`, `steam`, `laser`, `svs_edit`, `fl_rr`, `MDME`, `fldyn`) --
-  which fails on drift without claiming those scans are identified. The 5%
-  unrecognized floor is likewise stated over the curated tier; folding the
-  import in took it to 7.8% for reasons that have nothing to do with the
-  catalog. Both numbers come down as attributions arrive **from the protocols'
-  owner**; writing signatures to make them fall would be attribution by
-  inference, which is the one thing this file forbids throughout.
-- **A roster export weights sequences, not scans, so it must stay out of the
-  rate.** `examples/XA60/allcustomer_20260909.{exar1,pdf}` is one scan per
+  which fails on drift without claiming those scans are identified. That count
+  comes down as attributions arrive **from the protocols' owner**; writing
+  signatures to make it fall would be attribution by inference, which is the
+  one thing this file forbids throughout.
+- **The unrecognized *rate* was retired, because it measured the corpus and
+  not the catalog.** It was unrecognized scans over curated scans, asserted
+  under 5%, and it had already been raised from 2% and had two tiers
+  excluded from it. Per export the legitimate figures run 4.2% to 50%:
+  `GAPS_ONE_4` is one scan of two, `CORPUS_CONSISTENT` is 43% because it was
+  *built* to carry what nothing names, the roster export is 23% because it
+  states the gap list once. The aggregate sat under 5% only because many
+  large fully-named protocols diluted them -- so the bound was measuring
+  dilution, and the next curated example running three unnamed sequences
+  would have tripped it for no reason to do with the catalog.
+
+  Everything it was a proxy for is already exact: the named pin catches a
+  signature that stops matching *and* one that starts over-claiming,
+  immediately and by scan name, which no rate can do. What replaces it is the
+  one thing the two pins leave open -- each looks at its own tier, so an
+  export excluded from both would be answered by neither.
+  `test_no_unrecognized_scan_escapes_every_pin` sweeps the whole corpus and
+  subtracts what each pin claims; falsified three ways, dropping the roster
+  from the named pin leaves 8 scans standing, dropping the scanner returns 24,
+  emptying the bulk binary set 62. The lesson generalizes: a threshold over a
+  corpus that grows is a tripwire on its own composition, and the fix is an
+  exact pin plus a coverage check, never a bigger number.
+- **A roster export weights sequences, not scans.**
+  `examples/XA60/allcustomer_20260909.{exar1,pdf}` is one scan per
   customer sequence installed on the scanners -- 35 of them, every one
   current, none carrying `ConversionNeeded`. So all 35 are exemplar-grade by
   the baseline rule at once, and twelve of them
@@ -477,12 +497,11 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   current but are our own construction round-tripped. It is also, by
   construction, a list of
   the catalog's gaps stated exactly once each: 8 of its 35 are unrecognized,
-  against 60 in the other 1211 curated scans, and folding it in took the
-  unrecognized floor from 4.96% to 5.46%. That is arithmetic about how the
-  file was built, not a catalog regression, so `ROSTER_EXPORTS` excludes it
-  from `test_the_examples_are_mostly_accounted_for` -- the same move
-  `Frederick_P2` gets, for a sharper reason. Its scans are pinned by *name*
-  in `UNACCOUNTED_ROSTER`, which is stricter than the count the bulk import
+  against 60 in the other 1211 curated scans. That is what made it trip the
+  scan-weighted rate, and the rate is what gave way -- the file needed an
+  exclusion no other check wanted, which is the clearest evidence that the
+  bound rather than the file was wrong. Its scans are pinned by *name* in
+  `UNACCOUNTED_ROSTER`, which is stricter than the count the bulk import
   gets, since all 35 are chosen and every gap is a sequence already
   unaccounted for elsewhere.
 - The corpus stands at 947 third-party, 410 stock and 130 unrecognized, pinned by
