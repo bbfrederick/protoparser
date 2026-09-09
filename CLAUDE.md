@@ -251,6 +251,175 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   list, so a new example folder tightens it. It fails if a shipped signature
   matches nothing in the examples: a signature no example exercises is one
   nothing verifies. Widen the examples rather than deleting the signature.
+- **Which detector can name a sequence depends on which file you have, and the
+  archive wins where both exist.** A Numaris/X page prints the *kernel*, so
+  `cmrr_mbep2d_se` and `cmrr_mbep2d_diff` both read as `epse` there and only
+  the Special card can separate them; an `.exar1` prints the sequence *file
+  name* and settles it outright. `cmrr-mb-epi-se` therefore carries both
+  routes -- `binaries` for the archive, `base_binaries` plus `special_all` for
+  the page -- and the two agree on every corpus scan that has both.
+
+  Deriving the card route needed the archive to label the page: joining the 18
+  archive/PDF pairs on scan name gives each printed Special card the binary
+  that actually wrote it, and the fingerprints then separate cleanly.
+  `Triggering scheme` is on all 17 SE scans and on none of the 23 diffusion
+  ones, nor anywhere in their 22-label union; `Disable B1 control loop` and
+  `PF omits higher k-space` are on every diffusion card and no SE one. That is
+  a method worth reusing for the next signature: the printout says what the
+  card holds and the archive says whose card it is, and neither file answers
+  both questions alone.
+
+  Two shipped scans *named* `cmrr_mbep2d_se` were reported as diffusion before
+  this entry, because with multiband on they print the generic MB card on the
+  spin-echo kernel. It was first landed with `priority` 30 to correct them and
+  that was unnecessary: SE names three Special labels against diffusion's two,
+  so it already outranked it on weight at equal priority. Check `rank()`
+  before reaching for a priority -- the claim that condition count said the
+  opposite was simply false here, and a priority added on a wrong reading is
+  one nothing will ever question.
+
+  **What separates them properly is a card, not a label.** A diffusion scan
+  has to prescribe directions and b-values, so the console always prints a
+  `Diff` card; every Special-card label is a checkbox someone can clear. All
+  96 corpus scans matching `cmrr-mb-epi-diffusion` print one, nothing that is
+  not diffusion prints one, and `cards_all` is the clause that says so. That
+  makes diffusion positively identified rather than identified by SE beating
+  it, which is why SE is back at 20.
+
+  The card group is the *first* component of the printed title, where
+  `special_keys` reads the last: a title is `<group> - <page>`, so `Special`
+  is a page of the `Sequence` card while `Diff` is a group with pages. VE11C
+  splits diffusion into `Diff - Body`, `Diff - Neuro` and `Diff - Composing`
+  against Numaris/X's single `Diff`, so matching the tail yields `Body` and
+  `Neuro` and misses all 26 VE11C diffusion scans -- which is exactly the
+  first thing this got wrong.
+
+  `cards_all` gates the Special-card route only, never `binaries`, for the
+  same reason `base_binaries` does and a sharper one: a scan read from an
+  `.exar1` prints no cards at all, so gating the binary route would make every
+  archive stop matching.
+- **Two sequences can share a vendor, a family and almost a kernel name.**
+  CMRR ships two semi-LASERs by different authors: Deelchand's, which a VE11C
+  page calls `sead`, a Numaris/X page `slaser` and an archive
+  `svs_slaser_dkd`; and Auerbach's, which a page calls `slasr`. One character
+  separates the two kernels. They are told apart by their cards, which share
+  exactly one label out of 9 and 39 -- Deelchand's prints `GOIA/FOCI` and
+  `FA AutoCalib`, Auerbach's the `OVS` and `VAPOR` blocks -- and the corpus is
+  overwhelmingly Deelchand's, 421 scans against 7. Both attributions came from
+  the protocols' owner; neither is inferable from the binary name, and
+  `dkd-semilaser` carried the family label `semi-LASER single-voxel
+  spectroscopy` for both until he said otherwise.
+
+  It also shows the two files disagreeing about what they can resolve. An
+  archive names `eja_svs_slaser` and `eja_csi_slaser` apart; a page prints
+  `slasr` for both and their Special cards share 39 of 40 labels, the one
+  difference being an option that may simply be off.
+
+  **What the page does say is whether there is a phase-encoding matrix, and
+  that is what single-voxel means.** `Scan Res. A >> P` and `R >> L` are
+  absent on all 27 single-voxel spectroscopy scans in the corpus and are 8 or
+  16 on all 6 CSI ones, with nothing against; they are printed only on
+  `Resolution - Common`. `parameters_at_most` is the clause -- the only one
+  that reads a printed *value* rather than a label's presence -- and it is
+  satisfied by absence as well as by a small number, because a sequence with
+  no such setting prints none. The bound is 1 rather than 0 on the owner's
+  reading that a 1 x 1 matrix would mean the same thing; only absence is
+  observed. A label printed on several cards must satisfy the bound on every
+  one, which is the flattening trap the `Position` note describes, met here in
+  the matching rules rather than in a reader.
+
+  `parameters_at_least` is its mirror and deliberately not its negation:
+  absence *fails* there where it satisfies here. That is what lets the
+  single-voxel and CSI entries partition rather than overlap -- "at most 1"
+  and "at least 2" cannot both hold, and a scan printing a 1 goes to the
+  single-voxel entry alone. Written as two negations it would have had a gap
+  at 1 that both entries claimed, on a value neither the corpus nor the owner
+  rules out.
+
+  The eja spectroscopy suite now runs to eleven sequences over six kernels, and
+  it is where each clause earns its place: `slasr` splits single voxel from CSI
+  by the phase-encoding matrix, `press`/`laser`/`steam`/`mslsr`/`mpres` split
+  by kernel, MEGA-semi-LASER against MEGA-PRESS splits by a card carrying
+  one label from each of the two techniques its name names, and the three
+  diffusion-weighted builds split from their parents on one label.
+
+  **The card names the author and the kernel names the technique, and neither
+  is sufficient.** 22 labels -- the VAPOR delays, the spoiler and timing
+  controls -- are printed by every eja sequence, so the card says only whose
+  implementation this is. PRESS, LASER and STEAM are techniques anyone may
+  implement, so the kernel says only which one. The entries pair them, and a
+  test asserts every scan printing those five kernels in the corpus is an
+  `eja_` scan, because keying on a technique name would be reckless if Siemens
+  shipped a sequence using it.
+- **A card fingerprint can name a technique rather than a sequence, and then
+  it over-claims.** `cmrr-megapress` matched on `MEGA flip angle` and
+  `Editing pulse BW`, which are what *any* MEGA-edited sequence prints, so it
+  also claimed three `mslsr` scans -- and MEGA-PRESS and MEGA-semi-LASER are
+  different sequences, per the protocols' owner. `base_binaries: ["mpres"]`
+  gates the card route to its own kernel and costs nothing, since `mpres` is
+  the kernel on both VE11C and XA60 and the binary route is never gated, so an
+  archive still resolves by the sequence file name. The three scans are
+  `unrecognized` now, which is the right answer until someone names them.
+
+  The general shape is worth watching for: labels that describe a *technique*
+  -- editing, multiband, navigation -- are shared by every sequence using it,
+  where labels naming a sequence's own implementation are not. The CMRR
+  multiband card had the same problem and is why `base_binaries` exists at
+  all; this is the second instance, so treat a two-label fingerprint of common
+  parameters as needing a gate rather than as a signature.
+- **A sequence only the unshipped corpus runs cannot be given a signature.**
+  `eja_svs_slaser_diff` is Auerbach's diffusion-weighted semi-LASER, named by
+  the protocols' owner, and it appears 22 times in
+  `archive/P1/Investigators.exar1` and nowhere in `examples/`. An entry for it
+  would be one `test_every_shipped_signature_matches_something_in_the_examples`
+  fails on, correctly: nothing shipped would exercise it. The fix that rule
+  names is to widen the examples, which means shipping one of the seven DWS
+  protocols that run it -- not to relax the test, and not to write the entry
+  and let it sit unverified. It is recorded here so the attribution is not
+  lost while the example is missing. The same applies to `eja_svs_press_diff`
+  and `eja_svs_steam_diff`, which sit beside it unnamed.
+
+  **That blocker is lifted and the three entries are written.** All three run
+  in `scanner_returns/CORPUS_CONSISTENT.exar1` and again in
+  `allcustomer_20260909`, the second with a printout beside it -- which is
+  what a card fingerprint needs, since an archive prints no cards at all.
+- **A diffusion-weighted eja build is its parent plus one label, and no
+  card.** `cmrr-press-diff`, `cmrr-semilaser-diff` and `cmrr-steam-diff` are
+  each their parent's Special card with `Diffusion weighting` added -- 38 to
+  39, 40 to 41, 36 to 37 -- and that label is on 6 of 1487 corpus scans, which
+  are exactly these three sequences in those two exports. The kernel is the
+  parent's, one character for one character, so neither the page nor the
+  archive separates the pair alone; joining them on scan name over 12 pairs,
+  6 each way in three archives, is what gives each printed card the binary
+  that wrote it.
+
+  **The obvious first reach is wrong here.** CMRR's multiband EPI diffusion is
+  identified by the `Diff` card it cannot help printing, and these print *no*
+  `Diff` card at all -- their card groups are identical to their parents' --
+  so `cards_all` matches nothing. A diffusion-weighted single-voxel scan
+  prescribes b-values on the sequence's own card rather than on the geometry
+  cards an imaging diffusion scan needs.
+
+  `Diffusion weighting` alone names a *technique*, which is the trap
+  `cmrr-megapress` fell into, so each entry carries it on top of its parent's
+  implementation labels and behind the same kernel gate. That also settles the
+  ranking without a priority: naming one more condition outranks the parent on
+  weight, which is what `rank()` compares after priority. Both entries really
+  do match a diff scan -- the parent's conditions are a subset -- so the
+  ordering is load-bearing and a test says so.
+
+  **Two of the three attributions were derived and then confirmed, which is
+  the order that makes them safe.** The owner had named only
+  `eja_svs_slaser_diff` as Auerbach's diffusion-weighted semi-LASER;
+  `eja_svs_press_diff` and `eja_svs_steam_diff` were read off the
+  card-and-kernel pairing the suite is already identified by -- the card is
+  Auerbach's own implementation, the kernel is PRESS or STEAM, the extra label
+  says diffusion-weighted -- and put to him as a derivation to check rather
+  than written as settled. He confirmed both, so all three now stand on the
+  same footing as the rest of the suite. Note what was *not* done: the binary
+  names would have given the same two answers directly, and reading them that
+  way is what the attribution rule forbids -- `rslh_ep3d_vaso` looked just as
+  obvious and was wrong.
 - **Most vendor attributions come from the protocol's owner, not the exports.**
   No export names a sequence's author; the exports give a binary name, a
   parameter fingerprint, and (on VB17A only) SIEMENS-or-USER. Everything past
@@ -288,13 +457,54 @@ handles stock sequences and third-party ones are what force a manual rebuild.
   by the import. The import gets its own counted pin instead --
   `INVESTIGATOR_UNACCOUNTED` (73 scans over 11 kernels: `fl_r`, `pc`, `press`,
   `slasr`, `spcR`, `steam`, `laser`, `svs_edit`, `fl_rr`, `MDME`, `fldyn`) --
-  which fails on drift without claiming those scans are identified. The 5%
-  unrecognized floor is likewise stated over the curated tier; folding the
-  import in took it to 7.8% for reasons that have nothing to do with the
-  catalog. Both numbers come down as attributions arrive **from the protocols'
-  owner**; writing signatures to make them fall would be attribution by
-  inference, which is the one thing this file forbids throughout.
-- The corpus stands at 750 third-party, 313 stock and 31 unrecognized, pinned by
+  which fails on drift without claiming those scans are identified. That count
+  comes down as attributions arrive **from the protocols' owner**; writing
+  signatures to make it fall would be attribution by inference, which is the
+  one thing this file forbids throughout.
+- **The unrecognized *rate* was retired, because it measured the corpus and
+  not the catalog.** It was unrecognized scans over curated scans, asserted
+  under 5%, and it had already been raised from 2% and had two tiers
+  excluded from it. Per export the legitimate figures run 4.2% to 50%:
+  `GAPS_ONE_4` is one scan of two, `CORPUS_CONSISTENT` is 43% because it was
+  *built* to carry what nothing names, the roster export is 23% because it
+  states the gap list once. The aggregate sat under 5% only because many
+  large fully-named protocols diluted them -- so the bound was measuring
+  dilution, and the next curated example running three unnamed sequences
+  would have tripped it for no reason to do with the catalog.
+
+  Everything it was a proxy for is already exact: the named pin catches a
+  signature that stops matching *and* one that starts over-claiming,
+  immediately and by scan name, which no rate can do. What replaces it is the
+  one thing the two pins leave open -- each looks at its own tier, so an
+  export excluded from both would be answered by neither.
+  `test_no_unrecognized_scan_escapes_every_pin` sweeps the whole corpus and
+  subtracts what each pin claims; falsified three ways, dropping the roster
+  from the named pin leaves 8 scans standing, dropping the scanner returns 24,
+  emptying the bulk binary set 62. The lesson generalizes: a threshold over a
+  corpus that grows is a tripwire on its own composition, and the fix is an
+  exact pin plus a coverage check, never a bigger number.
+- **A roster export weights sequences, not scans.**
+  `examples/XA60/allcustomer_20260909.{exar1,pdf}` is one scan per
+  customer sequence installed on the scanners -- 35 of them, every one
+  current, none carrying `ConversionNeeded`. So all 35 are exemplar-grade by
+  the baseline rule at once, and twelve of them
+  (`CMRR_XFL_mbPCASL`, `NoiseSensitivityMap`, `ZPL_RG_EPSI_FID_v1h`,
+  `ZPL_RG_EPSI_FID_v2e`, `ZPL_RG_EPSI_SE_v1b`, `can_neuromelanin_pk`,
+  `dkd_svs_sLASER`, `eja_csi_fid`, `eja_fid`, `eja_svs_press_diff`,
+  `eja_svs_slaser_diff`, `eja_svs_steam_diff`) get their first
+  *console-authored* copy in `examples/` -- until now they appeared only
+  inside archives this library assembled and a scanner handed back, which are
+  current but are our own construction round-tripped. It is also, by
+  construction, a list of
+  the catalog's gaps stated exactly once each: 8 of its 35 are unrecognized,
+  against 60 in the other 1211 curated scans. That is what made it trip the
+  scan-weighted rate, and the rate is what gave way -- the file needed an
+  exclusion no other check wanted, which is the clearest evidence that the
+  bound rather than the file was wrong. Its scans are pinned by *name* in
+  `UNACCOUNTED_ROSTER`, which is stricter than the count the bulk import
+  gets, since all 35 are chosen and every gap is a sequence already
+  unaccounted for elsewhere.
+- The corpus stands at 947 third-party, 410 stock and 130 unrecognized, pinned by
   `test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few`.
   `tse_crusher` (`Flair axial low SAR`) is labelled `USER` and so reports
   third-party; `fl3d_rd` (`vessels_head`) is labelled `SIEMENS` and is also in
@@ -319,6 +529,70 @@ what a scan, protocol and session are, and how the scanner organizes them --
 supplied by the user rather than derived, so prefer it to inference and keep
 the two consistent.
 
+- **Three published sources describe this format, and they agree with what
+  was derived here.** Tobias Rautenkranz's `exar1-read`
+  (https://gitlab.com/tobiasrautenkranz/exar1-read, GPL-3.0), the NeuroStars
+  thread "Parsing EXAR files" (https://neurostars.org/t/parsing-exar-files/20237)
+  and a Stack Overflow answer
+  (https://stackoverflow.com/questions/79412814/). They independently confirm
+  the container (SQLite), raw DEFLATE at `wbits=-15`, the
+  `EDF V1: ContentType=syngo.MR.ExamDataFoundation.Data.<Kind>;` header line,
+  JSON beneath it, XProtocol in `Data`, SHA-1 content addressing, .NET
+  `Guid.ToByteArray` ordering, the `Instance`/`Element`/`Content`/`Branch`/
+  `ChangeSet`/`InstanceChangeSet`/`ElementToInstanceMap` tables, the
+  `FirstStepId`/`LinksFrom`/`LastStepId` chain, and that **the Card grouping a
+  printout shows is not in the archive** -- which is the same conclusion the
+  `inspect.scan_of` note reaches. Nothing already established had to change.
+
+  Four things they add. `Content.Format` is the literal `"DS"`, checked rather
+  than assumed (confirmed on all 20 corpus archives). `InstanceChangeSet.State`
+  is `0` current, `1` change, `2` delete -- the corpus has only 0 and 1, so
+  the delete state is taken on their word and nothing here depends on it, the
+  live set coming from the element map. `EdfDecisionStep` is a seventh step
+  kind, absent from the corpus and now in `STEP_KINDS`: listing a kind that
+  never appears costs nothing, while omitting one drops its step from the
+  running order and reports the file as corrupt. And a `.exar1-journal`
+  beside an archive means an interrupted write rather than a second file.
+- **The structure document states the folder tree twice, and only one
+  direction was known here.** Beside `ParentDirectoryId` it carries
+  `RootDirectoryId`, `SubdirectoryIds` and `SubprogramElementIds` -- the tree
+  downwards, and the top named outright. `Archive.directory_children` and
+  `declared_root` read them, and `validate` now checks the two directions
+  against each other.
+
+  This is the one place a source would have saved real work. Reading the tree
+  wrongly is what turned a 97 MB whole-scanner export into 61 empty folders
+  and 499 orphan protocols, and it presented as a *small file* rather than as
+  an error -- with both directions in hand it is a one-line disagreement.
+  They agree on all 20 corpus archives, and `RootDirectoryId` is the unique
+  zero-parent directory in every one, so this is pure redundancy, which is
+  exactly what makes it worth checking. Note `SubprogramElementIds` appears
+  in none of the three sources; it was found by dumping the document once the
+  others named where to look.
+- **Exactly one *live* instance is an `EdfStructure`.** The `Instance` table
+  holds a second, the placeholder branch's, which is the single orphaned
+  content row every console archive carries -- so a raw-table count says two
+  and the live set says one. `tree_root` now picks the node that actually
+  declares `ParentDirectoryId` rather than the first it meets: on the corpus
+  they are the same node, and a reader reaching the other would report a flat
+  archive rather than an error.
+- **The folder tree is on the root node, not in the node hierarchy.** An
+  `EdfDirectory` carries no `Children` in any corpus archive -- 0 of 61 in the
+  whole-scanner export -- and an `EdfProgram` has no `ParentElementId`, so
+  reading the tree the way the rest of the format works gives 61 folders with
+  nothing in them and 499 orphan protocols. It is in the root `EdfStructure`'s
+  own content document, under `ParentDirectoryId`, and that map is keyed in
+  **two GUID spaces at once**: a directory appears under its `ObjectId` and a
+  program under its `Element_id`. Resolving every key in one space finds all
+  61 directories, misses all 499 programs, and reads as a tree of empty
+  folders rather than as a lookup in the wrong space -- the same trap the
+  three-GUID-space note above describes, inside a single map. Values are
+  always a directory `ObjectId`, with the all-zero GUID at the top.
+  `Archive.directory_parents`, `parent_of` and `path_of` read it; the
+  recovered path agrees with the printed one component for component
+  (`Investigators/Frederick/Potpourri_P1/localizer_64ch_uncombined`), the two
+  differing only at the root, where the archive says `Root/Export` and the
+  page prints `\\Research`.
 - **The scanner's tree is Region / Exam / Program, and a *Program* is what we
   call a protocol.** A Program is a group of scans; at this centre the Exam
   level groups protocols by investigator and the Region level separates
@@ -700,6 +974,18 @@ the two consistent.
   one means inserting it among its siblings and not appending. A patcher that
   only overwrites existing assignments cannot turn a first flag on, which is
   how this was found.
+- **An absent element has two readings, and "zero" is only the first.** Where
+  the sequence supplies its own default for an element nobody has set, absence
+  displays *that*, which need not be the choice stored as zero.
+  `Protocol filename` is the case: 46 corpus setters store 1, 2 or 3, Generic
+  is 1, and the setter in `allcustomer_20260909` prints `Generic` with no
+  `alFree[1]` at all -- corroborated by `sWipMemBlock.tFree`, which names
+  `Prisma_epi_moco_navigator.prot` there and tracks the same three-way choice
+  on every setter that stores one. `Mapping.absent_choice` records it, and
+  only a mapping actually observed in that state may claim one: reading
+  absence as the first choice generally would be inference. Both readings have
+  to stand together -- dropping "absent is zero" turns `MTC`, `Prio Recon` and
+  three others red at once, since those really are choice 0 omitted.
 - **A flags word carries bits no mapping claims.** Comparing a whole `alFree[0]`
   against the console's is therefore wrong; compare the bit a mapping claims.
   The Potpourri edit toggled `Echoes in separate series`, which no option scan
@@ -832,6 +1118,17 @@ the two consistent.
   target scanner can use what it holds. Do not read "not printed in its own
   PDF" as the same signal: `BIAS_BC` and `T1_MEMPRAGE_64ch_gr2` are unprinted
   too and loaded fine.
+
+  **"Rejected" was too strong, and the distinction matters.** Sent on their
+  own in a four-scan archive, all three imported, came back byte-identical
+  and kept the running order -- and every one was greyed out, so the console
+  stored them faithfully and refused to run them. What the earlier assembly
+  showed was those scans not arriving at all; what this shows is that the
+  same protocols can arrive and be inconsistent. So the outcome is not a
+  property of the protocol alone, and a scan being greyed out here is the
+  ordinary consistency verdict rather than the old-build reconciliation
+  failing. The reconciliation account still fits the first observation; it no
+  longer explains both.
 - **A `sWipMemBlock` bit mapping is gated on the sequence build, not just the
   sequence.** `Mapping.builds` names the builds a mapping was derived from and
   `applies_to` refuses outside them; all fourteen CMRR flag bits carry
@@ -843,11 +1140,18 @@ the two consistent.
   the timestamp separates `bold` from `se`, not one release from another.
   The refusal must also name the *build*, since blaming the sequence yields
   "mapped for cmrr_mbep2d_bold, but this protocol runs cmrr_mbep2d_bold".
-  Only CMRR stamps a build at all -- the ABCD navigators write a `.prot` file
-  name and `can_neuromelanin`/`tfl_mgh_multiecho` write nothing -- so those
-  mappings are unguardable this way and leave `builds` empty rather than
-  pretending. Two tests hold the gate honest: one that every gated mapping
-  still resolves across the corpus, one that a staged later build refuses.
+  CMRR is not quite the only sequence that stamps a build, though it is the
+  only *mapped* one: sweeping the corpus with `archive` found
+  `rslh_ep3d_vaso` writing `vx_ep3d 7b674ae rslh6.0`, a commit and a version
+  with no `;`, so `build_id` returns it whole and it can never match a gate.
+  That is the safe direction -- a refusal, not a loose match -- but do not
+  read `build_id`'s no-semicolon case as meaning "a `.prot` file name". The
+  ABCD navigators do write one of those (three spellings, not two:
+  `Prisma_epi_moco_navigator{,_ABCD_tfl,_ABCD_space}.prot`) and
+  `can_neuromelanin`/`tfl_mgh_multiecho` write nothing, so those mappings are
+  unguardable this way and leave `builds` empty rather than pretending. Two
+  tests hold the gate honest: one that every gated mapping still resolves
+  across the corpus, one that a staged later build refuses.
 - **An off-grid value is stored faithfully and displayed snapped to the grid.**
   `MT Flip Angle` written as 371 comes back from the scanner as 371 in the
   archive and prints `370 degrees`; `MT Offset` 1501 prints `1500 Hz`. Both
@@ -869,13 +1173,46 @@ the two consistent.
   setter still expecting a navigator may contradict a vNav that has switched
   one off. Deriving option interdependencies needs an option scan whose
   baseline includes the setter.
-- **An export can hold more than one protocol tree, and reading at the head
-  picks one.** The archive returned from this test resolved to a 14-step
-  protocol from an unrelated session; the 33 saved scans were in a *prior*
-  changeset, still fully readable. That is useful rather than merely
-  confusing -- the dead changeset's rank count is what identified which seven
-  scans had been deleted, without asking. But a caller who wants a particular
-  tree cannot assume the head is it.
+- **The live set is the head changeset's element map, not the instances that
+  changeset touched.** A `ChangeSet` names two `ElementToInstanceMap` rows: a
+  `BaseElementMapId` holding the tree as of an earlier point and a
+  `DeltaElementMapId` holding this save's changes, each a flat run of 32-byte
+  records -- element id then instance id, both .NET mixed-endian GUIDs -- with
+  the delta superseding the base element by element. `InstanceChangeSet`
+  records what a changeset *touched*, so filtering it to the head describes
+  the last save's delta and calls it the file.
+
+  That is right on an archive written in one changeset and catastrophically
+  wrong otherwise, and it read as a *small archive* rather than as a failure:
+  `archive/P1/Investigators.exar1` is a 97 MB whole-scanner export written by
+  twelve successive `CopyProgramsPipeline` saves, and reading at the head
+  yielded **21 instances of 31164** -- 317 KB of JSON from a 97 MB file, with
+  no error anywhere. The map gives 28109 base plus 3056 delta, which is every
+  `Element` row: 499 programs, 61 directories, 8217 scans, 1953 pauses. Every
+  other corpus archive gains exactly the same four nodes under the fix -- two
+  `EdfDirectory` and their two `EdfString` labels, the scaffolding an earlier
+  changeset created and the last one never touched -- which is precisely what
+  made the folder tree look flat.
+
+  One archive gains far more than four. `NAV_optionscan_P1_loadtest` goes
+  from 104 instances to 203 and from one program to **two**, both named
+  `NAV_optionscan_P1 (2)` with the same 31 scans, sitting under
+  `Investigators/Frederick` and `Investigators (2)/Frederick`. So the console
+  disambiguates a repeated *directory* name exactly as it does a program
+  name, and the archive really was imported twice; the old reader saw one
+  copy and reported it as the file. Whether the other multi-tree observation
+  in this file -- the every-sequence return resolving to a 14-step protocol
+  with its 33 saved scans in a prior changeset -- is the same phenomenon is
+  not established, and that archive is not in the corpus to check.
+
+  Surfacing the duplicate broke the driver in a way worth keeping in mind:
+  `apply_protocol` paired against `archive.steps`, which flattens every
+  program, so each scan name appeared twice against a printout that names it
+  once, and the guard against pairing a repeated name to the wrong copy
+  refused all 31 -- a driver that writes nothing, reported as a clean run.
+  `build.target_steps` now picks one program: a lone one, or the one
+  `program_name` reads out of the printout's header, and `exar --program`
+  says which when that is ambiguous.
 - **The corpus holds 19 sequence binaries, 16 of which write into
   `sWipMemBlock`** and so print a Special card; `patch.MAPPINGS` covers eight.
   Detect them by an *indexed* assignment (`sWipMemBlock.alFree[0] =`), never
@@ -952,11 +1289,339 @@ the two consistent.
   count only the step kinds on both sides; comparing against every child
   reported the file as structurally broken -- `validate` said so, and so did
   the step-order sweep, both for the same reason.
-- **A second relation shape exists and is unexplained.** `31P CSI 20230503 NOE`
-  carries 21 relations with `Kind: ""`, `Constraint: 0` and empty `Data`,
-  duplicated ten deep between the same two pairs of steps beside a real
-  `CopyReference`. Do not read `Constraint`/`Kind` as always populated, and do
-  not treat a relation count as a link count.
+- **A second relation shape exists, is unexplained, and is the common case.**
+  `31P CSI 20230503 NOE` carries 21 relations with `Kind: ""`, `Constraint: 0`
+  and empty `Data`, duplicated ten deep between the same two pairs of steps
+  beside five real `CopyReference`s. Sweeping the whole corpus with `archive`
+  puts that in proportion: **1248 of 1440 relations across 18 of 51 programs**
+  are this shape, so it is not a quirk of one export. The duplication holds
+  everywhere -- `K23EB_20210802` has 98 of them over 19 distinct step pairs,
+  the deepest repeated nine times -- and they are not the running order
+  mirrored into the relations map, which was the obvious guess: only 2 of
+  those 19 pairs are adjacent in the chain. Do not read `Constraint`/`Kind` as
+  always populated, and **do not treat a relation count as a link count**: the
+  first `archive` summary line did, and reported a 17-link protocol as having
+  117.
+- **A generated archive can be rejected whole, and the symptom is the folder
+  tree with no protocols under it.** `corpus_gaps.exar1` (96 scans)
+  and `corpus_all.exar1` (117) -- built locally to send to the scanner, and
+  not shipped: the archives this library generates are evidence for a round
+  trip rather than examples of what it parses, so they stay out of the repo
+  and `outbound/` is gitignored -- both opened on the scanner, navigated to
+  `Investigators/Frederick`, and showed nothing there -- and in scanner terms a
+  *Program* is a protocol, so that is the program failing to build, not a
+  program opening empty. Every offline check passed: the tree resolves to
+  `.../Frederick/CORPUS_GAPS`, all five step-keyed maps carry all 96 steps,
+  ranks are 0..95, `Element.Type`, `InstanceChangeSet.State`, the element map,
+  link field-sets, `Children` refs and every content hash match a console
+  export, and no `$ref` precedes its `$id`. Two real defects were found and
+  fixed anyway (below), and **neither is established as the cause**: the
+  40-scan assembly that loaded 33 back went through the same code and carried
+  both.
+
+  **Size is not the answer, and a single protocol can stop a whole program
+  from importing.** The same 96 sequences were then sent as four chunks of
+  25, and 2 and 4 imported while 1 and 3 were refused -- same size, same
+  build path, same seed, so what differs is which protocols are in them.
+  That is a stronger failure than the greying-out rule describes: a scan the
+  console dislikes normally arrives and is greyed out, and six scans whose
+  binaries were missing were simply dropped from the 40-scan assembly while
+  the program still built. Here nothing arrives at all. Which scan does it is
+  not decidable offline -- the chunks were split alphabetically and the
+  failures follow no category -- so the retry is nine groups of six, where one
+  bad scan costs five others instead of twenty-four. The three
+  `hcp_mbep2d_*` are grouped together deliberately, being already known to be
+  refused whatever we write.
+- **A scanner has imported and re-exported 49 generated scans with every
+  protocol byte-identical**, running order preserved and no scan missing --
+  including the 26 it greyed out. So "inconsistent" is a verdict the console
+  records against a protocol it has stored faithfully, not an edit to it, and
+  a re-export is not an edit (which is what the churn list already predicted).
+  It is the cleanest evidence yet that the write path is sound: what fails is
+  the console's judgement of these protocols, not our construction of them.
+- **Moving a protocol into a new program can make it inconsistent, and for
+  the corpus's rarest sequences that is the common case rather than the
+  exception.** 26 of the 49 that imported were greyed out, each a byte-exact
+  copy of a protocol some console authored -- so consistency really is a
+  property of the whole parameter set in its context, as the greying-out rule
+  says, and a protocol lifted out of the export it was written in has lost
+  that context. The 23 that survived are the ones with printouts now.
+- **Every sequence in the corpus now has a scanner verdict, and the split is
+  68 / 46 / 3.** Six rounds of import-and-export classified all 117: **68
+  consistent** (53 of them gap sequences that had no printout at all before,
+  now covered by one 53-scan export), **46 imported and greyed out**, and
+  **3 that refuse to import** -- `blade`, `ciss`, `medic`. The three counts
+  are exhaustive and disjoint, which is the check that the classification is
+  complete rather than merely large.
+
+  The final round is what makes the classification trustworthy. The verdicts
+  were derived over four rounds of differently-shaped archives; the fifth
+  rebuilt them into one 53-scan `CORPUS_CONSISTENT` and **all 53 printed**,
+  with `CORPUS_INCONSISTENT` returning all 41 protocols byte-identical and
+  only its anchor printable. So the split predicts behaviour in a build the
+  predictions were not derived from, rather than merely describing the rounds
+  that produced it.
+
+  53 scans in one program is also the largest this library has had a scanner
+  accept, against the 74 of the biggest console-authored program in the
+  corpus.
+- **`sProtConsistencyInfo.tBaselineString` is `"ConversionNeeded"` on a
+  protocol the console will grey out, and it never appears on one that
+  loads.** Across the 96 scans with a scanner verdict: **43 of 43** carrying
+  it were greyed out, and **0 of 53** consistent scans carry it. So it is a
+  *sufficient* predictor, checkable offline, and the first thing found that
+  anticipates the greying-out rule instead of merely restating that only a
+  scanner can say.
+
+  It is not *necessary*: three greyed-out scans do not carry it --
+  `ep2d_asl`, `svs_edit`, `BEAT_FQ_nav` -- so absence means "not predicted to
+  fail", never "will load". Keep the asymmetry, because inverting it is the
+  expensive error.
+
+  The field beside it says where the protocol came from:
+  `sProtConsistencyInfo.tMeasuredBaselineString` on `ZPL_RG_EPSI_FID_v1h` is
+  `"N4_VE11C_LATEST_20160120"` -- the Numaris 4 baseline spelling, which is
+  only recognisable at all because a Siemens-published VE11S archive was read
+  a day earlier. `ulVersion` is useless here: all six greyed-out catalogued
+  protocols read `66010002`, the XA60 value, because the archive was written
+  by an XA60 console. The protocol's *origin* release is in
+  `sProtConsistencyInfo`, not in the protocol version.
+
+  This also separates the two failure modes. `blade`, `ciss` and `medic` --
+  the three that stop a program building outright -- carry no
+  `tBaselineString` at all, so whatever refuses them is not conversion.
+- **A repeated scan name is ordinary, not a hazard to route around.** An
+  option scan runs thirty copies of one sequence, `Keto MRS` prints
+  `fastestmap` five times, and `MEMPRAGE_optionscan` repeats its name six
+  times over seven scans. Earlier notes here said to *drop* names that are
+  not unique before joining a printout to an archive; that was a workaround
+  and it silently discarded real scans. **Pair them instead**: group by name
+  and zip the groups in running order, which both sides preserve.
+  `build.pair_scans` is that rule in one place, and `apply_protocol` already
+  worked this way -- the tests were the half still dropping duplicates, which
+  is how a printed `Coronal` came to be compared against a *different*
+  scan's stored normal.
+
+  A group whose two sides differ in length is still skipped rather than
+  guessed at. That is the scanner-return case -- the printouts were taken
+  after the inconsistent scans were deleted, so the PDF is a subset -- and
+  choosing which stored copy a printed one refers to would write one scan's
+  values into another. Positional pairing across the whole list is *not* the
+  fallback: `geomopts` prints 27 scans against 26 steps.
+- **The `Sequence` card belongs to the binary, so a label printed only there
+  is sequence-private.** `Keto MRS`'s spectroscopy scans print
+  `Measurements` on `Sequence - Common` and `Sequence - Special` reading 9,
+  counting transients, while `lRepetitions` is absent -- one measurement.
+  That is a different parameter from the `Measurements` a Contrast, Inline or
+  BOLD card prints, which is the one `lRepetitions` stores, and the driver
+  was writing the first into the second. `build.sequence_card_only` refuses
+  a general mapping for such a label; only a mapping scoped to `sequences`
+  may claim one. Exactly one label is affected across the corpus, on 76
+  scans, so this excludes a genuine collision rather than a class.
+
+  Note the shape: `Sequence - Special` is a *page* of the `Sequence` card, so
+  the Special-card rule and this one are the same rule. It is the flattening
+  trap the `Position` note describes, met a third time.
+- **An empty `Preview` means the protocol is awaiting conversion.** 24 of 24
+  empty ones across 973 corpus protocols carry `ConversionNeeded`, and none
+  of the 928 current protocols is empty. So the test asserts emptiness
+  *implies* staleness rather than tolerating it, which is stricter than
+  demanding a preview outright.
+- **Three printout readings the wider corpus corrected.** A sequence with
+  more than one repetition time prints `TR 1` and no bare `TR`, exactly as a
+  multi-echo scan prints `TE 1`..`TE 4`. An unlocalized FID prints neither a
+  voxel size nor a VoI -- `eja_fid` and `fid` are the only two such scans in
+  1426, and `eja_csi_fid`, the same kernel with phase encoding, prints a
+  voxel like anything else. And an acquisition time can run to hours:
+  `1:42:33 h`, which the clock pattern had anticipated as `1:02:03` while
+  allowing only `min` after it.
+- **`sWipMemBlock.alFree[15]` is an ABCD-generation field.** Every navigator
+  whose binary ends `_ABCD` carries it -- 226 scans, no exception -- and the
+  older ones never do: `tfl_mgh_multiecho_epinav`, `tfl_multiecho_epinav_711`
+  and `tse_vfl_mgh_epinav` write a `.prot` name with no flag at all. Both
+  setters are outside it whatever they are called, `ep_moco_nav_set` beside
+  `ep_moco_nav_set_ABCD`. The rule was previously written as "must be the
+  setter", which was true of a narrower corpus.
+- **The printed orientation of a single-voxel spectroscopy scan describes its
+  VoI, not a slice.** Of the 21 in the corpus, 10 print `Coronal` against a
+  stored transversal normal and 11 print `Transversal`, which matches only
+  because `(0, 0, 1)` is what an unused slice normal already holds -- so not
+  one is evidence for the normal formula, and keeping the agreeing half would
+  count a coincidence as a confirmation. Same object confusion as the printed
+  `Position`.
+
+  The tolerance on that formula now follows the *printed* precision rather
+  than being a fixed number: angles print to a tenth of a degree, so a
+  prediction may sit `radians(0.05)` per tilt away. `tgse_asl` at
+  `T > C7.0 > S0.8` is 5.9e-4 out for that reason and was the only one of 421
+  comparisons above the old 2e-4 bound. Widening cannot hide a wrong
+  composition order -- on `extravals` X08 the two orders differ by 7.1e-3 --
+  but it does cost `tgse_asl` as evidence, since its own two orders differ by
+  1.0e-4, below the allowance. X08 remains the only scan that can settle it.
+- **Choose an exemplar by baseline, not by which export is shipped.** When one
+  sequence has several copies in the corpus, the copy to keep is the one
+  needing no conversion -- `sProtConsistencyInfo.tBaselineString` absent
+  rather than `"ConversionNeeded"` -- and among stale copies the later
+  measured baseline (`N4_VE11C_LATEST_20160120` over
+  `N4_VE11B_LATEST_20150530`). The rule was supplied by the protocols' owner
+  as later-release-wins; the mechanism above is what implements it, since
+  `tBaselineString` never holds a release string, only that flag.
+
+  Applied to the whole corpus it moves exactly one exemplar of 117:
+  `ZPL_RG_EPSI_FID_v1h` has 9 copies, 4 of them current, and all 4 are in the
+  unshipped whole-scanner export -- so the old picker's
+  prefer-a-shipped-donor rule chose a stale one and that scan was greyed out.
+  Everything else is already the best available.
+
+  **Choose it per sequence, not per binary name**, because a binary can be
+  renamed between releases. This file said 42 sequences have no current copy
+  anywhere, `svs_slaser_dkd` among them at 422 of 422 needing conversion, and
+  concluded that none of this centre's protocols for it was ever re-saved.
+  That was wrong, and wrong in the way a binary-keyed sweep always will be:
+  the sequence *was* re-saved, under `dkd_svs_sLASER`, which is what an XA60
+  console writes. Grouping the corpus by sequence identity rather than by
+  spelling gives **41**, and `dkd-semilaser` is the one signature whose
+  binaries split that way -- 14 current under the new name, 0 under the old.
+
+  So an exemplar search must ask the catalog which binaries are one sequence
+  before concluding that none is current. For the remaining 41 there is
+  genuinely no current copy and the fix is a fresh save on the scanner, but
+  "no current copy of this *binary*" is never that finding on its own.
+- **The owner's account of the greyed-out catalogued sequences, and what the
+  archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
+  `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at
+  this centre, which is why they cannot load -- supplied by the protocols'
+  owner, not inferred. `svs_slaser_dkd` and `ZPL_RG_EPSI_FID_v1h` he reports
+  as installed and working, and could not explain; `ep2d_se_VASO` he did not
+  address.
+
+  `ConversionNeeded` covers all six, which resolves the puzzle without
+  contradicting him: the *protocol* is stale even where the *sequence* is
+  current. `svs_slaser_dkd` runs 422 corpus scans and its sequence is
+  installed -- what fails is this protocol, saved under an older baseline and
+  never converted. Do not read a greyed-out scan as evidence its sequence is
+  missing.
+
+  For this one the sequence is not merely installed, it is *re-saved and in
+  the corpus* under `dkd_svs_sLASER`. The binary was renamed between
+  releases, so the two spellings are one sequence and the current protocols
+  are filed under the name the old sweep was not looking for.
+- **A catalogued sequence can be greyed out too, and six of twenty-one were.**
+  `ZPL_RG_EPSI_FID_v1h`, `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb`,
+  `ep2d_se_VASO`, `mjd_mclean_flipback` and `svs_slaser_dkd` all carry catalog
+  signatures *because shipped examples exercise them* -- `svs_slaser_dkd`
+  runs 421 corpus scans -- and all six went inconsistent on being moved into a
+  new program. Having a signature, a printout and hundreds of corpus scans
+  says nothing about whether a protocol lifted out of its export will load
+  somewhere else, which is the context rule again and the sharpest instance of
+  it: these are the sequences we know best.
+- **The console's repairs are reproducible.** Importing `CORPUS_CONSISTENT`
+  changed exactly four protocols -- `BEAT`, `fl3d_vibe`, `se_mc`, `space` --
+  and they are the same four, with the same field sets, that it changed when
+  the same protocols arrived in differently-shaped archives a round earlier:
+  the parametric-mapping functor stripped from `fl3d_vibe` and `se_mc`,
+  `sCommonIterRecon.*`/`sPat.*`/the derived times recomputed on `BEAT` and
+  `space`. Two independent imports agreeing field for field makes these
+  repairs a property of the protocol meeting this console, not an artefact of
+  one import. 49 of 53 came back untouched.
+- **Every archive a console wrote carries exactly one orphaned content row,
+  and it is an `EdfStructureContent`.** That is the placeholder branch's;
+  `NAV_optionscan_P1_loadtest` has two, and nothing else in 21 archives has
+  any. A generated one carried **95**, all `EdfProgramContent`: content is
+  addressed by hash, so rewriting the program document re-addresses it and
+  strands the old row, and appending is a loop -- 96 scans left 96 program
+  documents beside one program instance. Every check that walked live nodes
+  passed, because the stranded rows are by definition unreachable.
+  `Archive.prune` collects them at `write`, and only what this library
+  created *or displaced*: origin alone is not enough, since seeding from a
+  one-scan export and appending to it strands that export's own program
+  document, which arrived with the file. A plain read-and-write still drops
+  nothing, on all 20 corpus archives.
+- **Appending a step broke the lexical key order this file already
+  recorded.** The five maps are keyed in sorted order with `$id` first in
+  every archive the scanner has accepted, ours included; appending puts the
+  new key last. Newtonsoft reads these into dictionaries and so probably does
+  not care, which is the argument for matching rather than debating -- it
+  costs nothing and removes a difference from every known-good file.
+  `generate.sort_step_maps` restores it and `validate` now refuses both this
+  and the stranded content, so neither can ship again.
+- **The blocker is one scan, it is not the exotic ones, and nothing offline
+  finds it.** The 48 stranded sequences went back as nine groups of six and
+  six imported; 3, 4 and 8 were refused. Group 4 is six small ordinary
+  protocols -- `ciss`, three `csi_*`, two `can_neuromelanin` -- at 16 coils
+  and one slice, while group 1's three `hcp_mbep2d_*` at 130-172 KB imported
+  without complaint, so it is not size, coil count, slice count or how
+  unusual the sequence is. `csi_st` imported while `csi_fid`, `csi_se` and
+  `csi_slaser` did not; `se_mc` imported while `se` did not. Sweeping every
+  ASCCONV key and XProtocol tag over the 38 accepted scans and the 18
+  refused ones finds **no** key present in even two of the three refused
+  groups and absent from every accepted scan. So there is no offline
+  discriminator to write a check against, and the only instrument left is
+  bisection on a scanner.
+- **Three protocols stop a program importing, and nothing in them says why.**
+  Bisection ran to singles: `blade`, `ciss` and `medic` are refused **alone**,
+  in a two-scan archive holding nothing but the control -- so the cause is
+  inside those protocols and is not an interaction between scans, which a
+  single-scan program is the smallest possible test of. `ZPL_RG_EPSI_FID_v2f`,
+  `csi_fid` and `jn_svs_special_ve11c` imported alone and clear their pairs.
+
+  What the search excludes is more useful than what it found. Against the 93
+  scans now observed to import -- a 1067-key vocabulary -- there is **no**
+  ASCCONV key or XProtocol tag the three blockers share and the accepted
+  scans lack (`ciss` and `medic` have none at all; `blade` has only
+  `sBladePara.*`, which is what the corpus's one BLADE sequence would carry
+  regardless). Sweeping *values* rather than keys finds seven keys where all
+  three hold something unseen, and all seven are per-scan unique by nature --
+  `alTR`, `dRefSNR`, `lScanTimeSec`, `tProtocolName`. It is not size, coils,
+  slices, sequence family or stock-versus-third-party: `csi_se`/`csi_slaser`
+  import while `ciss` does not, `resolve`/`se`/`petra` import while `medic`
+  does not, and all three blockers are `%SiemensSeq%`. Nor is it provenance:
+  `petra` and `se` appear only in the same unshipped whole-scanner export and
+  import fine.
+
+  All three are licensed Siemens product options (BLADE/PROPELLER, CISS,
+  MEDIC), which is the leading explanation -- a sequence the scanner does not
+  have cannot be reconciled and the program does not build -- and it is not
+  established: `petra` is an option too and imported. What settles it is a
+  question for the console rather than the archive, and the protocol is the
+  wrong place to keep looking.
+- **The earlier bisection, for the record: one scan per group of six.** The eighteen went back as nine pairs; six imported and exactly one
+  pair from each of the three refused groups came back refused --
+  `{ZPL_RG_EPSI_FID_v2f, blade}`, `{ciss, csi_fid}`,
+  `{jn_svs_special_ve11c, medic}`. One offender per group of six, so the
+  count is small and the cause is still unnamed. All eighteen returned
+  protocols were byte-identical this round, with no repairs at all.
+
+  Repeating the key sweep against every scan now *known* to import -- a
+  1067-key vocabulary over three rounds -- leaves `blade` as the only
+  candidate carrying anything unseen, `sBladePara.*`. That is weak evidence
+  rather than an answer: it is the corpus's only BLADE sequence, so a unique
+  parameter family is what it would have whether or not it is the offender,
+  and the other two pairs show nothing at all. Note also what the pairs rule
+  out on their own: `csi_se` and `csi_slaser` import while one of `ciss` and
+  `csi_fid` does not, and `resolve`, `se` and `petra` import while one of
+  `medic` and `jn_svs_special_ve11c` does not -- so it is not stock-versus-
+  third-party, and it is not the sequence family.
+- **The console repairs an imported protocol in the XProtocol as well as in
+  ASCCONV, and it can remove a reconstruction step.** `fl3d_vibe` and
+  `se_mc` came back with their parametric-mapping functor gone --
+  `<Connection."c1">` losing its `T1mapFunctor`/`T2mapFunctor`, `EXECUTE`
+  emptied and `sParametricMapping.*` changed -- and `BEAT` and `space` came
+  back with `sCommonIterRecon.*`, `sPat.*` and the derived scan times
+  recomputed. Every repair recorded before this was an ASCCONV assignment, so
+  a diff that reads only the ASCCONV block will report these four protocols
+  as returning unchanged. 45 of 49 did return byte-identical, which is what
+  makes the four legible rather than lost in churn.
+- **`tSequenceFileName` can carry a subdirectory under the owner prefix.**
+  `%CustomerSeq%\Andre\tfl_mgh_multiecho`, `%CustomerSeq%\MGH_Moco\
+  ep_moco_nav_set`, and one scan spelling it `%CustomerSeq%\\MGH\
+  ep2d_bold_mgh` with a doubled separator. Four binaries appear under both a
+  bare and a subdirectory spelling, so the field is not a flat
+  `prefix\binary` pair and counting distinct *values* overcounts the
+  sequences by four. Nothing is broken by it -- `sequence_owner` splits on the
+  first separator and `header_of` takes the binary with `rsplit`, which are
+  the right readings by luck rather than by design, and worth keeping
+  deliberately: a `split("\\")[1]` would hand the catalog `Andre`.
 - **Links are dropped by `duplicate_step`, correctly but silently.** It writes
   empty `RelationsFrom`/`RelationsTo` entries for the new step, which is right
   for a fresh scan and wrong for a copy of a linked one -- an imported scan
@@ -1207,12 +1872,28 @@ the two consistent.
   alone kept theirs. The name it lands on tracks `alFree[15]` (`ABCD
   navigator`, which the driver moved 2 to 1) on every scan across the two
   returns that carries both -- except `T09`/`T19` in the NAV option-scan
-  return, which
-  hold `alFree[15] = 1` beside an `_ABCD_*.prot` name. Those two were authored
-  by toggling the option on the console rather than imported, so the rule may
-  be about import and not about the value; that is not established, and a
-  counterexample is a counterexample. Either way the field is already churn, so
-  nothing reads it -- what changes is that "no GUID" did not mean "stable".
+  return, which hold `alFree[15] = 1` beside an `_ABCD_*.prot` name.
+
+  Sweeping the whole corpus with `archive` settles the part left open above,
+  and not the way it was guessed. **On console-authored scans the rule is
+  exception-free**: all 53 of them pair `alFree[15] = 2` with an `_ABCD_*`
+  name (20 space, 30 tfl) and `= 1` with the bare one (1 space, 2 tfl), with
+  nothing against. **`T09`/`T19` are not console-authored**, which was the
+  proposed explanation -- `NAV_optionscan_P1` holds them at `2/_ABCD_tfl` and
+  `2/_ABCD_space`, so the move to 1 is the driver's, exactly as in the
+  `driver_loadtest` scan. The two returns therefore disagree on identical
+  input: the console rewrote the name to bare on one and left `_ABCD_*`
+  standing on the other. So the rewrite is real and its trigger is *not* the
+  value -- it is something that differs between two imports, which is a
+  sharper open question than the one this bullet started with, and the
+  counterexample is on the import side rather than the authoring side.
+
+  The setter is outside the rule entirely: `ep_moco_nav_set_ABCD` carries no
+  `alFree[15]` on any of its 42 corpus scans and takes all three names, so
+  its `.prot` says which vNav it sets up rather than anything about the flag.
+  Three names, not two -- see the `build_id` note below for the vocabulary.
+  Either way the field is already churn, so nothing reads it -- what changes
+  is that "no GUID" did not mean "stable".
 - **A flags word agrees with its own printout on every console-authored scan
   in the corpus**: 3662 bit comparisons over 361 scans, none against, with all
   fourteen mapped bits observed set somewhere -- so a bit in the wrong place
@@ -1325,6 +2006,44 @@ the two consistent.
   is labelled the same way, so resolving through it follows the printout
   instead of duplicating every spelling in the table. Without that the driver
   silently skipped TE on exactly the scans that print it differently.
+- **A Siemens-published VE11S archive reads, round-trips and re-hashes
+  exactly, which is the first evidence from outside this centre.**
+  `shoulder_4ch_flex.exar1` (0.53 MB) is a shoulder protocol Siemens
+  distributes from magnetomworld; the Stack Overflow question links it. Every
+  archive in the corpus came from one site's two scanners, so this is the
+  first independent file the reader has met, and it is not even the same
+  Numaris generation: **`.exar1` is not an XA format**. Its baseline is
+  `N4_VE11S_LATEST_20170215` -- Numaris 4, VE11S, and a different baseline
+  *spelling* with no keyed fields at all, against XA's
+  `MAJORVERSION:VA60A, PROTOCOL:66010002, ...`.
+
+  Nothing had to change to read it. 33 steps in one program, the folder tree
+  resolving to `Root/New Tree/Shouolder/Flex_4Ch/routine` (the typo is the
+  file's), `validate` clean, all **76 content blobs re-encoding to their
+  stored hash** -- so the Newtonsoft serializer derived from XA60 reproduces
+  a 2017 Numaris 4 file byte for byte. A read-and-write round trip is
+  identical in every table, every content row, the running order and all 28
+  protocols. `sequences` names all 28 scans as stock Siemens; one step is an
+  `EdfPauseStep` used as a section divider (`----T1----`).
+
+  **The slice-geometry model holds too**: 24 groups read, worst deviation of
+  the stored array from the recomputed one 7.1e-15 mm. That formula was
+  derived entirely from XA60 `extravals` copies, and this is a release eight
+  years older agreeing with it.
+
+  Two differences worth knowing. `major_version` returned empty until the
+  underscore spelling was handled, since the release is a token rather than a
+  field. And a VE11S protocol *names* its first `<XProtocol>` block
+  `MultiStep Controller` where an XA60 one leaves it unnamed -- both carry
+  two blocks and the ASCCONV sits in the second, so this is a labelling
+  difference rather than a structural one. It is what the Stack Overflow
+  answer printed, and reading it as "a protocol document with no parameters"
+  would be wrong.
+
+  The file is not in `examples/`: it is Siemens' to distribute, and whether
+  to redistribute it in this repository is not a decision this layer should
+  make. It lives outside the corpus and is named here so it can be fetched
+  again.
 - **The first XA30 archive says the format model is release-independent.**
   `MAJORVERSION:VA30A, PROTOCOL:63010001` against XA60's `66010002`, and all
   39 protocols decode with an ASCCONV block and a `Preview` map while all
@@ -1341,17 +2060,29 @@ the two consistent.
   step across every program, which is unchanged for a single-protocol export.
   `duplicate_step` takes an explicit `program=`, since appending to whichever
   came first would put a scan in an unrelated protocol.
-- **A step can be run by several programs, so "exactly one" was a fact about
-  the corpus and not about the format.** Copying a protocol inside a directory
-  reuses the source's step nodes for the scans the copy did not change:
-  `Frederick_P2` shares 67 of its 435 steps -- `BioTMS`/`BioTMS_old` 19,
-  `multiecho_bids_test` and its `_small_fixed` variant 14, `MedwatchTest` and
-  `boxbreathe` 13. It is genuine sharing rather than a GUID-space confusion,
-  and the three checks that establish that are worth repeating: one element id
-  per shared object id, present in the `Children` of exactly *one* of its
-  programs, and parenting to that same one. So `_step_coverage` now asks only
-  that nothing is orphaned, and `_parents` asks that a step parents to *some*
-  program that runs it rather than to whichever the loop reached first.
+- **A step's `ObjectId` is not unique, and reading it as one serves the wrong
+  protocol.** This corrects what stood here before, which claimed copying a
+  protocol inside a directory *reuses* the source's step node -- "one element
+  id per shared object id". It is the other way round: the copy gets its own
+  element and its own live instance and keeps the source's `ObjectId`, so
+  `Frederick_P2` has 510 live step instances over 510 elements but only 435
+  distinct object ids, 67 objects carrying two instances apiece.
+
+  That matters because the running order is a chain of *object* ids. Resolving
+  it through an archive-wide object index keeps one instance per object and
+  hands both programs the same one, so 75 step elements were never walked and
+  27 protocol documents never read. **39 of the 67 pairs hold different
+  protocols**, one being `eja_svs_laser` beside `eja_svs_press` -- different
+  sequences, and the wrong one was returned. `steps_of` now resolves each
+  chain id against the program's own `Children`, which are element ids, with
+  the global index as a fallback no corpus archive needs.
+
+  The check that should have caught it was passing vacuously, and for the same
+  reason: `_step_coverage` compared *object* ids, 435 against 435, while 75
+  elements sat in no running order. It counts elements now. The earlier claim
+  had all three of its "checks" phrased in the space that hides the problem,
+  which is the general lesson -- a GUID-space error cannot be checked in the
+  space it occurs in.
 - **A step's `ParentElementId` is on the `Instance` row, not in its content.**
   Step content is a handful of injector and voice-command fields and on some
   steps is `{"$id": "1"}` alone. Reading the parent off the document therefore

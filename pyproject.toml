@@ -29,6 +29,11 @@ ocr = ["pytesseract>=0.3.10", "pillow>=9.0"]
 test = ["pytest>=7", "pytesseract>=0.3.10", "pillow>=9.0"]
 dev = [
     "pytest>=7",
+    # Runs the suite across cores. It is a dev dependency rather than a test
+    # one because only the whole-suite run uses it: the targeted steps in CI
+    # tee their output and assert on what skipped, and parallel workers
+    # interleave that.
+    "pytest-xdist>=3",
     "pytesseract>=0.3.10",
     "pillow>=9.0",
     "black>=24",

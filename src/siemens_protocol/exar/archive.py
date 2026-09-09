@@ -38,6 +38,11 @@ from xml.etree import ElementTree
 from . import envelope, store
 from .envelope import Envelope
 
+#: The release token in a Numaris 4 baseline, which names no ``MAJORVERSION``
+#: field: ``N4_VE11S_LATEST_20170215`` yields ``VE11S``. Anchored and narrow
+#: on purpose -- see :attr:`Archive.major_version`.
+BASELINE_RELEASE = re.compile(r"VE\d\d[A-Z]?")
+
 #: Width of a packed GUID in a ``Children`` blob.
 GUID_BYTES = 16
 
@@ -46,9 +51,16 @@ GUID_BYTES = 16
 #: to read from.
 PLACEHOLDER_BASELINE = "-"
 
+#: An unset GUID reference in a ``ChangeSet`` row.
+EMPTY_GUID = "00000000-0000-0000-0000-000000000000"
+
 #: Instance types, as ``Instance.InstanceType`` spells them.
 PROGRAM = "EdfProgram"
 MEASUREMENT_STEP = "EdfMeasurementStep"
+
+#: The node the folder tree hangs from, and the folders themselves.
+STRUCTURE = "EdfStructure"
+DIRECTORY = "EdfDirectory"
 
 #: A step in the running order that acquires nothing. Operators put pause and
 #: instruction steps between scans -- "Count down with RA to start of scan",
@@ -74,6 +86,15 @@ WORKFLOW_STEP = "EdfWorkflowStep"
 SPLIT_STEP = "EdfSplitStep"
 JOIN_STEP = "EdfJoinStep"
 
+#: A seventh step kind, taken from Rautenkranz's ``exar1-read`` and the
+#: NeuroStars thread rather than from the corpus, which has none. It belongs
+#: beside the split and join steps -- a branch has to be decided somewhere --
+#: and the cost of the two errors is lopsided: listing a kind that never
+#: appears costs nothing, while omitting one drops its step from the running
+#: order, orphans it in :func:`validate.problems`, and reads as a corrupt
+#: file rather than as an unknown kind.
+DECISION_STEP = "EdfDecisionStep"
+
 #: Every kind that appears in a program's running order. A step holds a
 #: protocol exactly when it is a ``MEASUREMENT_STEP``: that holds across all
 #: 603 steps in the corpus, and it is the rule to test against rather than
@@ -86,6 +107,7 @@ STEP_KINDS = (
     WORKFLOW_STEP,
     SPLIT_STEP,
     JOIN_STEP,
+    DECISION_STEP,
 )
 PROTOCOL = "EdfProtocol"
 STRING = "EdfString"
@@ -558,6 +580,16 @@ class Archive:
         scanner checks -- ``MAJORVERSION:VA60A, PROTOCOL:66010002, ...``.
     head : str
         The changeset id the instances were resolved at.
+    as_read : frozenset of str
+        Every content hash the file held when it was read. What is *not* in
+        it was created by this library, which is half of what lets
+        :meth:`prune` tell its own litter from an orphan the console shipped
+        -- every corpus archive carries exactly one of the latter.
+    displaced : set of str
+        Hashes this library pointed an instance *away* from. The other half:
+        content that arrived with the file and became unreachable because we
+        edited the node holding it is ours to collect too, and `as_read`
+        alone would preserve it forever.
     """
 
     container: store.Container
@@ -565,6 +597,8 @@ class Archive:
     instances: dict[str, Instance]
     baseline: str
     head: str
+    as_read: frozenset[str] = frozenset()
+    displaced: set[str] = field(default_factory=set)
 
     @property
     def by_element(self) -> dict[str, Instance]:
@@ -592,15 +626,35 @@ class Archive:
     def major_version(self) -> str:
         """Return the release named in the baseline, for example ``VA60A``.
 
+        Two baseline spellings exist and the second was found only when a
+        Siemens-published VE11S archive was read. Numaris/X writes a keyed
+        list, ``MAJORVERSION:VA60A, PROTOCOL:66010002, ...``; Numaris 4 writes
+        a single token, ``N4_VE11S_LATEST_20170215``. The keyed field is
+        preferred and the underscore form is only reached when there is none,
+        so a future release adding a `MAJORVERSION` cannot be shadowed by an
+        accidental match.
+
+        The fallback is deliberately narrow -- an anchored ``VE`` plus two
+        digits and an optional letter -- rather than a general "find a
+        version-looking token". The profile modules make the same point about
+        release discriminators: a loose pattern yields a confident wrong
+        answer, which is worse here than the empty string a caller already
+        handles by saying the release is unknown.
+
         Returns
         -------
         str
-            The ``MAJORVERSION`` field, or an empty string if absent.
+            The release, or an empty string when the baseline names none. An
+            unknown release is not an error: the archive still reads, and
+            nothing in this module is release-dependent.
         """
         for part in self.baseline.split(","):
             name, _, value = part.partition(":")
             if name.strip() == "MAJORVERSION":
                 return value.strip()
+        for token in self.baseline.split("_"):
+            if BASELINE_RELEASE.fullmatch(token):
+                return token
         return ""
 
     def document(self, instance: Instance) -> dict[str, Any]:
@@ -705,6 +759,182 @@ class Archive:
         return found[0] if found else None
 
     @property
+    def tree_root(self) -> Instance | None:
+        """Return the ``EdfStructure`` node the directory tree hangs from.
+
+        Exactly one *live* instance is a structure on every corpus archive,
+        so the choice is not in doubt there. The ``Instance`` table holds a
+        second one belonging to the placeholder branch -- it is the orphaned
+        ``EdfStructureContent`` every archive carries -- and it is not live,
+        which is why reading at the wrong branch yields an empty tree.
+        Choosing the node that actually declares ``ParentDirectoryId``, rather
+        than the first structure encountered, costs nothing and keeps that
+        distinction from mattering: a reader that picked the other would
+        report a flat archive rather than an error.
+
+        Returns
+        -------
+        Instance or None
+            The root, or ``None`` in an archive that carries none. Falls back
+            to the first structure node when none declares a tree, so an
+            archive exported from an empty folder still resolves.
+        """
+        structures = [one for one in self.instances.values() if one.kind == STRUCTURE]
+        for instance in structures:
+            if instance.content_hash and "ParentDirectoryId" in self.document(instance):
+                return instance
+        return structures[0] if structures else None
+
+    @property
+    def directory_children(self) -> dict[str, list[str]]:
+        """Return the folder tree read downwards rather than upwards.
+
+        The structure document carries the hierarchy twice. Beside the
+        ``ParentDirectoryId`` map that :attr:`directory_parents` reads, it
+        holds ``SubdirectoryIds`` and ``SubprogramElementIds`` -- a directory
+        to the directories and programs under it -- and names the top
+        explicitly in ``RootDirectoryId``. Only the upward map was known
+        while the tree was being worked out, which is why an early reader
+        reported 61 folders with nothing in them and 499 orphan protocols:
+        with both directions in hand that is a one-line disagreement rather
+        than a plausible-looking answer.
+
+        The two agree on every corpus archive, so this is redundancy, and
+        redundancy is exactly what it is for. :func:`validate.problems`
+        compares them.
+
+        Returns
+        -------
+        dict of str to list of str
+            Directory ``ObjectId`` to the ids beneath it, directories and
+            programs together, in stored order. Empty when the archive has no
+            root or its root records no children.
+        """
+        root = self.tree_root
+        if root is None or not root.content_hash:
+            return {}
+        document = self.document(root)
+        children: dict[str, list[str]] = {}
+        for name in ("SubdirectoryIds", "SubprogramElementIds"):
+            table = document.get(name)
+            if not isinstance(table, dict):
+                continue
+            for key, value in table.items():
+                if key.startswith("$") or not isinstance(value, dict):
+                    continue
+                children.setdefault(key, []).extend(str(one) for one in value.get("$values", []))
+        return children
+
+    @property
+    def declared_root(self) -> str:
+        """Return the directory the structure document names as the top.
+
+        Read from ``RootDirectoryId``. The root is also findable as the one
+        directory whose ``ParentDirectoryId`` entry is the all-zero GUID, and
+        the two agree on every corpus archive; this is the file saying so
+        rather than the reader inferring it.
+
+        Returns
+        -------
+        str
+            The root directory's ``ObjectId``, or an empty string when the
+            archive declares none.
+        """
+        root = self.tree_root
+        if root is None or not root.content_hash:
+            return ""
+        return str(self.document(root).get("RootDirectoryId") or "")
+
+    @property
+    def directory_parents(self) -> dict[str, str]:
+        """Return the child-to-parent map that carries the folder hierarchy.
+
+        The tree is *not* in the ``Children`` blobs: an ``EdfDirectory``
+        carries none in any corpus archive, and an ``EdfProgram`` has no
+        ``ParentElementId``. It lives in the root ``EdfStructure``'s own
+        content document, under ``ParentDirectoryId``.
+
+        That map is keyed in **two GUID spaces at once**, which is the trap
+        here: a directory appears under its ``ObjectId`` and a program under
+        its ``Element_id``. Looking every key up in one space resolves the 61
+        directories and none of the 499 programs, which reads as a tree of
+        empty folders rather than as a lookup in the wrong space. Values are
+        always a directory ``ObjectId``, with the all-zero GUID for the root.
+
+        Returns
+        -------
+        dict of str to str
+            Child id to parent directory ``ObjectId``. Empty when the archive
+            has no root or its root records no parents.
+        """
+        root = self.tree_root
+        if root is None:
+            return {}
+        document = self.document(root)
+        parents = document.get("ParentDirectoryId")
+        if not isinstance(parents, dict):
+            return {}
+        return {k: str(v) for k, v in parents.items() if not k.startswith("$")}
+
+    def parent_of(
+        self, instance: Instance, parents: dict[str, str] | None = None
+    ) -> Instance | None:
+        """Return the directory a node sits in.
+
+        Parameters
+        ----------
+        instance : Instance
+            The node to place.
+        parents : dict of str to str or None, optional
+            A prebuilt :attr:`directory_parents`. Pass one when placing many
+            nodes: building it decodes and parses the root document, which is
+            a megabyte-scale JSON object on a whole-scanner export.
+
+        Returns
+        -------
+        Instance or None
+            The parent directory, or ``None`` at the top of the tree.
+        """
+        if parents is None:
+            parents = self.directory_parents
+        key = parents.get(instance.object_id)
+        if key is None:
+            key = parents.get(instance.element_id)
+        if key is None or key == EMPTY_GUID:
+            return None
+        return self.by_object.get(key)
+
+    def path_of(self, instance: Instance, parents: dict[str, str] | None = None) -> list[str]:
+        """Return the folder path to a node, outermost first.
+
+        Parameters
+        ----------
+        instance : Instance
+            The node to place.
+        parents : dict of str to str or None, optional
+            A prebuilt :attr:`directory_parents`, as for :meth:`parent_of`.
+
+        Returns
+        -------
+        list of str
+            Directory labels, ending with the node's own. A cycle stops the
+            walk rather than hanging, since nothing guarantees the console
+            wrote an acyclic map.
+        """
+        if parents is None:
+            parents = self.directory_parents
+        by_object = self.by_object
+        names: list[str] = []
+        seen: set[str] = set()
+        current: Instance | None = instance
+        while current is not None and current.id not in seen:
+            seen.add(current.id)
+            names.append(self.label_of(current))
+            key = parents.get(current.object_id) or parents.get(current.element_id)
+            current = None if key is None or key == EMPTY_GUID else by_object.get(key)
+        return list(reversed(names))
+
+    @property
     def programs(self) -> list["Program"]:
         """Return every protocol in the archive, each with its ordered steps.
 
@@ -776,10 +1006,29 @@ class Archive:
             PDF export.
         """
         by_element = self.by_element
+        # A step's ObjectId is *not* unique across the file. Copying a
+        # protocol within a directory gives the copy its own element and its
+        # own instance while keeping the source's ObjectId, so 67 objects in
+        # the investigator export carry two live step instances each -- and
+        # the global object index keeps only one of them. Since the running
+        # order is a chain of ObjectIds, resolving through that index serves
+        # both programs the same instance: 39 of those 67 pairs hold
+        # *different* protocols, one pair being eja_svs_laser beside
+        # eja_svs_press, so the wrong scan is returned and the other's
+        # protocol is never read at all.
+        #
+        # The program's own ``Children`` disambiguates, being element ids.
+        # The global index stays as the fallback for a chain naming a step
+        # the program does not list, which no corpus archive does.
+        mine: dict[str, Instance] = {}
+        for child in program.children:
+            node = by_element.get(child)
+            if node is not None and node.kind in STEP_KINDS:
+                mine.setdefault(node.object_id, node)
         by_object = self.by_object
         built: list[Step] = []
         for object_id in self.step_order(program):
-            node = by_object.get(object_id)
+            node = mine.get(object_id) or by_object.get(object_id)
             if node is None:
                 continue
             protocols = []
@@ -847,10 +1096,16 @@ class Archive:
         Content is addressed by hash, so an edit re-addresses the node rather
         than overwriting anything: the new document gets a new ``Content`` row
         and the instance's ``ContentHash`` is repointed at it. The old row is
-        left in place, both because another instance may still share it -- the
-        table is deduplicated, and identical protocols do collide -- and
-        because discarding superseded content in a version-control store is
-        not this layer's decision to make.
+        left in place here, because another instance may still share it -- the
+        table is deduplicated, and identical protocols do collide.
+
+        Whether it *survives* is decided at :meth:`write`, which drops the
+        rows this library created and then superseded. That split matters
+        because appending is a loop: building a program of ninety-six scans
+        rewrites the program document ninety-six times, and keeping every
+        intermediate leaves ninety-five documents no instance references. No
+        console archive has that shape -- each carries exactly one orphan, an
+        ``EdfStructureContent`` -- so the garbage is this library's to collect.
 
         The repoint is done by instance ``Id`` and never by hash, for the same
         deduplication reason: rewriting every row that happened to share the
@@ -878,6 +1133,8 @@ class Archive:
         previous = self.contents[instance.content_hash]
         fresh = previous.replace(document)
         digest = fresh.hash
+        if digest != instance.content_hash:
+            self.displaced.add(instance.content_hash)
         if digest not in self.contents:
             self.contents[digest] = fresh
             self.container.tables["Content"].append(
@@ -900,6 +1157,9 @@ class Archive:
     def write(self, path: str) -> None:
         """Write the archive out as a new ``.exar1`` file.
 
+        Superseded content of this library's own making is dropped first; see
+        :meth:`prune`.
+
         Parameters
         ----------
         path : str
@@ -909,7 +1169,46 @@ class Archive:
         -------
         None
         """
+        self.prune()
         store.write(self.container, path)
+
+    def prune(self) -> int:
+        """Drop content this library created and then superseded.
+
+        A ``Content`` row is dropped when no ``Instance`` row points at it
+        *and* this library either created it or displaced it. Everything
+        else is left alone, so a file that is read and written unchanged
+        keeps every row it arrived with -- including the one orphan every
+        corpus archive carries, the placeholder branch's
+        ``EdfStructureContent``.
+
+        Displacement is the half that is easy to miss. Editing a node that
+        came with the file strands the content it used to hold, and that
+        content *was* in the file as read, so a rule written on origin alone
+        preserves it forever: seeding a program from a one-scan export and
+        appending to it left the original one-scan program document behind.
+
+        The referenced set is taken from the raw ``Instance`` table rather
+        than from the live instances, so content belonging to a superseded
+        *version* of a node is kept -- that is the store's history, not this
+        library's litter.
+
+        Returns
+        -------
+        int
+            How many rows were dropped.
+        """
+        instances = self.container.tables["Instance"]
+        at = instances.index_of("ContentHash")
+        referenced = {str(row[at]) for row in instances.rows if row[at] is not None}
+        ours = self.displaced.union(one for one in self.contents if one not in self.as_read)
+        dead = {one for one in ours if one not in referenced and one in self.contents}
+        if not dead:
+            return 0
+        removed = self.container.tables["Content"].discard("Hash", dead)
+        for one in dead:
+            self.contents.pop(one, None)
+        return removed
 
 
 def _refresh_content_tag(tags: Any, document: dict[str, Any]) -> Any:
@@ -969,6 +1268,56 @@ def _head_branch(container: store.Container) -> tuple[str, str]:
     return str(chosen[0].get("Baseline", "")), str(chosen[0].get("Head", ""))
 
 
+def _element_map(container: store.Container, head: str) -> set[str]:
+    """The instance versions a changeset's element map resolves to.
+
+    A ``ChangeSet`` names two rows of ``ElementToInstanceMap``: a
+    ``BaseElementMapId`` holding the whole tree as of some earlier point, and
+    a ``DeltaElementMapId`` holding what this changeset changed. Each map is a
+    flat run of 32-byte records -- an element id and an instance id, both as
+    .NET mixed-endian GUIDs -- and the delta supersedes the base element by
+    element. That pair *is* the live set, which is why
+    :func:`.generate._head_map_id` appends new pairs to it.
+
+    Reading the live set any other way works only on an archive written in a
+    single changeset. ``InstanceChangeSet`` records what each changeset
+    *touched*, so filtering it to the head yields the last save's delta and
+    calls it the whole file: on a 97 MB export written by twelve successive
+    ``CopyProgramsPipeline`` saves, that is 21 instances of 31164, and it
+    looks like a small archive rather than like a failure.
+
+    Parameters
+    ----------
+    container : store.Container
+        The loaded tables.
+    head : str
+        The changeset id to resolve at.
+
+    Returns
+    -------
+    set of str
+        Instance version ids, empty when the changeset names no map -- an
+        ``Initial creation`` row leaves both ids unset, and the caller then
+        falls back rather than reporting an empty archive.
+    """
+    changesets = {str(row["Id"]): row for row in container.rows("ChangeSet")}
+    row = changesets.get(head)
+    if row is None:
+        return set()
+    blobs = {str(entry["Id"]): entry["Data"] for entry in container.rows("ElementToInstanceMap")}
+    resolved: dict[str, str] = {}
+    for column in ("BaseElementMapId", "DeltaElementMapId"):
+        identifier = str(row.get(column, EMPTY_GUID))
+        blob = blobs.get(identifier)
+        if identifier == EMPTY_GUID or blob is None:
+            continue
+        raw = bytes(blob)
+        for offset in range(0, len(raw) - 31, 32):
+            element = str(uuid.UUID(bytes_le=raw[offset : offset + 16]))
+            resolved[element] = str(uuid.UUID(bytes_le=raw[offset + 16 : offset + 32]))
+    return set(resolved.values())
+
+
 def _live_instances(container: store.Container, head: str) -> dict[str, Instance]:
     """Resolve the instances that exist at one changeset.
 
@@ -984,11 +1333,13 @@ def _live_instances(container: store.Container, head: str) -> dict[str, Instance
     dict of str to Instance
         Live instances keyed by version id.
     """
-    live = {
-        str(row["InstanceId"])
-        for row in container.rows("InstanceChangeSet")
-        if str(row.get("ChangeSetId", "")) == head
-    }
+    live = _element_map(container, head)
+    if not live:
+        live = {
+            str(row["InstanceId"])
+            for row in container.rows("InstanceChangeSet")
+            if str(row.get("ChangeSetId", "")) == head
+        }
     resolved: dict[str, Instance] = {}
     for row in container.rows("Instance"):
         identifier = str(row["Id"])
@@ -1029,4 +1380,5 @@ def read(path: str) -> Archive:
         instances=_live_instances(container, head),
         baseline=baseline,
         head=head,
+        as_read=frozenset(contents),
     )

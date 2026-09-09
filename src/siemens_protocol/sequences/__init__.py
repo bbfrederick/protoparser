@@ -117,6 +117,120 @@ def special_keys(scan: Mapping) -> set[str]:
     return found
 
 
+def card_names(scan: Mapping) -> set[str]:
+    """The cards a scan prints, by the group name at the head of each title.
+
+    A printed title is ``<group> - <page>``: ``Sequence - Special`` is the
+    Special page of the Sequence card, and ``Diff - Body`` is the Body page of
+    the Diff card. So the group is the *first* component where the page is the
+    last, which is why this reads the head and :func:`special_keys` reads the
+    tail. That is not a cosmetic difference. VE11C splits diffusion across
+    ``Diff - Body``, ``Diff - Neuro`` and ``Diff - Composing`` while the
+    Numaris/X releases print a single ``Diff``, so matching the tail finds
+    ``Body`` and ``Neuro`` and misses every VE11C diffusion scan there is.
+
+    Parameters
+    ----------
+    scan : mapping
+        A serialized scan, carrying ``sections``.
+
+    Returns
+    -------
+    set of str
+        Card group names. Empty for a scan read from an ``.exar1``, which has
+        no cards at all -- what a page splits into Routine, Contrast and
+        Geometry is a property of the page, not of the protocol.
+    """
+    return {
+        title.split(" - ")[0].strip()
+        for title in (scan.get("sections") or {})
+        if title.split(" - ")[0].strip()
+    }
+
+
+def parameter_values(scan: Mapping) -> dict[str, list[str]]:
+    """Every printed parameter, as label to the values printed under it.
+
+    A label can be printed on more than one card -- ``Position`` appears on
+    four -- so this keeps a list rather than collapsing to one reading. A
+    caller testing a value has to decide what several mean; requiring all of
+    them to hold is the conservative choice and the one :meth:`Signature.match`
+    makes.
+
+    Parameters
+    ----------
+    scan : mapping
+        A serialized scan, carrying ``sections``.
+
+    Returns
+    -------
+    dict of str to list of str
+        Values in printed order. Empty for a scan read from an ``.exar1``
+        beyond its ``Preview`` summary.
+    """
+    found: dict[str, list[str]] = {}
+    for params in (scan.get("sections") or {}).values():
+        for key, value in (params or {}).items():
+            found.setdefault(key, []).append(str(value))
+    return found
+
+
+def _at_least(values: list[str], bound: float) -> bool:
+    """Whether a parameter is printed, and every reading is at or above a bound.
+
+    The mirror of :func:`_at_most`, and deliberately not its negation: absence
+    fails here where it satisfies there. That is what makes a pair of entries
+    partition rather than overlap -- ``at most 1`` and ``at least 2`` cannot
+    both hold, and neither can both fail on a value, so a scan printing a 1
+    goes to the single-voxel entry alone instead of matching both.
+
+    Parameters
+    ----------
+    values : list of str
+        The readings, as printed. Empty means the scan does not print the
+        parameter, which fails.
+    bound : float
+        The smallest value that still satisfies the clause.
+
+    Returns
+    -------
+    bool
+        ``True`` when at least one reading is present and all of them parse
+        and are at or above ``bound``.
+    """
+    if not values:
+        return False
+    for value in values:
+        match = re.match(r"\s*(-?\d+(?:\.\d+)?)", value)
+        if match is None or float(match.group(1)) < bound:
+            return False
+    return True
+
+
+def _at_most(values: list[str], bound: float) -> bool:
+    """Whether every printed reading of one parameter is within a bound.
+
+    Parameters
+    ----------
+    values : list of str
+        The readings, as printed. A unit or any other trailing text after the
+        number is ignored; a reading with no leading number at all fails,
+        because refusing is safer than assuming what an unparsable value meant.
+    bound : float
+        The largest value that still satisfies the clause.
+
+    Returns
+    -------
+    bool
+        ``True`` when every reading parses and is at or below ``bound``.
+    """
+    for value in values:
+        match = re.match(r"\s*(-?\d+(?:\.\d+)?)", value)
+        if match is None or float(match.group(1)) > bound:
+            return False
+    return True
+
+
 @dataclass(frozen=True)
 class Signature:
     """One catalog entry: how to recognize a sequence, and what it is.
@@ -147,6 +261,34 @@ class Signature:
         Special-card labels that must all be present.
     special_any : tuple of str, optional
         Special-card labels of which at least one must be present.
+    parameters_at_most : tuple of tuple, optional
+        ``(label, bound)`` pairs, each satisfied when the scan does not print
+        that parameter at all or prints it at or below the bound. Absence
+        counts as satisfied because a sequence that does not have a setting
+        does not print one: a single-voxel spectroscopy scan prints no
+        ``Scan Res.`` where a CSI scan of the same sequence family prints 8 or
+        16, so ``Scan Res. A >> P`` at most 1 says "not phase encoded" and
+        covers both spellings of that. It is the one clause that reads a
+        printed *value* rather than the presence of a label, which is why it
+        is expressed as a bound and not an equality -- the corpus shows only
+        absence, and a 1 would mean the same thing.
+    parameters_at_least : tuple of tuple, optional
+        ``(label, bound)`` pairs, each satisfied only when the scan prints
+        that parameter at or above the bound. The mirror of
+        ``parameters_at_most``, with absence failing rather than passing, so
+        the two are exact complements: a CSI entry asking for a phase-encoding
+        matrix of at least 2 and a single-voxel one allowing at most 1 cannot
+        both claim a scan.
+    cards_all : tuple of str, optional
+        Card group names the scan must print, as :func:`card_names` reads
+        them. Where ``special_all`` matches a parameter the sequence author
+        chose to expose, this matches a card the console prints because of
+        what the sequence *is*: a diffusion scan has to prescribe directions
+        and b-values, so it always prints ``Diff``, and no checkbox turns
+        that off. Like ``base_binaries`` it gates the Special-card route
+        only, never ``binaries`` -- a scan read from an ``.exar1`` prints no
+        cards at all, and gating the binary route would make every archive
+        stop matching.
     priority : int, optional
         Breaks ties when a scan matches more than one signature, higher
         winning. Needed because the number of conditions does not say which
@@ -166,10 +308,19 @@ class Signature:
     base_binaries: tuple[str, ...] = ()
     special_all: tuple[str, ...] = ()
     special_any: tuple[str, ...] = ()
+    cards_all: tuple[str, ...] = ()
+    parameters_at_most: tuple[tuple[str, float], ...] = ()
+    parameters_at_least: tuple[tuple[str, float], ...] = ()
     priority: int = 0
     note: str = ""
 
-    def match(self, binary: str, special: set[str]) -> list[str] | None:
+    def match(
+        self,
+        binary: str,
+        special: set[str],
+        cards: set[str] | None = None,
+        values: Mapping[str, list[str]] | None = None,
+    ) -> list[str] | None:
         """Test one scan against this signature.
 
         The two routes are independent and either is sufficient. A binary
@@ -186,6 +337,13 @@ class Signature:
             The scan's sequence binary, empty when the export printed none.
         special : set of str
             The scan's Special-card labels, as :func:`special_keys` returns.
+        cards : set of str or None, optional
+            The card groups the scan prints, as :func:`card_names` returns.
+            Default ``None``, read as none printed.
+        values : mapping or None, optional
+            Every printed parameter, as :func:`parameter_values` returns.
+            Default ``None``, read as nothing printed -- under which every
+            ``parameters_at_most`` bound is satisfied by absence.
 
         Returns
         -------
@@ -198,10 +356,16 @@ class Signature:
         evidence: list[str] = []
         if self.binaries and binary and binary in self.binaries:
             evidence.append(f"sequence binary {binary!r}")
-        evidence.extend(self._special_evidence(binary, special))
+        evidence.extend(self._special_evidence(binary, special, cards or set(), values or {}))
         return evidence or None
 
-    def _special_evidence(self, binary: str, special: set[str]) -> list[str]:
+    def _special_evidence(
+        self,
+        binary: str,
+        special: set[str],
+        cards: set[str],
+        values: Mapping[str, list[str]],
+    ) -> list[str]:
         """Evidence from the Special card, if that route applies and holds.
 
         Parameters
@@ -213,6 +377,10 @@ class Signature:
             fingerprint that also has a diffusion variant.
         special : set of str
             The scan's Special-card labels.
+        cards : set of str
+            The card groups the scan prints.
+        values : mapping
+            Every printed parameter and its readings.
 
         Returns
         -------
@@ -220,11 +388,28 @@ class Signature:
             One entry per satisfied clause, empty when the route does not
             apply or does not hold.
         """
-        if not (self.special_all or self.special_any):
+        if not (
+            self.special_all or self.special_any or self.cards_all or self.parameters_at_least
+        ):
             return []
         if self.base_binaries and binary not in self.base_binaries:
             return []
+        if self.cards_all and any(name not in cards for name in self.cards_all):
+            return []
+        if any(not _at_most(values.get(key, []), bound) for key, bound in self.parameters_at_most):
+            return []
+        if any(
+            not _at_least(values.get(key, []), bound) for key, bound in self.parameters_at_least
+        ):
+            return []
         evidence: list[str] = []
+        if self.cards_all:
+            evidence.append("prints the " + ", ".join(self.cards_all) + " card")
+        for key, bound in self.parameters_at_most:
+            printed = values.get(key)
+            evidence.append(f"{key} is {printed[0]}" if printed else f"prints no {key}")
+        for key, _bound in self.parameters_at_least:
+            evidence.append(f"{key} is {values[key][0]}")
         if self.special_all:
             if any(k not in special for k in self.special_all):
                 return []
@@ -251,6 +436,9 @@ class Signature:
         """
         return (
             len(self.special_all)
+            + len(self.cards_all)
+            + len(self.parameters_at_most)
+            + len(self.parameters_at_least)
             + (1 if self.special_any else 0)
             + (1 if self.binaries else 0)
             + (1 if self.base_binaries else 0)
@@ -417,6 +605,15 @@ def _signature_from(payload: Mapping, source: Path) -> Signature:
             raise ValueError(f"{source}: signature field {name!r} must be a list of strings")
         return tuple(value)
 
+    def bounds(name: str) -> tuple[tuple[str, float], ...]:
+        value = payload.get(name, {})
+        if not isinstance(value, dict) or not all(
+            isinstance(k, str) and k and isinstance(v, (int, float)) and not isinstance(v, bool)
+            for k, v in value.items()
+        ):
+            raise ValueError(f"{source}: signature field {name!r} must map labels to numbers")
+        return tuple((k, float(v)) for k, v in value.items())
+
     def number(name: str) -> int:
         value = payload.get(name, 0)
         if not isinstance(value, int) or isinstance(value, bool):
@@ -436,6 +633,9 @@ def _signature_from(payload: Mapping, source: Path) -> Signature:
         base_binaries=words("base_binaries"),
         special_all=words("special_all"),
         special_any=words("special_any"),
+        cards_all=words("cards_all"),
+        parameters_at_most=bounds("parameters_at_most"),
+        parameters_at_least=bounds("parameters_at_least"),
         priority=number("priority"),
         note=text("note"),
     )
@@ -558,6 +758,8 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
     binary = str(header.get("sequence", "")).strip()
     owner = str(header.get("sequence_owner", "")).strip()
     special = special_keys(scan)
+    cards = card_names(scan)
+    values = parameter_values(scan)
     markers = _path_evidence(str(scan.get("path", "")), catalog.path_markers)
     common = dict(
         index=int(scan.get("index", 0)),
@@ -569,7 +771,7 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
     best: Signature | None = None
     best_evidence: list[str] = []
     for signature in catalog.signatures:
-        found = signature.match(binary, special)
+        found = signature.match(binary, special, cards, values)
         if found is None:
             continue
         if best is None or signature.rank() > best.rank():

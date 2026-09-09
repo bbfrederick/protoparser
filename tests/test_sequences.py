@@ -10,13 +10,22 @@ new example folder tightens them instead of editing them.
 
 from __future__ import annotations
 
+import collections
 import json
 import os
 from pathlib import Path
 
 import pytest
 
-from conftest import GOLDEN, ParseFixture, find_example, requires_examples
+from conftest import (
+    EXAR_PROTOCOL_FILES,
+    GOLDEN,
+    ParseFixture,
+    find_example,
+    requires_examples,
+    requires_exar,
+)
+from siemens_protocol import parse_document
 from siemens_protocol.cli import main
 from siemens_protocol.sequences import (
     FLAGGED,
@@ -27,12 +36,14 @@ from siemens_protocol.sequences import (
     VERDICTS,
     Catalog,
     Signature,
+    card_names,
     check,
     default_catalog,
     describe,
     identify,
     identify_protocol,
     load_catalog,
+    parameter_values,
     render,
     special_keys,
     summarize,
@@ -169,6 +180,373 @@ def test_base_binaries_gate_the_special_card_route_but_not_the_binary_route() ->
     # The binary names the sequence outright, so the kernel gate is not its
     # business: a vendor binary is a statement, not an inference.
     assert signature.match("vendor_seq", set()) is not None
+
+
+def test_a_card_group_is_read_from_the_head_of_the_title_not_the_tail() -> None:
+    # A title is "<group> - <page>", so Special is a page of the Sequence card
+    # while Diff is a group with pages. VE11C splits diffusion into
+    # Diff - Body / Diff - Neuro / Diff - Composing where Numaris/X prints a
+    # single Diff, so reading the tail finds Body and Neuro and misses every
+    # VE11C diffusion scan there is.
+    ve11c = {"sections": {"Diff - Body": {}, "Diff - Neuro": {}, "Sequence - Special": {}}}
+    numaris = {"sections": {"Diff": {}, "Sequence - Special": {}}}
+    assert "Diff" in card_names(ve11c)
+    assert "Diff" in card_names(numaris)
+    assert card_names(ve11c) >= {"Diff", "Sequence"}
+    # And the two conventions genuinely disagree, so this is not a free choice.
+    assert "Diff" not in special_keys({"sections": {"Diff - Body": {"x": "1"}}})
+
+
+def test_a_scan_read_from_an_archive_prints_no_cards() -> None:
+    # inspect.scan_of emits one section, Preview, because the archive has no
+    # cards -- what a page splits into Routine and Geometry is a property of
+    # the page. cards_all must therefore never gate the binary route.
+    assert card_names({"sections": {"Preview": {"TR": "650 ms"}}}) == {"Preview"}
+
+
+def test_cards_all_gates_the_special_card_route_but_not_the_binary_route() -> None:
+    signature = Signature(
+        id="s",
+        vendor="v",
+        family="f",
+        binaries=("cmrr_mbep2d_diff",),
+        base_binaries=("epse",),
+        special_all=("A key",),
+        cards_all=("Diff",),
+    )
+    assert signature.match("epse", {"A key"}, {"Diff"}) is not None
+    # The card is absent: this is the spin-echo variant, not diffusion.
+    assert signature.match("epse", {"A key"}, {"BOLD"}) is None
+    # An archive names the sequence outright and prints no cards at all, so
+    # gating the binary route would make every archive stop matching.
+    assert signature.match("cmrr_mbep2d_diff", set(), set()) is not None
+
+
+def test_cards_all_counts_towards_the_weight_that_breaks_a_tie() -> None:
+    without = Signature(id="a", vendor="v", family="f", special_all=("K",))
+    with_card = Signature(id="b", vendor="v", family="f", special_all=("K",), cards_all=("Diff",))
+    assert with_card.weight() > without.weight()
+
+
+def test_a_diffusion_scan_is_claimed_by_its_card_not_by_the_shared_one() -> None:
+    # The CMRR multiband card is printed by BOLD, diffusion and spin echo
+    # alike, so on its own it cannot say which. The Diff card can, and a
+    # diffusion sequence cannot help printing it.
+    catalog = default_catalog()
+    diffusion = next(s for s in catalog.signatures if s.id == "cmrr-mb-epi-diffusion")
+    assert diffusion.cards_all == ("Diff",)
+    shared = {"MB LeakBlock kernel", "Online multi-band recon."}
+    assert diffusion.match("epse", shared, {"Diff"}) is not None
+    assert diffusion.match("epse", shared, {"BOLD"}) is None
+
+
+def test_diffusion_outranks_the_spin_echo_entry_deliberately() -> None:
+    # They never both match today. If a diffusion protocol ever enables
+    # 'Triggering scheme', the option the SE entry keys on, the card it cannot
+    # help printing is the better evidence -- and that must not be decided by
+    # which entry happens to come first in the file.
+    catalog = default_catalog()
+    by_id = {s.id: s for s in catalog.signatures}
+    assert by_id["cmrr-mb-epi-diffusion"].rank() > by_id["cmrr-mb-epi-se"].rank()
+
+
+def test_a_sequence_named_differently_by_the_two_files_lists_both_spellings() -> None:
+    # A page prints the kernel and an .exar1 prints the sequence file name, so
+    # an entry knowing only one matches only one kind of input. cmrr-megapress
+    # knowing only 'mpres' matched every printout and no archive, which left
+    # 427 whole-scanner scans on the owner statement alone. The two are the
+    # same sequence, joined archive-to-printout on five Frederick_P2 scans.
+    megapress = next(s for s in default_catalog().signatures if s.id == "cmrr-megapress")
+    assert {"mpres", "eja_svs_mpress"} <= set(megapress.binaries)
+    assert megapress.match("mpres", set()) is not None
+    assert megapress.match("eja_svs_mpress", set()) is not None
+
+
+def test_the_two_cmrr_semi_lasers_are_kept_apart() -> None:
+    # Both come from CMRR and both are semi-LASER, but they are distinct
+    # sequences by different authors, and their kernels are one character
+    # apart: Auerbach's prints slasr where Deelchand's prints slaser. Nothing
+    # about that pair is forgiving of a typo, so the separation is asserted
+    # rather than assumed.
+    by_id = {s.id: s for s in default_catalog().signatures}
+    eja, dkd = by_id["cmrr-semilaser"], by_id["dkd-semilaser"]
+    assert "slasr" in eja.base_binaries and "slasr" not in dkd.binaries
+    assert "slaser" in dkd.binaries and "slaser" not in eja.base_binaries
+    assert not set(eja.special_all) & set(dkd.special_all)
+    # Neither claims the other's card. Tested with a binary neither names,
+    # because the binary route is sufficient on its own and would otherwise
+    # answer for the card route rather than letting it be checked.
+    assert eja.match("slasr", set(dkd.special_all)) is None
+    assert dkd.match("someone_elses_kernel", set(eja.special_all)) is None
+    assert dkd.match("someone_elses_kernel", set(dkd.special_all)) is not None
+
+
+def test_a_bound_is_satisfied_by_absence_as_well_as_by_a_small_value() -> None:
+    # A sequence that has no setting prints none, so absence is the ordinary
+    # way "not phase encoded" appears. The bound is written as "at most 1"
+    # rather than "absent" because a 1 x 1 matrix would mean the same thing --
+    # unobserved in the corpus, and cheaper to allow than to be wrong about.
+    signature = Signature(
+        id="s",
+        vendor="v",
+        family="f",
+        special_all=("K",),
+        parameters_at_most=(("Scan Res. A >> P", 1.0),),
+    )
+
+    def scan_with(resolution: dict) -> dict:
+        return {"sections": {"Resolution - Common": resolution, "Sequence - Special": {"K": "1"}}}
+
+    def check_scan(sc: dict) -> object:
+        return signature.match("", special_keys(sc), card_names(sc), parameter_values(sc))
+
+    assert check_scan(scan_with({"Vector Size": "2048"})) is not None
+    assert check_scan(scan_with({"Scan Res. A >> P": "1"})) is not None
+    assert check_scan(scan_with({"Scan Res. A >> P": "16"})) is None
+    # An unreadable value is refused rather than assumed to be small.
+    assert check_scan(scan_with({"Scan Res. A >> P": "auto"})) is None
+
+
+def test_a_value_printed_on_several_cards_must_satisfy_the_bound_everywhere() -> None:
+    # Position is printed on four cards and they do not agree, so collapsing a
+    # label to one reading is how the flattening trap gets in. Every reading
+    # has to hold.
+    signature = Signature(
+        id="s",
+        vendor="v",
+        family="f",
+        special_all=("K",),
+        parameters_at_most=(("N", 1.0),),
+    )
+    both = {"sections": {"A": {"N": "1"}, "B": {"N": "16"}, "Sequence - Special": {"K": "1"}}}
+    assert parameter_values(both)["N"] == ["1", "16"]
+    assert (
+        signature.match("", special_keys(both), card_names(both), parameter_values(both)) is None
+    )
+
+
+def test_the_csi_variant_is_declined_by_the_phase_encoding_matrix() -> None:
+    # eja_svs_slaser and eja_csi_slaser share the kernel slasr and 39 of 40
+    # Special-card labels, so nothing on that card separates them. The
+    # Resolution card does: a single-voxel scan prints no matrix, and every
+    # CSI scan in the corpus prints 8 or 16.
+    eja = next(s for s in default_catalog().signatures if s.id == "cmrr-semilaser")
+    assert dict(eja.parameters_at_most) == {"Scan Res. A >> P": 1.0, "Scan Res. R >> L": 1.0}
+    card = set(eja.special_all)
+    svs = {
+        "sections": {
+            "Resolution - Common": {"Vector Size": "2048"},
+            "Sequence - Special": {k: "1" for k in card},
+        }
+    }
+    csi = {
+        "sections": {
+            "Resolution - Common": {"Scan Res. A >> P": "16", "Scan Res. R >> L": "16"},
+            "Sequence - Special": {k: "1" for k in card},
+        }
+    }
+    assert eja.match("slasr", special_keys(svs), card_names(svs), parameter_values(svs))
+    assert eja.match("slasr", special_keys(csi), card_names(csi), parameter_values(csi)) is None
+
+
+def test_the_eja_suite_is_split_by_kernel_over_a_shared_card() -> None:
+    # PRESS, LASER and STEAM are techniques anyone may implement, so the card
+    # cannot name a sequence on its own: 22 labels are printed by every eja
+    # sequence, and those say only whose implementation it is. The kernel says
+    # which technique. Both halves are needed, and neither is sufficient.
+    by_id = {s.id: s for s in default_catalog().signatures}
+    families = {
+        "cmrr-press": "press",
+        "cmrr-laser": "laser",
+        "cmrr-steam": "steam",
+    }
+    shared = set(by_id["cmrr-press"].special_all)
+    for sid, kernel in families.items():
+        entry = by_id[sid]
+        assert entry.base_binaries == (kernel,)
+        assert set(entry.special_all) == shared
+        assert entry.match(kernel, shared) is not None
+        # The same card on a sibling's kernel is a different sequence.
+        for other in set(families.values()) - {kernel}:
+            assert entry.match(other, shared) is None
+
+
+@requires_exar
+@requires_examples
+def test_the_diffusion_variants_are_separated_by_one_printed_label() -> None:
+    """One Special-card label tells a diffusion-weighted eja build from its parent.
+
+    The two files each answer half of this and neither answers it alone. An
+    ``.exar1`` names ``eja_svs_press_diff`` beside ``eja_svs_press``; a page
+    prints ``press`` for both and no ``Diff`` card for either, so unlike
+    CMRR's multiband EPI there is no card group to key on. Joining the two on
+    scan name gives every printed card the binary that wrote it, and the diff
+    card is then its parent's plus exactly ``Diffusion weighting``.
+
+    Asserted in both directions, because only one of them is interesting: the
+    label appearing on a parent would make the fingerprint claim it, and the
+    label missing from a diff build would make it claim nothing.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import archive as exar_archive
+    from siemens_protocol.exar import inspect as exar_inspect
+
+    families = ("eja_svs_press", "eja_svs_slaser", "eja_svs_steam")
+    seen = collections.Counter()
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        printed = collections.defaultdict(list)
+        for scan in parse_document(pdf).protocol.to_dict()["scans"]:
+            printed[scan["name"]].append(scan)
+        for step in exar_archive.read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            binary = exar_inspect.sequence_file(step.protocol).rsplit("\\", 1)[-1]
+            if not binary.startswith(families):
+                continue
+            held = printed.get(step.name)
+            if not held or len(held) != 1:
+                continue
+            weighted = "Diffusion weighting" in special_keys(held[0])
+            diffusion = binary.endswith("_diff")
+            assert weighted == diffusion, (
+                f"{os.path.basename(path)}/{step.name} runs {binary} and "
+                f"{'prints' if weighted else 'does not print'} Diffusion weighting"
+            )
+            seen[diffusion] += 1
+    assert seen[True] >= 3, f"only {seen[True]} diffusion-weighted eja scan(s) joined"
+    assert seen[False] >= 3, f"only {seen[False]} plain eja scan(s) joined"
+
+
+def test_a_diffusion_variant_outranks_its_parent_without_a_priority() -> None:
+    """The extra label is what wins, not a hand-set priority.
+
+    Both entries genuinely match a diffusion-weighted scan -- the parent's
+    conditions are a subset of the variant's -- so something has to decide,
+    and `rank()` compares priority before weight. Naming one more condition is
+    enough at equal priority, which is why no priority is set here. A test
+    says so, because a later edit that adds a condition to a parent would
+    silently reverse the order.
+
+    Returns
+    -------
+    None
+    """
+    by_id = {s.id: s for s in default_catalog().signatures}
+    card = {
+        "cmrr-press": ("press", "cmrr-press-diff"),
+        "cmrr-steam": ("steam", "cmrr-steam-diff"),
+        "cmrr-semilaser": ("slasr", "cmrr-semilaser-diff"),
+    }
+    for parent_id, (kernel, variant_id) in card.items():
+        parent, variant = by_id[parent_id], by_id[variant_id]
+        assert parent.priority == variant.priority
+        assert variant.rank() > parent.rank()
+        assert set(parent.special_all) < set(variant.special_all)
+        assert set(variant.special_all) - set(parent.special_all) == {"Diffusion weighting"}
+        # The parent still matches, so the ordering is load-bearing.
+        labels = set(variant.special_all)
+        assert parent.match(kernel, labels) is not None
+        assert variant.match(kernel, labels) is not None
+
+
+def test_no_siemens_sequence_prints_the_kernels_the_eja_entries_gate_on() -> None:
+    # press, laser and steam are technique names rather than product ones, so
+    # keying on them would be reckless if Siemens shipped a sequence using one.
+    # Every scan printing them in the corpus is an eja_ scan, and the archives
+    # put all of those under %CustomerSeq%.
+    gated = {"press", "laser", "steam", "slasr", "mslsr"}
+    seen = collections.Counter()
+    for _name, protocol in GOLDEN_PROTOCOLS:
+        for scan in protocol.get("scans", []):
+            kernel = (scan.get("header") or {}).get("sequence", "")
+            if kernel in gated:
+                seen[kernel] += 1
+                assert scan["name"].startswith("eja_"), (
+                    f"{scan['name']} prints {kernel!r} and is not an eja_ sequence, so "
+                    "the kernel gates in the eja entries are claiming something else"
+                )
+    assert gated <= set(seen), f"kernels never exercised: {sorted(gated - set(seen))}"
+
+
+def test_the_two_semi_laser_variants_partition_rather_than_overlap() -> None:
+    # They share a kernel and 39 of 40 Special-card labels, so only the
+    # Resolution card separates them. "At most 1" and "at least 2" are exact
+    # complements: absence fails the second where it satisfies the first, so a
+    # scan printing a 1 x 1 matrix goes to the single-voxel entry alone rather
+    # than to both.
+    by_id = {s.id: s for s in default_catalog().signatures}
+    svs, csi = by_id["cmrr-semilaser"], by_id["cmrr-semilaser-csi"]
+    assert dict(svs.parameters_at_most) == {"Scan Res. A >> P": 1.0, "Scan Res. R >> L": 1.0}
+    assert dict(csi.parameters_at_least) == {"Scan Res. A >> P": 2.0, "Scan Res. R >> L": 2.0}
+    card = set(svs.special_all)
+
+    def scan_with(matrix: str | None) -> dict:
+        res = {"Vector Size": "2048"}
+        if matrix is not None:
+            res["Scan Res. A >> P"] = res["Scan Res. R >> L"] = matrix
+        return {
+            "sections": {"Resolution - Common": res, "Sequence - Special": {k: "1" for k in card}}
+        }
+
+    claimed_by = {}
+    for matrix in (None, "1", "16"):
+        sc = scan_with(matrix)
+        args = (special_keys(sc), card_names(sc), parameter_values(sc))
+        claimed = [s.id for s in (svs, csi) if s.match("slasr", *args) is not None]
+        assert len(claimed) == 1, f"matrix {matrix!r} was claimed by {claimed}"
+        claimed_by[matrix] = claimed[0]
+    # And each goes to the right one: absence and 1 are both single voxel.
+    assert claimed_by == {
+        None: "cmrr-semilaser",
+        "1": "cmrr-semilaser",
+        "16": "cmrr-semilaser-csi",
+    }
+
+
+def test_mega_semi_laser_is_named_by_both_techniques_its_card_prints() -> None:
+    # Its card is the pair of techniques its name says: the MEGA editing
+    # labels that MEGA-PRESS also prints, over the semi-LASER refocusing block
+    # that MEGA-PRESS does not. One of each is what names the sequence rather
+    # than either technique.
+    mega = next(s for s in default_catalog().signatures if s.id == "cmrr-mega-semilaser")
+    assert set(mega.special_all) == {"MEGA flip angle", "GOIA refoc. pulses"}
+    assert mega.base_binaries == ("mslsr",)
+    assert mega.match("mslsr", set(mega.special_all)) is not None
+    # MEGA-PRESS prints the editing label and not the refocusing one.
+    assert mega.match("mpres", {"MEGA flip angle"}) is None
+
+
+def test_megapress_does_not_claim_a_mega_edited_semi_laser() -> None:
+    # The two card labels are editing parameters that any MEGA-edited sequence
+    # prints, so the card route alone claimed three mslsr scans as MEGA-PRESS.
+    # MEGA-semi-LASER is a different sequence, per the protocols' owner. The
+    # kernel gate is what keeps the entry to its own, and it costs nothing:
+    # mpres is the kernel on both VE11C and XA60, and the binary route is not
+    # gated at all, so archives still resolve by the sequence file name.
+    mega = next(s for s in default_catalog().signatures if s.id == "cmrr-megapress")
+    assert mega.base_binaries == ("mpres",)
+    card = set(mega.special_all)
+    assert mega.match("mpres", card) is not None
+    assert mega.match("mslsr", card) is None
+    assert mega.match("eja_svs_mpress", set()) is not None
+
+
+def test_deelchand_semi_laser_is_named_by_all_four_spellings() -> None:
+    # A VE11C page prints sead, a Numaris/X page slaser, and the archives
+    # print the sequence file name -- of which there are two, one per release.
+    # svs_slaser_dkd is the VE11C build and dkd_svs_sLASER the XA60 one, and
+    # they split cleanly: all 422 svs_slaser_dkd protocols in the corpus need
+    # conversion, all 10 dkd_svs_sLASER ones are current. Missing the second
+    # spelling reported the *current* build as an unrecognized sequence while
+    # naming the superseded one, which is the wrong way round.
+    dkd = next(s for s in default_catalog().signatures if s.id == "dkd-semilaser")
+    assert {"sead", "slaser", "svs_slaser_dkd", "dkd_svs_sLASER"} == set(dkd.binaries)
 
 
 def test_a_kernel_less_scan_does_not_satisfy_a_base_binary_gate() -> None:
@@ -344,25 +722,59 @@ def test_every_shipped_signature_matches_something_in_the_examples() -> None:
 
 
 @requires_snapshots
-def test_the_examples_are_mostly_accounted_for() -> None:
-    # Not a demand for perfection: 'unrecognized' is a legitimate answer and
-    # the corpus contains a few. It is a floor, so a catalog change that
-    # quietly stops matching cannot pass unnoticed. The healthy figure is
-    # under 2%.
+def test_no_unrecognized_scan_escapes_every_pin() -> None:
+    """Every unrecognized scan is one a pin already names.
+
+    This was a rate -- unrecognized scans over curated scans, under 5% -- and
+    a rate is the wrong instrument, because it moves with what the corpus
+    happens to hold rather than with the catalog. Measured per export the
+    legitimate figures run from 4.2% to 50%: `GAPS_ONE_4` is one scan of two,
+    `CORPUS_CONSISTENT` is 43% because it was *built* to carry the sequences
+    nothing names, and the roster export is 23% because it states the gap
+    list once instead of in proportion to anything. The aggregate sat under
+    5% only because the corpus also holds many large, fully-named protocols
+    diluting them, so the bound was measuring dilution. It had already been
+    raised from 2% to 5% and had two tiers excluded from it, and the next
+    curated example carrying three unnamed sequences would have tripped it
+    again.
+
+    What the bound was a proxy for is exact and stated elsewhere:
+    ``test_the_shipped_examples_are_accounted_for_apart_from_a_pinned_few``
+    names every unaccounted curated scan, and
+    ``test_the_bulk_import_is_unaccounted_to_a_pinned_extent`` counts the
+    import's. Both catch a signature that stops matching *and* one that
+    starts over-claiming, immediately and by name, which no rate can do.
+
+    So this covers the one thing those two leave open: each looks at its own
+    tier, and an export excluded from both would be answered by neither. It
+    sweeps the whole corpus and subtracts what each pin claims, so a new
+    exclusion, or a new example nobody pinned, leaves a scan standing here.
+
+    Returns
+    -------
+    None
+    """
     catalog = default_catalog()
-    curated = [
-        i
-        for n, p in GOLDEN_PROTOCOLS
-        if not n.startswith(INVESTIGATOR_PREFIX)
-        for i in identify_protocol(p, catalog)
-    ]
-    counts = summarize(curated)
-    # Stated over the curated examples. The bulk import is a directory of
-    # protocols nobody selected, carrying 26 unseen binaries, so folding it in
-    # would move this floor for a reason that has nothing to do with the
-    # catalog regressing -- it went to 7.8% on import alone. Its own share is
-    # pinned by test_the_bulk_import_is_unaccounted_to_a_pinned_extent.
-    assert counts[UNRECOGNIZED] / len(curated) < 0.05
+    claimed: collections.Counter[str] = collections.Counter()
+    loose = []
+    for name, protocol in GOLDEN_PROTOCOLS:
+        bulk = name.startswith(INVESTIGATOR_PREFIX)
+        for item in identify_protocol(protocol, catalog):
+            if item.verdict != UNRECOGNIZED:
+                continue
+            if (name, item.name) in UNACCOUNTED:
+                claimed["named"] += 1
+            elif bulk and item.binary in INVESTIGATOR_UNACCOUNTED_BINARIES:
+                claimed["counted"] += 1
+            else:
+                loose.append(f"{name}: {item.name}")
+    assert not loose, f"unrecognized and claimed by no pin: {loose[:5]}"
+    # Both halves, so a sweep that stopped finding anything cannot pass here
+    # by finding nothing loose either.
+    assert claimed["named"] and claimed["counted"], f"a pin went unexercised: {dict(claimed)}"
+    # The corpus is a research centre's, so third-party sequences outnumber
+    # stock ones by a margin nothing has to tune: 947 against 410.
+    counts = summarize([i for _n, p in GOLDEN_PROTOCOLS for i in identify_protocol(p, catalog)])
     assert counts[THIRD_PARTY] > counts[STOCK]
 
 
@@ -687,10 +1099,12 @@ def test_the_stated_owner_never_contradicts_the_other_detectors() -> None:
 #: signatures for them would mean attributing sequences from inference alone,
 #: which the catalog's rule against guessed attributions forbids -- and
 #: 'unrecognized' is the honest verdict for a scan a person should look at.
-#: The five scans, and the three exports of the one protocol that prints them.
+#: The five scans, and the four exports of the one protocol that prints them.
 #: Potpourri now ships as P1 and P2 -- the same protocol imported onto two XA60
-#: scanners -- plus P1_changed, so the same five recur in each. Kept as a
-#: product of two small sets rather than fifteen literals, because the fact
+#: scanners -- plus P1_changed and driver_loadtest, the scanner's own export of
+#: the archive the driver built from P1, whose scans keep their original names
+#: rather than the load-test generator's. So the same five recur in each. Kept
+#: as a product of two small sets rather than twenty literals, because the fact
 #: being pinned is "these five scans, in every Potpourri export" and a flat
 #: list would obscure a case where one export gained a sixth.
 UNACCOUNTED_SCANS = {
@@ -704,6 +1118,7 @@ UNACCOUNTED_EXPORTS = {
     "XA60-Potpourri_P1.json",
     "XA60-Potpourri_P1_changed.json",
     "XA60-Potpourri_P2.json",
+    "XA60-driver_loadtest.json",
 }
 
 #: Spectroscopy scans that no signature accounts for, in two VE11C protocols
@@ -740,10 +1155,71 @@ UNACCOUNTED_AFTER_LOAD = {
     ("XA60-Potpourri_P2_loadtest.json", "T01_MT_Offset_15010"),
 }
 
+#: The scanner returns, which are the one part of the corpus *built* to hold
+#: unaccounted scans: one scan per sequence the catalog cannot name, sent to a
+#: scanner and printed. So every entry here is a sequence that was already
+#: unaccounted -- shipping them changes what the corpus exercises, not what
+#: the catalog knows -- and none of the pinned scans above resolved when they
+#: arrived.
+#:
+#: They are listed per export rather than as a product, because the two files
+#: hold different sets: `CORPUS_CONSISTENT` carries every gap sequence that
+#: prints, and `GAPS_ONE_4` is one scan on its own. Attributions from the
+#: protocols' owner will empty this set from the top, one sequence at a time.
+UNACCOUNTED_RETURNS = {
+    ("XA60-scanner_returns-CORPUS_CONSISTENT.json", scan)
+    for scan in (
+        "BEAT",
+        "NoiseSensitivityMap",
+        "can_neuromelanin",
+        "can_neuromelanin_pk",
+        "csi_fid",
+        "csi_slaser",
+        "csi_st",
+        "eja_csi_fid",
+        "eja_fid",
+        "ep2d_bold_MGH",
+        "ep2d_bold_mgh",
+        "ep2d_diff_mgh",
+        "ep2d_se_sms_mgh",
+        "ep_seg_se",
+        "fid",
+        "fl3d_rd",
+        "fl_pc",
+        "haste",
+        "petra",
+        "space",
+        "tse_MDME",
+        "tse_dixon",
+        "twist",
+    )
+} | {("XA60-scanner_returns-GAPS_ONE_4.json", "csi_fid")}
+
+#: The roster export: one scan per customer sequence installed on the
+#: scanners, so the catalog's gaps appear here exactly once each rather than
+#: in proportion to how often those sequences run. Every entry is a sequence
+#: already unaccounted for elsewhere in the corpus -- the file adds a
+#: console-authored, current-baseline copy of each, not a new gap.
+UNACCOUNTED_ROSTER = {
+    ("XA60-allcustomer_20260909.json", scan)
+    for scan in (
+        "NoiseSensitivityMap",
+        "can_neuromelanin",
+        "can_neuromelanin_pk",
+        "eja_csi_fid",
+        "eja_fid",
+        "ep2d_bold_mgh",
+        "ep2d_diff_mgh",
+        "ep2d_se_sms_mgh",
+    )
+}
+
 UNACCOUNTED = (
     {(export, scan) for export in UNACCOUNTED_EXPORTS for scan in UNACCOUNTED_SCANS}
     | UNACCOUNTED_ELSEWHERE
     | UNACCOUNTED_AFTER_LOAD
+    | UNACCOUNTED_RETURNS
+    | UNACCOUNTED_ROSTER
 )
 
 #: Snapshots from the investigator-level export, which is a bulk import rather
@@ -761,19 +1237,22 @@ UNACCOUNTED = (
 INVESTIGATOR_PREFIX = "XA60-Frederick_P2-"
 
 #: How many of that export's scans no signature claims, and the kernels they
-#: run. Both are observations awaiting attribution, not targets.
-INVESTIGATOR_UNACCOUNTED = 73
+#: run. Both are observations awaiting attribution, not targets, and neither
+#: only falls. This went 73 -> 70 when the owner named Auerbach's semi-LASER,
+#: 70 -> 71 when that sequence's CSI variant was correctly declined, 71 -> 74
+#: when cmrr-megapress was gated off three MEGA-semi-LASER scans it had been
+#: claiming, 74 -> 70 when the owner named those two as well, and 70 -> 62 when
+#: he named the PRESS, LASER and STEAM members of the same suite. A count that
+#: rises because a wrong claim was withdrawn is as healthy as one that falls,
+#: which is the whole reason it is pinned rather than bounded.
+INVESTIGATOR_UNACCOUNTED = 62
 INVESTIGATOR_UNACCOUNTED_BINARIES = {
     "MDME",
     "fl_r",
     "fl_rr",
     "fldyn",
-    "laser",
     "pc",
-    "press",
-    "slasr",
     "spcR",
-    "steam",
     "svs_edit",
 }
 
@@ -834,3 +1313,50 @@ def test_no_family_in_any_report_starts_with_a_separator() -> None:
         text = render(protocol, identify_protocol(protocol, catalog))
         for line in text.splitlines():
             assert not line.startswith("  - --"), f"{name}: {line}"
+
+
+@requires_exar
+def test_a_renamed_binary_splits_cleanly_by_release() -> None:
+    """Deelchand's semi-LASER is one sequence under two binary names.
+
+    `svs_slaser_dkd` is the VE11C build and `dkd_svs_sLASER` the XA60 one, so
+    an XA60 save of this sequence is named the second. The split is what says
+    it is a rename rather than two sequences: every protocol under the old
+    name carries ``sProtConsistencyInfo.tBaselineString = "ConversionNeeded"``
+    and every one under the new name is current, with nothing on either side
+    against.
+
+    It matters beyond the catalog because an exemplar search keyed on the
+    binary concluded this sequence had no current copy anywhere and that none
+    of its protocols had ever been re-saved. Both are false: they were
+    re-saved under the other spelling. A search must therefore ask which
+    binaries are one sequence before deciding none is current.
+
+    A current protocol appearing under the old name would break the account,
+    which is why the assertion is two-sided rather than a count.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.exar import archive as exar_archive
+    from siemens_protocol.exar import inspect as exar_inspect
+    from siemens_protocol.exar import patch as exar_patch
+
+    key = "sProtConsistencyInfo.tBaselineString"
+    seen: dict[str, set[bool]] = {"svs_slaser_dkd": set(), "dkd_svs_sLASER": set()}
+    for path, _version in EXAR_PROTOCOL_FILES:
+        for step in exar_archive.read(path).steps:
+            if not step.runs_a_protocol:
+                continue
+            binary = exar_inspect.sequence_file(step.protocol).rsplit("\\", 1)[-1]
+            if binary not in seen:
+                continue
+            stale = exar_patch.read_ascconv(step.protocol.xprotocol, key)
+            seen[binary].add((stale or "").strip('"') == "ConversionNeeded")
+
+    assert seen["svs_slaser_dkd"] == {True}, "a current protocol under the old name"
+    assert seen["dkd_svs_sLASER"] == {False}, "a stale protocol under the new name"
+
+    named = next(s for s in default_catalog().signatures if s.id == "dkd-semilaser")
+    assert {"svs_slaser_dkd", "dkd_svs_sLASER"} <= set(named.binaries)

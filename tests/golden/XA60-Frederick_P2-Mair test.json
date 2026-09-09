@@ -319,10 +319,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "EPI package (C2P), multiband off or not printed",
-        "signature": "cmrr-epi",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 11
       },
@@ -548,10 +548,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "EPI package (C2P), multiband off or not printed",
-        "signature": "cmrr-epi",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 11
       },
@@ -2254,6 +2254,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -2500,6 +2501,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -2746,6 +2748,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -2993,6 +2996,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -3480,6 +3484,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -3727,6 +3732,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -3974,6 +3980,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -4221,6 +4228,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -4468,6 +4476,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -4715,6 +4724,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -14969,10 +14979,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "EPI package (C2P), multiband off or not printed",
-        "signature": "cmrr-epi",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 11
       },
@@ -15198,10 +15208,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "EPI package (C2P), multiband off or not printed",
-        "signature": "cmrr-epi",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints SENSE1 coil combine, FFT scale factor, Disable freq. update, Force equal slice timing, Invert RO/PE polarity, Physio recording"
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 11
       },
@@ -15927,6 +15937,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -16413,6 +16424,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22

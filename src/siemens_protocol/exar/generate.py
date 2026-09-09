@@ -49,6 +49,43 @@ LINK_TYPE = "syngo.MR.ExamDataFoundation.Data.EdfProgramLink, syngo.MR.ExamDataF
 NO_GUID = "00000000-0000-0000-0000-000000000000"
 
 
+def sort_step_maps(document: Any) -> Any:
+    """Put the five step-keyed maps back in lexical key order.
+
+    Every archive a console wrote orders these maps by key, ``$id`` first --
+    checked across the corpus, console-authored and scanner-returned alike.
+    Appending a step puts the new key last instead, so a generated program is
+    the one shape the scanner has never been handed. Newtonsoft reads these
+    into dictionaries and so is unlikely to care, which is exactly why it is
+    worth restoring rather than arguing about: it costs nothing and it removes
+    a difference from every known-good file.
+
+    Only the keys are ordered. The lists *inside* an entry are in creation
+    order and carry meaning there -- ``copyparametertest`` agrees with rank
+    order by accident and ``CHR-MDD`` does not -- so sorting those would be a
+    real change rather than a cosmetic one.
+
+    Parameters
+    ----------
+    document : Any
+        The program content document, modified in place.
+
+    Returns
+    -------
+    Any
+        The same document.
+    """
+    for name in STEP_KEYED_MAPS:
+        table = document.get(name)
+        if not isinstance(table, dict):
+            continue
+        keys = sorted(k for k in table if k != "$id")
+        ordered = {"$id": table["$id"]} if "$id" in table else {}
+        ordered.update({k: table[k] for k in keys})
+        document[name] = ordered
+    return document
+
+
 def renumber_references(document: Any) -> Any:
     """Renumber Newtonsoft ``$id`` values sequentially, remapping ``$ref``.
 
@@ -396,7 +433,7 @@ def _attach_to_program(archive: Archive, program: Any, step_ids: tuple[str, str,
     document["RelationsFrom"][new] = {"$id": f"rf-{new}", "$values": []}
     document["RelationsTo"][new] = {"$id": f"rt-{new}", "$values": []}
     document["LastStepId"] = new
-    archive.replace_content(program, renumber_references(document))
+    archive.replace_content(program, renumber_references(sort_step_maps(document)))
 
 
 #: .NET type moniker Newtonsoft writes on a relation between two steps.
@@ -512,7 +549,7 @@ def link_steps(
     # The incoming side references the same object. Renumbering rewrites the
     # marker on both, which is what keeps the $ref resolving.
     incoming[target.instance.object_id]["$values"].append({"$ref": marker})
-    archive.replace_content(program, renumber_references(document))
+    archive.replace_content(program, renumber_references(sort_step_maps(document)))
 
 
 def rename(archive: Archive, instance: Instance, name: str) -> str:

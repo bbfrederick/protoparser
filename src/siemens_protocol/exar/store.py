@@ -123,6 +123,27 @@ class Table:
         row[at] = value
         self.rows[position] = tuple(row)
 
+    def discard(self, column: str, values: set[Any]) -> int:
+        """Remove every row whose ``column`` value is in ``values``.
+
+        Parameters
+        ----------
+        column : str
+            Column to match on.
+        values : set
+            Values to remove, compared with ``in``.
+
+        Returns
+        -------
+        int
+            How many rows were removed.
+        """
+        at = self.index_of(column)
+        keep = [row for row in self.rows if row[at] not in values]
+        removed = len(self.rows) - len(keep)
+        self.rows = keep
+        return removed
+
     def append(self, values: dict[str, Any]) -> None:
         """Add a row, filling any column ``values`` omits with ``None``.
 

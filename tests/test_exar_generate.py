@@ -679,6 +679,10 @@ def _rewrite_program(archive: object, node: object, document: dict, ids: list) -
         document[name] = {"$id": name.lower()} | {
             one: {"$id": f"{tag}-{one}", "$values": []} for one in ids
         }
+    # Console-authored maps are in lexical key order, and this helper stands in
+    # for a console-authored backup, so it has to produce that shape too --
+    # built in running order it stages an archive no scanner has ever written.
+    generate.sort_step_maps(document)
     if node is not None:
         archive.replace_content(node, generate.renumber_references(document))
 
@@ -1021,3 +1025,227 @@ def test_a_scan_can_be_renamed_and_a_labelless_node_is_refused(
     # A protocol node carries no label of its own; the step above it does.
     with pytest.raises(ValueError, match="no label"):
         generate.rename(final, renamed.protocol.instance, "NOWHERE")
+
+
+@requires_exar
+def test_appending_steps_keeps_the_maps_in_lexical_key_order(tmp_path: pathlib.Path) -> None:
+    """A generated program's five maps are ordered the way a console orders them.
+
+    Every archive the corpus holds -- console-authored and scanner-returned
+    alike -- keys the five step-keyed maps in lexical order with ``$id``
+    first. Appending puts each new key last instead, and nothing noticed:
+    the archives shipped for a scanner round trip were the one shape no
+    console has ever written. Newtonsoft reads these into dictionaries and
+    so may well not care, which is the reason to check rather than argue --
+    the cost of matching is nil and the difference is one fewer unknown when
+    a generated archive is rejected.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    source = read(find_exar("Potpourri_P1.exar1"))
+    target = read(find_exar("VASO test.exar1"))
+    program = target.program_nodes[0]
+    # Enough copies that a run of appended keys cannot be sorted by accident.
+    for number, step in enumerate(source.programs[0].steps[:8]):
+        generate.duplicate_step(target, step, f"copy_{number}", source=source, program=program)
+    written = tmp_path / "appended.exar1"
+    target.write(str(written))
+
+    grown = read(str(written))
+    document = grown.document(grown.programs[0].instance)
+    for name in generate.STEP_KEYED_MAPS:
+        keys = [one for one in document[name] if one != "$id"]
+        assert len(keys) == 9, f"{name} should key all nine steps"
+        assert keys == sorted(keys), f"{name} keys are not in lexical order"
+        assert next(iter(document[name])) == "$id", f"{name} should lead with $id"
+
+
+@requires_exar
+def test_a_generated_archive_carries_no_content_nothing_references(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Building a program leaves no dead documents behind.
+
+    Content is addressed by hash, so rewriting the program document gives it
+    a new row and strands the old one -- and appending is a loop, so a
+    program of ninety-six scans stranded ninety-five copies of itself beside
+    one live program instance. No console archive has that shape: each
+    carries exactly one orphan, the placeholder branch's structure content.
+
+    The stranded rows were unreachable, so every check that walked live nodes
+    passed, and the archives were shipped for a scanner round trip carrying
+    them. Whether the console minded is still unknown; what is known is that
+    the file did not look like one a console wrote.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Destination for the written archive.
+
+    Returns
+    -------
+    None
+    """
+    source = read(find_exar("Potpourri_P1.exar1"))
+    target = read(find_exar("VASO test.exar1"))
+    program = target.program_nodes[0]
+    for number, step in enumerate(source.programs[0].steps[:8]):
+        generate.duplicate_step(target, step, f"copy_{number}", source=source, program=program)
+    generate.rename(target, program, "ORPHAN_CHECK")
+    written = tmp_path / "built.exar1"
+    target.write(str(written))
+
+    grown = read(str(written))
+    rows = grown.container.tables["Instance"]
+    at = rows.index_of("ContentHash")
+    referenced = {str(row[at]) for row in rows.rows if row[at] is not None}
+    stranded = {
+        digest: content.content_type.rsplit(".", 1)[-1]
+        for digest, content in grown.contents.items()
+        if digest not in referenced
+    }
+    assert stranded == {}, f"content nothing references: {sorted(stranded.values())}"
+    assert validate.problems(grown) == []
+
+
+@requires_exar
+def test_writing_an_unchanged_archive_drops_nothing(
+    protocol_archive_path: str, tmp_path: pathlib.Path
+) -> None:
+    """Pruning collects this library's litter and never the file's own.
+
+    Every corpus archive carries one orphaned ``EdfStructureContent`` -- the
+    placeholder branch's -- and that has to survive a round trip, or the
+    collector is deleting evidence rather than garbage. Read and write with
+    no edit in between must therefore preserve every row.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+    tmp_path : pathlib.Path
+        Destination for the copy.
+
+    Returns
+    -------
+    None
+    """
+    before = read(protocol_archive_path)
+    written = tmp_path / "copy.exar1"
+    before.write(str(written))
+    after = read(str(written))
+    assert set(after.contents) == set(before.contents)
+    for name, table in before.container.tables.items():
+        assert len(after.container.tables[name].rows) == len(table.rows), f"{name} lost rows"
+
+
+@requires_exar
+def test_the_folder_tree_agrees_with_itself(protocol_archive_path: str) -> None:
+    """The structure document states the hierarchy twice, and the two match.
+
+    ``ParentDirectoryId`` reads upwards; ``SubdirectoryIds`` and
+    ``SubprogramElementIds`` read downwards, with ``RootDirectoryId`` naming
+    the top. Only the upward map was known while the format was being worked
+    out, and reading it wrongly is what produced 61 empty folders and 499
+    orphan protocols from a 97 MB export -- which looked like a small file
+    rather than an error. Two independent statements of one tree turn that
+    into a failing line.
+
+    The downward maps were found in Tobias Rautenkranz's ``exar1-read``
+    rather than in the corpus, and they agree here on every archive.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    up = archive.directory_parents
+    down = archive.directory_children
+    assert up and down, "a protocol archive should state its tree both ways"
+
+    rebuilt = {kid: parent for parent, kids in down.items() for kid in kids}
+    rebuilt[archive.declared_root] = generate.NO_GUID
+    assert rebuilt == up
+    assert [one for one, parent in up.items() if parent == generate.NO_GUID] == [
+        archive.declared_root
+    ]
+    assert validate.problems(archive) == []
+
+
+@requires_exar
+def test_a_tree_that_disagrees_with_itself_is_reported(tmp_path: pathlib.Path) -> None:
+    """Breaking either direction of the folder tree must be caught.
+
+    The negative half of the check above. A validator that cannot fire is
+    worse than none, and this one guards the single most expensive mistake
+    made against this format.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Unused; kept for symmetry with the other generate tests.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    root = archive.tree_root
+    document = archive.document(root)
+    first = next(one for one in document["SubdirectoryIds"] if not one.startswith("$"))
+    document["SubdirectoryIds"][first] = {"$id": "broken", "$values": []}
+    archive.replace_content(root, document)
+    assert any("tree disagrees with itself" in line for line in validate.problems(archive))
+
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    root = archive.tree_root
+    document = archive.document(root)
+    document["RootDirectoryId"] = "deadbeef-0000-0000-0000-000000000000"
+    archive.replace_content(root, document)
+    assert any("RootDirectoryId" in line for line in validate.problems(archive))
+
+
+@requires_exar
+def test_tree_root_picks_the_structure_that_carries_the_tree(
+    protocol_archive_path: str,
+) -> None:
+    """Exactly one live structure node exists, and it declares the tree.
+
+    The ``Instance`` table holds a second structure -- the placeholder
+    branch's, which is the one orphaned content row every archive carries --
+    but it is not live, so the live set has one. That is what makes
+    :attr:`Archive.tree_root` unambiguous, and a reader reaching the other
+    would report a flat archive rather than an error, the same shape as
+    reading at the placeholder branch.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+
+    Returns
+    -------
+    None
+    """
+    archive = read(protocol_archive_path)
+    structures = [one for one in archive.instances.values() if one.kind == "EdfStructure"]
+    assert len(structures) == 1, "the placeholder branch's structure is not live"
+    carriers = [
+        one
+        for one in structures
+        if one.content_hash and "ParentDirectoryId" in archive.document(one)
+    ]
+    assert len(carriers) == 1
+    assert archive.tree_root is carriers[0]

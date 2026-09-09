@@ -1,0 +1,463 @@
+{
+  "source_file": "examples/XA60/scanner_returns/ZPL_RETRY.pdf",
+  "software_version": "XA60",
+  "detection": {
+    "method": "header-string",
+    "confidence": "high"
+  },
+  "scanner": "SIEMENS MAGNETOM 3.0T XR Numaris/X VA60A-0D4N",
+  "page_count": 5,
+  "front_matter_pages": [
+    1
+  ],
+  "scans": [
+    {
+      "index": 0,
+      "name": "rslh_ep3d_vaso",
+      "path": "\\\\Research\\Investigators\\Frederick\\ZPL_RETRY\\rslh_ep3d_vaso",
+      "header": {
+        "ta": "14 sec",
+        "coil_selection": "Auto",
+        "voxel_size_mm": "2.5×2.5×2.5",
+        "pat": "None",
+        "rel_snr": "1.00",
+        "sequence": "vso rslh6.0"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "DZNE Bonn",
+        "family": "VASO -- vascular space occupancy",
+        "signature": "dzne-vaso",
+        "evidence": [
+          "sequence binary 'vso rslh6.0'",
+          "Special card prints VASO Pre-TI1 delay, VASO Pre-TI2 delay, VASO Pre-Inv delay"
+        ],
+        "special_parameters": 30
+      },
+      "sections": {
+        "Properties": {
+          "Start measurement without further preparation": "On",
+          "Wait for User to Start": "Off",
+          "Start measurements": "Single Measurement",
+          "Prio Recon": "Off",
+          "Auto Open Inline Display": "Off",
+          "Auto Close Inline Display": "Off",
+          "Load Images to MR View&GO": "On",
+          "Auto Store Images": "On",
+          "Disable auto transfer to PACS": "Off",
+          "Load Images to Stamp Segments": "Off",
+          "Load Images to Graphic Segments": "Off",
+          "Graphic segment": "Default",
+          "Inline Movie": "Off"
+        },
+        "Routine": {
+          "Slab Group": "1",
+          "Slabs": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "Slices per Slab": "48",
+          "Phase Oversampling": "0.0 %",
+          "Slice Oversampling": "0.0 %",
+          "FOV Read": "210 mm",
+          "FOV Phase": "100.0 %",
+          "Slice Thickness": "2.50 mm",
+          "TR": "130.0 ms",
+          "Vol. TR": "12.50064 s",
+          "TE 1": "48.00 ms",
+          "Averages": "1",
+          "Multi-echo Shots": "1",
+          "AutoAlign": "---"
+        },
+        "Contrast - Common": {
+          "TR": "130.0 ms",
+          "Vol. TR": "12.50064 s",
+          "TE 1": "48.00 ms",
+          "Multi-echo spacing": "88.00 ms",
+          "MTC": "Off",
+          "Magn. Preparation": "Non-sel. IR",
+          "TI 1": "3130.32 ms",
+          "TI 2": "9370.32 ms",
+          "Flip Angle": "13 deg",
+          "Fat-Water Contrast": "Standard",
+          "Contrasts": "1",
+          "Reconstruction": "Magnitude"
+        },
+        "Contrast - Dynamic": {
+          "Dynamic Mode": "Standard",
+          "Measurements": "1",
+          "Reordering": "Linear"
+        },
+        "Resolution - Common": {
+          "FOV Read": "210 mm",
+          "FOV Phase": "100.0 %",
+          "Slice Thickness": "2.50 mm",
+          "Base Resolution": "84",
+          "Phase Resolution": "100 %",
+          "Slice Resolution": "100 %",
+          "Interpolation": "Off"
+        },
+        "Resolution - Acceleration": {
+          "Acceleration Mode": "None",
+          "Phase Partial Fourier": "Off",
+          "Slice Partial Fourier": "Off",
+          "Asymmetric Echo": "Off"
+        },
+        "Resolution - Filter": {
+          "Raw Filter": "Off",
+          "Elliptical Filter": "Off",
+          "Distortion Correction": "Off",
+          "Normalize": "Off",
+          "Image Filter": "Off"
+        },
+        "Geometry - Common": {
+          "Slab Group": "1",
+          "Slabs": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "Slices per Slab": "48",
+          "Phase Oversampling": "0.0 %",
+          "Slice Oversampling": "0.0 %",
+          "FOV Read": "210 mm",
+          "FOV Phase": "100.0 %",
+          "Slice Thickness": "2.50 mm",
+          "TR": "130.0 ms",
+          "Vol. TR": "12.50064 s",
+          "Multi-echo Shots": "1"
+        },
+        "Geometry - AutoAlign": {
+          "Slab Group": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "Isocenter",
+          "L": "0.0 mm",
+          "P": "0.0 mm",
+          "H": "0.0 mm",
+          "Initial Orientation": "Transversal",
+          "Initial Rotation": "0.00 deg"
+        },
+        "Geometry - Saturation": {
+          "Saturation Mode": "Standard"
+        },
+        "Geometry - Tim Planning Suite": {
+          "Set-n-Go Protocol": "Off",
+          "Table Position": "0 mm",
+          "Table Position #2": "H",
+          "Inline Composing": "Off"
+        },
+        "System - Miscellaneous": {
+          "Coil Selection": "Auto Coil Select",
+          "Radial Sorting": "Off",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H",
+          "Coil Combination": "Sum of Squares",
+          "Matrix Optimization": "Off",
+          "Coil Focus": "Flat"
+        },
+        "System - Adjustments": {
+          "Adjustment Strategy": "Standard",
+          "B0 Shim": "Brain",
+          "B1 Shim": "TrueForm",
+          "Adjustment Tolerance": "Auto",
+          "Adjust with Body Coil": "Off",
+          "Confirm Frequency": "Never",
+          "Assume Silicone": "Off"
+        },
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "210 mm",
+          "R >> L": "210 mm",
+          "F >> H": "120 mm",
+          "Reset": "Off"
+        },
+        "System - pTx": {
+          "B1 Shim": "TrueForm",
+          "Excitation": "Slab-sel."
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249403 MHz",
+          "? Ref. Amplitude 1H": "0.000 V",
+          "Reset": "Off",
+          "Image Scaling": "1.000"
+        },
+        "Sequence - Part 1": {
+          "Sequence Name": "vso rslh6.0",
+          "Dimension": "3D",
+          "Excitation": "Slab-sel.",
+          "RF Pulse Type": "Normal",
+          "Gradient Mode": "Fast",
+          "Reordering": "Linear",
+          "Bandwidth": "1044 Hz/Px",
+          "Echo Spacing": "1.04 ms",
+          "Asymmetric Echo": "Off",
+          "Turbo Factor": "48",
+          "Segmentation": "1",
+          "EPI Factor": "84"
+        },
+        "Sequence - Part 2": {
+          "Introduction": "On",
+          "RF Spoiling": "On"
+        },
+        "Sequence - Special": {
+          "RF duration": "1080 us",
+          "RF time x BW": "18",
+          "PAT ref. FA": "5 deg",
+          "Fat sat. FA": "110 deg",
+          "Variable FA": "4",
+          "Invert PE": "Off",
+          "Min. TE w/ PF": "On",
+          "Expert ramping": "Off",
+          "Trigger per shot": "Off",
+          "Noise image": "Off",
+          "Relax spoilers": "Off",
+          "MT flip angle": "170 deg",
+          "MT off-res.": "2000 Hz",
+          "MT RF duration": "12800 us",
+          "Phase Correction": "per Series",
+          "EPI ramp factor": "1.10",
+          "EPI ramp factor 2": "1.10",
+          "Ramp sampling": "1.00 1:max",
+          "Slab Scale": "0 %",
+          "Modify Ice Config": "On",
+          "G-factor map": "Off",
+          "Mosaic DICOMs": "Off",
+          "GRAPPA Regularization": "5000 /10^6",
+          "G. spoil dephasing[1]": "0 pi",
+          "G. spoil dephasing[2]": "2 pi",
+          "G. spoil dephasing[3]": "2 pi",
+          "Read polarity": "Regular RO",
+          "VASO Pre-TI1 delay": "0.00 ms",
+          "VASO Pre-TI2 delay": "0 ms",
+          "VASO Pre-Inv delay": "0 ms"
+        },
+        "Sequence - Assistant": {
+          "SAR Assistant": "Off"
+        }
+      },
+      "pages": [
+        2,
+        3
+      ]
+    },
+    {
+      "index": 1,
+      "name": "ZPL_RG_EPSI_FID_v1h",
+      "path": "\\\\Research\\Investigators\\Frederick\\ZPL_RETRY\\ZPL_RG_EPSI_FID_v1h",
+      "header": {
+        "ta": "4:33:55 h",
+        "coil_selection": "Auto",
+        "voxel_size_mm": "1.1×2.2×1.0",
+        "rel_snr": "1.00",
+        "sequence": "ZPL_epsi_fid_v1h"
+      },
+      "provenance": {
+        "verdict": "third-party",
+        "vendor": "UIUC (Zhi-Pei Liang)",
+        "family": "SPICE -- spectroscopic imaging by exploiting spatiospectral correlation",
+        "signature": "spice-epsi",
+        "evidence": [
+          "sequence binary 'ZPL_epsi_fid_v1h'",
+          "Special card prints PE Samp EPSI, EPSI. EchoSpace"
+        ],
+        "special_parameters": 34
+      },
+      "sections": {
+        "Properties": {
+          "Start measurement without further preparation": "On",
+          "Wait for User to Start": "Off",
+          "Start measurements": "Single Measurement",
+          "Prio Recon": "Off",
+          "Auto Open Inline Display": "Off",
+          "Auto Close Inline Display": "Off",
+          "Load Images to MR View&GO": "On",
+          "Auto Store Images": "On",
+          "Disable auto transfer to PACS": "Off",
+          "Load Images to Stamp Segments": "Off",
+          "Load Images to Graphic Segments": "Off",
+          "Graphic segment": "Default",
+          "Inline Movie": "Off"
+        },
+        "Routine": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "FOV A >> P": "240 mm",
+          "FOV R >> L": "240 mm",
+          "FOV F >> H": "72 mm",
+          "VoI A >> P": "240 mm",
+          "VoI R >> L": "240 mm",
+          "VoI F >> H": "60 mm",
+          "TR": "1000.0 ms",
+          "TE": "1.60 ms",
+          "Averages": "1"
+        },
+        "Contrast - Common": {
+          "TR": "1000.0 ms",
+          "TE": "1.60 ms",
+          "Ernst angle": "61 deg",
+          "Prep. pulses": "6 #",
+          "T1 Estimated": "1400 ms",
+          "T1 WaterSupp": "1000 ms",
+          "WaterSupp Angle": "90 deg",
+          "FOV Pos, Read": "0 um",
+          "FOV Pos, Phase": "0 um",
+          "FOV Pos, Slice": "0 um",
+          "Flip Angle": "27 deg",
+          "Preparation Scans": "10",
+          "Averages": "1",
+          "Water Suppression": "",
+          "Water Suppr. BW": "80 Hz"
+        },
+        "Resolution - Common": {
+          "FOV A >> P": "240 mm",
+          "FOV R >> L": "240 mm",
+          "FOV F >> H": "72 mm",
+          "Scan Res. A >> P": "216",
+          "Scan Res. R >> L": "110",
+          "Scan Res. F >> H": "72",
+          "Interpol. Res. A >> P": "256",
+          "Interpol. Res. R >> L": "128",
+          "Interpol. Res. F >> H": "128",
+          "Hamming": "Off",
+          "Dimension": "3D",
+          "Phase Encoding": "Full",
+          "Normalize": "Off"
+        },
+        "Geometry - Common": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "FOV A >> P": "240 mm",
+          "FOV R >> L": "240 mm",
+          "FOV F >> H": "72 mm",
+          "VoI A >> P": "240 mm",
+          "VoI R >> L": "240 mm",
+          "VoI F >> H": "60 mm",
+          "Fully Excited VoI": "Off",
+          "Saturation Region": "1",
+          "Thickness": "30.00 mm",
+          "Position #2": "Isocenter",
+          "Orientation #2": "Transversal",
+          "Sat. Delta Frequ.": "0.00 ppm",
+          "Saturation Region #2": "2",
+          "Thickness #2": "30.00 mm",
+          "Position #3": "Isocenter",
+          "Orientation #3": "Transversal",
+          "Sat. Delta Frequ. #2": "0.00 ppm"
+        },
+        "Geometry - AutoAlign": {
+          "Slab Group": "1",
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Phase Encoding Dir.": "A >> P",
+          "AutoAlign": "---",
+          "Initial Position": "Isocenter",
+          "L": "0.0 mm",
+          "P": "0.0 mm",
+          "H": "0.0 mm",
+          "Initial Orientation": "Transversal",
+          "Initial Rotation": "0.00 deg"
+        },
+        "System - Miscellaneous": {
+          "Coil Selection": "Auto Coil Select",
+          "Radial Sorting": "Off",
+          "MSMA": "S - C - T",
+          "Sagittal": "R >> L",
+          "Coronal": "A >> P",
+          "Transversal": "F >> H"
+        },
+        "System - Adjustments": {
+          "Adjustment Strategy": "Standard",
+          "B0 Shim": "Advanced",
+          "B1 Shim": "TrueForm",
+          "Adjustment Tolerance": "Auto",
+          "Adjust with Body Coil": "Off",
+          "Confirm Frequency": "Never",
+          "Assume Silicone": "Off",
+          "Adj. Water Suppr.": "Off"
+        },
+        "System - Adjust Volume": {
+          "Position": "Isocenter",
+          "Orientation": "Transversal",
+          "Rotation": "0.00 deg",
+          "A >> P": "240 mm",
+          "R >> L": "240 mm",
+          "F >> H": "60 mm",
+          "Reset": "Off"
+        },
+        "System - pTx": {
+          "B1 Shim": "TrueForm"
+        },
+        "System - Tx/Rx": {
+          "Frequency 1H": "123.249403 MHz",
+          "? Ref. Amplitude 1H": "0.000 V",
+          "Reset": "Off",
+          "Image Scaling": "1.000"
+        },
+        "Sequence - Common": {
+          "Sequence Name": "ZPL_epsi_fid_v1h",
+          "Preparation Scans": "10",
+          "Delta Frequency": "-2.40 ppm",
+          "Dimension": "3D",
+          "Save Uncombined": "Off",
+          "Bandwidth": "167000 Hz",
+          "Acquisition Duration": "0 ms",
+          "Remove Oversampling": "Off"
+        },
+        "Sequence - Nuclei": {
+          "TX/RX Nucleus": "1H",
+          "TX/RX Delta Frequency": "0 Hz",
+          "TX Nucleus": "None",
+          "TX Delta Frequency": "0 Hz"
+        },
+        "Sequence - Special": {
+          "PE Samp EPSI": "No Customized Sampling Pattern",
+          "PE Samp EBSI": "No Customized Sampling Pattern",
+          "PE Samp DEPI": "No Customized Sampling Pattern",
+          "Mode: DEPInav": "0 #",
+          "Mode: DEPIref": "0 #",
+          "Mode: MotionNav": "60 #",
+          "Mode: WatSupNav": "1 #",
+          "Mode: BipolNav": "1 #",
+          "Mode: RFspoil": "0 #",
+          "Ramping time (PE)": "120 us",
+          "Grad duration (PE)": "600 us",
+          "Blip ramp time (PE)": "60 us",
+          "Blip ramp time (SL)": "60 us",
+          "Jump ramp time (JP)": "170 us",
+          "Jump flat time (JP)": "200 us",
+          "Ramping time (SP)": "180 us",
+          "Spoil duration (SP)": "4000 us",
+          "Spoil amplitude(SP)": "15 mT/mm",
+          "EPSI. Num: Echo": "74 #",
+          "EPSI. Num: Shift": "0 #",
+          "EPSI. Ramp. Samp": "16 #",
+          "EPSI. RO. Ramp time": "110 us",
+          "EPSI. EchoSpace": "1760 us",
+          "EPSC. Num: Read": "110 #",
+          "EPSC. Num: Phas": "24 #",
+          "EPSC. Num: Slic": "24 #",
+          "EPSC. Num: Echo": "48 #",
+          "EPSC. Ramp. Samp": "16 #",
+          "EPSC2. Num: Phas": "6 #",
+          "EPSC2. Num: Slic": "6 #",
+          "EPSC. EchoSpace": "1760 us",
+          "Fnav. Read points": "100 #",
+          "Fnav. Dwell time": "10 us",
+          "Mnav. Echo Pair": "10 #"
+        }
+      },
+      "pages": [
+        4,
+        5
+      ]
+    }
+  ]
+}

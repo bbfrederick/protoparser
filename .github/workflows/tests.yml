@@ -130,8 +130,11 @@ jobs:
             exit 1
           fi
 
+      # Across cores: the suite is twelve minutes serially and five at -n 8.
+      # Only this step, because the targeted ones above tee their output and
+      # grep it for skips, which parallel workers interleave.
       - name: Test
-        run: python -m pytest -q
+        run: python -m pytest -q -n auto
 
       # Proves the human-readable report survives a redirected stream, which
       # on Windows is where the legacy code page bites and a console does not.

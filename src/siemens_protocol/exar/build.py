@@ -92,6 +92,53 @@ def printed_parameters(scan: MappingType[str, Any]) -> dict[str, Any]:
     }
 
 
+#: The card group that belongs to the sequence rather than to the console. A
+#: title is ``"<group> - <page>"``, so ``Sequence - Special`` and
+#: ``Sequence - Common`` are two pages of the same card -- which is why the
+#: rule is the group and not the Special page alone.
+SEQUENCE_GROUP = "Sequence"
+
+
+def sequence_card_only(scan: MappingType[str, Any], label: str) -> bool:
+    """Whether a printed label appears on the Sequence card and nowhere else.
+
+    The Sequence card is the binary's own, and its Special page is scratch
+    the sequence reads as it likes, so a label printed only there means
+    whatever that sequence decided it means. `Keto MRS` prints
+    ``Measurements`` on ``Sequence - Common`` and ``Sequence - Special`` of
+    its spectroscopy scans, where it counts transients and reads 9 while
+    ``lRepetitions`` is absent -- one measurement. That is a different
+    parameter from the ``Measurements`` a Contrast, Inline or BOLD card
+    prints, which is the one ``lRepetitions`` stores, and writing one into
+    the other is the same mistake as reading ``Position`` off a flattened
+    scan and getting the adjust volume's.
+
+    Only ``Measurements`` is affected across the corpus, on 76 scans, so this
+    excludes a genuine collision rather than a class of parameters.
+
+    Parameters
+    ----------
+    scan : mapping
+        One entry of a parsed protocol's ``scans``.
+    label : str
+        The printed parameter name.
+
+    Returns
+    -------
+    bool
+        True when every section printing the label is a Sequence card. False
+        when the label is printed elsewhere too, or when the flattened view
+        records no sections for it.
+    """
+    entry = (scan.get("flat") or {}).get(label)
+    if not isinstance(entry, dict):
+        return False
+    sections = entry.get("sections") or []
+    if not sections:
+        return False
+    return all(str(one).split(" - ")[0] == SEQUENCE_GROUP for one in sections)
+
+
 @dataclass
 class BuildReport:
     """What a build wrote, refused, and left as it found it.
@@ -186,7 +233,47 @@ class BuildReport:
         return "\n".join(lines)
 
 
-def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildReport:
+def target_steps(
+    archive: Archive, parsed: MappingType[str, Any], program: Any = None
+) -> list[Any]:
+    """Choose which of an archive's steps a printout should be written into.
+
+    A printout covers one protocol, so writing into every step the archive
+    holds is only ever right when it holds one program. On a file with
+    several it doubles each scan name, and the guard against pairing a
+    repeated name to the wrong copy then refuses everything -- correctly, but
+    the result is a driver that silently writes nothing.
+
+    Parameters
+    ----------
+    archive : Archive
+        The template to write into.
+    parsed : mapping
+        The parsed printout, used to name the program when several are held.
+    program : Program or None, optional
+        The program to target. Default ``None``, which takes a lone program,
+        else the one the printout's header names.
+
+    Returns
+    -------
+    list of Step
+        The steps to pair against, empty when several programs are held and
+        the printout cannot pick between them -- reported by the caller
+        rather than raised, since a partial pairing is the ordinary case.
+    """
+    if program is not None:
+        return archive.steps_of(program.instance)
+    programs = archive.programs
+    if len(programs) <= 1:
+        return archive.steps
+    wanted = program_name(parsed)
+    named = [p for p in programs if match_name(p.name) == wanted]
+    return named[0].steps if len(named) == 1 else []
+
+
+def apply_protocol(
+    archive: Archive, parsed: MappingType[str, Any], program: Any = None
+) -> BuildReport:
     """Write every mapped parameter a parsed PDF and a template agree on.
 
     The archive is edited in memory; call :meth:`Archive.write` to save, and
@@ -198,6 +285,9 @@ def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildRepo
         Template archive, modified in place.
     parsed : mapping
         A protocol as ``siemens_protocol`` parses it, with a ``scans`` list.
+    program : Program or None, optional
+        Which protocol of a multi-program archive to write into. Default
+        ``None``; see :func:`target_steps` for how one is chosen.
 
     Returns
     -------
@@ -208,7 +298,7 @@ def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildRepo
     # A pause step carries no protocol and the PDF does not print it as a scan,
     # so it can never be the counterpart of one.
     steps: dict[str, list[Any]] = {}
-    for step in archive.steps:
+    for step in target_steps(archive, parsed, program):
         if step.runs_a_protocol:
             steps.setdefault(match_name(step.name), []).append(step)
 
@@ -232,6 +322,52 @@ def apply_protocol(archive: Archive, parsed: MappingType[str, Any]) -> BuildRepo
             _apply_scan(archive, step, scan, report)
     report.untouched = [n for n in steps if n not in seen]
     return report
+
+
+def pair_scans(steps: list[Any], scans: list[MappingType[str, Any]]) -> list[tuple[Any, Any]]:
+    """Pair archive steps with printed scans, repeated names included.
+
+    A protocol repeating a scan name is ordinary rather than exceptional --
+    an option scan runs thirty copies of one sequence, and `Keto MRS` prints
+    `fastestmap` five times -- so the pairing is by name *group* and then by
+    running order within it, which both sides preserve. Joining through a
+    ``{name: scan}`` dictionary instead keeps only the last of each group and
+    silently pairs every stored copy with it, which manufactures
+    disagreements that are really one scan compared against another's values.
+
+    A group whose two sides differ in length is skipped rather than guessed
+    at. That happens when a printout is a subset of the archive -- the
+    scanner returns were printed after their inconsistent scans were deleted
+    -- and picking which stored copy a printed one refers to would write one
+    scan's values into another.
+
+    Parameters
+    ----------
+    steps : list of Step
+        Steps in running order. Those running no protocol are ignored, since
+        a printout never prints them.
+    scans : list of mapping
+        Serialized scans in printed order.
+
+    Returns
+    -------
+    list of tuple
+        ``(step, scan)`` pairs, in printed order.
+    """
+    held: dict[str, list[Any]] = {}
+    for step in steps:
+        if getattr(step, "runs_a_protocol", False):
+            held.setdefault(match_name(step.name), []).append(step)
+    printed: dict[str, list[Any]] = {}
+    for scan in scans:
+        printed.setdefault(match_name(scan.get("name", "")), []).append(scan)
+    pairs: list[tuple[Any, Any]] = []
+    for name, group in printed.items():
+        mine = held.get(name, [])
+        if len(mine) != len(group):
+            continue
+        pairs.extend(zip(mine, group))
+    return pairs
 
 
 #: Decoration a printout may add after a scan name. The console appends this
@@ -541,6 +677,12 @@ def _apply_scan(
     printed = printed_parameters(scan)
     for label, value in printed.items():
         mapping, reason = patch.resolve(step.protocol, label)
+        # A label printed only on the Sequence card is that binary's own, so
+        # only a mapping scoped to sequences may claim it. Anything else is a
+        # collision of names between a sequence's parameter and a general one.
+        if mapping is not None and not mapping.sequences and sequence_card_only(scan, label):
+            report.inherited[label] += 1
+            continue
         if mapping is None:
             report.inherited[label] += 1
             if covered_elsewhere(step.protocol, label):

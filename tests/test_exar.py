@@ -26,7 +26,7 @@ from conftest import (  # noqa: F401  (fixtures)
     requires_paramcheck,
 )
 from siemens_protocol import exar
-from siemens_protocol.exar import archive, build, envelope, patch, store
+from siemens_protocol.exar import archive, build, envelope, inspect, patch, store
 from siemens_protocol.pipeline import parse_document
 
 #: The double that used to be the one divergence between our serializer and
@@ -416,6 +416,20 @@ def test_protocol_previews_carry_the_labels_the_pdf_prints(archive_path: str) ->
     That map is what lets a PDF value be located in the protocol without a
     hand-written table for every parameter.
 
+    Two rules the scanner returns established, neither a special case:
+
+    A protocol may carry an *empty* ``Preview``, and only one that needs
+    conversion does -- 24 of 24 empty ones across 973 corpus protocols carry
+    ``sProtConsistencyInfo.tBaselineString = "ConversionNeeded"``, and none of
+    the 928 current protocols is empty. So the emptiness is asserted to imply
+    staleness rather than merely tolerated, which makes this stricter than
+    demanding a preview outright: an unexplained empty map now fails.
+
+    And the repetition time is labelled ``TR 1`` where a sequence has more
+    than one, exactly as a multi-echo scan prints ``TE 1``..``TE 4`` and no
+    bare ``TE``. ``petra`` and ``WIP_epsi`` do this, so the lookup follows the
+    printout rather than the two being excused.
+
     Parameters
     ----------
     archive_path : str
@@ -429,10 +443,19 @@ def test_protocol_previews_carry_the_labels_the_pdf_prints(archive_path: str) ->
         if not step.runs_a_protocol:
             continue
         entries = step.protocol.preview
-        assert entries
         assert "$id" not in entries
-        matched = step.protocol.by_label("TR")
-        assert matched, f"{step.name} has no TR preview entry"
+        if not entries:
+            stale = patch.read_ascconv(
+                step.protocol.xprotocol, "sProtConsistencyInfo.tBaselineString"
+            )
+            assert (stale or "").strip(
+                '"'
+            ) == "ConversionNeeded", (
+                f"{step.name} has an empty Preview but is not awaiting conversion"
+            )
+            continue
+        matched = step.protocol.by_label("TR") or step.protocol.by_label("TR 1")
+        assert matched, f"{step.name} has neither a TR nor a TR 1 preview entry"
         assert matched[0].unit == "ms"
         assert isinstance(matched[0].value, (int, float))
 
@@ -1181,3 +1204,119 @@ def test_the_flag_sweep_is_not_vacuous() -> None:
             if any(str(patch.sequence_of(step.protocol)) in one.sequences for one in bits):
                 carrying += 1
     assert carrying > 300, f"only {carrying} scans run a sequence whose flags are mapped"
+
+
+@requires_exar
+def test_a_step_objectid_is_not_unique_and_the_program_decides(
+    protocol_archive_path: str,
+) -> None:
+    """Two live steps may share an ``ObjectId``, and each program gets its own.
+
+    Copying a protocol inside a directory does not reuse the source's step
+    node. The copy gets its own element and its own instance and keeps the
+    source's ``ObjectId``, so the investigator export carries 67 objects with
+    two live step instances apiece. The running order is a chain of
+    ``ObjectId``s, so resolving it through an archive-wide object index hands
+    both programs the same instance: 39 of those 67 pairs hold *different*
+    protocols -- one pair being ``eja_svs_laser`` beside ``eja_svs_press`` --
+    so the wrong scan is served and the other's protocol is never read.
+
+    Every live step must therefore be walked exactly once across all
+    programs, counted by element rather than by object.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        A corpus archive holding protocols.
+
+    Returns
+    -------
+    None
+    """
+    read = archive.read(protocol_archive_path)
+    live = [one for one in read.instances.values() if one.kind in archive.STEP_KINDS]
+    walked = [step.instance for one in read.programs for step in one.steps]
+    assert len(walked) == len(live)
+    assert {one.element_id for one in walked} == {one.element_id for one in live}
+    assert len({one.element_id for one in walked}) == len(walked), "a step walked twice"
+
+
+@requires_exar
+def test_shared_objectids_resolve_to_their_own_protocols() -> None:
+    """The scan whose ObjectId is shared still reads its own protocol.
+
+    The positive half of the check above, on the one corpus archive that has
+    the shape. Before the program's own ``Children`` was used to disambiguate,
+    one of these two scans was served the other's protocol.
+
+    Returns
+    -------
+    None
+    """
+    read = archive.read(find_exar("Frederick_P2.exar1"))
+    seen = {}
+    for program in read.programs:
+        for step in program.steps:
+            if step.name in ("eja_svs_laser", "eja_svs_press"):
+                seen.setdefault(step.name, set()).add(
+                    inspect.sequence_file(step.protocol).split("\\")[-1]
+                )
+    assert seen.get("eja_svs_laser") == {"eja_svs_laser"}
+    assert seen.get("eja_svs_press") == {"eja_svs_press"}
+
+
+@pytest.mark.parametrize(
+    "baseline, expected",
+    [
+        ("MAJORVERSION:VA60A, PROTOCOL:66010002, ADDIN:NXMAINLINE, EDF:1, SEQUENCE:1", "VA60A"),
+        ("MAJORVERSION:VA30A, PROTOCOL:63010001", "VA30A"),
+        ("N4_VE11S_LATEST_20170215", "VE11S"),
+        ("N4_VE11C_LATEST_20150101", "VE11C"),
+        ("-", ""),
+        ("", ""),
+        ("SOMETHING_ELSE_ENTIRELY", ""),
+    ],
+)
+def test_the_baseline_names_the_release_in_two_spellings(baseline: str, expected: str) -> None:
+    """Numaris/X keys the release; Numaris 4 writes one underscored token.
+
+    ``MAJORVERSION:VA60A, ...`` is the only spelling the corpus has. A
+    Siemens-published VE11S archive turned out to write
+    ``N4_VE11S_LATEST_20170215`` instead, so a reader keyed on the field alone
+    reports the release as unknown -- which is harmless, nothing here being
+    release-dependent, but it is recoverable and so worth recovering.
+
+    The keyed field wins where both could match, and the fallback is narrow
+    rather than a general search for a version-looking token: a loose pattern
+    gives a confident wrong answer, which is worse than the empty string a
+    caller already handles.
+
+    Parameters
+    ----------
+    baseline : str
+        The ``Branch.Baseline`` string to read.
+    expected : str
+        The release it names, or an empty string.
+
+    Returns
+    -------
+    None
+    """
+    read = archive.Archive(container=None, contents={}, instances={}, baseline=baseline, head="")
+    assert read.major_version == expected
+
+
+@requires_exar
+def test_every_corpus_archive_still_names_its_release(archive_path: str) -> None:
+    """The fallback must not disturb the spelling the corpus actually uses.
+
+    Parameters
+    ----------
+    archive_path : str
+        Any corpus archive.
+
+    Returns
+    -------
+    None
+    """
+    assert archive.read(archive_path).major_version.startswith("VA")

@@ -1998,6 +1998,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -2991,8 +2992,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'slaser'",
           "Special card prints OVS module 1, GOIA/FOCI, FA AutoCalib"
@@ -3166,8 +3167,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'slaser'",
           "Special card prints OVS module 1, GOIA/FOCI, FA AutoCalib"
@@ -3339,8 +3340,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'slaser'",
           "Special card prints OVS module 1, GOIA/FOCI, FA AutoCalib"
@@ -3510,8 +3511,8 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "semi-LASER single-voxel spectroscopy",
-        "signature": "cmrr-slaser",
+        "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
+        "signature": "dkd-semilaser",
         "evidence": [
           "sequence binary 'slaser'"
         ],

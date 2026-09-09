@@ -1097,10 +1097,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "multiband EPI, diffusion",
-        "signature": "cmrr-mb-epi-diffusion",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 21
       },
@@ -1335,10 +1335,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "multiband EPI, diffusion",
-        "signature": "cmrr-mb-epi-diffusion",
+        "family": "multiband EPI, spin echo",
+        "signature": "cmrr-mb-epi-se",
         "evidence": [
-          "Special card prints MB LeakBlock kernel, Online multi-band recon."
+          "Special card prints Triggering scheme, SENSE1 coil combine, Force GPA balance"
         ],
         "special_parameters": 23
       },
@@ -1583,6 +1583,7 @@
         "family": "multiband EPI, diffusion",
         "signature": "cmrr-mb-epi-diffusion",
         "evidence": [
+          "prints the Diff card",
           "Special card prints MB LeakBlock kernel, Online multi-band recon."
         ],
         "special_parameters": 22
@@ -1821,10 +1822,12 @@
         "sequence": "laser"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-laser",
         "evidence": [
-          "sequence binary 'laser' is not a listed Siemens kernel",
-          "prints 30 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Check RF clipping, Debug loop type"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
         ],
         "special_parameters": 30
       },
@@ -2178,10 +2181,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "MEGA-PRESS edited spectroscopy",
-        "signature": "cmrr-megapress",
+        "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-mega-semilaser",
         "evidence": [
-          "Special card prints MEGA flip angle, Editing pulse BW"
+          "Special card prints MEGA flip angle, GOIA refoc. pulses"
         ],
         "special_parameters": 46
       },
@@ -2362,10 +2365,12 @@
         "sequence": "press"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "PRESS spectroscopy (Auerbach)",
+        "signature": "cmrr-press",
         "evidence": [
-          "sequence binary 'press' is not a listed Siemens kernel",
-          "prints 38 sequence-specific parameter(s) no signature accounts for, including 'RR' refoc. pulse, Acq. window shift, Check RF clipping"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
         ],
         "special_parameters": 38
       },
@@ -2538,10 +2543,12 @@
         "sequence": "steam"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "STEAM spectroscopy (Auerbach)",
+        "signature": "cmrr-steam",
         "evidence": [
-          "sequence binary 'steam' is not a listed Siemens kernel",
-          "prints 36 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Check RF clipping, Debug loop type"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
         ],
         "special_parameters": 36
       },
@@ -2712,10 +2719,14 @@
         "sequence": "slasr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "semi-LASER single-voxel spectroscopy (Auerbach)",
+        "signature": "cmrr-semilaser",
         "evidence": [
-          "sequence binary 'slasr' is not a listed Siemens kernel",
-          "prints 40 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "prints no Scan Res. A >> P",
+          "prints no Scan Res. R >> L",
+          "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses"
         ],
         "special_parameters": 40
       },
@@ -2890,10 +2901,12 @@
         "sequence": "laser"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-laser",
         "evidence": [
-          "sequence binary 'laser' is not a listed Siemens kernel",
-          "prints 29 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Check RF clipping, Debug loop type"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
         ],
         "special_parameters": 29
       },
@@ -3078,10 +3091,10 @@
       "provenance": {
         "verdict": "third-party",
         "vendor": "CMRR (University of Minnesota)",
-        "family": "MEGA-PRESS edited spectroscopy",
-        "signature": "cmrr-megapress",
+        "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+        "signature": "cmrr-mega-semilaser",
         "evidence": [
-          "Special card prints MEGA flip angle, Editing pulse BW"
+          "Special card prints MEGA flip angle, GOIA refoc. pulses"
         ],
         "special_parameters": 45
       },
@@ -3280,10 +3293,12 @@
         "sequence": "press"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "PRESS spectroscopy (Auerbach)",
+        "signature": "cmrr-press",
         "evidence": [
-          "sequence binary 'press' is not a listed Siemens kernel",
-          "prints 37 sequence-specific parameter(s) no signature accounts for, including 'RR' refoc. pulse, Acq. window shift, Check RF clipping"
+          "Special card prints VAPOR delay 1, Acq. window shift, Check RF clipping"
         ],
         "special_parameters": 37
       },
@@ -3474,10 +3489,14 @@
         "sequence": "slasr"
       },
       "provenance": {
-        "verdict": "unrecognized",
+        "verdict": "third-party",
+        "vendor": "CMRR (University of Minnesota)",
+        "family": "semi-LASER CSI spectroscopy (Auerbach)",
+        "signature": "cmrr-semilaser-csi",
         "evidence": [
-          "sequence binary 'slasr' is not a listed Siemens kernel",
-          "prints 39 sequence-specific parameter(s) no signature accounts for, including Acq. window shift, Asym. excit. pulse, Check RF clipping"
+          "Scan Res. A >> P is 16",
+          "Scan Res. R >> L is 16",
+          "Special card prints VAPOR delay 1, OVS pulse duration, GOIA refoc. pulses"
         ],
         "special_parameters": 39
       },

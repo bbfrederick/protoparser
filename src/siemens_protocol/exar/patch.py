@@ -194,6 +194,13 @@ class Mapping:
         ``(displayed text, stored integer)`` pairs for a parameter the card
         shows as a word rather than a number. Established by toggling one
         option per export and reading which integer moved.
+    absent_choice : str or None
+        The displayed text a protocol shows when the assignment is absent
+        altogether. A ``sWipMemBlock`` array omits an element nobody has set,
+        and the sequence then supplies its own default -- which is *not*
+        necessarily the choice stored as zero, so it has to be observed rather
+        than derived. Only ``Protocol filename`` has been seen this way, where
+        ``Generic`` is both stored as ``1`` and displayed for nothing stored.
     bit : int or None
         Position of this parameter's flag within ``ascconv_key``, for a
         checkbox packed into a shared word. Writing one is a read-modify-write
@@ -228,6 +235,7 @@ class Mapping:
     basis: str | None = None
     sequences: tuple[str, ...] = ()
     choices: tuple[tuple[str, int], ...] = ()
+    absent_choice: str | None = None
     bit: int | None = None
     builds: tuple[str, ...] = ()
     when: tuple[str, str] | None = None
@@ -798,9 +806,14 @@ MAPPINGS: tuple[Mapping, ...] = (
         label="Protocol filename",
         ascconv_key="sWipMemBlock.alFree[1]",
         choices=(("Generic", 1), ("MPRAGE", 2), ("T2-SPACE", 3)),
+        absent_choice="Generic",
         sequences=("ep_moco_nav_set_ABCD",),
         evidence="controlled edit: NAV_optionscan_P1. alFree[1] again, and again a "
-        "different parameter -- Readout polarity on the MPRAGE sequence.",
+        "different parameter -- Readout polarity on the MPRAGE sequence. The "
+        "setter in allcustomer_20260909 prints Generic with no alFree[1] at "
+        "all, so absence is a second spelling of it -- corroborated by tFree, "
+        "which names Prisma_epi_moco_navigator.prot there and tracks this "
+        "choice on all 46 corpus setters that store a value.",
     ),
     # ---- The multi-echo MEMPRAGE. ----
     Mapping(
@@ -1439,6 +1452,34 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
     return (None, f"no verified mapping for {name!r}")
 
 
+def displays_when_absent(mapping: Mapping, number: float) -> bool:
+    """Return whether an absent assignment already displays this choice.
+
+    A ``sWipMemBlock`` array omits an element nobody has set, and the console
+    then shows the sequence's own default. Writing the number that default
+    corresponds to would change the bytes without changing what the card
+    reads, so a protocol already in that state is left alone.
+
+    Parameters
+    ----------
+    mapping : Mapping
+        The parameter being written.
+    number : float
+        The stored value :func:`encode` produced for the caller's choice.
+
+    Returns
+    -------
+    bool
+        ``True`` when this mapping names a choice shown for an absent
+        assignment and ``number`` is that choice.
+    """
+    if mapping.absent_choice is None:
+        return False
+    table = {text.strip().casefold(): stored for text, stored in mapping.choices}
+    default = table.get(mapping.absent_choice.strip().casefold())
+    return default is not None and float(default) == number
+
+
 def encode(mapping: Mapping, value: Any) -> tuple[float | None, str]:
     """Turn a caller's value into the number to store.
 
@@ -1638,6 +1679,14 @@ def _apply_one(
             continue
         if existing is None and not sparse:
             return refused(f"ASCCONV block has no {key}")
+        if existing is None and displays_when_absent(mapping, number):
+            # The protocol already shows this: the sequence supplies the
+            # default for an element it was never given. Writing the number
+            # anyway would be refused on a protocol with no sibling element to
+            # insert beside, and reported as a change on one that has some.
+            if not first_before:
+                first_before = first_after = ABSENT
+            continue
         written = (number + mapping.offset) * mapping.scale
         if mapping.basis is not None:
             basis_key = mapping.basis.replace("[*]", f"[{index}]")

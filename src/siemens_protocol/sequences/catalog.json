@@ -4,10 +4,12 @@
     "CustomerSeq": "site-installed sequence (Siemens writes this into the protocol path)"
   },
   "third_party_owners": {
-    "USER": "site-installed sequence (the export labels the binary USER, not SIEMENS)"
+    "USER": "site-installed sequence (the export labels the binary USER, not SIEMENS)",
+    "%CustomerSeq%": "site-installed sequence (the protocol names its binary under the customer tree)"
   },
   "stock_owners": {
-    "SIEMENS": "the export labels the binary SIEMENS, naming the vendor as its owner"
+    "SIEMENS": "the export labels the binary SIEMENS, naming the vendor as its owner",
+    "%SiemensSeq%": "the protocol names its binary under the Siemens tree, not the customer one"
   },
   "stock_binaries": {
     "fl": "FLASH -- spoiled gradient echo",
@@ -62,8 +64,8 @@
       "id": "cmrr-mb-epi-diffusion",
       "vendor": "CMRR (University of Minnesota)",
       "family": "multiband EPI, diffusion",
-      "priority": 20,
-      "note": "Same CMRR multiband card as cmrr-mb-epi-bold, riding on the spin-echo kernel. Seen on dMRI_dir64_MGH, dMRI_dir99 and ABCD_dMRI scans in VE11C, XA30 and XA60 exports.",
+      "priority": 25,
+      "note": "Same CMRR multiband card as cmrr-mb-epi-bold, riding on the spin-echo kernel. Seen on dMRI_dir64_MGH, dMRI_dir99 and ABCD_dMRI scans in VE11C, XA30 and XA60 exports. The MB card alone cannot say which variant this is -- BOLD and spin echo print it too -- so the Diff card carries the identification: a diffusion scan has to prescribe directions and b-values, so the console always prints it, where every Special-card label is a checkbox someone can clear. All 96 scans this matched before the clause print one, and nothing that is not diffusion prints one. VE11C splits it into Diff - Body, Diff - Neuro and Diff - Composing against Numaris/X's single Diff, which is why the match is on the card group at the head of the title rather than the page at its tail. Priority 25 puts it above cmrr-mb-epi-se, which is not needed for any corpus scan -- the two never both match today -- but makes the answer deliberate rather than a consequence of file order. If a diffusion protocol ever enables 'Triggering scheme', the option the SE entry keys on, the card it cannot help printing is the better evidence and should win.",
       "match": {
         "binaries": [
           "cmrr_mbep2d_diff"
@@ -74,6 +76,29 @@
         "special_all": [
           "MB LeakBlock kernel",
           "Online multi-band recon."
+        ],
+        "cards_all": [
+          "Diff"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-mb-epi-se",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "multiband EPI, spin echo",
+      "priority": 20,
+      "note": "Supplied by the protocols' owner. The third member of CMRR's multiband EPI family, on the spin-echo kernel like cmrr-mb-epi-diffusion, and the reason it needs two routes is that the two files say different things: an .exar1 names the sequence outright as cmrr_mbep2d_se, while a Numaris/X page prints only the kernel epse, which diffusion shares. Where both exist the archive is the better witness. On the page the two are told apart from opposite directions: diffusion is claimed positively by the Diff card it cannot help printing, and 'Triggering scheme' is on every one of the 17 SE scans a paired archive identifies and on none of the 23 diffusion scans, nor anywhere in their 22-label union. Of the 54 shipped scans this matches, an archive confirms 30 as cmrr_mbep2d_se and none as anything else.",
+      "match": {
+        "binaries": [
+          "cmrr_mbep2d_se"
+        ],
+        "base_binaries": [
+          "epse"
+        ],
+        "special_all": [
+          "Triggering scheme",
+          "SENSE1 coil combine",
+          "Force GPA balance"
         ]
       }
     },
@@ -165,15 +190,17 @@
       }
     },
     {
-      "id": "cmrr-slaser",
+      "id": "dkd-semilaser",
       "vendor": "CMRR (University of Minnesota)",
-      "family": "semi-LASER single-voxel spectroscopy",
+      "family": "semi-LASER single-voxel spectroscopy (Deelchand)",
       "priority": 10,
-      "note": "Deelchand's semi-LASER. The binary is renamed across releases -- sead on VE11C, slaser on XA60 -- while the Special card is identical and both run scans named svs_slaser_dkd. That rename is exactly the kind of thing that breaks a conversion, so the parameter fingerprint rather than the binary is what identifies it.",
+      "note": "Deelchand's semi-LASER, and one of two distinct semi-LASER sequences from CMRR -- see cmrr-semilaser for Auerbach's. Supplied by the protocols' owner; the corpus is overwhelmingly this one, 421 scans in the whole-scanner export against 7 of the other. Three spellings because the two files and the two releases each name it differently: a VE11C page prints the kernel sead, a Numaris/X page prints slaser, and an .exar1 prints the sequence file name svs_slaser_dkd. That rename across releases is exactly the kind of thing that breaks a conversion, so the parameter fingerprint rather than the binary is what identifies it on a page. Its card shares only 'Inversion pulse' with Auerbach's, which is why the two cannot be confused: this one prints GOIA/FOCI and FA AutoCalib, and that one the OVS and VAPOR blocks. A fourth spelling and the current one: XA60 builds the sequence as dkd_svs_sLASER, and the two split cleanly by release -- all 422 svs_slaser_dkd protocols in the corpus carry sProtConsistencyInfo.tBaselineString = ConversionNeeded while all 14 dkd_svs_sLASER ones are current, with nothing on either side against. So an XA60 save of this sequence is named dkd_svs_sLASER: the old spelling is what a protocol carries, never what a current console writes. That is why every svs_slaser_dkd scan is greyed out on an XA60 console although the sequence is installed and working: the binary was renamed, and the old protocols were never converted. Identified by the protocols' owner from a Keto MRS export whose scans are named svs_slaser_dkd* and run dkd_svs_sLASER.",
       "match": {
         "binaries": [
+          "dkd_svs_sLASER",
           "sead",
-          "slaser"
+          "slaser",
+          "svs_slaser_dkd"
         ],
         "special_all": [
           "OVS module 1",
@@ -183,13 +210,214 @@
       }
     },
     {
+      "id": "cmrr-semilaser",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "semi-LASER single-voxel spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's semi-LASER, supplied by the protocols' owner and distinct from Deelchand's dkd-semilaser despite both coming from CMRR. The kernels are one character apart and easy to confuse -- Auerbach's prints slasr where Deelchand's prints slaser -- but the cards are unmistakable: this one prints the OVS and VAPOR blocks and 39 labels in all, none of which appear on any Deelchand scan. Only 7 scans in the whole-scanner export run it. The same kernel and very nearly the same card also serve the CSI variant, eja_csi_slaser: an .exar1 names the two apart and a page does not, their Special cards sharing 39 of 40 labels. What separates them is the Resolution card, which prints a phase-encoding matrix only when there is one -- absent on all 27 single-voxel spectroscopy scans in the corpus and 8 or 16 on all 6 CSI ones, with nothing against. The bound is 'at most 1' rather than 'absent' because a 1 x 1 matrix would mean the same thing; the corpus shows only absence.",
+      "match": {
+        "binaries": [
+          "eja_svs_slaser"
+        ],
+        "base_binaries": [
+          "slasr"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "OVS pulse duration",
+          "GOIA refoc. pulses"
+        ],
+        "parameters_at_most": {
+          "Scan Res. A >> P": 1,
+          "Scan Res. R >> L": 1
+        }
+      }
+    },
+    {
+      "id": "cmrr-semilaser-csi",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "semi-LASER CSI spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "The chemical-shift-imaging variant of cmrr-semilaser, and the same author's: an .exar1 names it eja_csi_slaser beside eja_svs_slaser, and a page prints the kernel slasr and the same 39 Special-card labels for both. Only the Resolution card tells them apart, which is what the two entries key on -- this one requires a phase-encoding matrix of at least 2 where the single-voxel entry allows at most 1, so the pair partitions and a scan printing a 1 goes to that one alone. Every CSI spectroscopy scan in the corpus prints 8 or 16 and every single-voxel one prints none, so the bound sits in a gap the corpus never occupies.",
+      "match": {
+        "binaries": [
+          "eja_csi_slaser"
+        ],
+        "base_binaries": [
+          "slasr"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "OVS pulse duration",
+          "GOIA refoc. pulses"
+        ],
+        "parameters_at_least": {
+          "Scan Res. A >> P": 2,
+          "Scan Res. R >> L": 2
+        }
+      }
+    },
+    {
+      "id": "cmrr-semilaser-diff",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "diffusion-weighted semi-LASER single-voxel spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's diffusion-weighted semi-LASER, named by the protocols' owner; the fingerprint is what was missing, and it is cmrr-semilaser's 40 Special-card labels and a 41st. The fingerprint was derived here rather than supplied: joining the archive to the printout on scan name in two independent exports -- allcustomer_20260909, a console export of one scan per installed customer sequence, and scanner_returns/CORPUS_CONSISTENT -- gives each printed Special card the binary that wrote it, and the diff card is then exactly its parent's card plus one label, 'Diffusion weighting'. That label is on 6 of 1487 corpus scans, which are these three sequences in those two exports, and on nothing else. Note what it is *not*: unlike CMRR's multiband EPI, a diffusion-weighted spectroscopy scan prints no Diff card at all -- its card groups are identical to its parent's -- so cards_all, the clause that positively identifies epi diffusion, matches nothing here. The kernel is the parent's too, one character for one character, so neither file separates the pair on its own. 'Diffusion weighting' alone names a technique rather than a sequence, which is the trap cmrr-megapress fell into, so it is carried on top of the parent's own implementation labels and behind the same kernel gate: the card says whose implementation this is, the kernel says which technique, and the extra label says it is the diffusion-weighted build. Outranks its parent on weight at equal priority, by naming one more condition; no priority is needed. It carries the same phase-encoding bound as its parent, for the same reason: slasr serves a CSI variant as well, so an entry on that kernel has to say which of the two it is. The corpus holds no eja_csi_slaser_diff, so the bound is inherited from the sibling pair rather than exercised against one.",
+      "match": {
+        "binaries": [
+          "eja_svs_slaser_diff"
+        ],
+        "base_binaries": [
+          "slasr"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "OVS pulse duration",
+          "GOIA refoc. pulses",
+          "Diffusion weighting"
+        ],
+        "parameters_at_most": {
+          "Scan Res. A >> P": 1,
+          "Scan Res. R >> L": 1
+        }
+      }
+    },
+    {
+      "id": "cmrr-mega-semilaser",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "MEGA-edited semi-LASER spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's MEGA-edited semi-LASER, supplied by the protocols' owner and a different sequence from his MEGA-PRESS -- which is why cmrr-megapress is gated to the mpres kernel and no longer claims these. Its own kernel is mslsr, unique to it in the corpus, and its card is exactly the pair of techniques its name says: the MEGA editing labels that MEGA-PRESS also prints, over the semi-LASER refocusing block -- GOIA refoc. pulses, HS refoc. pulse N and R -- that MEGA-PRESS does not. Keying on one of each is what makes the fingerprint name this sequence rather than either technique. Both the single-voxel and the CSI spelling are listed for the archive route; they are not split the way the plain semi-LASER is, because the owner named them together.",
+      "match": {
+        "binaries": [
+          "eja_svs_mslaser",
+          "eja_csi_mslaser"
+        ],
+        "base_binaries": [
+          "mslsr"
+        ],
+        "special_all": [
+          "MEGA flip angle",
+          "GOIA refoc. pulses"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-press",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "PRESS spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's PRESS, supplied by the protocols' owner, in its single-voxel and CSI spellings -- 136 and 6 scans in the whole-scanner export. They share the entry rather than being split the way the semi-LASERs are, because the owner named them together; the Resolution card would separate them if wanted, since the CSI scans print a 16 x 16 matrix and the single-voxel ones none. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "match": {
+        "binaries": [
+          "eja_svs_press",
+          "eja_csi_press"
+        ],
+        "base_binaries": [
+          "press"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-press-diff",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "diffusion-weighted PRESS spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "The diffusion-weighted build of cmrr-press, printing that entry's 38 Special-card labels and a 39th. The fingerprint was derived here rather than supplied: joining the archive to the printout on scan name in two independent exports -- allcustomer_20260909, a console export of one scan per installed customer sequence, and scanner_returns/CORPUS_CONSISTENT -- gives each printed Special card the binary that wrote it, and the diff card is then exactly its parent's card plus one label, 'Diffusion weighting'. That label is on 6 of 1487 corpus scans, which are these three sequences in those two exports, and on nothing else. Note what it is *not*: unlike CMRR's multiband EPI, a diffusion-weighted spectroscopy scan prints no Diff card at all -- its card groups are identical to its parent's -- so cards_all, the clause that positively identifies epi diffusion, matches nothing here. The kernel is the parent's too, one character for one character, so neither file separates the pair on its own. 'Diffusion weighting' alone names a technique rather than a sequence, which is the trap cmrr-megapress fell into, so it is carried on top of the parent's own implementation labels and behind the same kernel gate: the card says whose implementation this is, the kernel says which technique, and the extra label says it is the diffusion-weighted build. Outranks its parent on weight at equal priority, by naming one more condition; no priority is needed. The attribution was derived here from the card-and-kernel pairing -- the card is Auerbach's own implementation, the kernel says which technique, the extra label says diffusion-weighted -- and then confirmed by the protocols' owner, who had previously named only eja_svs_slaser_diff of the three. So it stands on the same footing as the rest of the suite: supplied, not inferred.",
+      "match": {
+        "binaries": [
+          "eja_svs_press_diff"
+        ],
+        "base_binaries": [
+          "press"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping",
+          "Diffusion weighting"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-laser",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "LASER spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's LASER, supplied by the protocols' owner, in both spellings. Its card carries the GOIA and hyperbolic-secant refocusing controls that the semi-LASER entries also print -- the two techniques share their refocusing train -- so the kernel is what tells them apart. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "match": {
+        "binaries": [
+          "eja_svs_laser",
+          "eja_csi_laser"
+        ],
+        "base_binaries": [
+          "laser"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-steam",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "STEAM spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "Auerbach's STEAM, supplied by the protocols' owner. Only the single-voxel spelling is named. The corpus also holds eja_svs_steam_diff, which is cmrr-steam-diff and not this: it prints the same kernel and the same card plus 'Diffusion weighting', so the two are separated on that label alone. Three of the 22 labels every eja sequence prints -- the VAPOR water-suppression delays and the timing controls -- so the card says this is Auerbach's implementation and the kernel says which technique. That division is why the kernel gate is not optional here: PRESS, LASER and STEAM are techniques anyone may implement, and it is the pairing that names a sequence.",
+      "match": {
+        "binaries": [
+          "eja_svs_steam"
+        ],
+        "base_binaries": [
+          "steam"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping"
+        ]
+      }
+    },
+    {
+      "id": "cmrr-steam-diff",
+      "vendor": "CMRR (University of Minnesota)",
+      "family": "diffusion-weighted STEAM spectroscopy (Auerbach)",
+      "priority": 10,
+      "note": "The diffusion-weighted build of cmrr-steam, printing that entry's 36 Special-card labels and a 37th. The fingerprint was derived here rather than supplied: joining the archive to the printout on scan name in two independent exports -- allcustomer_20260909, a console export of one scan per installed customer sequence, and scanner_returns/CORPUS_CONSISTENT -- gives each printed Special card the binary that wrote it, and the diff card is then exactly its parent's card plus one label, 'Diffusion weighting'. That label is on 6 of 1487 corpus scans, which are these three sequences in those two exports, and on nothing else. Note what it is *not*: unlike CMRR's multiband EPI, a diffusion-weighted spectroscopy scan prints no Diff card at all -- its card groups are identical to its parent's -- so cards_all, the clause that positively identifies epi diffusion, matches nothing here. The kernel is the parent's too, one character for one character, so neither file separates the pair on its own. 'Diffusion weighting' alone names a technique rather than a sequence, which is the trap cmrr-megapress fell into, so it is carried on top of the parent's own implementation labels and behind the same kernel gate: the card says whose implementation this is, the kernel says which technique, and the extra label says it is the diffusion-weighted build. Outranks its parent on weight at equal priority, by naming one more condition; no priority is needed. The attribution was derived here from the card-and-kernel pairing -- the card is Auerbach's own implementation, the kernel says which technique, the extra label says diffusion-weighted -- and then confirmed by the protocols' owner, who had previously named only eja_svs_slaser_diff of the three. So it stands on the same footing as the rest of the suite: supplied, not inferred.",
+      "match": {
+        "binaries": [
+          "eja_svs_steam_diff"
+        ],
+        "base_binaries": [
+          "steam"
+        ],
+        "special_all": [
+          "VAPOR delay 1",
+          "Acq. window shift",
+          "Check RF clipping",
+          "Diffusion weighting"
+        ]
+      }
+    },
+    {
       "id": "cmrr-megapress",
       "vendor": "CMRR (University of Minnesota)",
       "family": "MEGA-PRESS edited spectroscopy",
       "priority": 10,
-      "note": "Auerbach's eja_svs_mpress. Eight scans across VE11C and XA60, all named eja_svs_mpress_*; the eja_ prefix is CMRR's spectroscopy suite.",
+      "note": "Auerbach's eja_svs_mpress; the eja_ prefix is CMRR's spectroscopy suite. Both spellings are listed because the two files name the sequence differently: a page prints the kernel mpres, an .exar1 prints the sequence file name eja_svs_mpress. They are the same sequence, joined archive-to-printout on five scans in Frederick_P2 -- same scan names, kernel mpres, and both Special-card labels present on every one. The kernel gate is what keeps it to MEGA-PRESS. Its two card labels are editing parameters that any MEGA-edited sequence prints, so ungated the card route also claimed three mslsr scans -- eja_svs_mslaser and eja_csi_mslaser -- and MEGA-semi-LASER is a different sequence, per the protocols' owner. Those are unrecognized now rather than misattributed, which is the honest state until someone names them.",
       "match": {
         "binaries": [
+          "mpres",
+          "eja_svs_mpress"
+        ],
+        "base_binaries": [
           "mpres"
         ],
         "special_all": [
@@ -225,7 +453,9 @@
         "binaries": [
           "ZPL_epsi_fid",
           "ZPL_epsi_fid_v1h",
+          "ZPL_RG_EPSI_FID_v1h",
           "ZPL_epsi_se_v1b",
+          "ZPL_RG_EPSI_SE_v1b",
           "ZPL_JPSI_se"
         ],
         "special_any": [

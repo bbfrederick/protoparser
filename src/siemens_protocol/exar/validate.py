@@ -56,6 +56,8 @@ def problems(archive: Archive) -> list[str]:
     found += _step_coverage(archive, programs)
     found += _parents(archive)
     found += _identity(archive)
+    found += _content_hygiene(archive)
+    found += _directory_tree(archive)
     return found
 
 
@@ -66,15 +68,14 @@ def _step_coverage(archive: Archive, programs: list[Program]) -> list[str]:
     that stops early agrees with itself, so only a tally taken from the
     instance table can notice steps nothing runs.
 
-    "Exactly one" was the rule until an investigator-level export arrived, and
-    it was a property of the corpus rather than of the format: copying a
-    protocol within a directory reuses the source's step nodes for the scans
-    the copy did not change, so 67 of that file's 435 steps are run by two
-    programs or three -- ``BioTMS``/``BioTMS_old`` share 19,
-    ``multiecho_bids_test`` and its ``_small_fixed`` variant 14. The sharing is
-    real and not a confusion of GUID spaces: each is one element id, listed in
-    the ``Children`` of exactly one of its programs and parenting to that same
-    one. What still has to hold is that nothing is orphaned.
+    Counted by *element*, which is the correction that matters here. Copying
+    a protocol within a directory does not reuse the source's step node: the
+    copy gets its own element and its own instance and keeps the source's
+    ``ObjectId``, so 67 objects in the investigator export carry two live
+    step instances each. Counting object ids therefore compares 435 against
+    435 and passes while 75 step elements are in no running order at all --
+    which is precisely the state this check exists to detect, and it was
+    passing vacuously.
 
     Parameters
     ----------
@@ -88,8 +89,8 @@ def _step_coverage(archive: Archive, programs: list[Program]) -> list[str]:
     list of str
         Broken rules.
     """
-    existing = {i.object_id for i in archive.instances.values() if i.kind in STEP_KINDS}
-    seen: list[str] = [step.instance.object_id for one in programs for step in one.steps]
+    existing = {i.element_id for i in archive.instances.values() if i.kind in STEP_KINDS}
+    seen: list[str] = [step.instance.element_id for one in programs for step in one.steps]
     found = []
     orphaned = existing - set(seen)
     if orphaned:
@@ -121,13 +122,15 @@ def _program_maps(program: Program, document: dict[str, Any]) -> list[str]:
         if not isinstance(table, dict):
             found.append(f"program content has no {name} map")
             continue
-        keys = {k for k in table if k != "$id"}
-        missing = steps - keys
+        keys = [k for k in table if k != "$id"]
+        missing = steps - set(keys)
         if missing:
             found.append(f"{name} is missing {len(missing)} step(s): {sorted(missing)[:3]}")
         stray = {k for k in keys if GUID.match(k)} - steps
         if stray:
             found.append(f"{name} names {len(stray)} step(s) that do not exist")
+        if keys != sorted(keys):
+            found.append(f"{name} keys are not in lexical order")
     return found
 
 
@@ -337,4 +340,101 @@ def _identity(archive: Archive) -> list[str]:
         if rebuilt.hash != stored:
             found.append(f"{content.kind} does not re-encode to its own address")
             break
+    return found
+
+
+def _content_hygiene(archive: Archive) -> list[str]:
+    """Orphaned content is an ``EdfStructureContent`` or it is litter.
+
+    A ``Content`` row nothing points at is normal in one narrow case: every
+    archive in the corpus carries one -- ``NAV_optionscan_P1_loadtest`` two --
+    and in all of them it is the placeholder branch's ``EdfStructureContent``.
+    Anything else orphaned was created and then superseded, which is what an
+    append loop does to the program document: it rewrites it once per step, so
+    a ninety-six-scan program left ninety-five dead copies of itself beside one
+    live program instance. That is a shape no console archive has, and it
+    shipped because the checks here asked only whether live nodes resolved.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive under test.
+
+    Returns
+    -------
+    list of str
+        Broken rules.
+    """
+    instances = archive.container.tables["Instance"]
+    at = instances.index_of("ContentHash")
+    referenced = {str(row[at]) for row in instances.rows if row[at] is not None}
+    kinds: dict[str, int] = {}
+    for digest, content in archive.contents.items():
+        if digest in referenced:
+            continue
+        # What :meth:`Archive.prune` will collect at write time is not a defect
+        # in the archive; an edit strands its old content in memory and the
+        # written file never carries it. Reading a file back gives an archive
+        # that has displaced nothing, so real litter still reports.
+        if digest in archive.displaced or digest not in archive.as_read:
+            continue
+        kind = content.content_type.rsplit(".", 1)[-1]
+        if kind != "EdfStructureContent":
+            kinds[kind] = kinds.get(kind, 0) + 1
+    if not kinds:
+        return []
+    detail = ", ".join(f"{n} {k}" for k, n in sorted(kinds.items()))
+    return [f"content nothing references: {detail}"]
+
+
+def _directory_tree(archive: Archive) -> list[str]:
+    """The folder tree read downwards matches the one read upwards.
+
+    The structure document states the hierarchy twice -- ``ParentDirectoryId``
+    upwards, ``SubdirectoryIds`` and ``SubprogramElementIds`` downwards -- and
+    names the top in ``RootDirectoryId``. They agree on every corpus archive,
+    which makes the disagreement worth checking rather than assuming: reading
+    the tree wrongly is the failure that produced 61 empty folders and 499
+    orphan protocols out of a 97 MB export, and it looked like a small file
+    rather than an error. Two independent statements of the same tree turn
+    that into one failing line.
+
+    An archive that declares neither direction is passed over rather than
+    reported: exporting an empty folder node yields a valid file with no tree
+    at all.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive under test.
+
+    Returns
+    -------
+    list of str
+        Broken rules.
+    """
+    up = archive.directory_parents
+    down = archive.directory_children
+    if not up and not down:
+        return []
+    found = []
+    rebuilt: dict[str, str] = {}
+    for parent, kids in down.items():
+        for kid in kids:
+            rebuilt[kid] = parent
+    root = archive.declared_root
+    if root:
+        rebuilt[root] = NO_GUID
+    if up and down and rebuilt != up:
+        only_down = sorted(set(rebuilt) - set(up))[:3]
+        only_up = sorted(set(up) - set(rebuilt))[:3]
+        found.append(
+            f"the folder tree disagrees with itself: {len(rebuilt)} entries downwards "
+            f"against {len(up)} upwards (only downwards {only_down}, only upwards {only_up})"
+        )
+    tops = [one for one, parent in up.items() if parent == NO_GUID]
+    if root and tops and tops != [root]:
+        found.append(
+            f"RootDirectoryId is {root[:8]} but the tree tops out at {[t[:8] for t in tops]}"
+        )
     return found
