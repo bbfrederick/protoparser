@@ -1303,8 +1303,11 @@ the two consistent.
   first `archive` summary line did, and reported a 17-link protocol as having
   117.
 - **A generated archive can be rejected whole, and the symptom is the folder
-  tree with no protocols under it.** `outbound/corpus_gaps.exar1` (96 scans)
-  and `corpus_all.exar1` (117) both opened on the scanner, navigated to
+  tree with no protocols under it.** `corpus_gaps.exar1` (96 scans)
+  and `corpus_all.exar1` (117) -- built locally to send to the scanner, and
+  not shipped: the archives this library generates are evidence for a round
+  trip rather than examples of what it parses, so they stay out of the repo
+  and `outbound/` is gitignored -- both opened on the scanner, navigated to
   `Investigators/Frederick`, and showed nothing there -- and in scanner terms a
   *Program* is a protocol, so that is the program failing to build, not a
   program opening empty. Every offline check passed: the tree resolves to
