@@ -1530,13 +1530,33 @@ the two consistent.
   upper-case protocol, which is what `Mapping.builds` already refuses.
   Whether it is a rename or a different sequence is a question for the
   protocols' owner.
-- **The catalog matches a binary case-sensitively while the filesystem does
-  not.** `CMRR_MBEP2D_BOLD` fails a signature naming `cmrr_mbep2d_bold`. No
-  corpus binary is affected today -- checked, zero are named by a signature
-  only under a different case -- so this is latent rather than live, but the
-  `ep2d_bold` pair proves the variation is real, and a protocol spelling a
-  signed binary differently would be reported unrecognized rather than
-  matched.
+- **A binary now matches whatever case it is written in.** The scanner's
+  filesystem is case-insensitive and the `ep2d_bold` pair proves the
+  variation is real, so comparing exactly reported the unlisted spelling as
+  an *unrecognized sequence* -- which reads like "nobody has named this"
+  rather than like a failed comparison, and is the worse of the two
+  failures. `names_binary` folds case for the binary route and the kernel
+  gate, and `Catalog.stock_family` does the same for the Siemens kernel list.
+
+  All seven comparison sites had to move together. Folding the signatures
+  while comparing the kernel list exactly would make one spelling
+  third-party and the other stock, which is why the fold lives in two
+  helpers rather than at each site. An empty binary still matches nothing,
+  which `base_binaries` depends on: a scan whose header carried no sequence
+  field must *fail* a kernel gate rather than pass it vacuously.
+
+  No corpus verdict moved -- zero binaries were named by a signature only
+  under another case, and every exact accounting pin still holds. Folding
+  can, though, create an ambiguity that exact comparison hid, so `check`
+  now refuses two signatures claiming one binary once case is folded.
+  `base_binaries` is deliberately outside that rule: sibling signatures
+  share a kernel gate on purpose, `slasr` gating three semi-LASER variants
+  that their cards separate, and `epse` gating both the SE and diffusion
+  multiband entries.
+
+  The owner vocabularies are left exact. `%SiemensSeq%`/`%CustomerSeq%` and
+  VB17A's `SIEMENS:`/`USER:` are strings the export writes rather than names
+  on a filesystem, and the corpus spells each one way.
 - **The owner's account of the greyed-out catalogued sequences, and what the
   archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
   `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at

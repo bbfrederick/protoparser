@@ -46,7 +46,7 @@ import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Iterable, Mapping, Sequence
 
 #: Where the shipped catalog lives.
 CATALOG_DIR = Path(__file__).parent
@@ -231,6 +231,39 @@ def _at_most(values: list[str], bound: float) -> bool:
     return True
 
 
+def names_binary(binary: str, names: Iterable[str]) -> bool:
+    """Whether a sequence binary is one of ``names``, ignoring case.
+
+    Sequence binaries live on the scanner's own filesystem, which is
+    case-insensitive, and the corpus shows one sequence written both ways:
+    ``ep2d_bold_MGH`` and ``ep2d_bold_mgh`` are both current, appear in the
+    same archives, and carry all but two of the same ``sWipMemBlock``
+    indices. Comparing exactly would report the spelling a signature does not
+    list as an unrecognized sequence -- a silent miss, since the verdict looks
+    like an honest "nobody has named this" rather than a failed comparison.
+
+    An empty binary matches nothing. That is deliberate and is what
+    ``base_binaries`` relies on: a scan whose header carried no sequence
+    field must fail a kernel gate rather than pass it vacuously.
+
+    Parameters
+    ----------
+    binary : str
+        The scan's sequence binary, empty when the export printed none.
+    names : iterable of str
+        The binaries to test against.
+
+    Returns
+    -------
+    bool
+        True when ``binary`` is one of ``names`` under case folding.
+    """
+    if not binary:
+        return False
+    folded = binary.casefold()
+    return any(folded == one.casefold() for one in names)
+
+
 @dataclass(frozen=True)
 class Signature:
     """One catalog entry: how to recognize a sequence, and what it is.
@@ -354,7 +387,7 @@ class Signature:
             is what stops an incomplete entry from claiming every scan.
         """
         evidence: list[str] = []
-        if self.binaries and binary and binary in self.binaries:
+        if self.binaries and names_binary(binary, self.binaries):
             evidence.append(f"sequence binary {binary!r}")
         evidence.extend(self._special_evidence(binary, special, cards or set(), values or {}))
         return evidence or None
@@ -392,7 +425,7 @@ class Signature:
             self.special_all or self.special_any or self.cards_all or self.parameters_at_least
         ):
             return []
-        if self.base_binaries and binary not in self.base_binaries:
+        if self.base_binaries and not names_binary(binary, self.base_binaries):
             return []
         if self.cards_all and any(name not in cards for name in self.cards_all):
             return []
@@ -556,6 +589,36 @@ class Catalog:
 
     signatures: list[Signature] = field(default_factory=list)
     stock_binaries: dict[str, str] = field(default_factory=dict)
+
+    def stock_family(self, binary: str) -> str | None:
+        """What Siemens kernel a binary is, ignoring case, or ``None``.
+
+        The companion to :func:`names_binary` for the stock list, which is a
+        mapping rather than a set and so needs the value back rather than a
+        yes or no. Folding here keeps the kernel list and the signatures
+        answering the same question the same way; comparing one exactly and
+        the other loosely would make a scan third-party under one spelling
+        and stock under another.
+
+        Parameters
+        ----------
+        binary : str
+            The scan's sequence binary, empty when the export printed none.
+
+        Returns
+        -------
+        str or None
+            The kernel's description, or ``None`` when the list has no such
+            binary. An empty binary is never a kernel.
+        """
+        if not binary:
+            return None
+        folded = binary.casefold()
+        for name, family in self.stock_binaries.items():
+            if name.casefold() == folded:
+                return family
+        return None
+
     path_markers: dict[str, str] = field(default_factory=dict)
     third_party_owners: dict[str, str] = field(default_factory=dict)
     stock_owners: dict[str, str] = field(default_factory=dict)
@@ -828,16 +891,16 @@ def identify(scan: Mapping, catalog: Catalog) -> Identification:
         return Identification(
             verdict=STOCK,
             vendor="Siemens",
-            family=catalog.stock_binaries.get(binary, stated_stock),
+            family=catalog.stock_family(binary) or stated_stock,
             evidence=(owner_evidence, "no sequence-specific parameters printed"),
             **common,
         )
 
-    if binary and binary in catalog.stock_binaries and not special:
+    if catalog.stock_family(binary) is not None and not special:
         return Identification(
             verdict=STOCK,
             vendor="Siemens",
-            family=catalog.stock_binaries[binary],
+            family=catalog.stock_family(binary),
             evidence=(
                 f"sequence binary {binary!r} is a Siemens kernel",
                 "no sequence-specific parameters printed",
@@ -890,7 +953,7 @@ def _why_unknown(binary: str, special: set[str], catalog: Catalog) -> tuple[str,
     reasons: list[str] = []
     if not binary:
         reasons.append("the export printed no sequence binary for this scan")
-    elif binary not in catalog.stock_binaries:
+    elif catalog.stock_family(binary) is None:
         reasons.append(f"sequence binary {binary!r} is not a listed Siemens kernel")
     else:
         reasons.append(f"sequence binary {binary!r} is a Siemens kernel")
@@ -964,10 +1027,26 @@ def check(catalog: Catalog) -> list[str]:
                 f"signature {signature.id!r} imposes no conditions, so it would claim every scan"
             )
         for binary in signature.binaries:
-            if binary in catalog.stock_binaries:
+            if catalog.stock_family(binary) is not None:
                 problems.append(
                     f"signature {signature.id!r} claims sequence binary {binary!r}, which is "
                     "also listed as a Siemens kernel"
+                )
+            # Matching folds case, so two spellings that were distinct entries
+            # now name one sequence -- which is the point, and also a way to
+            # write an ambiguity that exact comparison would have hidden.
+            # `base_binaries` is deliberately excluded: sibling signatures
+            # share a kernel gate on purpose, `slasr` gating three semi-LASER
+            # variants that their cards separate.
+            claimants = sorted(
+                other.id
+                for other in catalog.signatures
+                if any(one.casefold() == binary.casefold() for one in other.binaries)
+            )
+            if len(claimants) > 1:
+                problems.append(
+                    f"sequence binary {binary!r} is claimed by more than one signature "
+                    f"once case is folded: {', '.join(claimants)}"
                 )
         overlap = set(signature.special_all) & set(signature.special_any)
         if overlap:
