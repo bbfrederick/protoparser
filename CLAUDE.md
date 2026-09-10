@@ -27,6 +27,12 @@ See `Design.md` for the design and `README.md` for usage.
   the real repo and passed for the wrong reason.
 - No `timeout` on macOS. Use the Bash tool's own timeout, or
   `perl -e 'select(undef,undef,undef,20)'` to sleep.
+- **Another session may be committing into this working tree while you work.**
+  Three commits landed mid-session under the same git identity, so the
+  start-of-session `git status` is a snapshot that goes stale. Never `git
+  stash` here: it will sweep up work that is not yours, and a `pop` landing
+  on a different stack entry loses it. Check `git diff` before assuming a
+  modified file is one you touched.
 - OCR is an optional extra (`pip install -e ".[ocr]"`) plus a native tesseract
   binary: `brew install tesseract`, `apt install tesseract-ocr`, or
   `winget install UB-Mannheim.TesseractOCR`. Found on PATH, else in the
@@ -94,6 +100,10 @@ See `Design.md` for the design and `README.md` for usage.
   auth, so the old `curl` route to a check-run's annotations is no longer needed.
   Still have CI steps emit `::error::<message>`: `--log-failed` hands back the whole
   step, and that one line is what says which of a few hundred assertions went red.
+- The full suite runs ~13 minutes (785, 775, 782 s on this machine), so start
+  it in the background and keep working; a single file is seconds. Still run
+  the whole thing before reporting done -- the corpus sweeps are where a
+  change to one reader surfaces in another.
 
 ### The GUI
 
@@ -2259,6 +2269,24 @@ archive wherever they take a PDF, through `inspect.as_protocol`.
   archive against 51:55 from the printout -- four scans the console omits.
   It is a *derived* field the console recomputes, so a protocol this package
   has patched carries a stale one until a scanner reopens it.
+- **`as_protocol` must build `flat` with `flatten_sections`, not as a
+  key-to-value map.** The comparison is the only consumer of that view and
+  reads each entry's `value` and `conflict`, so a bare string raised
+  `AttributeError` and *no* archive could be diffed at all -- for as long as
+  archives have been accepted, and invisibly, since `list`, `sequences` and
+  `summary` all pass `need_flat=False`. Nothing an archive produces can
+  conflict, cards being a property of the page, and the test asserts that
+  rather than assuming it.
+- **A capability added to `_load_protocol` does not reach the subcommands'
+  parsers.** Archive support was added there once and every caller inherited
+  it -- including two whose parsers were never given the option that makes it
+  usable. `diff` and the two `vocab` actions refused a multi-program archive
+  by naming `--program`, a flag they did not define, so a backup was a dead
+  end with no way out. They take two inputs, hence
+  `--left-program`/`--right-program`.
+  `test_every_subcommand_that_takes_an_archive_can_choose_its_program` reads
+  the invariant off each subcommand's own help, so it also keeps that help
+  honest: both were claiming "a PDF or JSON" while accepting archives.
 
 ### Code Formatting
 
@@ -2367,6 +2395,19 @@ pip install .
   still *there*, glued onto its own key. What makes it visible is the valueless
   rate: `test_a_scan_is_not_mostly_parameters_without_a_value` holds every scan
   under 15%, where the healthy worst case is 4.7% and the broken scans ran 21-30%.
+- `diff` already aligns scans with `difflib` over *normalized* names, not by
+  position: an inserted or deleted scan leaves the rest synced and is
+  reported as such, and case, punctuation and spacing fold away first. Do not
+  rebuild it. Two things it does not do -- express a move, which comes back
+  as a delete plus an insert; and test a `replace` block's pairing, which it
+  zips positionally, so a rename adjacent to an insertion mis-pairs and
+  `Aging_SZ_SPICE`'s `dMRI_dir20_Low-b_DTI_LongTE` is paired with
+  `dMRI_dir64_MGH_AP_LongTE` on position alone.
+- `diff`'s exit status is `ProtocolDiff.differs`: a substantive parameter
+  difference *or* a scan on one side only. A renamed scan is deliberately
+  excluded -- it is matched, both spellings are in the report, and counting
+  it would fail every check on a protocol whose scans were renamed between
+  releases.
 
 
 ## Style Conventions
