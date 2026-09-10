@@ -182,6 +182,33 @@ class Command:
         }
 
 
+def _side_program_fields() -> tuple[Field, ...]:
+    """Describe the flags picking a protocol per side of a two-input command.
+
+    ``diff`` and the two ``vocab`` actions take two exports, so the single
+    ``--program`` the one-input commands use cannot say which protocol
+    belongs to which side.
+
+    Returns
+    -------
+    tuple of Field
+        The left and right controls, in that order.
+    """
+    return tuple(
+        Field(
+            name=f"{side}_program",
+            kind="text",
+            label=f"{side.capitalize()} protocol",
+            help=(
+                f"Which protocol to take from the {side} .exar1 archive. Needed "
+                "only when it holds more than one, which a scanner backup does."
+            ),
+            flag=f"--{side}-program",
+        )
+        for side in ("left", "right")
+    )
+
+
 def _program_field() -> Field:
     """Describe the flag picking one protocol out of a multi-program archive.
 
@@ -364,7 +391,7 @@ def _diff_command() -> Command:
                 label="Left",
                 help="A PDF, or JSON this tool wrote earlier.",
                 picker="file",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
                 required=True,
             ),
             Field(
@@ -376,7 +403,7 @@ def _diff_command() -> Command:
                     "the left file, which then needs a scan named on both sides."
                 ),
                 picker="file",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
             ),
             Field(
                 name="left_scan",
@@ -392,6 +419,7 @@ def _diff_command() -> Command:
                 help="Scan to take from the right input, by name or zero-based index.",
                 flag="--right-scan",
             ),
+            *_side_program_fields(),
             _release_field("Force a Siemens release profile for any PDF input."),
             Field(
                 name="sections",
@@ -598,6 +626,67 @@ def _list_command() -> Command:
     )
 
 
+def _summary_command() -> Command:
+    """Describe the ``summary`` subcommand.
+
+    Returns
+    -------
+    Command
+        The form for summarizing one protocol.
+    """
+    return Command(
+        name="summary",
+        group="List",
+        title="Summarize",
+        summary=(
+            "Summarize one protocol in a block rather than a line per scan: how many "
+            "scans it runs, how long it takes, its longest and shortest scan, and a "
+            "census of the distinct sequences with the scans and time each accounts "
+            "for. A scan printing no readable acquisition time is excluded from the "
+            "total and counted, which is why an archive can total a few seconds under "
+            "its own printout."
+        ),
+        argv=("summary",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Input",
+                help="A PDF, an .exar1 archive, or JSON this tool wrote earlier.",
+                picker="file",
+                accept=(".pdf", ".exar1", ".json"),
+                required=True,
+            ),
+            _release_field("Force a Siemens release profile for a PDF input."),
+            _program_field(),
+            Field(
+                name="catalog",
+                kind="path",
+                label="Catalog overlay",
+                help="A directory of signature catalogs overlaying the shipped one.",
+                flag="--catalog",
+                picker="dir",
+            ),
+            Field(
+                name="json",
+                kind="flag",
+                label="JSON output",
+                help="Emit the summary as JSON rather than a report.",
+                flag="--json",
+                default=False,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write summary to",
+                help="Write the summary here. Left empty, it appears in the pane below.",
+                flag="--out",
+                picker="save",
+            ),
+        ),
+    )
+
+
 def _sequences_command() -> Command:
     """Describe the ``sequences`` subcommand.
 
@@ -748,8 +837,9 @@ def _vocab_commands() -> tuple[Command, ...]:
                     ),
                     flag="--against",
                     picker="file",
-                    accept=(".pdf", ".json"),
+                    accept=(".pdf", ".exar1", ".json"),
                 ),
+                *_side_program_fields(),
                 overlay,
             ),
         ),
@@ -770,7 +860,7 @@ def _vocab_commands() -> tuple[Command, ...]:
                     label="Left export",
                     help="An export of one release.",
                     picker="file",
-                    accept=(".pdf", ".json"),
+                    accept=(".pdf", ".exar1", ".json"),
                     required=True,
                 ),
                 Field(
@@ -779,9 +869,10 @@ def _vocab_commands() -> tuple[Command, ...]:
                     label="Right export",
                     help="The same protocol exported from another release.",
                     picker="file",
-                    accept=(".pdf", ".json"),
+                    accept=(".pdf", ".exar1", ".json"),
                     required=True,
                 ),
+                *_side_program_fields(),
                 Field(
                     name="min_support",
                     kind="int",
@@ -959,6 +1050,7 @@ def command_specs() -> tuple[Command, ...]:
         _diff_command(),
         _check_command(),
         _list_command(),
+        _summary_command(),
         _archive_command(),
         _exar_command(),
         _sequences_command(),

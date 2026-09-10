@@ -279,10 +279,18 @@ def render_protocol(
         lines.append("")
 
     identical = sum(1 for s in result.scans if s.identical)
-    lines.append(
+    tally = (
         f"{len(result.scans)} scans compared, {identical} identical, "
         f"{result.substantive_count} substantive differences"
     )
+    if result.unmatched_count:
+        # Named on the tally line as well as listed above it. Without this the
+        # line can read "18 scans compared, 18 identical, 0 substantive
+        # differences" for two protocols of different lengths, which reports
+        # a difference the exit status counts as one and the summary does not.
+        one = result.unmatched_count == 1
+        tally += f", {result.unmatched_count} scan{'' if one else 's'} on one side only"
+    lines.append(tally)
     if not shown and not (result.only_left or result.only_right):
         lines.append("no substantive differences found")
     return "\n".join(lines)

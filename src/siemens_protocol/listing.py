@@ -20,11 +20,7 @@ import re
 from dataclasses import dataclass
 from typing import Mapping
 
-from .sequences import STOCK, THIRD_PARTY, UNRECOGNIZED, default_catalog, identify
-
-#: Mark printed against each verdict, matching the ``sequences`` report so a
-#: reader moving between the two commands reads the same symbols.
-_VERDICT_MARK = {THIRD_PARTY: "*", UNRECOGNIZED: "?", STOCK: " "}
+from .sequences import MARKS, STOCK, Catalog, default_catalog, identify
 
 #: ``6:02 min``, ``6:02``, ``1:42:33 h`` -- a colon-separated clock,
 #: optionally followed by a unit word that adds nothing to the digits.
@@ -158,7 +154,7 @@ class ScanRow:
         }
 
 
-def build_listing(protocol: Mapping) -> list[ScanRow]:
+def build_listing(protocol: Mapping, catalog: Catalog | None = None) -> list[ScanRow]:
     """One row per scan, in acquisition order.
 
     Takes the serialized form rather than a :class:`~.model.Protocol` so a
@@ -170,13 +166,18 @@ def build_listing(protocol: Mapping) -> list[ScanRow]:
     ----------
     protocol : mapping
         A serialized protocol, carrying ``scans``.
+    catalog : Catalog or None, optional
+        Signatures to identify each scan against. The shipped catalog is
+        loaded when omitted. A caller that also identifies the scans for
+        itself passes its own, so the two passes cannot disagree about
+        what a scan is running.
 
     Returns
     -------
     list of ScanRow
         The rows, ordered as the scans appear in the document.
     """
-    catalog = default_catalog()
+    catalog = catalog or default_catalog()
     rows: list[ScanRow] = []
     for position, scan in enumerate(protocol.get("scans", [])):
         header = scan.get("header", {}) or {}
@@ -245,7 +246,7 @@ def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
     for row in rows:
         time = row.acquisition_time if row.seconds is not None else f"{row.acquisition_time}?"
         lines.append(
-            f"{_VERDICT_MARK[row.verdict]} {row.index:>{w_index}}  {row.name:<{w_name}}  "
+            f"{MARKS[row.verdict]} {row.index:>{w_index}}  {row.name:<{w_name}}  "
             f"{row.sequence:<{w_seq}}  {time:>{w_time}}"
         )
 

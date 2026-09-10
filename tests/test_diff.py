@@ -1173,3 +1173,141 @@ def test_protocol_diff_notes_every_mismatched_pair(parsed: ParseFixture) -> None
         note = name_mismatch_note(scan.name_left, scan.name_right)
         assert note is not None and note in text
     assert text.count("Names do not match exactly") == len(mismatched)
+
+
+# -- what counts as a difference --------------------------------------------
+
+
+def _staged(*names: str) -> dict:
+    """A protocol carrying scans of the given names and nothing else.
+
+    Parameters
+    ----------
+    *names : str
+        Scan names, in acquisition order.
+
+    Returns
+    -------
+    dict
+        A serialized protocol whose scans are identical but for their names.
+    """
+    return {
+        "source_file": "staged.pdf",
+        "software_version": "XA60",
+        "scans": [
+            {
+                "index": index,
+                "name": name,
+                "header": {"ta": "1:00", "sequence": "gre"},
+                "sections": {"Routine": {"TR": "2000 ms"}},
+                "flat": {"TR": {"value": "2000 ms", "sections": ["Routine"], "conflict": False}},
+            }
+            for index, name in enumerate(names)
+        ],
+    }
+
+
+def test_an_unmatched_scan_is_a_difference() -> None:
+    """A protocol with a scan the other lacks differs from it.
+
+    The scan has no counterpart, so it has no parameters to compare and
+    contributes nothing to ``substantive_count``. Reading that count alone --
+    which is what the exit status did -- reports two protocols of different
+    lengths as matching.
+
+    Returns
+    -------
+    None
+    """
+    result = diff_protocols(_staged("a", "b"), _staged("a", "b", "c"))
+    assert result.substantive_count == 0
+    assert result.unmatched_count == 1
+    assert result.differs is True
+
+
+def test_identical_protocols_do_not_differ() -> None:
+    """Nothing unmatched and nothing substantive is no difference.
+
+    Returns
+    -------
+    None
+    """
+    result = diff_protocols(_staged("a", "b"), _staged("a", "b"))
+    assert (result.substantive_count, result.unmatched_count) == (0, 0)
+    assert result.differs is False
+
+
+def test_a_renamed_scan_is_not_counted_as_unmatched() -> None:
+    """A scan matched under another name is matched, not missing.
+
+    Counting it would make every cross-release comparison of a protocol whose
+    scans were renamed fail a check that is asking about parameters, and the
+    rename is already named in the report.
+
+    Returns
+    -------
+    None
+    """
+    result = diff_protocols(_staged("a", "b", "c"), _staged("a", "b_renamed", "c"))
+    assert result.unmatched_count == 0
+    assert result.differs is False
+    assert [(s.name_left, s.name_right) for s in result.scans if s.name_left != s.name_right] == [
+        ("b", "b_renamed")
+    ]
+
+
+def test_the_tally_line_names_the_unmatched_scans() -> None:
+    """The summary line must not read as "no differences" beside one.
+
+    Returns
+    -------
+    None
+    """
+    one = render_protocol(diff_protocols(_staged("a"), _staged("a", "b")))
+    assert "1 scan on one side only" in one
+    two = render_protocol(diff_protocols(_staged("a"), _staged("a", "b", "c")))
+    assert "2 scans on one side only" in two
+    none = render_protocol(diff_protocols(_staged("a"), _staged("a")))
+    assert "on one side only" not in none
+
+
+def test_the_payload_carries_both_counts() -> None:
+    """``--json`` says why the exit status is what it is.
+
+    Returns
+    -------
+    None
+    """
+    payload = diff_protocols(_staged("a"), _staged("a", "b")).to_dict()
+    assert payload["substantive_count"] == 0
+    assert payload["unmatched_count"] == 1
+    assert payload["scans_only_right"] == ["b"]
+
+
+@requires_examples
+def test_cli_diff_exits_nonzero_on_an_unmatched_scan(tmp_path: Path) -> None:
+    """End to end: a scan on one side only sets the exit status.
+
+    Driven against a real export with one scan dropped from it, so the two
+    sides differ in exactly that one respect.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary directory for the trimmed copy.
+
+    Returns
+    -------
+    None
+    """
+    parsed = tmp_path / "full.json"
+    assert main(["parse", find_example("SYNCT.pdf"), "--out", str(parsed), "--quiet"]) == 0
+    document = json.loads(parsed.read_text(encoding="utf-8"))
+    assert len(document["scans"]) > 1
+
+    trimmed = tmp_path / "trimmed.json"
+    document["scans"] = document["scans"][:-1]
+    trimmed.write_text(json.dumps(document), encoding="utf-8")
+
+    assert main(["diff", str(parsed), str(parsed)]) == 0
+    assert main(["diff", str(parsed), str(trimmed)]) == 1

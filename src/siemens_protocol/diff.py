@@ -480,13 +480,58 @@ class ProtocolDiff:
         """
         return sum(len(s.substantive) for s in self.scans)
 
+    @property
+    def unmatched_count(self) -> int:
+        """How many scans are present on one side only.
+
+        Counted apart from the parameter differences because it is a
+        different kind of finding: a scan the other protocol does not have at
+        all has no parameters to compare, so it contributes nothing to
+        :attr:`substantive_count` however unlike the two protocols are.
+
+        A section filter does not affect it. A scan absent from one side is
+        absent whichever sections were asked for, so this count describes the
+        whole protocol even where the parameter count describes a slice.
+
+        Returns
+        -------
+        int
+            The two unmatched lists' lengths together.
+        """
+        return len(self.only_left) + len(self.only_right)
+
+    @property
+    def differs(self) -> bool:
+        """Whether the two protocols differ at all.
+
+        The question the exit status answers, kept here rather than in the
+        command so that "did these differ" has one definition. A protocol
+        with a scan the other lacks differs from it even when every scan they
+        share is identical -- which is why this is not ``substantive_count``
+        alone, and why a caller reading only that count reports two protocols
+        of different lengths as matching.
+
+        A renamed scan is deliberately not counted. It is matched, its two
+        spellings are named in the report, and calling it a difference would
+        make every cross-release comparison of a renamed protocol fail a
+        check that is asking about parameters.
+
+        Returns
+        -------
+        bool
+            ``True`` when any parameter differs substantively or any scan is
+            unmatched.
+        """
+        return bool(self.substantive_count or self.unmatched_count)
+
     def to_dict(self) -> dict:
         """Serialize the protocol comparison.
 
         Returns
         -------
         dict
-            Files, versions, per-scan comparisons and unmatched scans.
+            Files, versions, per-scan comparisons and unmatched scans, with
+            both counts the exit status is derived from.
         """
         return {
             "left_file": self.left_file,
@@ -496,6 +541,7 @@ class ProtocolDiff:
             "scans_only_left": self.only_left,
             "scans_only_right": self.only_right,
             "substantive_count": self.substantive_count,
+            "unmatched_count": self.unmatched_count,
             "scans": [s.to_dict() for s in self.scans],
         }
 

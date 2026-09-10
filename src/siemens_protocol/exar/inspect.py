@@ -31,6 +31,7 @@ import re
 from collections import OrderedDict
 from typing import Any
 
+from ..flatten import flatten_sections
 from ..listing import format_duration
 from ..sequences import Catalog, default_catalog, identify
 from . import patch
@@ -759,7 +760,15 @@ def as_protocol(
             continue
         scan = scan_of(step, len(scans), catalog, folder)
         if include_flat:
-            scan["flat"] = dict(scan["sections"].get("Preview", {}))
+            # Built by the same flattener a parsed printout uses, not as a
+            # plain key-to-value map. The comparison is the one consumer of
+            # this view and it reads each entry's ``value`` and ``conflict``,
+            # so a bare string raised an AttributeError and no archive could
+            # be diffed at all. An archive has one section, so nothing here
+            # ever conflicts -- which is right, since a parameter printed
+            # inconsistently across cards is a property of the page and the
+            # archive has no cards.
+            scan["flat"] = flatten_sections(scan["sections"])
         scans.append(scan)
     return {
         "source_file": source,

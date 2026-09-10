@@ -31,6 +31,7 @@ from .sequences import check as check_catalog
 from .sequences import describe, identify_protocol, load_catalog
 from .sequences import render as render_sequences
 from .sequences import summarize
+from .summary import build_summary, render_summary
 from .vocabsuggest import suggest_aliases, verify_aliases
 from .vocabulary import available, check, load_vocabulary
 
@@ -73,6 +74,40 @@ def add_program_option(parser: argparse.ArgumentParser) -> None:
             "holds more than one"
         ),
     )
+
+
+def add_side_program_options(parser: argparse.ArgumentParser) -> None:
+    """Add the per-side flags picking a protocol out of a multi-program archive.
+
+    The two-input commands need one flag a side rather than the single
+    ``--program`` the one-input commands take, for the same reason ``diff``
+    already spells ``--left-scan`` and ``--right-scan``: the two inputs may be
+    two backups, or one backup twice, and a lone flag cannot say which
+    protocol belongs to which side.
+
+    Naming a different protocol on each side of one file is a supported
+    request, not an accident -- it is how two protocols of a single backup are
+    compared -- so a caller must not reuse one side's parse for the other
+    without checking the programs agree as well as the paths.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The subcommand parser to add the flags to.
+
+    Returns
+    -------
+    None
+    """
+    for side in ("left", "right"):
+        parser.add_argument(
+            f"--{side}-program",
+            metavar="NAME",
+            help=(
+                f"which protocol to take from the {side} .exar1 archive, "
+                "needed only when it holds more than one"
+            ),
+        )
 
 
 def add_release_option(parser: argparse.ArgumentParser, help_text: str) -> None:
@@ -179,14 +214,22 @@ def build_parser() -> argparse.ArgumentParser:
             "Name a scan per side with --left-scan and --right-scan: with two "
             "inputs that compares one scan of each file, and with one input it "
             "compares two scans of that file. Naming only one side uses the same "
-            "name on the other. With neither, two inputs are compared in full."
+            "name on the other. With neither, two inputs are compared in full. "
+            "An .exar1 archive holding several protocols needs --left-program "
+            "and --right-program to say which; naming a different one on each "
+            "side of a single archive compares two of its protocols."
         ),
     )
-    diff_cmd.add_argument("left", help="a PDF or a previously parsed JSON file")
+    diff_cmd.add_argument(
+        "left", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
+    )
     diff_cmd.add_argument(
         "right",
         nargs="?",
-        help="a second PDF or JSON; omit to compare two scans within LEFT",
+        help=(
+            "a second PDF, .exar1 archive or JSON; omit to compare two scans "
+            "within LEFT, or two of its protocols"
+        ),
     )
     diff_cmd.add_argument(
         "--left-scan",
@@ -207,6 +250,7 @@ def build_parser() -> argparse.ArgumentParser:
             "both sides, or twice for the left and right scans"
         ),
     )
+    add_side_program_options(diff_cmd)
     add_release_option(
         diff_cmd, "force a Siemens release profile for any PDF input (default: auto)"
     )
@@ -303,6 +347,35 @@ def build_parser() -> argparse.ArgumentParser:
     list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
     list_cmd.add_argument("--out", help="write the listing here instead of stdout")
 
+    summary_cmd = sub.add_parser(
+        "summary",
+        help="summarize a protocol: scans, run time and the sequences it uses",
+        description=(
+            "Summarize one protocol in a block rather than a line per scan: "
+            "how many scans it runs, how long it takes, its longest and "
+            "shortest scan, and a census of the distinct sequences with the "
+            "scans and time each accounts for. A scan printing no readable "
+            "acquisition time is excluded from the total and counted, which "
+            "is why an archive can total a few seconds under its own "
+            "printout -- the console omits the field on the one-second "
+            "setter scans. Run 'list' for the per-scan detail."
+        ),
+    )
+    summary_cmd.add_argument(
+        "input", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
+    )
+    add_program_option(summary_cmd)
+    add_release_option(
+        summary_cmd, "force a Siemens release profile for a PDF input (default: auto)"
+    )
+    summary_cmd.add_argument(
+        "--catalog",
+        metavar="DIR",
+        help="a directory of additional signature catalogs, overlaying the shipped one",
+    )
+    summary_cmd.add_argument("--json", action="store_true", help="emit the summary as JSON")
+    summary_cmd.add_argument("--out", help="write the summary here instead of stdout")
+
     sequences_cmd = sub.add_parser(
         "sequences",
         help="report which scans run third-party sequences",
@@ -371,20 +444,30 @@ def build_parser() -> argparse.ArgumentParser:
         "--against",
         nargs=2,
         metavar=("LEFT", "RIGHT"),
-        help="two exports of one protocol from different releases, to check mappings against",
+        help=(
+            "two exports of one protocol from different releases, to check mappings "
+            "against; each may be a PDF, an .exar1 archive or JSON"
+        ),
     )
+    add_side_program_options(vocab_check)
 
     vocab_suggest = vocab_action.add_parser(
         "suggest", help="propose candidate mappings from a matched pair of exports"
     )
-    vocab_suggest.add_argument("left", help="an export of one release")
-    vocab_suggest.add_argument("right", help="the same protocol from another release")
+    vocab_suggest.add_argument(
+        "left", help="an export of one release: a PDF, an .exar1 archive or JSON"
+    )
+    vocab_suggest.add_argument(
+        "right",
+        help="the same protocol from another release: a PDF, an .exar1 archive or JSON",
+    )
     vocab_suggest.add_argument(
         "--min-support",
         type=int,
         default=8,
         help="ignore candidates seen in fewer scans than this (default: 8)",
     )
+    add_side_program_options(vocab_suggest)
     vocab_suggest.add_argument("--vocabulary", metavar="DIR", help="an overlay directory")
 
     archive_cmd = sub.add_parser(
@@ -940,6 +1023,48 @@ def _run_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_summary(args: argparse.Namespace) -> int:
+    """Run the ``summary`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` when the input or the catalog could not be
+        read. A protocol running third-party sequences is the expected case
+        on a research protocol and is not an error.
+    """
+    try:
+        catalog = load_catalog(args.catalog)
+        protocol = _load_protocol(args.input, args.version, need_flat=False, program=args.program)
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    for problem in check_catalog(catalog):
+        # Reported rather than raised, as in 'sequences': a flawed overlay
+        # entry should not stop the shipped signatures from being useful.
+        print(f"catalog: {problem}", file=sys.stderr)
+
+    summary = build_summary(protocol, catalog)
+    text = (
+        json.dumps(summary.to_dict(), indent=2, ensure_ascii=False)
+        if args.json
+        else render_summary(summary)
+    )
+
+    if args.out:
+        with open(args.out, "w", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+    else:
+        print(text)
+    return 0
+
+
 def _run_sequences(args: argparse.Namespace) -> int:
     """Run the ``sequences`` subcommand.
 
@@ -1058,6 +1183,14 @@ def _run_diff(args: argparse.Namespace) -> int:
     ``--right-scan`` say which side each name belongs to; ``--scan`` is the
     positional shorthand for the same thing.
 
+    Which *protocol* each side takes from an ``.exar1`` archive is a separate
+    question, since a backup holds every protocol on the scanner:
+    ``--left-program`` and ``--right-program`` answer it. Naming a different
+    one on each side of a single archive compares two of its protocols, which
+    is why the guard on a lone input asks for a scan pair only when both
+    sides want the same program, and why one side's parse is reused for the
+    other only when the paths *and* the programs agree.
+
     Parameters
     ----------
     args : argparse.Namespace
@@ -1066,8 +1199,11 @@ def _run_diff(args: argparse.Namespace) -> int:
     Returns
     -------
     int
-        ``0`` when no substantive difference was found, ``1`` when there were
-        differences or the request could not be satisfied.
+        ``0`` when the two sides matched, ``1`` when they differed or the
+        request could not be satisfied. Comparing whole protocols, "differed"
+        covers a scan present on one side only as well as a substantive
+        parameter difference; comparing two named scans, only the latter can
+        arise.
     """
     try:
         name_left, name_right = _scan_selection(args)
@@ -1075,10 +1211,17 @@ def _run_diff(args: argparse.Namespace) -> int:
         print(f"{exc}", file=sys.stderr)
         return 1
 
-    if args.right is None and (name_left is None or name_right is None):
+    # One input names one protocol, so something has to say what the two
+    # sides are. Two scans of it is the original answer; two *programs* of it
+    # is the other, which a multi-program archive makes possible -- a backup
+    # holds every protocol on the scanner, and comparing two of them should
+    # not require exporting either one first.
+    one_program = args.left_program == args.right_program
+    if args.right is None and one_program and (name_left is None or name_right is None):
         print(
-            "comparing within one file needs a scan for each side: "
-            "--left-scan NAME --right-scan NAME; "
+            "comparing within one file needs a scan for each side "
+            "(--left-scan NAME --right-scan NAME), or a protocol for each side "
+            "of an .exar1 archive (--left-program NAME --right-program NAME); "
             "pass a second file to compare protocols",
             file=sys.stderr,
         )
@@ -1090,14 +1233,18 @@ def _run_diff(args: argparse.Namespace) -> int:
         name_left = name_left if name_left is not None else name_right
         name_right = name_right if name_right is not None else name_left
 
+    right_path = args.right if args.right is not None else args.left
     try:
-        left = _load_protocol(args.left, args.version)
+        left = _load_protocol(args.left, args.version, program=args.left_program)
         # Naming the same file on both sides is the same request as omitting
-        # the second one, so it costs one parse rather than two.
-        if args.right is None or _same_file(args.left, args.right):
+        # the second one, so it costs one parse rather than two -- but only
+        # when the same protocol is wanted from it. Two programs of one
+        # backup are two different protocols, and reusing the parse would
+        # compare one of them against itself.
+        if _same_file(args.left, right_path) and args.left_program == args.right_program:
             right = left
         else:
-            right = _load_protocol(args.right, args.version)
+            right = _load_protocol(right_path, args.version, program=args.right_program)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1158,7 +1305,10 @@ def _run_diff(args: argparse.Namespace) -> int:
                 show_identical=args.show_identical,
                 sections=sections,
             )
-            differences = result.substantive_count
+            # Not the parameter count alone: a protocol carrying a scan the
+            # other does not have differs from it, and that scan has no
+            # parameters to contribute to the count.
+            differences = result.differs
     except ValueError as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1315,8 +1465,8 @@ def _run_vocab(args: argparse.Namespace) -> int:
         if args.against:
             try:
                 problems += verify_aliases(
-                    _load_protocol(args.against[0], "auto"),
-                    _load_protocol(args.against[1], "auto"),
+                    _load_protocol(args.against[0], "auto", program=args.left_program),
+                    _load_protocol(args.against[1], "auto", program=args.right_program),
                     extra,
                 )
             except (OSError, ValueError) as exc:
@@ -1393,8 +1543,8 @@ def _vocab_suggest(args: argparse.Namespace, extra: str | None) -> int:
         ``0`` on success, ``1`` if an input could not be read.
     """
     try:
-        left = _load_protocol(args.left, "auto")
-        right = _load_protocol(args.right, "auto")
+        left = _load_protocol(args.left, "auto", program=args.left_program)
+        right = _load_protocol(args.right, "auto", program=args.right_program)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1646,6 +1796,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         return _run_list(args)
+
+    if args.command == "summary":
+        return _run_summary(args)
 
     if args.command == "archive":
         return _run_archive(args)

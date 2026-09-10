@@ -312,8 +312,11 @@ siemens-protocol-tool parse examples/XA60/R01StressDyn.pdf
 siemens-protocol-tool parse examples/ --out parsed/          # batch a directory
 siemens-protocol-tool versions                               # list version profiles
 
-# inventory one protocol: scans, sequences, times, and the total
+# inventory one protocol, a line per scan
 siemens-protocol-tool list protocol.pdf
+
+# the same protocol rolled up: size, run time, and a census of its sequences
+siemens-protocol-tool summary protocol.pdf
 
 # which scans run a sequence Siemens did not supply
 siemens-protocol-tool sequences protocol.pdf
@@ -367,7 +370,7 @@ user.
 
 | | |
 | --- | --- |
-| One tab per subcommand | `parse`, `diff`, `check`, `list`, `vocab` and `versions`, with every option the command line takes |
+| One tab per subcommand | `parse`, `diff`, `check`, `list`, `summary`, `vocab` and `versions`, with every option the command line takes |
 | A file picker that returns real paths | The server browses the filesystem, so what you pick is a path the tool can open rather than an uploaded copy |
 | The command line, always visible | Every form shows the exact command it is about to run, with a button to copy it |
 | Live output | Standard output and standard error, interleaved as the tool produces them, with a Stop button |
@@ -456,6 +459,66 @@ PDF or a JSON file from `parse`, including one written with `--no-flatten`:
 the mark is derived from scan headers and sections, never from the flattened
 view.
 
+## Summarizing a protocol
+
+`summary` answers the same questions as `list` without a line per scan: how
+big the protocol is, how long it runs, and what it runs.
+
+```
+$ siemens-protocol-tool summary examples/XA60/ELS2_20210802XA60.pdf
+ELS2_20210802
+examples/XA60/ELS2_20210802XA60.pdf (XA60)
+
+  scans     15
+  total TA  55:48
+  longest   13:24 min  EmotionConflict_AP_CCF
+  shortest      8 sec  SpinEchoFieldMap AP CCF
+
+  7 distinct sequences -- 10 third-party, 0 unrecognized, 5 stock scans
+
+    sequence  scans     TA
+    --------  -----  -----
+  * epfid         8  40:42  CMRR (University of Minnesota) -- multiband EPI, BOLD
+  * epse          1   0:08  CMRR (University of Minnesota) -- multiband EPI, spin echo
+  * tfl_me        1   6:02  MGH / A. A. Martinos Center -- MEMPRAGE -- multi-echo MPRAGE
+    fl            2   0:36
+    resolve       1   1:55
+    tir           1   4:14
+    tse           1   2:11
+
+  * runs a third-party sequence, ? not accounted for by the catalog. Run
+  'sequences --explain' for the evidence.
+```
+
+The first line is the protocol's own name rather than the file's — the label
+on an archive's program node, or the protocol component of the path a printout
+puts in every scan header. The scanner requires that name to be unique within
+an exam, so it identifies the protocol; a file name is whatever someone called
+the export afterwards.
+
+The census is the part the per-scan listing cannot give. Fifteen scans run
+seven distinct sequences, and one of them — CMRR's multiband BOLD — is eight
+of those scans and 40 of the 56 minutes. Sequences that force a manual rebuild
+lead the table, and within a verdict the ones that dominate the protocol lead.
+The description is the catalog's attribution, printed only where a signature
+actually matched: a sequence the export merely labels as not Siemens' has a
+verdict but no identity, and the `*` already says that much.
+
+A scan whose acquisition time the export does not print, or prints in a
+spelling that cannot be read, is excluded from every total and counted
+underneath rather than folded in as zero. A sum missing some of its scans is
+marked `?`, and one missing all of them prints `?` instead of `0:00` — which
+would claim the scans take no time rather than that nothing is known about how
+long they take. This is the ordinary reason an archive totals a few seconds
+under its own printout: the console stores no `lTotalScanTimeSec` for the
+one-second setter scans.
+
+`--json` emits the same findings for scripting — the counts per verdict, the
+two extremes as scan rows, and the census with each entry's seconds and its
+unreadable count. `--catalog` overlays extra signatures, `--program` picks one
+protocol out of a multi-program archive, and the input may be a PDF, an
+`.exar1` or JSON from `parse`, including one written with `--no-flatten`.
+
 ## Reading an `.exar1` archive
 
 `archive` reads a Numaris/X protocol archive into hierarchical JSON, the way
@@ -506,7 +569,7 @@ things in it have no counterpart on the PDF side:
   archive identifies third-party sequences the printout of the same protocol
   cannot.
 
-That last point is why `list`, `sequences` and `check` accept an `.exar1`
+That last point is why `list`, `summary`, `sequences` and `check` accept an `.exar1`
 wherever they accept a PDF. On the same protocol the archive leaves nothing
 unaccounted for where the printout leaves four scans marked `?`:
 
@@ -885,6 +948,25 @@ of that file. The names need not match, which is the point — a scan the site o
 vendor renamed still has a counterpart. Naming only one side uses the same name on
 the other. Scans are selected by name or by zero-based index.
 
+**Protocol against protocol, out of an archive.** An `.exar1` export holds one
+protocol, but a scanner *backup* holds every protocol on the machine, so each
+side needs to say which it wants: `--left-program` and `--right-program`. Naming
+a different protocol on each side of a single archive compares two of that
+backup's protocols, without exporting either one first:
+
+```sh
+# one protocol of a backup against its own single-protocol export
+siemens-protocol-tool diff backup.exar1 Potpourri_P1.exar1 --left-program Potpourri_P1
+
+# two protocols of one backup
+siemens-protocol-tool diff backup.exar1 --left-program MEMPRAGE --right-program MEMPRAGE_test
+```
+
+Naming no protocol at all is refused rather than resolved to whichever comes
+first, and the refusal lists the protocols the file holds. The same two flags
+are on `vocab suggest` and `vocab check --against`, which take two exports for
+the same reason.
+
 Because scans are aligned by sequence rather than by name, a matched pair can still
 be spelled differently on each side. Whenever that happens the report says so
 explicitly, rather than leaving you to infer it:
@@ -897,7 +979,8 @@ In a whole-protocol comparison the note leads the affected scan's block; when yo
 named the two scans yourself it leads the report.
 
 Naming the same file on both sides is the same request as giving it once, and costs
-one parse rather than two:
+one parse rather than two — unless the two sides want different protocols out of it,
+which is a real request rather than a repetition:
 
 ```
 siemens-protocol-tool diff p.pdf        --left-scan AP --right-scan PA   # identical
@@ -967,6 +1050,8 @@ restricted to.
 | `--left-scan NAME` | Scan to take from the left input, by name or zero-based index. |
 | `--right-scan NAME` | Scan to take from the right input. Omit either to reuse the other's name. |
 | `--scan NAME` | Shorthand: once for both sides, twice for left then right. |
+| `--left-program NAME` | Which protocol to take from the left `.exar1`. Needed only when it holds more than one. |
+| `--right-program NAME` | The same for the right. Name a different one on each side of a single archive to compare two of its protocols. |
 | `--filter SECTION` | Report only this top-level section. Repeatable, or comma-separated. |
 | `--exact-keys` | Compare key spellings literally; do not match relabeled keys. |
 | `--show-cosmetic` | List relabeled, recased and reformatted differences instead of counting them. |
@@ -974,9 +1059,20 @@ restricted to.
 | `--json` | Emit the comparison as JSON. |
 | `--out PATH` | Write the report to a file instead of stdout. |
 
-Either input may be a PDF or JSON this tool wrote earlier, so a protocol can be
-parsed once and compared many times. The exit status is `1` when any substantive
-difference was found, `0` when none was, which makes it usable in a check.
+Either input may be a PDF, an `.exar1` archive, or JSON this tool wrote earlier,
+so a protocol can be parsed once and compared many times. Note what an archive
+carries on this path: the console's ~40-parameter `Preview` summary rather than
+the several hundred a page prints, so an archive-to-archive comparison is over
+that summary. The exit status is `1` when the two
+sides differ and `0` when they match, which makes it usable in a check. Two
+things count as differing: a substantive parameter difference, and a scan
+present on one side only — two protocols of different lengths are not the same
+protocol, and the unmatched scan has no counterpart whose parameters could
+register the difference. A scan matched under a different name does *not* count;
+the report names both spellings, and counting it would fail every check on a
+protocol whose scans were renamed between releases. `--json` carries
+`substantive_count` and `unmatched_count` separately, so a script can tell which
+it got.
 
 ### Standard parameter names
 

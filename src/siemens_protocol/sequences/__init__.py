@@ -1058,8 +1058,11 @@ def check(catalog: Catalog) -> list[str]:
 
 
 #: Marker printed against each verdict, so a long listing can be skimmed and
-#: grepped. ``*`` is the one that means "rebuild this by hand".
-_MARK = {THIRD_PARTY: "*", UNRECOGNIZED: "?", STOCK: " "}
+#: grepped. ``*`` is the one that means "rebuild this by hand". Public
+#: because the listing and the summary print the same marks against the
+#: same verdicts, and a reader moving between the three reports should not
+#: have to check whether they agree.
+MARKS = {THIRD_PARTY: "*", UNRECOGNIZED: "?", STOCK: " "}
 
 
 def describe(item: Identification) -> str:
@@ -1195,7 +1198,7 @@ def render(
     )
     for item in shown:
         lines.append(
-            f"{_MARK[item.verdict]} {item.index:>{w_index}}  {item.name:<{w_name}}  "
+            f"{MARKS[item.verdict]} {item.index:>{w_index}}  {item.name:<{w_name}}  "
             f"{item.binary:<{w_binary}}  {describe(item)}"
         )
         if explain and item.verdict != STOCK:

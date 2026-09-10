@@ -692,3 +692,210 @@ def test_the_archive_path_agrees_with_the_one_the_printout_shows() -> None:
         f"::error::archive path {document['programs'][0]['steps'][0]['path']!r} disagrees "
         f"with the printed {printed.path!r}"
     )
+
+
+def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None:
+    """A command accepting an ``.exar1`` must offer a way to say which protocol.
+
+    This is the check that was missing. ``_load_protocol`` grew archive
+    support centrally, so every caller inherited it at once -- including two
+    whose parsers were never given the flag that makes it usable. ``diff`` on
+    a scanner backup therefore failed with a message naming ``--program``, a
+    flag ``diff`` did not define, so a multi-program archive was a dead end
+    with no way out of it.
+
+    The invariant is read off each subcommand's own help rather than a
+    written-out list, so it also keeps that help honest: a command that starts
+    accepting archives has to say so, and saying so obliges it to offer the
+    option. One flag suffices for a one-input command; a two-input one needs
+    a side each, since a lone name cannot say which input it belongs to.
+
+    Returns
+    -------
+    None
+    """
+    import argparse as _argparse
+
+    from siemens_protocol.cli import build_parser
+
+    def subparsers(parser: _argparse.ArgumentParser) -> dict:
+        """Every registered subcommand of a parser, by name, or none."""
+        group = getattr(parser, "_subparsers", None)  # noqa: SLF001
+        for action in getattr(group, "_group_actions", []):  # noqa: SLF001
+            if isinstance(action, _argparse._SubParsersAction):  # noqa: SLF001
+                return dict(action.choices)
+        return {}
+
+    def flags(parser: _argparse.ArgumentParser) -> set[str]:
+        """Every option string the parser accepts."""
+        return {
+            option for action in parser._actions for option in action.option_strings
+        }  # noqa: SLF001
+
+    def positional_inputs(parser: _argparse.ArgumentParser) -> list[str]:
+        """The help of every positional, plus any that names files by flag."""
+        return [
+            action.help or ""
+            for action in parser._actions  # noqa: SLF001
+            if not action.option_strings or action.dest == "against"
+        ]
+
+    checked = []
+    for name, parser in sorted(subparsers(build_parser()).items()):
+        nested = subparsers(parser)
+        candidates = (
+            [(name, parser)]
+            if not nested
+            else [(f"{name} {sub}", child) for sub, child in sorted(nested.items())]
+        )
+        for label, target in candidates:
+            takes = [help_text for help_text in positional_inputs(target) if ".exar1" in help_text]
+            if not takes:
+                continue
+            offered = flags(target)
+            per_side = {"--left-program", "--right-program"} <= offered
+            assert "--program" in offered or per_side, (
+                f"::error::'{label}' accepts an .exar1 archive but offers no way to "
+                "pick a protocol out of one, so a multi-program backup cannot be used"
+            )
+            checked.append(label)
+
+    assert "diff" in checked, "::error::diff no longer declares that it takes an archive"
+    assert any(
+        one.startswith("vocab") for one in checked
+    ), "::error::no vocab action declares that it takes an archive"
+    assert len(checked) >= 6, f"::error::only {len(checked)} archive-taking subcommands found"
+
+
+@requires_exar
+def test_a_scan_read_from_an_archive_flattens_like_a_parsed_printout() -> None:
+    """The flattened view is the flattener's shape, not a key-to-value map.
+
+    ``as_protocol`` exists to hand every downstream command the shape a
+    parsed PDF has, and the comparison is the one consumer that reads the
+    flattened view. It reads each entry's ``value`` and ``conflict``, so a
+    bare string raised ``AttributeError`` and no archive could be diffed at
+    all -- with or without a protocol named, which is why the missing
+    ``--program`` flag was only the second obstacle.
+
+    Nothing in an archive conflicts, because the cards a page splits into are
+    a property of the page and an archive has none. That is asserted rather
+    than assumed: it is what says the one section really is the whole of it.
+
+    Returns
+    -------
+    None
+    """
+    archive = exar.read(find_exar("Potpourri_P1.exar1"))
+    protocol = ins.as_protocol(archive, archive.programs[0], "x")
+    scans = protocol["scans"]
+    assert scans, "::error::the archive yielded no scans"
+    for scan in scans:
+        for key, entry in scan["flat"].items():
+            assert isinstance(entry, dict), f"{key} flattened to {type(entry).__name__}"
+            assert entry["conflict"] is False, f"{key} conflicts, but an archive has no cards"
+            assert "value" in entry
+            assert entry["sections"] == ["Preview"]
+
+
+@requires_exar
+def test_diff_takes_one_protocol_out_of_a_backup(capsys: pytest.CaptureFixture) -> None:
+    """``--left-program`` reaches a protocol inside a multi-program archive.
+
+    The backup's copy of ``Potpourri_P1`` is compared against the
+    single-protocol export of the same name, which is the pairing the program
+    name exists to make: all 18 scans agree parameter for parameter, and the
+    backup's copy carries one extra scan.
+
+    The exit status is 1 on those unmatched scans alone, with every compared
+    scan identical: two protocols of different lengths are not the same
+    protocol.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    code = main(
+        [
+            "diff",
+            find_exar("Frederick_P2.exar1"),
+            find_exar("Potpourri_P1.exar1"),
+            "--left-program",
+            "Potpourri_P1",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "18 scans compared, 18 identical" in out
+    assert "scan only in left" in out
+    assert "0 substantive differences" in out, "::error::the two protocols now differ elsewhere"
+    assert code == 1
+
+
+@requires_exar
+def test_diff_compares_two_protocols_of_one_backup(capsys: pytest.CaptureFixture) -> None:
+    """Naming a different protocol per side of one archive compares the two.
+
+    A backup holds every protocol on the scanner, so two of them should be
+    comparable without exporting either first. This is also what says the
+    same-file short-circuit keys on the program: reusing one side's parse
+    would compare a protocol against itself and report no differences at all.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    main(
+        [
+            "diff",
+            find_exar("Frederick_P2.exar1"),
+            "--left-program",
+            "MEMPRAGE",
+            "--right-program",
+            "MEMPRAGE_test",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "scan only in right" in out, "::error::the two protocols came back identical"
+
+
+@requires_exar
+def test_one_archive_and_one_protocol_still_needs_a_scan_pair() -> None:
+    """The original guard survives: one protocol cannot be diffed against itself.
+
+    Relaxing it for two programs must not relax it for one, or ``diff`` on a
+    lone archive silently compares a protocol with itself.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    assert main(["diff", find_exar("Potpourri_P1.exar1")]) == 1
+    assert (
+        main(
+            [
+                "diff",
+                find_exar("Frederick_P2.exar1"),
+                "--left-program",
+                "MEMPRAGE",
+                "--right-program",
+                "MEMPRAGE",
+            ]
+        )
+        == 1
+    )
