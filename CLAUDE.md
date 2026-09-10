@@ -1487,6 +1487,56 @@ the two consistent.
   before concluding that none is current. For the remaining 41 there is
   genuinely no current copy and the fix is a fresh save on the scanner, but
   "no current copy of this *binary*" is never that finding on its own.
+- **Searching for other renamed binaries: one detector works and two do not.**
+  The question is whether `svs_slaser_dkd` -> `dkd_svs_sLASER` is the only
+  rename in the corpus, and the discipline that answers it is calibration --
+  a known rename exists, so a detector that cannot recover *it* cannot be
+  trusted about anything else.
+
+  Two fail that test outright. **Protocol similarity**: ASCCONV key sets are
+  ~90% shared boilerplate, so `svs_slaser_dkd`'s nearest neighbour is
+  `fastestmap` at 0.922 and the true partner does not place; weighting keys
+  by rarity lifts the partner only to second of 66, at 0.186 against
+  `fastestmap`'s 0.646. That is not a tuning failure, it is the finding --
+  two builds of one sequence across a release boundary share little rare
+  vocabulary, because conversion changes the parameter set. **String
+  similarity** fails too: the closest installed name to `svs_slaser_dkd` is
+  `eja_svs_slaser_diff` at 0.73, because reordering defeats a character
+  ratio. Any candidate list from either is noise, and both produced
+  confident-looking lists of known-distinct sequences -- `hcp_` against
+  `cmrr_`, TSE against TFL, `_tb` variants.
+
+  What works is **token-set equality**, case-folded and split on `_`, which is
+  exactly the shape of the known rename. Over 117 binaries it finds three
+  collisions and no others: the `dkd` pair, `ep2d_bold_MGH`/`ep2d_bold_mgh`
+  and `ep2d_diff_MGH`/`ep2d_diff_mgh`.
+- **Binary names vary in case, and the two case pairs are not the same
+  phenomenon.** The roster carries the lower-case spelling of each and
+  neither upper-case one, so only one of each is installed.
+
+  `ep2d_bold_MGH` is **all current** across 12 scans beside `ep2d_bold_mgh`'s
+  29, the two appear in the *same archives*, and their `sWipMemBlock` index
+  sets are near-identical (one a subset of the other). An obsolete
+  pre-rename name would not be current, so this is one sequence written two
+  ways -- the scanner's filesystem is case-insensitive and the protocol
+  records whatever case was stored.
+
+  `ep2d_diff_MGH` looks like the `dkd` case -- 31 all stale against
+  `ep2d_diff_mgh`'s 17 all current -- and its `sWipMemBlock` index set is
+  **disjoint** from the lower-case one's, sharing not one index. That does
+  not settle it either way, because the Special card is free to be renumbered
+  between builds and these sit on opposite sides of a release boundary; what
+  it does settle is that the lower-case mapping must never decode the
+  upper-case protocol, which is what `Mapping.builds` already refuses.
+  Whether it is a rename or a different sequence is a question for the
+  protocols' owner.
+- **The catalog matches a binary case-sensitively while the filesystem does
+  not.** `CMRR_MBEP2D_BOLD` fails a signature naming `cmrr_mbep2d_bold`. No
+  corpus binary is affected today -- checked, zero are named by a signature
+  only under a different case -- so this is latent rather than live, but the
+  `ep2d_bold` pair proves the variation is real, and a protocol spelling a
+  signed binary differently would be reported unrecognized rather than
+  matched.
 - **The owner's account of the greyed-out catalogued sequences, and what the
   archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
   `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at
