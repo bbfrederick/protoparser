@@ -1523,13 +1523,37 @@ the two consistent.
 
   `ep2d_diff_MGH` looks like the `dkd` case -- 31 all stale against
   `ep2d_diff_mgh`'s 17 all current -- and its `sWipMemBlock` index set is
-  **disjoint** from the lower-case one's, sharing not one index. That does
-  not settle it either way, because the Special card is free to be renumbered
-  between builds and these sit on opposite sides of a release boundary; what
-  it does settle is that the lower-case mapping must never decode the
-  upper-case protocol, which is what `Mapping.builds` already refuses.
-  Whether it is a rename or a different sequence is a question for the
-  protocols' owner.
+  **disjoint** from the lower-case one's, sharing not one index. Asked, the
+  protocols' owner said he does not know, thinks it likely the same sequence,
+  and that some of the differences are hard to explain. So it stays open, and
+  what follows is what the corpus can and cannot contribute to it.
+
+  **The difference is at the binary, not in how the scans were configured.**
+  That was the obvious benign explanation -- a sparse block omits an
+  assignment holding zero, so two protocols of one sequence can write
+  different indices -- and it is ruled out by the *uniformity*: all 31
+  upper-case scans write exactly one index set and all 17 lower-case ones
+  exactly one, with no variation inside either group, even though the
+  upper-case scans carry five different protocol names. Where settings really
+  do vary the corpus shows it: `cmrr_mbep2d_bold` writes four distinct index
+  sets over 185 scans and `cmrr_mbep2d_diff` three over 81. Two fixed disjoint
+  sets are a property of the binaries.
+
+  That still does not separate "one sequence, two builds" from "two
+  sequences", because a build may renumber the card -- which is exactly what
+  `Mapping.builds` exists to refuse. It does settle that the lower-case
+  mapping must never decode the upper-case protocol.
+
+  **And the evidence that would settle it cannot be obtained.** Comparing the
+  printed Special *labels* would say whether these are one card renumbered or
+  two different parameter sets, since labels carry meaning where indices do
+  not. But a `ConversionNeeded` protocol cannot be opened or printed at all --
+  that is what greying out means -- so no printout of `ep2d_diff_MGH` exists
+  or can be made, on any scanner that would still need one. The upper-case
+  protocols are plainly legacy: one is named `dti-mgh-72-8-Trio ac_pc`, and
+  Trio is two scanner generations back. Every lower-case protocol, meanwhile,
+  carries the never-set ASCCONV name `Initialized by sequence`, so the corpus
+  holds no *authored* example of the current spelling either.
 - **A binary now matches whatever case it is written in.** The scanner's
   filesystem is case-insensitive and the `ep2d_bold` pair proves the
   variation is real, so comparing exactly reported the unlisted spelling as
