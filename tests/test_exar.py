@@ -1389,11 +1389,16 @@ def test_a_decoded_parameter_matches_the_card_that_printed_it(
             shown = printed.get(mapping.label)
             if decoded is None or shown is None:
                 continue
+            # Strip the unit from both sides. A decoded enum is the printed
+            # text verbatim and so carries the unit with it, where a decoded
+            # number does not -- comparing one against the other would call
+            # "0.0 %" and "0.0" a disagreement.
             bare = build.UNIT_SUFFIX.sub("", shown.strip())
-            if decoded.strip().casefold() == bare.strip().casefold():
+            mine = build.UNIT_SUFFIX.sub("", decoded.strip())
+            if mine.casefold() == bare.casefold():
                 continue
             try:
-                if build.agrees_at_printed_precision(bare, float(decoded)):
+                if build.agrees_at_printed_precision(bare, float(mine)):
                     continue
             except (TypeError, ValueError):
                 pass

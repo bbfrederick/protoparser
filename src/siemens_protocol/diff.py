@@ -608,7 +608,7 @@ def _flat_groups(flat: Mapping[str, dict]) -> dict[str, _Group]:
     return groups
 
 
-def _is_churn(key: str) -> bool:
+def _is_churn(key: str, values: Sequence[str] = ()) -> bool:
     """Whether a key is one the scanner rewrites whenever it saves.
 
     Deferred rather than imported at module load: the list is the archive
@@ -620,6 +620,11 @@ def _is_churn(key: str) -> bool:
     ----------
     key : str
         A parameter key, printed label or ASCCONV path.
+    values : sequence of str, optional
+        The readings on either side. One key family holds a save stamp on
+        most scans and a real printed parameter on the rest, and only the
+        value tells them apart -- so a reading either side calls real is
+        real.
 
     Returns
     -------
@@ -631,7 +636,7 @@ def _is_churn(key: str) -> bool:
         return False
     from .exar.patch import is_churn
 
-    return is_churn(key)
+    return all(is_churn(key, value) for value in values) if values else is_churn(key)
 
 
 def _pair_status(values_left: Sequence[str], values_right: Sequence[str]) -> str:
@@ -744,7 +749,9 @@ def diff_parameters(
             # substantive: two archives differing only in their save stamps
             # are the same protocol, and counting those would make every
             # archive comparison report differences it cannot explain.
-            if status == CHANGED and _is_churn(key_left or ""):
+            if status == CHANGED and _is_churn(
+                key_left or "", [*group_left.values, *group_right.values]
+            ):
                 status = CHURN
 
         diff = ParameterDiff(

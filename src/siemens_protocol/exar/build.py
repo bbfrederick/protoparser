@@ -650,6 +650,12 @@ def covered_elsewhere(protocol: Any, label: str) -> bool:
     """
     wanted = label.strip().casefold()
     carried = [m for m in patch.MAPPINGS if m.label.strip().casefold() == wanted]
+    if carried and all(m.read_only for m in carried):
+        # A value the console derives is understood rather than unexamined:
+        # it decodes on a card and there is nothing for the writer to do
+        # with it, so it belongs beside the sequence-gated ones rather than
+        # among the parameters nothing has looked at.
+        return True
     return bool(carried) and not any(patch.applies_to(m, protocol) for m in carried)
 
 

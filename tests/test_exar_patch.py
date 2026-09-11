@@ -189,6 +189,13 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     exact = approximate = 0
     for one, other in zip(ours.steps, after.steps):
         for mapping in patch.MAPPINGS:
+            if mapping.read_only:
+                # Derived by the console from other parameters, so a patched
+                # protocol differs here by design: it recomputed
+                # sKSpace.lPhaseEncodingLines when the base and phase
+                # resolution moved, as it recomputes the scan times. Read
+                # from a card, never written to one.
+                continue
             if not patch.applies_to(mapping, other.protocol):
                 continue
             for key, _index in patch.expand(mapping.ascconv_key, other.protocol.xprotocol):
