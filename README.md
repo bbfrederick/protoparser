@@ -318,6 +318,9 @@ siemens-protocol-tool list protocol.pdf
 # the same protocol rolled up: size, run time, and a census of its sequences
 siemens-protocol-tool summary protocol.pdf
 
+# any of them, narrowed to one scan
+siemens-protocol-tool sequences backup.exar1 --scan "CMRR spectro scans/eja_svs_slaser"
+
 # which scans run a sequence Siemens did not supply
 siemens-protocol-tool sequences protocol.pdf
 
@@ -458,6 +461,31 @@ omits a scan reads as though it covered everything.
 PDF or a JSON file from `parse`, including one written with `--no-flatten`:
 the mark is derived from scan headers and sections, never from the flattened
 view.
+
+## Narrowing to one scan
+
+Every command that reads a protocol takes `--scan`, so any of them can answer
+about a single scan rather than the whole of it. The address is the one the
+[comparison](#comparing-protocols) uses — a name, a zero-based index, or as much
+of the path as it takes to name one, with `#2` for a name a protocol uses twice:
+
+```sh
+siemens-protocol-tool sequences backup.exar1 --scan "CMRR spectro scans/eja_svs_slaser" --explain
+siemens-protocol-tool list      backup.exar1 --scan "Functional TOF/tof_cs_acc10.3 fast#3"
+siemens-protocol-tool parse     protocol.pdf --scan SpinEchoFieldMap_AP#2 --stdout
+siemens-protocol-tool archive   backup.exar1 --scan localizer_64ch_uncombined
+```
+
+It pays most on `archive`, whose parameter tree runs 514 to 2020 assignments a
+scan — a whole-backup document is mostly the scans nobody asked about. Because a
+scan address can name the protocol holding it, none of these needs `--program`
+as well.
+
+A narrowed scan keeps the index it really has, so a one-row listing still says
+where in the protocol it sits. `--scan` is refused against a *directory* of
+inputs, since an address names one scan of one protocol. And `diff` is the
+exception: two inputs need a scan named per side, which is what `--left-scan`
+and `--right-scan` are.
 
 ## Summarizing a protocol
 

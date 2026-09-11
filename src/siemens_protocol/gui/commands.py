@@ -182,6 +182,33 @@ class Command:
         }
 
 
+def _scan_field(what: str) -> Field:
+    """Describe the flag narrowing a one-file command to a single scan.
+
+    Parameters
+    ----------
+    what : str
+        What the command produces, completing "restrict the ... to one scan".
+
+    Returns
+    -------
+    Field
+        The control, shared by every command that reads one protocol.
+    """
+    return Field(
+        name="scan",
+        kind="text",
+        label="Scan",
+        help=(
+            f"Restrict the {what} to one scan. Its name, a zero-based index, or as "
+            "much of its path as it takes to name one, such as 'CMRR spectro "
+            "scans/eja_svs_slaser'. Add '#2' for a name the protocol uses twice. "
+            "Leave empty for the whole protocol."
+        ),
+        flag="--scan",
+    )
+
+
 def _side_program_fields() -> tuple[Field, ...]:
     """Describe the flags picking a protocol per side of a two-input command.
 
@@ -297,6 +324,7 @@ def _parse_command() -> Command:
                 picker="save",
             ),
             _release_field("Force a Siemens release profile instead of detecting one."),
+            _scan_field("JSON"),
             Field(
                 name="ocr",
                 kind="choice",
@@ -529,6 +557,7 @@ def _check_command() -> Command:
                 required=True,
             ),
             _program_field(),
+            _scan_field("check"),
             Field(
                 name="policy",
                 kind="choice",
@@ -613,6 +642,7 @@ def _list_command() -> Command:
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
             _program_field(),
+            _scan_field("listing"),
             Field(
                 name="json",
                 kind="flag",
@@ -666,6 +696,7 @@ def _summary_command() -> Command:
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
             _program_field(),
+            _scan_field("summary"),
             Field(
                 name="catalog",
                 kind="path",
@@ -726,6 +757,7 @@ def _sequences_command() -> Command:
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
             _program_field(),
+            _scan_field("report"),
             Field(
                 name="only",
                 kind="choice",
@@ -925,6 +957,7 @@ def _archive_command() -> Command:
                 required=True,
             ),
             _program_field(),
+            _scan_field("document"),
             Field(
                 name="out",
                 kind="path",

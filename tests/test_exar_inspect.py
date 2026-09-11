@@ -1061,3 +1061,177 @@ def test_every_scan_in_the_corpus_is_addressable(protocol_archive_path: str) -> 
         assert (
             address.resolve(text, candidates, what="scan", source=protocol_archive_path) == payload
         ), f"::error::{text} did not resolve to itself"
+
+
+@requires_exar
+def test_every_command_that_reads_a_protocol_takes_a_scan_address() -> None:
+    """``--scan`` is not a ``diff`` feature; it is how any command is narrowed.
+
+    "Answer about this scan" is the same request whichever question is being
+    asked, so a command that reads a protocol and cannot be pointed at one
+    scan of it is a gap rather than a design. ``diff`` is the exception on
+    purpose: two inputs need a scan named per side, which is what
+    ``--left-scan``/``--right-scan`` are.
+
+    Read off the live parser rather than a written-out list, so a new
+    subcommand that reads a protocol has to answer for itself.
+
+    Returns
+    -------
+    None
+    """
+    import argparse as _argparse
+
+    from siemens_protocol.cli import build_parser
+
+    def subparsers(parser: _argparse.ArgumentParser) -> dict:
+        """Every registered subcommand of a parser, by name, or none."""
+        group = getattr(parser, "_subparsers", None)  # noqa: SLF001
+        for action in getattr(group, "_group_actions", []):  # noqa: SLF001
+            if isinstance(action, _argparse._SubParsersAction):  # noqa: SLF001
+                return dict(action.choices)
+        return {}
+
+    reads_a_protocol = {"parse", "list", "summary", "sequences", "check", "archive"}
+    found = subparsers(build_parser())
+    assert reads_a_protocol <= set(found), "::error::a subcommand was renamed or removed"
+    for name in sorted(reads_a_protocol):
+        options = {o for a in found[name]._actions for o in a.option_strings}  # noqa: SLF001
+        assert "--scan" in options, f"::error::'{name}' reads a protocol but takes no --scan"
+
+    two_sided = {o for a in found["diff"]._actions for o in a.option_strings}  # noqa: SLF001
+    assert {"--left-scan", "--right-scan"} <= two_sided
+
+
+@requires_exar
+def test_a_scan_address_narrows_every_one_file_command(capsys: pytest.CaptureFixture) -> None:
+    """One address reaches one scan of a 31-protocol backup, whatever is asked.
+
+    The same address is given to each command, which is the point: the
+    grammar is shared, so learning it once is enough. ``eja_svs_slaser`` is in
+    two protocols of this backup, so the qualified form is also the only form
+    that resolves.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for each command's output.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    where = "CMRR spectro scans/eja_svs_slaser"
+
+    assert main(["list", backup, "--scan", where]) == 0
+    listed = capsys.readouterr().out
+    assert "eja_svs_slaser" in listed
+    assert "total (1 scan)" in listed, "::error::the total is not singular for one scan"
+
+    assert main(["summary", backup, "--scan", where]) == 0
+    assert "scans     1" in capsys.readouterr().out
+
+    assert main(["sequences", backup, "--scan", where]) == 0
+    assert "of 1 scans" in capsys.readouterr().out
+
+
+@requires_exar
+def test_a_narrowed_scan_keeps_its_place_in_the_protocol() -> None:
+    """Narrowing renumbers nothing: the scan keeps the index it really has.
+
+    A listing of one scan that called it index 0 would be saying something
+    false about where it sits, and would not match the same scan's line in
+    the full listing.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import _load_one
+
+    backup = find_exar("Frederick_P2.exar1")
+    whole = _load_one(backup, "auto", "CMRR spectro scans", None)
+    names = [scan["name"] for scan in whole["scans"]]
+    position = names.index("eja_svs_slaser")
+    assert position > 0, "::error::this scan is first, so the check cannot fail"
+
+    one = _load_one(backup, "auto", None, "CMRR spectro scans/eja_svs_slaser")
+    assert len(one["scans"]) == 1
+    assert one["scans"][0]["index"] == whole["scans"][position]["index"]
+
+
+@requires_exar
+def test_archive_narrowed_to_one_scan_recomputes_its_counts(tmp_path: Path) -> None:
+    """A document narrowed to one scan must not describe what was removed.
+
+    This is where an address pays most -- a scan's parameter tree runs 514 to
+    2020 assignments -- and a ``scan_count`` left at 18 beside one step is
+    exactly the plausible-looking wrong number nothing else would catch.
+
+    Returns
+    -------
+    None
+    """
+    import json as _json
+
+    from siemens_protocol.cli import main
+
+    archive = find_exar("Potpourri_P1.exar1")
+    out = tmp_path / "one.json"
+    assert (
+        main(
+            [
+                "archive",
+                archive,
+                "--scan",
+                "localizer_64ch_uncombined",
+                "--out",
+                str(out),
+                "--quiet",
+            ]
+        )
+        == 0
+    )
+    document = _json.loads(out.read_text(encoding="utf-8"))
+
+    assert document["program_count"] == 1
+    program = document["programs"][0]
+    assert program["step_count"] == 1
+    assert program["scan_count"] == 1
+    assert program["pause_count"] == 0
+    assert [step["name"] for step in program["steps"]] == ["localizer_64ch_uncombined"]
+    assert program["steps"][0]["ascconv"], "::error::the parameter tree was dropped"
+
+
+@requires_exar
+def test_archive_keeps_one_of_two_protocols_that_share_a_name(tmp_path: Path) -> None:
+    """``--program`` filters the document by path, not by name.
+
+    ``NAV_optionscan_P1_loadtest`` holds two protocols both named
+    ``NAV_optionscan_P1 (2)``, so filtering on the name kept both and reported
+    a protocol_count of 2 for a request that named one.
+
+    Returns
+    -------
+    None
+    """
+    import json as _json
+
+    from siemens_protocol.cli import main
+
+    archive = find_exar("NAV_optionscan_P1_loadtest.exar1")
+    wanted = "Investigators (2)/Frederick/NAV_optionscan_P1 (2)"
+    out = tmp_path / "one.json"
+    assert (
+        main(
+            ["archive", archive, "--program", wanted, "--no-ascconv", "--out", str(out), "--quiet"]
+        )
+        == 0
+    )
+    document = _json.loads(out.read_text(encoding="utf-8"))
+
+    assert document["program_count"] == 1
+    assert document["programs"][0]["path"].endswith(wanted)

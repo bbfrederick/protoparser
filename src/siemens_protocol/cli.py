@@ -78,6 +78,37 @@ def add_program_option(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_scan_option(parser: argparse.ArgumentParser, what: str) -> None:
+    """Add the flag narrowing a one-file command to a single scan.
+
+    Every command that reads a protocol takes one, because "answer about this
+    scan" is the same request whichever question is being asked -- and the
+    address grammar is already shared, so a scan reached by ``diff`` is
+    reached the same way here. ``diff`` declares its own per-side pair
+    instead, since two inputs need a scan named for each.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The subcommand parser to add the flag to.
+    what : str
+        What the command does, completing "restrict the ... to one scan".
+
+    Returns
+    -------
+    None
+    """
+    parser.add_argument(
+        "--scan",
+        metavar="ADDRESS",
+        help=(
+            f"restrict the {what} to one scan: its name, a zero-based index, "
+            "or as much of its path as it takes to name one. Add '#2' for a "
+            "name the protocol uses twice"
+        ),
+    )
+
+
 def add_side_program_options(parser: argparse.ArgumentParser) -> None:
     """Add the per-side flags picking a protocol out of a multi-program archive.
 
@@ -169,6 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     parse_cmd.add_argument("input", help="a PDF file, or a directory of PDFs")
     parse_cmd.add_argument("--out", help="write JSON here (default: alongside the input, .json)")
     add_release_option(parse_cmd, "force a Siemens release profile (default: auto)")
+    add_scan_option(parse_cmd, "JSON")
     parse_cmd.add_argument(
         "--ocr",
         default=OCR_AUTO,
@@ -315,6 +347,7 @@ def build_parser() -> argparse.ArgumentParser:
         "input", help="a PDF, an .exar1 archive, a parsed JSON file, or a directory of PDFs"
     )
     add_program_option(check_cmd)
+    add_scan_option(check_cmd, "check")
     check_cmd.add_argument(
         "--policy",
         default="default",
@@ -352,6 +385,7 @@ def build_parser() -> argparse.ArgumentParser:
         "input", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
     )
     add_program_option(list_cmd)
+    add_scan_option(list_cmd, "listing")
     add_release_option(list_cmd, "force a Siemens release profile for a PDF input (default: auto)")
     list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
     list_cmd.add_argument("--out", help="write the listing here instead of stdout")
@@ -374,6 +408,7 @@ def build_parser() -> argparse.ArgumentParser:
         "input", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
     )
     add_program_option(summary_cmd)
+    add_scan_option(summary_cmd, "summary")
     add_release_option(
         summary_cmd, "force a Siemens release profile for a PDF input (default: auto)"
     )
@@ -401,6 +436,7 @@ def build_parser() -> argparse.ArgumentParser:
         "input", help="a PDF, an .exar1 archive, or a previously parsed JSON file"
     )
     add_program_option(sequences_cmd)
+    add_scan_option(sequences_cmd, "report")
     add_release_option(
         sequences_cmd, "force a Siemens release profile for a PDF input (default: auto)"
     )
@@ -495,6 +531,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     archive_cmd.add_argument("input", help="an .exar1 archive")
     add_program_option(archive_cmd)
+    add_scan_option(archive_cmd, "document")
     archive_cmd.add_argument(
         "--out", metavar="FILE", help="write the JSON here (default: alongside the archive)"
     )
@@ -939,13 +976,38 @@ def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Progr
     return candidates[0][1]
 
 
+def _path_components(name: str, printed: str) -> tuple[str, ...]:
+    """Split a printed or stored path into address components.
+
+    Parameters
+    ----------
+    name : str
+        The scan's own name, which the path must end in to be usable as one.
+    printed : str
+        The path the document carries -- the archive's own tree, or the one a
+        printout puts in each scan's header box, whose separators are
+        backslashes.
+
+    Returns
+    -------
+    tuple of str
+        The components, outermost first. A release that prints no path, or
+        one whose path does not end in the scan's own name, leaves the scan
+        addressable by its name alone -- which is all a single-protocol
+        export needs, and is better than addressing it by something the
+        printout meant for its protocol.
+    """
+    # Every separator becomes "/" and empty components are dropped, which
+    # absorbs both the UNC-style root a printout leads with and the doubled
+    # separator one export spells.
+    parts = [part for part in str(printed or "").replace("\\", "/").split("/") if part]
+    if not parts or parts[-1] != name:
+        return (name,)
+    return tuple(parts)
+
+
 def _scan_paths(protocol: Mapping[str, Any]) -> list[tuple[tuple[str, ...], dict]]:
     """Every scan of a loaded protocol, with its full path.
-
-    The path is the one the document carries -- the archive's own tree, or the
-    one a printout puts in each scan's header box, whose separators are
-    backslashes. A release that prints no path leaves the scan addressable by
-    its name alone, which is all a single-protocol export needs.
 
     Parameters
     ----------
@@ -957,20 +1019,140 @@ def _scan_paths(protocol: Mapping[str, Any]) -> list[tuple[tuple[str, ...], dict
     list of tuple
         ``(path components, scan)`` in acquisition order.
     """
-    found = []
-    for scan in protocol.get("scans", []):
-        # Every separator becomes "/" and empty components are dropped, which
-        # absorbs both the UNC-style root a printout leads with and the
-        # doubled separator one export spells.
-        printed = str(scan.get("path") or "").replace("\\", "/")
-        parts = [part for part in printed.split("/") if part] or [scan.get("name", "")]
-        if parts[-1] != scan.get("name", ""):
-            # A path that does not end in the scan's own name cannot be its
-            # path; fall back rather than addressing the scan by something
-            # the printout meant for its protocol.
-            parts = [scan.get("name", "")]
-        found.append((tuple(parts), scan))
-    return found
+    return [
+        (_path_components(scan.get("name", ""), scan.get("path", "")), scan)
+        for scan in protocol.get("scans", [])
+    ]
+
+
+def restrict_to_scan(protocol: Mapping[str, Any], wanted: str, source: str) -> dict:
+    """Narrow a loaded protocol to the one scan an address names.
+
+    Every command that reads a protocol accepts a scan address, so each one
+    can answer about a single scan rather than the whole of it -- which
+    matters most where the whole of it is large: an archive's parameter tree
+    runs 514 to 2020 assignments a scan.
+
+    The scan keeps its own ``index``, so a listing of one scan still says
+    where in the protocol it sits rather than renumbering it to zero.
+
+    Parameters
+    ----------
+    protocol : mapping
+        A serialized protocol.
+    wanted : str
+        The scan address.
+    source : str
+        The file, for the message.
+
+    Returns
+    -------
+    dict
+        A shallow copy carrying that scan alone.
+
+    Raises
+    ------
+    ValueError
+        If the address names no scan of this protocol, or names more than one.
+    """
+    return {**protocol, "scans": [_select_scan(protocol, wanted, source)]}
+
+
+def _scan_over_a_directory(args: argparse.Namespace) -> str | None:
+    """Refuse a scan address given against a directory of inputs.
+
+    An address names one scan of one protocol. Applied across a walked tree
+    it would either match in several files or silently in one, and neither is
+    a request anyone made.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments, read for ``scan`` and ``input``.
+
+    Returns
+    -------
+    str or None
+        The message to print, or ``None`` when the combination is fine.
+    """
+    if args.scan is not None and os.path.isdir(args.input):
+        return (
+            "--scan names one scan of one protocol, so it cannot be given with "
+            f"a directory; name a single file under {args.input} instead"
+        )
+    return None
+
+
+def _restrict_parsed(protocol: "Protocol", wanted: str, source: str) -> None:
+    """Narrow a freshly parsed protocol to the one scan an address names.
+
+    Operates on the model rather than the serialized form, because ``parse``
+    writes its JSON from the model and filtering afterwards would mean
+    serializing the whole protocol to discard most of it.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The parsed protocol, modified in place.
+    wanted : str
+        The scan address.
+    source : str
+        The file, for the message.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If the address names no scan, or names more than one.
+    """
+    candidates = [(_path_components(scan.name, scan.path), scan) for scan in protocol.scans]
+    protocol.scans = [address.resolve(wanted, candidates, what="scan", source=source)]
+
+
+def _load_one(
+    path: str,
+    version: str,
+    program: str | None,
+    scan: str | None,
+    need_flat: bool = False,
+) -> dict:
+    """Load a protocol and narrow it to one scan when an address names one.
+
+    The scan address is resolved before loading as well as after: it can name
+    the protocol holding it, so a backup does not need its protocol named
+    separately just to reach a scan the address already identifies.
+
+    Parameters
+    ----------
+    path : str
+        A PDF, an ``.exar1`` archive, or previously parsed JSON.
+    version : str
+        Release profile to force for a PDF, or ``"auto"``.
+    program : str or None
+        A protocol address, or ``None``.
+    scan : str or None
+        A scan address, or ``None`` to keep the whole protocol.
+    need_flat : bool, optional
+        Whether the caller reads the flattened view. Default ``False``.
+
+    Returns
+    -------
+    dict
+        The protocol, carrying one scan when ``scan`` was given.
+
+    Raises
+    ------
+    OSError, ValueError
+        As :func:`_load_protocol` and :func:`restrict_to_scan` do.
+    """
+    resolved = _archive_program(path, scan, program)
+    protocol = _load_protocol(path, version, need_flat=need_flat, program=resolved)
+    if scan is None:
+        return dict(protocol)
+    return restrict_to_scan(protocol, scan, path)
 
 
 def _select_scan(protocol: Mapping[str, Any], wanted: str, label: str) -> dict:
@@ -1170,7 +1352,7 @@ def _run_list(args: argparse.Namespace) -> int:
         ``0`` on success, ``1`` when the input could not be read.
     """
     try:
-        protocol = _load_protocol(args.input, args.version, need_flat=False, program=args.program)
+        protocol = _load_one(args.input, args.version, args.program, args.scan)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1213,7 +1395,7 @@ def _run_summary(args: argparse.Namespace) -> int:
     """
     try:
         catalog = load_catalog(args.catalog)
-        protocol = _load_protocol(args.input, args.version, need_flat=False, program=args.program)
+        protocol = _load_one(args.input, args.version, args.program, args.scan)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1256,7 +1438,7 @@ def _run_sequences(args: argparse.Namespace) -> int:
     """
     try:
         catalog = load_catalog(args.catalog)
-        protocol = _load_protocol(args.input, args.version, need_flat=False, program=args.program)
+        protocol = _load_one(args.input, args.version, args.program, args.scan)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -1580,6 +1762,11 @@ def _run_check(args: argparse.Namespace) -> int:
         print(f"{exc}", file=sys.stderr)
         return 1
 
+    refusal = _scan_over_a_directory(args)
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 1
+
     targets = _inputs(args.input)
     if not targets:
         print(f"no PDFs found under {args.input}", file=sys.stderr)
@@ -1589,7 +1776,7 @@ def _run_check(args: argparse.Namespace) -> int:
     failures = 0
     for target in targets:
         try:
-            protocol = _load_protocol(target, args.version, program=args.program)
+            protocol = _load_one(target, args.version, args.program, args.scan, need_flat=True)
         except (OSError, ValueError) as exc:
             print(f"{exc}", file=sys.stderr)
             failures += 1
@@ -1795,6 +1982,50 @@ def _archive_output_path(source: str) -> str:
     return source + ".json"
 
 
+def _restrict_document(document: dict, wanted: str, source: str) -> None:
+    """Narrow an archive document to the one scan an address names.
+
+    This is where a scan address earns the most: the parameter tree is 514 to
+    2020 assignments a scan, so a whole-archive document is mostly the scans
+    nobody asked about.
+
+    The program holding the scan is kept and the rest dropped, and its counts
+    are recomputed rather than left describing what was removed -- a stale
+    ``scan_count`` beside one step would be the kind of plausible-looking
+    wrong number nothing catches.
+
+    Parameters
+    ----------
+    document : dict
+        The document from :func:`~..exar.inspect.describe`, modified in place.
+    wanted : str
+        The scan address.
+    source : str
+        The archive, for the message.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If the address names no scan of the archive, or names more than one.
+    """
+    candidates = [
+        (_path_components(step.get("name", ""), step.get("path", "")), (program, step))
+        for program in document.get("programs", [])
+        for step in program.get("steps", [])
+    ]
+    program, step = address.resolve(wanted, candidates, what="scan", source=source)
+    program["steps"] = [step]
+    program["step_count"] = 1
+    program["scan_count"] = 1 if step.get("runs_a_protocol") else 0
+    program["pause_count"] = 1 - program["scan_count"]
+    document["programs"] = [program]
+    document["program_count"] = 1
+
+
 def _run_archive(args: argparse.Namespace) -> int:
     """Run the ``archive`` subcommand.
 
@@ -1825,8 +2056,19 @@ def _run_archive(args: argparse.Namespace) -> int:
         except ValueError as exc:
             print(f"{exc}", file=sys.stderr)
             return 1
-        document["programs"] = [p for p in document["programs"] if p["name"] == wanted.name]
+        # Compared by path rather than by name: two protocols of one archive
+        # can share a name, and filtering on it would keep both -- which is
+        # the same collision --program exists to resolve.
+        chosen = "/".join(archive.path_of(wanted.instance))
+        document["programs"] = [p for p in document["programs"] if p["path"] == chosen]
         document["program_count"] = len(document["programs"])
+
+    if args.scan is not None:
+        try:
+            _restrict_document(document, args.scan, args.input)
+        except ValueError as exc:
+            print(f"{exc}", file=sys.stderr)
+            return 1
 
     text = json.dumps(document, indent=2, ensure_ascii=False)
     if args.stdout:
@@ -1996,6 +2238,11 @@ def main(argv: list[str] | None = None) -> int:
     if not targets:
         print(f"no PDFs found under {args.input}", file=sys.stderr)
         return 1
+    refusal = _scan_over_a_directory(args)
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 1
+
     batch = os.path.isdir(args.input)
 
     options = ParseOptions(
@@ -2017,6 +2264,13 @@ def main(argv: list[str] | None = None) -> int:
             if not batch:
                 return 1
             continue
+
+        if args.scan is not None:
+            try:
+                _restrict_parsed(result.protocol, args.scan, pdf)
+            except ValueError as exc:
+                print(f"{exc}", file=sys.stderr)
+                return 1
 
         try:
             out_path = _write_outputs(result, args, pdf, batch, args.input if batch else None)

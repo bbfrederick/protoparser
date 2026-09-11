@@ -252,7 +252,7 @@ def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
 
     known = [r.seconds for r in rows if r.seconds is not None]
     total = format_duration(sum(known))
-    label = f"total ({len(rows)} scans)"
+    label = f"total ({len(rows)} scan{'' if len(rows) == 1 else 's'})"
     lines.append(f"  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}")
     lines.append(f"  {'':>{w_index}}  {label:<{w_name}}  {'':<{w_seq}}  {total:>{w_time}}")
 
