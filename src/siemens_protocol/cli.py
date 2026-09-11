@@ -6,9 +6,9 @@ import argparse
 import json
 import os
 import sys
-from typing import TYPE_CHECKING, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
-from . import __version__
+from . import __version__, address
 from .debug import write_debug
 from .diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .extract import TESSERACT_ENV
@@ -71,7 +71,9 @@ def add_program_option(parser: argparse.ArgumentParser) -> None:
         metavar="NAME",
         help=(
             "which protocol of an .exar1 archive to read, needed only when it "
-            "holds more than one"
+            "holds more than one. As much of its path as it takes to name one: "
+            "a bare name usually, 'Investigators (2)/Frederick/NAME' where two "
+            "share a name"
         ),
     )
 
@@ -104,8 +106,9 @@ def add_side_program_options(parser: argparse.ArgumentParser) -> None:
             f"--{side}-program",
             metavar="NAME",
             help=(
-                f"which protocol to take from the {side} .exar1 archive, "
-                "needed only when it holds more than one"
+                f"which protocol to take from the {side} .exar1 archive, needed "
+                "only when it holds more than one and no scan address says "
+                "which. As much of its path as it takes to name one"
             ),
         )
 
@@ -215,9 +218,11 @@ def build_parser() -> argparse.ArgumentParser:
             "inputs that compares one scan of each file, and with one input it "
             "compares two scans of that file. Naming only one side uses the same "
             "name on the other. With neither, two inputs are compared in full. "
-            "An .exar1 archive holding several protocols needs --left-program "
-            "and --right-program to say which; naming a different one on each "
-            "side of a single archive compares two of its protocols."
+            "A scan is named by as much of its path as it takes to name one, so "
+            "a scan of an archive holding several protocols usually needs no "
+            "protocol named at all; --left-program and --right-program say which "
+            "where nothing else does, and naming a different one on each side of "
+            "a single archive compares two of its protocols."
         ),
     )
     diff_cmd.add_argument(
@@ -234,12 +239,16 @@ def build_parser() -> argparse.ArgumentParser:
     diff_cmd.add_argument(
         "--left-scan",
         metavar="NAME",
-        help="scan to take from LEFT, by name or zero-based index",
+        help=(
+            "scan to take from LEFT: its name, a zero-based index, or as much "
+            "of its path as it takes to name one -- 'CMRR spectro scans/"
+            "eja_svs_slaser'. Add '#2' for a name the protocol uses twice"
+        ),
     )
     diff_cmd.add_argument(
         "--right-scan",
         metavar="NAME",
-        help="scan to take from RIGHT, by name or zero-based index",
+        help="scan to take from RIGHT, spelled as --left-scan is",
     )
     diff_cmd.add_argument(
         "--scan",
@@ -838,6 +847,46 @@ def _load_protocol(
     return result.protocol.to_dict(include_flat=True)
 
 
+def _program_paths(archive: "Archive") -> list[tuple[tuple[str, ...], "Program"]]:
+    """Every protocol in an archive, with its full path.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to enumerate.
+
+    Returns
+    -------
+    list of tuple
+        ``(path components, program)`` in the archive's own order.
+    """
+    return [(tuple(archive.path_of(p.instance)), p) for p in archive.programs]
+
+
+def _choices(candidates: list[tuple[tuple[str, ...], Any]]) -> str:
+    """Name the protocols a refusal should list.
+
+    Their names where those are unique, and their full paths where they are
+    not -- ``NAV_optionscan_P1_loadtest`` holds two protocols of one name
+    under different directories, and listing the name twice would say nothing
+    about how to tell them apart.
+
+    Parameters
+    ----------
+    candidates : list of tuple
+        ``(path components, payload)`` pairs.
+
+    Returns
+    -------
+    str
+        The choices, comma-separated.
+    """
+    names = [path[-1] for path, _payload in candidates]
+    if len(set(names)) == len(names):
+        return ", ".join(repr(name) for name in names)
+    return ", ".join(repr("/".join(path)) for path, _payload in candidates)
+
+
 def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Program":
     """Pick the protocol to read out of an archive.
 
@@ -846,12 +895,18 @@ def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Progr
     the first would describe one protocol while looking like a reading of the
     whole file, so this refuses instead and names the choices.
 
+    ``wanted`` is an address rather than a bare name -- as much of the
+    protocol's path as it takes to name one, and no more. See
+    :mod:`..address` for why the path is needed at all: two protocols of one
+    archive in the corpus share a name and differ only in the directory above
+    them.
+
     Parameters
     ----------
     archive : Archive
         The archive to choose from.
     wanted : str or None
-        The program name asked for, or ``None`` to accept a lone one.
+        The protocol's address, or ``None`` to accept a lone one.
     path : str
         The archive's path, for the message.
 
@@ -863,39 +918,76 @@ def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Progr
     Raises
     ------
     ValueError
-        If the archive holds no protocol, if ``wanted`` names none of them, or
-        if it holds several and ``wanted`` is ``None``.
+        If the archive holds no protocol, if ``wanted`` names none of them or
+        names several, or if it holds several and ``wanted`` is ``None``.
     """
-    programs = archive.programs
-    if not programs:
+    candidates = _program_paths(archive)
+    if not candidates:
         raise ValueError(
             f"{path} holds no protocol. An archive exported from an empty folder node "
             "rather than from the protocol tree reads correctly and carries nothing"
         )
     if wanted is not None:
-        for program in programs:
-            if program.name == wanted:
-                return program
-        names = ", ".join(repr(p.name) for p in programs)
-        raise ValueError(f"{path} holds no protocol named {wanted!r}. It holds: {names}")
-    if len(programs) > 1:
-        names = ", ".join(repr(p.name) for p in programs)
+        return address.resolve(wanted, candidates, what="protocol", source=path)
+    if len(candidates) > 1:
         raise ValueError(
-            f"{path} holds {len(programs)} protocols, so --program is needed to say "
-            f"which one. It holds: {names}"
+            f"{path} holds {len(candidates)} protocols, so one must be named to say "
+            f"which -- --program here, or --left-program/--right-program on diff and "
+            f"vocab. Give as much of a path as it takes. It holds: "
+            f"{_choices(candidates)}"
         )
-    return programs[0]
+    return candidates[0][1]
 
 
-def _select_scan(protocol: dict, wanted: str, label: str) -> dict:
-    """Find one scan of a protocol by name or index.
+def _scan_paths(protocol: Mapping[str, Any]) -> list[tuple[tuple[str, ...], dict]]:
+    """Every scan of a loaded protocol, with its full path.
+
+    The path is the one the document carries -- the archive's own tree, or the
+    one a printout puts in each scan's header box, whose separators are
+    backslashes. A release that prints no path leaves the scan addressable by
+    its name alone, which is all a single-protocol export needs.
 
     Parameters
     ----------
-    protocol : dict
+    protocol : mapping
+        A serialized protocol.
+
+    Returns
+    -------
+    list of tuple
+        ``(path components, scan)`` in acquisition order.
+    """
+    found = []
+    for scan in protocol.get("scans", []):
+        # Every separator becomes "/" and empty components are dropped, which
+        # absorbs both the UNC-style root a printout leads with and the
+        # doubled separator one export spells.
+        printed = str(scan.get("path") or "").replace("\\", "/")
+        parts = [part for part in printed.split("/") if part] or [scan.get("name", "")]
+        if parts[-1] != scan.get("name", ""):
+            # A path that does not end in the scan's own name cannot be its
+            # path; fall back rather than addressing the scan by something
+            # the printout meant for its protocol.
+            parts = [scan.get("name", "")]
+        found.append((tuple(parts), scan))
+    return found
+
+
+def _select_scan(protocol: Mapping[str, Any], wanted: str, label: str) -> dict:
+    """Find one scan of a protocol by address or by index.
+
+    The address is as much of the scan's path as it takes to name one -- see
+    :mod:`..address`. Within a protocol already chosen, a bare name is
+    usually enough; the leading components matter where a name repeats across
+    protocols of a backup, and an occurrence (``name#2``) where it repeats
+    inside one protocol, which 11 of one backup's 31 protocols do.
+
+    Parameters
+    ----------
+    protocol : mapping
         A serialized protocol.
     wanted : str
-        A scan name, or a zero-based index.
+        A scan address, or a zero-based index within the protocol.
     label : str
         Which side this is, for the error message.
 
@@ -907,20 +999,101 @@ def _select_scan(protocol: dict, wanted: str, label: str) -> dict:
     Raises
     ------
     ValueError
-        If no scan matches, listing what is available.
+        If the address names no scan, or names more than one.
     """
-    scans = protocol.get("scans", [])
-    if wanted.isdigit():
-        index = int(wanted)
-        if 0 <= index < len(scans):
-            return scans[index]
-        raise ValueError(f"{label}: no scan at index {index}; the file has {len(scans)}")
-    for scan in scans:
-        if scan.get("name") == wanted:
-            return scan
-    matches = [s.get("name", "") for s in scans if wanted.lower() in s.get("name", "").lower()]
-    hint = f"; did you mean {matches[0]!r}?" if matches else ""
-    raise ValueError(f"{label}: no scan named {wanted!r}{hint}")
+    scans = list(protocol.get("scans", []))
+    parsed = address.parse(wanted)
+    if parsed.index is not None:
+        if 0 <= parsed.index < len(scans):
+            return scans[parsed.index]
+        raise ValueError(
+            f"{label}: no scan at index {parsed.index}; the protocol has {len(scans)}"
+        )
+    return address.select(parsed, _scan_paths(protocol), what="scan", source=label)
+
+
+def _archive_program(path: str, scan: str | None, program: str | None) -> str | None:
+    """The protocol address to load a side of a comparison with.
+
+    A no-op unless the input is an archive and a scan was named for it: a PDF
+    holds one protocol, and without a scan there is nothing to resolve a
+    protocol from.
+
+    Parameters
+    ----------
+    path : str
+        The input.
+    scan : str or None
+        The scan address named for this side, if any.
+    program : str or None
+        The protocol address named for this side, if any. It wins.
+
+    Returns
+    -------
+    str or None
+        The protocol address to pass to :func:`_load_protocol`.
+    """
+    if program is not None or scan is None or not path.lower().endswith(EXAR_SUFFIX):
+        return program
+    return _program_for_scan(path, scan, program)
+
+
+def _program_for_scan(path: str, wanted: str, program: str | None) -> str | None:
+    """Which protocol of an archive holds an addressed scan.
+
+    A scan cannot be looked up until a protocol has been chosen, and a
+    protocol cannot be chosen from a backup without being named -- so a bare
+    scan address would be refused for wanting a protocol it is perfectly
+    capable of identifying. This closes that circle by searching every
+    protocol's scans first, which costs one extra read of the archive: 0.03 s
+    on the 31-protocol backup, against the whole-file read it repeats.
+
+    An index names no scan, so it cannot say which protocol it belongs to;
+    only the components above it can, and a bare index therefore still needs
+    the protocol named. That is the honest answer rather than a gap -- index
+    3 of a backup means nothing until "of what" is settled.
+
+    Parameters
+    ----------
+    path : str
+        The archive.
+    wanted : str
+        The scan address.
+    program : str or None
+        A protocol address the caller already has, which wins.
+
+    Returns
+    -------
+    str or None
+        A protocol address to load with, or ``None`` to leave the choice to
+        :func:`_select_program` -- a lone protocol needs no naming, and an
+        ambiguous one is its refusal to make.
+
+    Raises
+    ------
+    ValueError
+        If the scan address names scans in more than one protocol, listing
+        them, since that is the same refusal wherever it is raised.
+    """
+    if program is not None:
+        return program
+    from .exar import read as read_exar
+
+    archive = read_exar(path)
+    programs = _program_paths(archive)
+    if len(programs) < 2:
+        return None
+    parsed = address.parse(wanted)
+    if parsed.index is not None:
+        return "/".join(parsed.parents) or None
+
+    candidates: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+    for program_path, node in programs:
+        for step in node.steps:
+            if step.runs_a_protocol:
+                candidates.append((program_path + (step.name,), program_path))
+    holder = address.select(parsed, candidates, what="scan", source=path)
+    return "/".join(holder)
 
 
 def _same_file(left: str, right: str) -> bool:
@@ -1235,16 +1408,23 @@ def _run_diff(args: argparse.Namespace) -> int:
 
     right_path = args.right if args.right is not None else args.left
     try:
-        left = _load_protocol(args.left, args.version, program=args.left_program)
+        # A scan address can name the protocol holding it, so it is resolved
+        # before loading rather than after: otherwise a backup would refuse a
+        # perfectly specific address for wanting a protocol that address
+        # already identifies.
+        left_program = _archive_program(args.left, name_left, args.left_program)
+        right_program = _archive_program(right_path, name_right, args.right_program)
+
+        left = _load_protocol(args.left, args.version, program=left_program)
         # Naming the same file on both sides is the same request as omitting
         # the second one, so it costs one parse rather than two -- but only
         # when the same protocol is wanted from it. Two programs of one
         # backup are two different protocols, and reusing the parse would
         # compare one of them against itself.
-        if _same_file(args.left, right_path) and args.left_program == args.right_program:
+        if _same_file(args.left, right_path) and left_program == right_program:
             right = left
         else:
-            right = _load_protocol(right_path, args.version, program=args.right_program)
+            right = _load_protocol(right_path, args.version, program=right_program)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1

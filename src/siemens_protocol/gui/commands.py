@@ -201,7 +201,8 @@ def _side_program_fields() -> tuple[Field, ...]:
             label=f"{side.capitalize()} protocol",
             help=(
                 f"Which protocol to take from the {side} .exar1 archive. Needed "
-                "only when it holds more than one, which a scanner backup does."
+                "only when it holds more than one and no scan address says which. "
+                "Give as much of its path as it takes to name one."
             ),
             flag=f"--{side}-program",
         )
@@ -223,7 +224,8 @@ def _program_field() -> Field:
         label="Protocol",
         help=(
             "Which protocol of an .exar1 archive to read. Needed only when the "
-            "archive holds more than one, which a scanner backup does."
+            "archive holds more than one, which a scanner backup does. Give as "
+            "much of its path as it takes to name one."
         ),
         flag="--program",
     )
@@ -409,14 +411,19 @@ def _diff_command() -> Command:
                 name="left_scan",
                 kind="text",
                 label="Left scan",
-                help="Scan to take from the left input, by name or zero-based index.",
+                help=(
+                    "Scan to take from the left input: its name, a zero-based index, "
+                    "or as much of its path as it takes to name one, such as "
+                    "'CMRR spectro scans/eja_svs_slaser'. Add '#2' for a name the "
+                    "protocol uses twice."
+                ),
                 flag="--left-scan",
             ),
             Field(
                 name="right_scan",
                 kind="text",
                 label="Right scan",
-                help="Scan to take from the right input, by name or zero-based index.",
+                help="Scan to take from the right input, spelled as the left one is.",
                 flag="--right-scan",
             ),
             *_side_program_fields(),

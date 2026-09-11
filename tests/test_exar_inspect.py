@@ -324,7 +324,7 @@ def test_reading_one_protocol_out_of_an_archive_never_guesses() -> None:
     only = archive.programs[0]
     assert _select_program(archive, None, "x").name == only.name
     assert _select_program(archive, only.name, "x").name == only.name
-    with pytest.raises(ValueError, match="holds no protocol named"):
+    with pytest.raises(ValueError, match="no protocol named"):
         _select_program(archive, "not a protocol here", "x")
 
     several = exar.read(find_exar("Frederick_P2.exar1"))
@@ -899,3 +899,165 @@ def test_one_archive_and_one_protocol_still_needs_a_scan_pair() -> None:
         )
         == 1
     )
+
+
+@requires_exar
+def test_a_scan_of_a_backup_is_addressed_by_as_much_path_as_it_takes(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """A scan two protocols share is reached by naming the protocol.
+
+    ``eja_svs_slaser`` is in both ``CMRR test scans`` and ``CMRR spectro
+    scans`` of the 31-protocol backup, so the bare name is refused with both
+    full paths and the qualified one resolves. The protocol need not be named
+    separately: the address identifies it, which is what lets a backup be
+    used at all without listing it first.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    assert (
+        main(
+            [
+                "diff",
+                backup,
+                "--left-scan",
+                "eja_svs_slaser",
+                "--right-scan",
+                "eja_svs_slaser",
+            ]
+        )
+        == 1
+    )
+    refused = capsys.readouterr().err
+    assert "names 2 scans" in refused
+    assert "CMRR test scans/eja_svs_slaser" in refused
+    assert "CMRR spectro scans/eja_svs_slaser" in refused
+
+    main(
+        [
+            "diff",
+            backup,
+            "--left-scan",
+            "CMRR spectro scans/eja_svs_slaser",
+            "--right-scan",
+            "CMRR test scans/eja_svs_slaser",
+        ]
+    )
+    assert "eja_svs_slaser" in capsys.readouterr().out
+
+
+@requires_exar
+def test_a_name_repeated_inside_one_protocol_needs_an_occurrence(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """No path separates a name one protocol uses five times.
+
+    ``Functional TOF`` runs ``tof_cs_acc10.3 fast`` five times, so the
+    address grammar has to reach past the path -- which is why an occurrence
+    is part of it rather than a convenience.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    name = "Functional TOF/tof_cs_acc10.3 fast"
+    assert main(["diff", backup, "--left-scan", name, "--right-scan", name]) == 1
+    assert "#1 .." in capsys.readouterr().err
+
+    main(["diff", backup, "--left-scan", f"{name}#1", "--right-scan", f"{name}#5"])
+    assert "tof_cs_acc10.3 fast" in capsys.readouterr().out
+
+
+@requires_exar
+def test_two_protocols_of_one_name_are_told_apart_by_their_directory(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """A protocol address is a path, because a name is not always unique.
+
+    ``NAV_optionscan_P1_loadtest`` holds two protocols both named
+    ``NAV_optionscan_P1 (2)``, under ``Investigators`` and ``Investigators
+    (2)``. The refusal lists paths rather than names, since naming one twice
+    would say nothing about how to choose.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the listing.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    archive = find_exar("NAV_optionscan_P1_loadtest.exar1")
+    assert main(["list", archive]) == 1
+    refused = capsys.readouterr().err
+    assert "Investigators/Frederick/NAV_optionscan_P1 (2)" in refused
+    assert "Investigators (2)/Frederick/NAV_optionscan_P1 (2)" in refused
+
+    assert (
+        main(["list", archive, "--program", "Investigators (2)/Frederick/NAV_optionscan_P1 (2)"])
+        == 0
+    )
+    assert capsys.readouterr().out.strip()
+
+
+@requires_exar
+def test_every_scan_in_the_corpus_is_addressable(protocol_archive_path: str) -> None:
+    """Every scan of every archive has an address that reaches it and no other.
+
+    The full path always works, since it is the longest suffix of itself; the
+    check that bites is the converse -- that resolving it comes back with the
+    scan it names rather than a sibling. Repeated names are addressed by
+    occurrence, which is what makes the sweep total rather than skipping the
+    43 scans path alone cannot separate.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        Archive under test.
+
+    Returns
+    -------
+    None
+    """
+    import collections
+
+    from siemens_protocol import address
+
+    archive = exar.read(protocol_archive_path)
+    candidates = []
+    for program in archive.programs:
+        base = tuple(archive.path_of(program.instance))
+        for step in program.steps:
+            if step.runs_a_protocol:
+                candidates.append((base + (step.name,), (base, step.name)))
+
+    seen: collections.Counter = collections.Counter()
+    for path, payload in candidates:
+        seen[path] += 1
+        text = "/".join(path)
+        if seen[path] > 1 or sum(1 for p, _ in candidates if p == path) > 1:
+            text += f"#{seen[path]}"
+        assert (
+            address.resolve(text, candidates, what="scan", source=protocol_archive_path) == payload
+        ), f"::error::{text} did not resolve to itself"

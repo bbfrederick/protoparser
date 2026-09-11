@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from conftest import ParseFixture, find_example, requires_examples
+from siemens_protocol import address
 from siemens_protocol.cli import main
 from siemens_protocol.diff import (
     CHANGED,
@@ -583,9 +584,9 @@ def test_cli_diff_two_scans_within_one_file(tmp_path: Path) -> None:
             "diff",
             find_example("R01StressDyn.pdf", "VE11C"),
             "--scan",
-            "SpinEchoFieldMap_AP",
+            "SpinEchoFieldMap_AP#1",
             "--scan",
-            "SpinEchoFieldMap_PA",
+            "SpinEchoFieldMap_PA#1",
             "--out",
             str(out),
         ]
@@ -879,7 +880,7 @@ def test_cli_diff_within_one_file_given_twice_matches_giving_it_once(
     None
     """
     pdf = find_example("R01StressDyn.pdf", "VE11C")
-    names = ["--left-scan", "SpinEchoFieldMap_AP", "--right-scan", "SpinEchoFieldMap_PA"]
+    names = ["--left-scan", "SpinEchoFieldMap_AP#1", "--right-scan", "SpinEchoFieldMap_PA#1"]
 
     once = tmp_path / "once.json"
     twice = tmp_path / "twice.json"
@@ -914,9 +915,9 @@ def test_cli_diff_recognizes_one_file_spelled_two_ways(tmp_path: Path) -> None:
             os.path.join(os.path.dirname(pdf), ".", os.path.basename(pdf)),
             pdf,
             "--left-scan",
-            "SpinEchoFieldMap_AP",
+            "SpinEchoFieldMap_AP#1",
             "--right-scan",
-            "SpinEchoFieldMap_PA",
+            "SpinEchoFieldMap_PA#1",
             "--json",
             "--out",
             str(out),
@@ -952,9 +953,9 @@ def test_cli_diff_two_scans_of_one_file_finds_the_known_difference(
             "diff",
             find_example("R01StressDyn.pdf", "VE11C"),
             "--left-scan",
-            "SpinEchoFieldMap_AP",
+            "SpinEchoFieldMap_AP#1",
             "--right-scan",
-            "SpinEchoFieldMap_PA",
+            "SpinEchoFieldMap_PA#1",
             "--json",
             "--out",
             str(out),
@@ -1311,3 +1312,218 @@ def test_cli_diff_exits_nonzero_on_an_unmatched_scan(tmp_path: Path) -> None:
 
     assert main(["diff", str(parsed), str(parsed)]) == 0
     assert main(["diff", str(parsed), str(trimmed)]) == 1
+
+
+# -- the address grammar ----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text,components,occurrence,index",
+    [
+        ("localizer", ("localizer",), None, None),
+        ("a/b/c", ("a", "b", "c"), None, None),
+        ("/a//b/", ("a", "b"), None, None),
+        ("name#2", ("name",), 2, None),
+        ("a/b#10", ("a", "b"), 10, None),
+        ("3", ("3",), None, 3),
+        ("prog/3", ("prog", "3"), None, 3),
+        # An occurrence turns a numeric leaf back into a name: "3#2" asks for
+        # the second scan called "3", which is not a position.
+        ("3#2", ("3",), 2, None),
+    ],
+)
+def test_addresses_parse(
+    text: str, components: tuple, occurrence: int | None, index: int | None
+) -> None:
+    """Each spelling reads as the components, occurrence and index it means.
+
+    Parameters
+    ----------
+    text : str
+        The address as typed.
+    components : tuple
+        Expected path components.
+    occurrence : int or None
+        Expected occurrence.
+    index : int or None
+        Expected index.
+
+    Returns
+    -------
+    None
+    """
+    parsed = address.parse(text)
+    assert parsed.components == components
+    assert parsed.occurrence == occurrence
+    assert parsed.index == index
+
+
+@pytest.mark.parametrize("text", ["", "/", "///"])
+def test_an_empty_address_names_nothing(text: str) -> None:
+    """A separator alone is refused rather than matching everything.
+
+    Parameters
+    ----------
+    text : str
+        Something that is not an address.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="names nothing"):
+        address.parse(text)
+
+
+def test_occurrences_count_from_one() -> None:
+    """``#0`` is a typo, not the first item.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="count from one"):
+        address.parse("name#0")
+
+
+def test_an_address_is_the_unbroken_tail_of_a_path() -> None:
+    """Components must be contiguous from the end.
+
+    Allowing a skipped level would let two addresses that look equally
+    specific behave differently, and would let one silently start matching
+    something new when a protocol is added.
+
+    Returns
+    -------
+    None
+    """
+    path = ("Root", "Export", "Inv", "Frederick", "CMRR spectro scans", "eja_svs_slaser")
+    for text in ["eja_svs_slaser", "CMRR spectro scans/eja_svs_slaser", "/".join(path)]:
+        assert address.matches(address.parse(text), path), text
+    for text in ["Frederick/eja_svs_slaser", "Inv/CMRR spectro scans/eja_svs_slaser", "spectro"]:
+        assert not address.matches(address.parse(text), path), text
+    # An address longer than the path cannot match it.
+    assert not address.matches(address.parse("Deeper/" + "/".join(path)), path)
+
+
+# -- resolving against what a file holds ------------------------------------
+
+
+def _candidates() -> list:
+    """Two protocols sharing a scan name, and one repeating a name inside itself.
+
+    Returns
+    -------
+    list
+        ``(path, payload)`` pairs shaped like a real backup's.
+    """
+    root = ("Root", "Export", "Inv", "Frederick")
+    return [
+        (root + ("CMRR test scans", "eja_svs_slaser"), "test/slaser"),
+        (root + ("CMRR spectro scans", "eja_svs_slaser"), "spectro/slaser"),
+        (root + ("Functional TOF", "tof fast"), "tof#1"),
+        (root + ("Functional TOF", "tof fast"), "tof#2"),
+        (root + ("Mair test", "localizer"), "mair/localizer"),
+    ]
+
+
+def test_a_qualified_address_resolves() -> None:
+    """Naming the protocol separates a scan name two protocols share.
+
+    Returns
+    -------
+    None
+    """
+    got = address.resolve(
+        "CMRR spectro scans/eja_svs_slaser", _candidates(), what="scan", source="f"
+    )
+    assert got == "spectro/slaser"
+
+
+def test_a_bare_name_unique_in_the_file_resolves() -> None:
+    """No path is needed where the name occurs once.
+
+    Returns
+    -------
+    None
+    """
+    assert address.resolve("localizer", _candidates(), what="scan", source="f") == "mair/localizer"
+
+
+def test_an_ambiguous_address_lists_the_full_paths() -> None:
+    """A refusal has to say what to prepend, or it cannot be acted on.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("eja_svs_slaser", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "names 2 scans" in message
+    assert "CMRR test scans/eja_svs_slaser" in message
+    assert "CMRR spectro scans/eja_svs_slaser" in message
+
+
+def test_a_skipped_level_reports_what_it_nearly_matched() -> None:
+    """The component an address is missing is shown rather than guessed at.
+
+    This is the spelling a reader reaches for first -- naming a directory
+    they can see and skipping the protocol between it and the scan.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Frederick/eja_svs_slaser", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "unbroken" in message
+    assert "CMRR spectro scans/eja_svs_slaser" in message
+
+
+def test_a_name_repeated_in_one_protocol_asks_for_an_occurrence() -> None:
+    """Identical paths say nothing, so the refusal names the range instead.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("tof fast", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "holds 2 scans named 'tof fast'" in message
+    assert "tof fast#1 .. tof fast#2" in message
+
+
+def test_an_occurrence_picks_one_of_the_repeats() -> None:
+    """``#n`` counts from one, in the order the candidates came.
+
+    Returns
+    -------
+    None
+    """
+    assert address.resolve("tof fast#1", _candidates(), what="scan", source="f") == "tof#1"
+    assert address.resolve("tof fast#2", _candidates(), what="scan", source="f") == "tof#2"
+
+
+def test_an_occurrence_past_the_end_is_refused() -> None:
+    """Asking for the fifth of two says how many there are.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="2 scans match"):
+        address.resolve("tof fast#5", _candidates(), what="scan", source="f")
+
+
+def test_a_name_matching_nothing_suggests_a_near_miss() -> None:
+    """A typo gets a suggestion rather than a bare refusal.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="did you mean 'eja_svs_slaser'"):
+        address.resolve("eja_svs_slase", _candidates(), what="scan", source="f")

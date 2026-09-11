@@ -334,7 +334,7 @@ siemens-protocol-tool diff old.pdf new.pdf
 siemens-protocol-tool diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
 
 # compare two scans within one protocol
-siemens-protocol-tool diff protocol.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
+siemens-protocol-tool diff protocol.pdf --left-scan SpinEchoFieldMap_AP#1 --right-scan SpinEchoFieldMap_PA#1
 
 # narrow a comparison to one section of the scanner's tabs
 siemens-protocol-tool diff old.pdf new.pdf --filter contrast
@@ -946,7 +946,39 @@ reported as such instead of shifting everything after it out of step.
 With two files that compares one scan of each; with one file it compares two scans
 of that file. The names need not match, which is the point — a scan the site or the
 vendor renamed still has a counterpart. Naming only one side uses the same name on
-the other. Scans are selected by name or by zero-based index.
+the other.
+
+A scan is named by **as much of its path as it takes to name one, and no more**:
+
+```sh
+siemens-protocol-tool diff backup.exar1 --left-scan "CMRR spectro scans/eja_svs_slaser" \
+                                        --right-scan "CMRR test scans/eja_svs_slaser"
+```
+
+A bare name where it is unique, the protocol prepended where it is not, more of the
+path above that where two protocols share a name. A zero-based index still works and
+is still an index within the protocol, so `--scan 0` is unchanged and `Mair test/3`
+is its qualified form. Components must be the **unbroken** tail of the path: skipping
+a level would let two addresses that look equally specific behave differently, so
+`Frederick/eja_svs_slaser` is refused — with the full paths it nearly matched, so the
+missing component can be read off:
+
+```
+no scan at Frederick/eja_svs_slaser. Components must be the trailing part of the
+path, unbroken. These end in 'eja_svs_slaser':
+  Root/Export/Investigators/Frederick/CMRR test scans/eja_svs_slaser
+  Root/Export/Investigators/Frederick/CMRR spectro scans/eja_svs_slaser
+```
+
+Because a scan address can name the protocol holding it, a scan of a multi-protocol
+archive usually needs no `--program` at all.
+
+**A name a protocol uses twice** takes an occurrence, counting from one in acquisition
+order: `SpinEchoFieldMap_AP#2`. No amount of path separates those, and they are not
+rare — `R01StressDyn` prints three names twice each, and 11 of one backup's 31
+protocols repeat a name, one of them fifteen times. A bare repeated name is **refused**
+rather than resolved to the first, which is a change: it used to pick the first
+silently.
 
 **Protocol against protocol, out of an archive.** An `.exar1` export holds one
 protocol, but a scanner *backup* holds every protocol on the machine, so each
@@ -962,8 +994,12 @@ siemens-protocol-tool diff backup.exar1 Potpourri_P1.exar1 --left-program Potpou
 siemens-protocol-tool diff backup.exar1 --left-program MEMPRAGE --right-program MEMPRAGE_test
 ```
 
-Naming no protocol at all is refused rather than resolved to whichever comes
-first, and the refusal lists the protocols the file holds. The same two flags
+A protocol is named the same way a scan is: as much of its path as it takes.
+A bare name usually, and more where two protocols share one — `NAV_optionscan_
+P1_loadtest` holds two both named `NAV_optionscan_P1 (2)`, under `Investigators`
+and `Investigators (2)`, so only the directory above separates them and the
+refusal lists paths rather than names. Naming no protocol at all is refused
+rather than resolved to whichever comes first. The same two flags
 are on `vocab suggest` and `vocab check --against`, which take two exports for
 the same reason.
 
@@ -989,7 +1025,7 @@ siemens-protocol-tool diff p.pdf p.pdf  --left-scan AP --right-scan PA   # to th
 of one protocol is a good check that they differ only where they should:
 
 ```
-$ siemens-protocol-tool diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP --right-scan SpinEchoFieldMap_PA
+$ siemens-protocol-tool diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP#1 --right-scan SpinEchoFieldMap_PA#1
 SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
   parameters
     Sequence - Special
@@ -1047,11 +1083,11 @@ restricted to.
 
 | Option | Meaning |
 | --- | --- |
-| `--left-scan NAME` | Scan to take from the left input, by name or zero-based index. |
-| `--right-scan NAME` | Scan to take from the right input. Omit either to reuse the other's name. |
+| `--left-scan ADDR` | Scan to take from the left input: a name, a zero-based index, or as much of its path as names one. `#2` picks one of a repeated name. |
+| `--right-scan ADDR` | Scan to take from the right input. Omit either to reuse the other's name. |
 | `--scan NAME` | Shorthand: once for both sides, twice for left then right. |
-| `--left-program NAME` | Which protocol to take from the left `.exar1`. Needed only when it holds more than one. |
-| `--right-program NAME` | The same for the right. Name a different one on each side of a single archive to compare two of its protocols. |
+| `--left-program ADDR` | Which protocol to take from the left `.exar1` — as much of its path as names one. Needed only when it holds more than one and no scan address says which. |
+| `--right-program ADDR` | The same for the right. Name a different one on each side of a single archive to compare two of its protocols. |
 | `--filter SECTION` | Report only this top-level section. Repeatable, or comma-separated. |
 | `--exact-keys` | Compare key spellings literally; do not match relabeled keys. |
 | `--show-cosmetic` | List relabeled, recased and reformatted differences instead of counting them. |
