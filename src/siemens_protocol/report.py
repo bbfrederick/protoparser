@@ -12,6 +12,7 @@ from typing import Sequence
 
 from .diff import (
     CHANGED,
+    CHURN,
     ONLY_LEFT,
     ONLY_RIGHT,
     RECASED,
@@ -30,12 +31,14 @@ _MARK = {
     RENAMED: "R",
     REFORMATTED: "f",
     RECASED: "c",
+    CHURN: "s",
 }
 
 _COSMETIC_LABEL = {
     RENAMED: "relabeled",
     REFORMATTED: "reformatted",
     RECASED: "recased",
+    CHURN: "save-stamp only",
 }
 
 

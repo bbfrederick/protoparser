@@ -960,6 +960,58 @@ Four things worth knowing:
   bound or an unknown severity is an error, not a rule that quietly never
   matches.
 
+## Comparing two archives
+
+An `.exar1` stores no cards — what a page splits into Routine, Contrast and
+Geometry is a property of the page — so a scan read from an archive used to
+carry only the console's `Preview` summary, about forty parameters. Comparing
+two archives therefore compared **3.8%** of each protocol and said nothing
+about the rest: on one real pair, 82 ASCCONV assignments differed and the
+report showed 8, with five scans called *identical* because every difference
+they had sat outside `Preview`.
+
+A scan read from an archive now carries three things:
+
+- **`Preview`** — the console's own summary, in its own rendering.
+- **The cards.** Every parameter the mapping table can decode, under its
+  printed label, on each card the corpus records it printed on:
+  `sAdjData.uiAdjWithBC = 0x1` reads as `Adjust with Body Coil: On` under
+  `System - Adjustments`, and a CMRR flags word becomes fourteen named
+  checkboxes under `Sequence - Special`. This is the view someone changing a
+  protocol on the console works from.
+- **`ASCCONV`** — the whole parameter block, by key. The mapping table covers
+  72 labels against the several hundred a page prints, so this is what makes
+  the comparison *complete* even where it cannot be eloquent, and it is where
+  those five silent scans were hiding.
+
+```
+    Resolution - Filter
+      ~ Distortion Correction: Off  |  2D
+    System - Adjustments
+      ~ Confirm Frequency: Always  |  Never
+      + Adjust with Body Coil: On
+    Sequence - Special
+      ~ MB RF phase scramble: Off  |  On
+      ~ Suppress 16-bit DICOM: Off  |  On
+```
+
+A quantity printed on several cards is emitted under each, because the console
+really does offer it on each and keeps them in sync. The flattened view folds
+those back into one reading whose `sections` name where it was found, so the
+comparison reports it once rather than four times. Where `Preview` carries a
+label its rendering wins, since it is the console's own and carries the unit.
+
+The decode is checked against the console rather than trusted:
+`test_a_decoded_parameter_matches_the_card_that_printed_it` sweeps every
+archive with a printout beside it — some nine thousand readings — and requires
+each decoded value to match what the console displayed from those same bytes.
+
+**Save stamps are reported as cosmetic.** `tCheckUUID`, the GUID leading
+`sWipMemBlock.tFree` and `sSpecPara.lFinalMatrixSize*` — which hold a date and
+a time despite their names — are rewritten on every save, so two archives
+differing only there are the same protocol stored twice. They are counted and
+shown with `--show-cosmetic`, not as substantive differences.
+
 ## Comparing protocols
 
 `diff` answers the question a rebuild actually poses: what really changed, as

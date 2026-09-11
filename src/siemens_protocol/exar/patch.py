@@ -1254,6 +1254,144 @@ def sequence_of(protocol: Protocol) -> str:
     return str(entry.value) if entry is not None and entry.value is not None else ""
 
 
+#: ASCCONV assignments the console rewrites on every save, whatever the
+#: protocol says. Re-saving an unmodified protocol regenerates the GUID
+#: leading ``sWipMemBlock.tFree`` and every
+#: ``sCoilSelectMeas.aRxCoilSelectData[N].tCheckUUID``, and updates
+#: ``sSpecPara.lFinalMatrixSizePhase``/``...Read``, which despite their names
+#: hold a date and a time. Two protocols differing only here are the same
+#: protocol saved twice.
+#:
+#: ``tFree`` is on the list because of its GUID, not its tail: the rest of it
+#: is the sequence build stamp, which is the only record of which binary
+#: wrote a protocol. A reader wanting that asks :func:`sequence_stamp`.
+CHURN_KEYS = re.compile(r"tCheckUUID|sWipMemBlock\.tFree$|sSpecPara\.lFinalMatrixSize")
+
+
+def is_churn(key: str) -> bool:
+    """Whether an ASCCONV key is one the console rewrites on every save.
+
+    Parameters
+    ----------
+    key : str
+        A dotted ASCCONV key.
+
+    Returns
+    -------
+    bool
+        ``True`` when a difference there says the protocol was saved again
+        rather than that anything about it changed.
+    """
+    return bool(CHURN_KEYS.search(key))
+
+
+#: The printed card each mapped parameter appears on, derived from every
+#: shipped example rather than written by hand: for each label, the sections
+#: the corpus actually prints it under, keeping any card accounting for a
+#: tenth or more of its printings.
+#:
+#: A label may belong to several, and that is the printout rather than an
+#: ambiguity -- a scan prints ``TR`` on Routine, Contrast, Geometry and
+#: Physio, exactly as it prints ``Position`` up to four times. All of them
+#: are kept, so the parameter is found wherever a person goes looking for it,
+#: and the flattened view folds the repeats back into one reading.
+#:
+#: A bare group is dropped where a ``Group - Page`` for it is also kept:
+#: ``System`` beside ``System - Adjustments`` is the same card on a release
+#: that does not subdivide, named less precisely.
+CARDS: dict[str, tuple[str, ...]] = {
+    "ABCD navigator": ("Sequence - Special",),
+    "Acceleration Factor PE": ("Resolution - Acceleration",),
+    "Add. grad time": ("Sequence - Special",),
+    "Adjust with Body Coil": ("System - Adjustments",),
+    "Adjustment Tolerance": ("System - Adjustments",),
+    "Apply freq to": ("Sequence - Special",),
+    "Apply moco to": ("Sequence - Special",),
+    "Assume Silicone": ("System - Adjustments",),
+    "AutoAlign": ("Geometry - AutoAlign", "Routine"),
+    "Averaging": ("Sequence - Special",),
+    "B0 Shim": ("System - Adjustments",),
+    "B1 Shim": ("System - Adjustments", "System - pTx"),
+    "Base Resolution": ("Resolution - Common",),
+    "Coil Focus": ("System - Miscellaneous",),
+    "Confirm Frequency": ("System - Adjustments",),
+    "Coronal": ("System - Miscellaneous",),
+    "Disable B1 control loop": ("Sequence - Special",),
+    "Disable freq. update": ("Sequence - Special",),
+    "Distance Factor": ("Routine", "Geometry - Common"),
+    "Distortion Correction": ("Resolution - Filter",),
+    "FOV Phase": ("Routine", "Resolution - Common", "Geometry - Common", "Physio - Cardiac"),
+    "FOV Read": ("Routine", "Resolution - Common", "Geometry - Common", "Physio - Cardiac"),
+    "Fat-Water Contrast": ("Contrast - Common", "Physio - Cardiac"),
+    "Feedback Delay": ("Sequence - Special",),
+    "Flip Angle": ("Contrast - Common",),
+    "Force GPA balance": ("Sequence - Special",),
+    "Force equal slice timing": ("Sequence - Special",),
+    "Gradient spoiling": ("Sequence - Special",),
+    "Image Scaling": ("System - Tx/Rx",),
+    "Include Nav.": ("Sequence - Special",),
+    "Initial Rotation": ("Geometry - AutoAlign",),
+    "Invert RO/PE polarity": ("Sequence - Special",),
+    "K-space streaming": ("Sequence - Special",),
+    "MB LeakBlock kernel": ("Sequence - Special",),
+    "MB RF phase scramble": ("Sequence - Special",),
+    "MB dual kernel": ("Sequence - Special",),
+    "MSMA": ("System - Miscellaneous",),
+    "MT Flip Angle": ("Sequence - Special",),
+    "MT Offset": ("Sequence - Special",),
+    "MTC": ("Contrast - Common",),
+    "Matrix Optimization": ("System - Miscellaneous",),
+    "Measurements": ("Contrast - Dynamic", "BOLD", "Inline - Subtraction"),
+    "Moco ref. image": ("Sequence - Special",),
+    "Nav. location": ("Sequence - Special",),
+    "Normalize": ("Resolution - Filter",),
+    "Opt. MB RF pulse BW": ("Sequence - Special",),
+    "PF omits higher k-space": ("Sequence - Special",),
+    "Phase Partial Fourier": ("Resolution - Acceleration",),
+    "Prio Recon": ("Properties",),
+    "Protocol filename": ("Sequence - Special",),
+    "Reacq. threshold": ("Sequence - Special",),
+    "Readout polarity": ("Sequence - Special",),
+    "Reference Lines PE": ("Resolution - Acceleration",),
+    "Reference scan mode": ("Resolution - iPAT", "Resolution - Acceleration"),
+    "Remeasure": ("Sequence - Special",),
+    "SENSE1 coil combine": ("Sequence - Special",),
+    "Sagittal": ("System - Miscellaneous",),
+    "Series": ("Geometry - Common",),
+    "Single-band images": ("Sequence - Special",),
+    "Slice Thickness": ("Routine", "Resolution - Common", "Geometry - Common"),
+    "Slices per Slab": ("Routine", "Geometry - Common"),
+    "Static Field Correction": ("Resolution - Filter",),
+    "Suppress 16-bit DICOM": ("Sequence - Special",),
+    "TE": ("Routine", "Contrast - Common"),
+    "TE 2": ("Routine", "Contrast - Common"),
+    "TE 3": ("Routine", "Contrast - Common"),
+    "TE 4": ("Routine", "Contrast - Common"),
+    "TR": ("Routine", "Contrast - Common", "Geometry - Common", "Physio - Signal"),
+    "Table Position": ("Geometry - Tim Planning Suite",),
+    "Time-shifted MB RF": ("Sequence - Special",),
+    "Transversal": ("System - Miscellaneous",),
+    "Wait for User to Start": ("Properties",),
+}
+
+
+def cards_for(label: str) -> tuple[str, ...]:
+    """The printed cards a mapped parameter appears on.
+
+    Parameters
+    ----------
+    label : str
+        A printed parameter label.
+
+    Returns
+    -------
+    tuple of str
+        The section titles, most-printed first. Empty for a label the corpus
+        never prints, which no mapping currently has.
+    """
+    return CARDS.get(label, ())
+
+
 def sequence_stamp(protocol: Protocol) -> str:
     """Return whatever the sequence wrote into ``sWipMemBlock.tFree``.
 
@@ -1343,6 +1481,119 @@ def applies_to(mapping: Mapping, protocol: Protocol) -> bool:
         key, expected = mapping.when
         return read_ascconv(protocol.xprotocol, key) == expected
     return True
+
+
+def _stored_int(literal: str) -> int | None:
+    """Read a stored assignment as an integer, whatever base it is written in.
+
+    The console writes a flag as ``0x1`` and a small enum as ``2``, and the
+    same field can arrive as ``1.0`` from something that round-tripped
+    through a float.
+
+    Parameters
+    ----------
+    literal : str
+        The assignment's right-hand side.
+
+    Returns
+    -------
+    int or None
+        The value, or ``None`` when it is not a number.
+    """
+    text = literal.strip()
+    try:
+        return int(text, 0) if text.lower().startswith(("0x", "-0x")) else int(float(text))
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_element(mapping: Mapping, protocol: Protocol) -> str | None:
+    """Read the first element of an assignment replicated across an array.
+
+    ``FOV Read`` and ``Slice Thickness`` are stored on every
+    ``sSliceArray.asSlice[]`` element and hold the same value on each, so the
+    first is the displayed one. Reading it is not a shortcut: the whole point
+    of the replication is that the elements agree.
+
+    Parameters
+    ----------
+    mapping : Mapping
+        A mapping whose key is an array pattern.
+    protocol : Protocol
+        The protocol to read from.
+
+    Returns
+    -------
+    str or None
+        The first element's literal, or ``None`` when the array is empty.
+    """
+    for key, _index in expand(mapping.ascconv_key, protocol.xprotocol):
+        literal = read_ascconv(protocol.xprotocol, key)
+        if literal is not None:
+            return literal
+    return None
+
+
+def display(mapping: Mapping, protocol: Protocol) -> str | None:
+    """What a protocol stores for a mapped parameter, in the form a card shows.
+
+    The read direction of :data:`MAPPINGS`, which was built for writing. An
+    archive carries no cards, so a comparison of two archives can only speak
+    in printed terms by decoding: ``sAdjData.uiAdjWithBC = 0x1`` is
+    ``Adjust with Body Coil: On`` on the System card, and that is the form
+    someone changing a protocol on the console needs.
+
+    Declines rather than guesses. A derived value (``basis``) and a signed
+    coordinate (``sign_from``) are left to the raw parameter section, as is
+    any mapping whose gates say it does not apply to this scan -- a flag bit
+    belonging to another sequence, or to a build this one was not derived
+    from.
+
+    Parameters
+    ----------
+    mapping : Mapping
+        The parameter to read.
+    protocol : Protocol
+        The protocol to read it from.
+
+    Returns
+    -------
+    str or None
+        The displayed value, or ``None`` when this mapping cannot be decoded
+        for this protocol.
+    """
+    if not applies_to(mapping, protocol):
+        return None
+    if mapping.basis is not None or mapping.sign_from is not None:
+        return None
+
+    if "[*]" in mapping.ascconv_key:
+        literal = _first_element(mapping, protocol)
+    else:
+        literal = read_ascconv(protocol.xprotocol, mapping.ascconv_key)
+
+    if mapping.bit is not None:
+        # A word holding zero is not written at all, so an absent assignment
+        # is every flag off rather than an unknown.
+        word = 0 if literal is None else (_stored_int(literal) or 0)
+        return "On" if word >> mapping.bit & 1 else "Off"
+
+    if mapping.choices:
+        if literal is None:
+            return mapping.absent_choice
+        stored = _stored_int(literal)
+        for text, number in mapping.choices:
+            if stored == number:
+                return text
+        return None
+
+    if literal is None:
+        return None
+    try:
+        number = float(literal) / mapping.scale - mapping.offset
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    return f"{number:g}"
 
 
 def expand(pattern: str, text: str) -> list[tuple[str, int | None]]:

@@ -54,11 +54,15 @@ ONLY_RIGHT = "only_right"
 RENAMED = "renamed"
 REFORMATTED = "reformatted"
 RECASED = "recased"
+#: A field the console rewrites on every save, so a difference there says the
+#: protocol was saved again rather than that anything about it changed. Only
+#: an archive carries these; a printout does not print them.
+CHURN = "churn"
 
 #: Differences that represent a real protocol change.
 SUBSTANTIVE = (CHANGED, ONLY_LEFT, ONLY_RIGHT)
-#: Differences that are presentation only.
-COSMETIC = (RENAMED, REFORMATTED, RECASED)
+#: Differences that are presentation only, or are not about the protocol.
+COSMETIC = (RENAMED, REFORMATTED, RECASED, CHURN)
 
 #: Separator between a section's card and its tab, as every release prints it.
 _SECTION_SPLIT = " - "
@@ -604,6 +608,32 @@ def _flat_groups(flat: Mapping[str, dict]) -> dict[str, _Group]:
     return groups
 
 
+def _is_churn(key: str) -> bool:
+    """Whether a key is one the scanner rewrites whenever it saves.
+
+    Deferred rather than imported at module load: the list is the archive
+    reader's knowledge and belongs with it, but a comparison of two printouts
+    should not pay for reading that package to find out a printed label is
+    not an ASCCONV key. The import is cached after the first archive scan.
+
+    Parameters
+    ----------
+    key : str
+        A parameter key, printed label or ASCCONV path.
+
+    Returns
+    -------
+    bool
+        ``True`` for a churn field. A printed label is never one, so the
+        cheap test comes first.
+    """
+    if "." not in key:
+        return False
+    from .exar.patch import is_churn
+
+    return is_churn(key)
+
+
 def _pair_status(values_left: Sequence[str], values_right: Sequence[str]) -> str:
     """Classify a matched group of readings.
 
@@ -710,6 +740,12 @@ def diff_parameters(
             status = ONLY_LEFT
         else:
             status = _pair_status(group_left.values, group_right.values)
+            # Reported rather than dropped, and cosmetic rather than
+            # substantive: two archives differing only in their save stamps
+            # are the same protocol, and counting those would make every
+            # archive comparison report differences it cannot explain.
+            if status == CHANGED and _is_churn(key_left or ""):
+                status = CHURN
 
         diff = ParameterDiff(
             key_left,

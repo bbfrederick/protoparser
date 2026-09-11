@@ -38,6 +38,15 @@ from . import patch
 from .archive import DIRECTORY, Archive, Program, Protocol, Step
 from .geometry import agrees, read_group
 
+#: Section title carrying an archive scan's whole ASCCONV block. Not a card:
+#: the archive has none, and no release prints a section by this name, so it
+#: cannot be confused with one by anything reading section titles.
+ASCCONV_SECTION = "ASCCONV"
+
+#: Where a decoded parameter goes when the corpus records no card for it.
+#: Every mapping currently has one, so this is a guard rather than a case.
+UNCARDED_SECTION = "Parameters"
+
 #: The release profile a baseline's ``MAJORVERSION`` belongs to.
 #:
 #: Keyed on the same four characters the PDF profiles anchor their
@@ -448,7 +457,65 @@ def _step_names(archive: Archive) -> dict[str, str]:
     return {step.instance.object_id: step.name for step in archive.steps}
 
 
-def scan_of(step: Step, index: int, catalog: Catalog, folder: str = "") -> dict[str, Any]:
+def card_view(
+    protocol: Protocol,
+    printed: "OrderedDict[str, str] | None" = None,
+) -> "OrderedDict[str, OrderedDict[str, str]]":
+    """A protocol's mapped parameters, under the cards a printout prints them on.
+
+    An archive stores no cards -- what a page splits into Routine, Contrast
+    and Geometry is a property of the page -- but the parameters are the same
+    parameters, and a person changing a protocol works from the card. So the
+    mapping table is read backwards: each entry it can decode is emitted
+    under its printed label, on every card :data:`~.patch.CARDS` records it
+    printed on.
+
+    A quantity really does appear on several cards, and the console keeps
+    them in sync -- change ``TR`` on Routine and Contrast shows the new value
+    -- so emitting it under each is faithful rather than duplication, and the
+    flattened view folds the repeats back into one reading whose ``sections``
+    name where it was found.
+
+    This is a fraction of what a page prints: the table covers the parameters
+    a controlled edit has pinned, not the several hundred a printout carries.
+    The rest stays in the raw parameter section, which is what makes the
+    archive comparison complete even where it cannot be eloquent.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to read.
+    printed : OrderedDict or None, optional
+        The console's own ``Preview`` rendering, which wins where it carries
+        the label. It is the same quantity either way, but the console
+        renders it with its unit -- ``20.0 deg`` against a decoded ``20`` --
+        and two spellings of one value flatten to a *conflict*, which would
+        report the parameter as disagreeing with itself.
+
+    Returns
+    -------
+    OrderedDict
+        ``{card title: {printed label: displayed value}}``, cards in the
+        order the mapping table first reaches them.
+    """
+    cards: "OrderedDict[str, OrderedDict[str, str]]" = OrderedDict()
+    preview = printed or {}
+    for mapping in patch.MAPPINGS:
+        shown = preview.get(mapping.label, patch.display(mapping, protocol))
+        if shown is None:
+            continue
+        for card in patch.cards_for(mapping.label) or (UNCARDED_SECTION,):
+            cards.setdefault(card, OrderedDict())[mapping.label] = shown
+    return cards
+
+
+def scan_of(
+    step: Step,
+    index: int,
+    catalog: Catalog,
+    folder: str = "",
+    parameters: bool = False,
+) -> dict[str, Any]:
     """A step in the shape :meth:`..model.Scan.to_dict` produces.
 
     This is the adapter that lets the readers written for parsed PDFs -- the
@@ -472,6 +539,12 @@ def scan_of(step: Step, index: int, catalog: Catalog, folder: str = "") -> dict[
         The program's folder path, as :meth:`..archive.Archive.path_of`
         builds it. Default empty, which leaves ``path`` empty rather than
         inventing one.
+    parameters : bool, optional
+        Whether to carry the whole ASCCONV block as a second section.
+        Default ``False``, which is what the ``archive`` document wants --
+        it emits the parameter tree nested under ``ascconv`` instead, and
+        carrying it twice would double a document that is already the bulk
+        of the file.
 
     Returns
     -------
@@ -481,7 +554,25 @@ def scan_of(step: Step, index: int, catalog: Catalog, folder: str = "") -> dict[
     header = header_of(step)
     sections = OrderedDict()
     if step.runs_a_protocol:
-        sections["Preview"] = printed_view(step.protocol)
+        preview = printed_view(step.protocol)
+        sections["Preview"] = preview
+        if parameters:
+            # The console's Preview is a ~40-parameter summary, so a reader
+            # given that alone sees about two percent of what the protocol
+            # holds -- and sees it without being told, which is how a
+            # comparison of two archives came to report differences confined
+            # to Preview while 82 ASCCONV assignments differed beneath it.
+            # One section rather than one per struct: the archive has no
+            # cards, the key path already carries the structure, and a
+            # section named after a struct would be read as a card by
+            # anything matching on section titles.
+            # The cards first, because they speak in the labels a console
+            # shows and are what someone changing a protocol reads. The raw
+            # block still follows: the table covers a fraction of what a
+            # protocol holds, and the remainder is where the differences a
+            # Preview-only view was missing actually live.
+            sections.update(card_view(step.protocol, preview))
+            sections[ASCCONV_SECTION] = ascconv_table(step.protocol.xprotocol)
     scan: dict[str, Any] = {
         "index": index,
         "name": step.name,
@@ -758,7 +849,7 @@ def as_protocol(
     for step in program.steps:
         if not step.runs_a_protocol:
             continue
-        scan = scan_of(step, len(scans), catalog, folder)
+        scan = scan_of(step, len(scans), catalog, folder, parameters=True)
         if include_flat:
             # Built by the same flattener a parsed printout uses, not as a
             # plain key-to-value map. The comparison is the one consumer of

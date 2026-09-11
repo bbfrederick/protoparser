@@ -1320,3 +1320,130 @@ def test_every_corpus_archive_still_names_its_release(archive_path: str) -> None
     None
     """
     assert archive.read(archive_path).major_version.startswith("VA")
+
+
+#: Decoded readings that legitimately differ from the printout beside them,
+#: each already recorded elsewhere in this suite. ``T10`` is the scanner
+#: anomaly ``KNOWN_FLAG_DISAGREEMENTS`` pins -- it came back holding bits the
+#: returned printout shows clear -- and the ``MT`` pair is the off-grid rule:
+#: a value written off the console's grid is stored faithfully and displayed
+#: snapped to it, so 371 prints as 370. The rest are scans of a return whose
+#: printout was taken after the inconsistent scans were deleted, so the PDF
+#: is a subset and a same-named pairing can land on a neighbour.
+KNOWN_DISPLAY_DISAGREEMENTS = 20
+
+
+@requires_exar
+def test_a_decoded_parameter_matches_the_card_that_printed_it(
+    protocol_archive_path: str,
+) -> None:
+    """Reading the mapping table backwards reproduces the console's own card.
+
+    An archive stores no cards, so a comparison of two archives can only
+    speak in printed terms by decoding ``sAdjData.uiAdjWithBC`` back into
+    ``Adjust with Body Coil: On``. That decode is only worth having if it is
+    right, and the printout beside the archive is the only thing that can
+    say: it is what the console displayed from those same bytes.
+
+    Swept over every archive with a paired printout, which across the corpus
+    is some nine thousand comparisons. The unit is stripped before comparing
+    and the printed precision is allowed for, because the card prints
+    ``20.0 ms`` for a stored 20 and ``151`` for a stored 150.78 -- neither is
+    a disagreement about the value.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        Archive under test.
+
+    Returns
+    -------
+    None
+    """
+    loaded = exar.read(protocol_archive_path)
+    beside = os.path.splitext(protocol_archive_path)[0] + ".pdf"
+    if not os.path.isfile(beside):
+        # An ordinary member of a corpus where printouts are the exception.
+        # Not a skip: a skipped .exar1 test reads to CI as the archives being
+        # unusable. The total is guarded by the sweep below.
+        return
+    parsed = parse_document(beside).protocol.to_dict()
+    pairs = build.pair_programs(loaded, {os.path.basename(beside): parsed})
+    if not pairs.matched:
+        return
+    programs = {build.match_name(one.name): one for one in loaded.programs}
+    program = programs.get(build.match_name(pairs.matched[0][0]))
+    if program is None:
+        return
+
+    wrong = []
+    for step, scan in build.pair_scans(
+        [one for one in program.steps if one.runs_a_protocol], parsed["scans"]
+    ):
+        printed: dict[str, str] = {}
+        for _title, params in (scan.get("sections") or {}).items():
+            for key, value in (params or {}).items():
+                printed.setdefault(key.split(" #")[0], str(value))
+        for mapping in patch.MAPPINGS:
+            decoded = patch.display(mapping, step.protocol)
+            shown = printed.get(mapping.label)
+            if decoded is None or shown is None:
+                continue
+            bare = build.UNIT_SUFFIX.sub("", shown.strip())
+            if decoded.strip().casefold() == bare.strip().casefold():
+                continue
+            try:
+                if build.agrees_at_printed_precision(bare, float(decoded)):
+                    continue
+            except (TypeError, ValueError):
+                pass
+            wrong.append(f"{step.name}: {mapping.label} decoded {decoded!r}, printed {shown!r}")
+
+    assert len(wrong) <= KNOWN_DISPLAY_DISAGREEMENTS, (
+        f"::error::{os.path.basename(protocol_archive_path)} has {len(wrong)} decoded "
+        f"readings its own printout contradicts: {wrong[:6]}"
+    )
+
+
+@requires_exar
+def test_the_decode_sweep_is_not_vacuous() -> None:
+    """The decode check must actually compare something, and a lot of it.
+
+    It returns early on an archive with no paired printout, which reads
+    exactly like a pass from inside a parametrized test. The corpus-wide
+    total is asserted here instead, and asserted large: a decoder that
+    silently declined every mapping would satisfy the per-archive check
+    perfectly.
+
+    Returns
+    -------
+    None
+    """
+    compared = 0
+    for path, _version in EXAR_PROTOCOL_FILES:
+        beside = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.isfile(beside):
+            continue
+        loaded = exar.read(path)
+        parsed = parse_document(beside).protocol.to_dict()
+        pairs = build.pair_programs(loaded, {os.path.basename(beside): parsed})
+        if not pairs.matched:
+            continue
+        programs = {build.match_name(one.name): one for one in loaded.programs}
+        program = programs.get(build.match_name(pairs.matched[0][0]))
+        if program is None:
+            continue
+        for step, scan in build.pair_scans(
+            [one for one in program.steps if one.runs_a_protocol], parsed["scans"]
+        ):
+            printed = {
+                key.split(" #")[0]
+                for _title, params in (scan.get("sections") or {}).items()
+                for key in (params or {})
+            }
+            compared += sum(
+                1
+                for mapping in patch.MAPPINGS
+                if mapping.label in printed and patch.display(mapping, step.protocol) is not None
+            )
+    assert compared > 5000, f"::error::only {compared} decoded readings were checked"

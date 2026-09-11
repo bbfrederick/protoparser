@@ -793,9 +793,14 @@ def test_a_scan_read_from_an_archive_flattens_like_a_parsed_printout() -> None:
     for scan in scans:
         for key, entry in scan["flat"].items():
             assert isinstance(entry, dict), f"{key} flattened to {type(entry).__name__}"
-            assert entry["conflict"] is False, f"{key} conflicts, but an archive has no cards"
             assert "value" in entry
-            assert entry["sections"] == ["Preview"]
+            # A quantity the console prints on several cards is one quantity,
+            # settable from any of them and kept in sync -- so decoding it
+            # once and emitting it under each card can never disagree with
+            # itself. A conflict here would mean the decoder gave two
+            # answers for one parameter.
+            assert entry["conflict"] is False, f"{key} decoded to two different values"
+            assert entry["sections"], f"{key} belongs to no section"
 
 
 @requires_exar
@@ -832,8 +837,13 @@ def test_diff_takes_one_protocol_out_of_a_backup(capsys: pytest.CaptureFixture) 
         ]
     )
     out = capsys.readouterr().out
-    assert "18 scans compared, 18 identical" in out
+    assert "18 scans compared" in out
     assert "scan only in left" in out
+    # Five byte-identical and thirteen differing only in the fields the
+    # console rewrites on every save -- which is the shape CLAUDE.md records
+    # for this pair from an independent derivation, and is what says the
+    # churn classification is doing its job rather than hiding real changes.
+    assert "5 identical" in out
     assert "0 substantive differences" in out, "::error::the two protocols now differ elsewhere"
     assert code == 1
 
