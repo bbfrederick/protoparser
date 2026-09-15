@@ -4,6 +4,56 @@ Parameters a controlled edit would pin, most-printed first.
 `invariant` = never varies in the corpus, so nothing can be inferred.
 `N candidates` = several keys track it identically; one edit separates them.
 
+
+## Resolved by `CMRR_PARAMSCAN`
+
+A 16-copy option scan on `cmrr_mbep2d_bold` (P0 baseline, P1-P15 one console
+option each) closed three rows, and the way it closed them is worth keeping.
+
+| parameter | key | how |
+|---|---|---|
+| Physio recording | `sWipMemBlock.alFree[31]` | P6-P9, all five choices; `Off` is the omitted assignment |
+| Triggering scheme | `sWipMemBlock.alFree[27]` | P10-P12, all four choices; eliminates `adFree[0]` |
+| Echoes in separate series | `sWipMemBlock.alFree[0]` bit 29 | not from this scan -- see below |
+
+**The correlation harvest named the wrong key for one of them, and the
+acceptance rule's refusal is what saved it.** `Echoes in separate series` was
+listed here as one rejected candidate, `alFree[31]` -- which is really
+*Physio recording*. The two labels are not related; they were moved by the
+console in the *same* edit, so each correlates perfectly with the other's key
+over the corpus. Correlation cannot separate parameters that were always
+changed together, and no amount of corpus sweeping would have.
+
+What separated them was a **differential controlled edit**: the one console
+edit toggled ten Special-card options on each of two scans, and only one of
+those scans also toggled this label -- and only that scan's flag word also
+moved bit 29. Two scans sharing ten simultaneous toggles isolate the
+eleventh. Where an option scan varies one thing against a fixed baseline,
+this varies everything but one across a fixed pair, and it reaches parameters
+no option scan in the corpus happens to cover.
+
+So a `rejected` row here is not dead weight: it records a key the evidence
+*pointed at*, and one of them was a coincidence of the corpus rather than a
+fact about the format.
+
+## Still open
+
+`1st Signal/Mode` and `Acquisition Window` are now understood and still
+unmapped, because both need a shape `Mapping` does not have. P1-P5 show the
+mode writing **two** keys at once -- `sPhysioImaging.lSignal1` (a bit field:
+None 1, ECG 2, Pulse 4, Ext 8, Resp 16, 2nd Ext 64) together with
+`lMethod1` (None 1, Trigger 2) -- which is why one-key correlation listed
+both and could choose neither. `Acquisition Window` then lands in
+`sPhysioImaging.sPhysio<Kind>.lScanWindow`, where `<Kind>` is whichever
+signal the mode selected, so its key is not fixed either. One label to
+several keys, and a key chosen by another parameter's value, are both new;
+neither should be bolted on without deciding what `Mapping` ought to grow.
+
+The four other labels P1-P5 reveal (`Trigger Delay`, `Phases`,
+`Trigger Pulse`, `Average Cycle`) print only once physio is switched on and
+moved no assignment at all, so they are at sequence defaults and this scan is
+no evidence about where they live.
+
 | scans | parameter | state | candidate keys |
 |---|---|---|---|
 | 483 | Start measurements | invariant | `no candidate: nothing to observe` |
@@ -14,7 +64,7 @@ Parameters a controlled edit would pin, most-printed first.
 | 483 | Auto Store Images | invariant | `no candidate: nothing to observe` |
 | 483 | Adjustment Strategy | invariant | `no candidate: nothing to observe` |
 | 483 | ? Ref. Amplitude 1H | invariant | `no candidate: nothing to observe` |
-| 444 | 1st Signal/Mode | 2 candidates | `sPhysioImaging.lSignal1, sPhysioImaging.lMethod1` |
+| 444 | 1st Signal/Mode | needs a two-key mapping | `sPhysioImaging.lSignal1` **and** `lMethod1`, both |
 | 413 | Set-n-Go Protocol | invariant | `no candidate: nothing to observe` |
 | 413 | Inline Composing | invariant | `no candidate: nothing to observe` |
 | 413 | Dynamic Mode | 7 candidates | `sKSpace.ucAsymmetricEchoMode, sKSpace.ucDynamicMode` |
@@ -38,7 +88,7 @@ Parameters a controlled edit would pin, most-printed first.
 | 175 | Resp. Control | invariant | `no candidate: nothing to observe` |
 | 164 | Slab Group | invariant | `no candidate: nothing to observe` |
 | 156 | Slabs | 108 candidates | `sSliceArray.lSize, sSliceArray.lConc` |
-| 156 | Physio recording | 1 candidate, rejected | `sWipMemBlock.alFree[31]` |
+| 156 | Physio recording | **mapped** | `sWipMemBlock.alFree[31]` (CMRR_PARAMSCAN P6-P9) |
 | 156 | Min. prep scans | invariant | `no candidate: nothing to observe` |
 | 156 | FFT scale factor | 2 candidates | `sWipMemBlock.alFree[27], sWipMemBlock.adFree[0]` |
 | 156 | Delay before PC scans | invariant | `no candidate: nothing to observe` |
@@ -52,7 +102,7 @@ Parameters a controlled edit would pin, most-printed first.
 | 134 | Ignore After Transition | invariant | `no candidate: nothing to observe` |
 | 126 | Online multi-band recon. | invariant | `no candidate: nothing to observe` |
 | 126 | Min. prep scans SB | invariant | `no candidate: nothing to observe` |
-| 115 | Triggering scheme | 2 candidates | `sWipMemBlock.alFree[27], sWipMemBlock.adFree[0]` |
+| 115 | Triggering scheme | **mapped** | `sWipMemBlock.alFree[27]` (CMRR_PARAMSCAN P10-P12) |
 | 113 | Reordering | 340 candidates | `tdefaultEVAProt, sAdjData.uiAdjSliceBySliceTxRef` |
 | 108 | Elliptical Scanning | 13 candidates | `ucSequenceType, ulOrganUnderExamination` |
 | 108 | Acceleration Factor 3D | 11 candidates | `lTOM, sKSpace.dAngioDynCentralRegionA` |
@@ -178,7 +228,7 @@ Parameters a controlled edit would pin, most-printed first.
 | 21 | Readout trajectory | invariant | `no candidate: nothing to observe` |
 | 21 | Gradient moment factor | 2 candidates | `sSliceArray.ucMode, sWipMemBlock.adFree[1]` |
 | 19 | Inter-TE delay | invariant | `no candidate: nothing to observe` |
-| 19 | Echoes in separate series | 1 candidate, rejected | `sWipMemBlock.alFree[31]` |
+| 19 | Echoes in separate series | **mapped** | `sWipMemBlock.alFree[0]` bit 29 -- the candidate above was wrong |
 | 18 | Optimization | 1 candidate, rejected | `lTOM` |
 | 17 | Noise Masking | invariant | `no candidate: nothing to observe` |
 | 17 | Flip Angle 2 | invariant | `no candidate: nothing to observe` |
@@ -197,7 +247,7 @@ Parameters a controlled edit would pin, most-printed first.
 | 14 | Define | 194 candidates | `ucSequenceType, ucReadOutMode` |
 | 14 | Breast Application | invariant | `no candidate: nothing to observe` |
 | 14 | Average Cycle | invariant | `no candidate: nothing to observe` |
-| 14 | Acquisition Window | 181 candidates | `tProtocolName, ucReconstructionMode` |
+| 14 | Acquisition Window | needs a signal-dependent key | `sPhysioImaging.sPhysio<Kind>.lScanWindow` |
 | 12 | Red. EC Sensitivity | invariant | `no candidate: nothing to observe` |
 | 12 | Forced min. TE1 | invariant | `no candidate: nothing to observe` |
 | 12 | Echo Trains per Slice | 9 candidates | `lScanTimeSec, lTotalScanTimeSec` |

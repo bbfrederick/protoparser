@@ -24,6 +24,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from unittest import mock
 
 import pytest
 
@@ -742,6 +743,28 @@ def _ascconv_differences(one: str, other: str) -> set[str]:
 #: to cover a scan that starts differing for some other reason.
 PREDATES_RECENTRE = "Minn_CMRR_2.3mm_S8_rest_6min"
 
+#: Labels whose mappings were derived *after* this archive was sent to the
+#: scanner, so the return cannot attest to them. A scanner return is a
+#: physical record of what was written on one day: it says the loader kept
+#: those values, and it is silent about every value written since. Excluding
+#: them is not a weakening of the check -- the alternative reading, that the
+#: scanner discarded them, is refuted by the shape of the difference, which is
+#: absence rather than disagreement (``alFree[31]`` is not present at all, and
+#: ``alFree[0]`` differs by exactly 2**29 and nothing else).
+#:
+#: Pinned by label rather than by key so the next mapping onto an already
+#: written key is not silently excused too, and asserted non-empty and
+#: *live* below, so an entry that stops being written fails here instead of
+#: going on excusing a real difference -- the same guard ``PREDATES_RECENTRE``
+#: carries. Retiring one means sending a fresh build to a scanner.
+PREDATES_MAPPINGS = frozenset(
+    {
+        "Echoes in separate series",
+        "Physio recording",
+        "Triggering scheme",
+    }
+)
+
 
 @requires_exar
 def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
@@ -771,7 +794,20 @@ def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
 
     before = {step.name: step.protocol.xprotocol for step in read(template_path).steps}
     built = read(template_path)
-    report = build.apply_protocol(built, parse_document(pdf).protocol.to_dict(include_flat=True))
+    # Drive with the table as it stood when this archive was sent -- see
+    # PREDATES_MAPPINGS. Withholding those mappings rather than skipping their
+    # keys is what keeps `sWipMemBlock.alFree[0]` in the comparison: fifteen
+    # mappings share that one word, and dropping the key would stop checking
+    # the fourteen the scanner really did vouch for.
+    era = tuple(m for m in patch.MAPPINGS if m.label not in PREDATES_MAPPINGS)
+    assert len(era) == len(patch.MAPPINGS) - len(PREDATES_MAPPINGS), (
+        "PREDATES_MAPPINGS names a label the table no longer carries: "
+        f"{sorted(PREDATES_MAPPINGS - {m.label for m in patch.MAPPINGS})}"
+    )
+    with mock.patch.object(patch, "MAPPINGS", era):
+        report = build.apply_protocol(
+            built, parse_document(pdf).protocol.to_dict(include_flat=True)
+        )
     assert report.applied, "the driver wrote nothing, so there is nothing to check"
 
     assert [step.name for step in returned.steps] == list(before), "the loader dropped a scan"
@@ -828,7 +864,18 @@ def test_the_scanner_only_moved_fields_the_driver_left_to_the_template() -> None
     template = find_exar("Potpourri_P1.exar1")
     sent = read(template)
     parsed = parse_document(os.path.join(os.path.dirname(template), "Potpourri_P1_changed.pdf"))
-    build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
+    # Drive with the table as it stood when this archive was sent. Excluding
+    # the late mappings' *keys* instead would blind the comparison to the
+    # fourteen other flag bits sharing `alFree[0]`; withholding the mappings
+    # themselves leaves every one of those still compared.
+    era = tuple(m for m in patch.MAPPINGS if m.label not in PREDATES_MAPPINGS)
+    assert len(era) == len(patch.MAPPINGS) - len(PREDATES_MAPPINGS), (
+        "PREDATES_MAPPINGS names a label the table no longer carries: "
+        f"{sorted(PREDATES_MAPPINGS - {m.label for m in patch.MAPPINGS})}"
+    )
+    with mock.patch.object(patch, "MAPPINGS", era):
+        report = build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
+    assert not (PREDATES_MAPPINGS & {one.label for one in report.applied})
     returned = read(find_exar("driver_loadtest.exar1"))
 
     came_back = {step.name: step for step in returned.steps}

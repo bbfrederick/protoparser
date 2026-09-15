@@ -739,6 +739,69 @@ MAPPINGS: tuple[Mapping, ...] = (
         builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 28",
     ),
+    # Bit 29 and the two scalars below are gated to the BOLD sequence alone.
+    # Every controlled edit establishing them is a BOLD one, and a
+    # sWipMemBlock index means whatever its own binary reads it as -- the
+    # decoder agreeing elsewhere is the wrong kind of evidence for widening,
+    # exactly as it is for `Averaging`. A toggle on the second sequence is
+    # what an option scan would supply.
+    Mapping(
+        label="Echoes in separate series",
+        ascconv_key="sWipMemBlock.alFree[0]",
+        bit=29,
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        evidence=(
+            "controlled edit by subtraction: Potpourri_P1 -> Potpourri_P1_changed moves ten "
+            "Special-card options on both Minn_CMRR_2.3mm_S8_rest_6min and rfMRI REST ME PA "
+            "XA60, and the one scan that also toggles this label is the one scan whose word "
+            "also moves bit 29. Two scans sharing ten toggles isolate the eleventh. Agrees "
+            "with the printed card on 202 corpus scans with both states observed, none against."
+        ),
+    ),
+    Mapping(
+        label="Triggering scheme",
+        ascconv_key="sWipMemBlock.alFree[27]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        choices=(
+            ("Standard", 1),
+            ("Every Slice", 2),
+            ("Paradigm/Vol.", 3),
+            ("Paradigm/Slc.", 4),
+        ),
+        evidence=(
+            "controlled edit: CMRR_PARAMSCAN P10/P11/P12 vary this option alone from "
+            "the P0 "
+            "baseline, giving Every Slice, Paradigm/Vol. and Paradigm/Slc. against Standard; "
+            "the console's own Potpourri_P1 -> _changed edit independently moves Standard -> "
+            "Every Slice as 1 -> 2. All four choices observed. Agrees with the printed card "
+            "on 311 corpus scans, none against."
+        ),
+    ),
+    Mapping(
+        label="Physio recording",
+        ascconv_key="sWipMemBlock.alFree[31]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        choices=(
+            ("Off", 0),
+            ("Legacy", 1),
+            ("File", 2),
+            ("DICOM", 3),
+            ("Multiple", 4),
+        ),
+        absent_choice="Off",
+        evidence=(
+            "controlled edit: CMRR_PARAMSCAN P6/P7/P8/P9 vary this option alone from "
+            "the P0 "
+            "baseline, giving DICOM, File, Multiple and Legacy; the console's own "
+            "Potpourri_P1 -> _changed edit independently moves Off -> DICOM and Off -> Legacy "
+            "by creating the assignment, which is what makes Off the omitted zero rather than "
+            "a stored one. All five choices observed. Agrees with the printed card on 352 "
+            "corpus scans, none against."
+        ),
+    ),
     # ---- The ABCD navigated sequences. Shared between the MPRAGE and
     # SPACE variants, which agree on every index below.
     Mapping(
@@ -1759,6 +1822,7 @@ CARDS: dict[str, tuple[str, ...]] = {
     "Disable freq. update": ("Sequence - Special",),
     "Distance Factor": ("Routine", "Geometry - Common"),
     "Distortion Correction": ("Resolution - Filter",),
+    "Echoes in separate series": ("Sequence - Special",),
     "Elliptical Filter": ("Resolution - Filter",),
     "FOV Phase": ("Routine", "Resolution - Common", "Geometry - Common", "Physio - Cardiac"),
     "FOV Read": ("Routine", "Resolution - Common", "Geometry - Common", "Physio - Cardiac"),
@@ -1802,6 +1866,7 @@ CARDS: dict[str, tuple[str, ...]] = {
     "Phase Encoding": ("Resolution - Common",),
     "Phase Partial Fourier": ("Resolution - Acceleration",),
     "Phase Resolution": ("Resolution - Common", "Physio - Cardiac"),
+    "Physio recording": ("Sequence - Special",),
     "Preparation Scans": ("Contrast - Common", "Sequence - Common"),
     "Prio Recon": ("Properties",),
     "Protocol filename": ("Sequence - Special",),
@@ -1837,6 +1902,7 @@ CARDS: dict[str, tuple[str, ...]] = {
     "Table Position": ("Geometry - Tim Planning Suite",),
     "Time-shifted MB RF": ("Sequence - Special",),
     "Transversal": ("System - Miscellaneous",),
+    "Triggering scheme": ("Sequence - Special",),
     "Vector Size": ("Resolution - Common",),
     "Wait for User to Start": ("Properties",),
     "Water s. BW": ("Contrast - Common",),

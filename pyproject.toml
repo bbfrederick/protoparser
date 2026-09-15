@@ -88,7 +88,11 @@ pythonpath = ["tests"]
 [tool.codespell]
 # loadtest/ holds disposable scanner round-trip artifacts, PDFs included;
 # paramcheck/ and copyparamexamples/ hold option-scan exports, likewise.
-skip = "./examples,./tests/golden,./loadtest,./paramcheck,./copyparamexamples"
+# inbound/, outbound/, archive/ and comparetest/ are the gitignored working
+# directories those files arrive in and leave from. CI never sees them, so
+# these entries are purely so a bare `codespell` is usable locally -- without
+# them it reports hundreds of hits from the binary of every delivered PDF.
+skip = "./examples,./tests/golden,./loadtest,./paramcheck,./copyparamexamples,./inbound,./outbound,./archive,./comparetest,./private_examples"
 # TE and TR are parameter keys, not typos. ADDIN is a literal field of the
 # .exar1 baseline string ("MAJORVERSION:VA60A, ADDIN:NXMAINLINE, ..."), which
 # is quoted in CLAUDE.md and matched in code. This list is matched
