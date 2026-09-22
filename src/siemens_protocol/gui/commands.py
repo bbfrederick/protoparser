@@ -19,11 +19,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
+from ..analysis.policy import available as policy_available
+from ..analysis.sequences import SELECTORS
+from ..analysis.vocabulary import available as vocabulary_available
 from ..pipeline import OCR_ALWAYS, OCR_AUTO, OCR_NEVER
-from ..policy import available as policy_available
 from ..profiles import REGISTRY
-from ..sequences import SELECTORS
-from ..vocabulary import available as vocabulary_available
 
 #: Field kinds the browser knows how to render.
 #:

@@ -13,8 +13,7 @@ from pathlib import Path
 import pytest
 
 from conftest import ParseFixture, find_example, requires_examples
-from siemens_protocol.cli import main
-from siemens_protocol.policy import (
+from siemens_protocol.analysis.policy import (
     POLICY_DIR,
     Policy,
     PolicyError,
@@ -24,7 +23,8 @@ from siemens_protocol.policy import (
     load_policy,
     parse_number,
 )
-from siemens_protocol.vocabulary import load_vocabulary
+from siemens_protocol.analysis.vocabulary import load_vocabulary
+from siemens_protocol.cli import main
 
 
 def protocol(*scans: dict) -> dict:

@@ -65,9 +65,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 siemens_protocol = [
-    "vocabulary/*.json",
-    "policy/*.json",
-    "sequences/*.json",
+    "analysis/vocabulary/*.json",
+    "analysis/policy/*.json",
+    "analysis/sequences/*.json",
     "gui/static/*",
     "py.typed",
 ]

@@ -28,6 +28,7 @@ from typing import Any, Iterator
 import pytest
 
 from conftest import EXAMPLE_FILES, REPO_ROOT, requires_examples
+from siemens_protocol.analysis.sequences import FLAGGED
 from siemens_protocol.cli import build_parser
 from siemens_protocol.gui.browse import listing
 from siemens_protocol.gui.commands import (
@@ -38,7 +39,6 @@ from siemens_protocol.gui.commands import (
 )
 from siemens_protocol.gui.runner import MAX_LINES, Job, Runner
 from siemens_protocol.gui.server import serve
-from siemens_protocol.sequences import FLAGGED
 
 #: How long to wait for a spawned command before calling it hung.
 RUN_TIMEOUT = 180.0

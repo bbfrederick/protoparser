@@ -26,8 +26,7 @@ from conftest import (
     requires_exar,
 )
 from siemens_protocol import parse_document
-from siemens_protocol.cli import main
-from siemens_protocol.sequences import (
+from siemens_protocol.analysis.sequences import (
     FLAGGED,
     SELECTORS,
     STOCK,
@@ -48,6 +47,7 @@ from siemens_protocol.sequences import (
     special_keys,
     summarize,
 )
+from siemens_protocol.cli import main
 
 
 def golden_protocols() -> list[tuple[str, dict]]:

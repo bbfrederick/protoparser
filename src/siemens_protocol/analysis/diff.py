@@ -634,7 +634,7 @@ def _is_churn(key: str, values: Sequence[str] = ()) -> bool:
     """
     if "." not in key:
         return False
-    from .exar.patch import is_churn
+    from ..exar.patch import is_churn
 
     return all(is_churn(key, value) for value in values) if values else is_churn(key)
 
@@ -678,7 +678,7 @@ def diff_parameters(
     ----------
     left, right : mapping
         Flattened views, as produced by
-        :func:`~siemens_protocol.flatten.flatten_sections`.
+        :func:`~siemens_protocol.analysis.flatten.flatten_sections`.
     normalize : bool, optional
         Whether to match keys through :func:`canonical_key`, which is what
         lets a relabeled parameter be recognized as the same one. Default

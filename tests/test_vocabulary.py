@@ -21,17 +21,22 @@ from conftest import (
     requires_examples,
     requires_exar,
 )
-from siemens_protocol.cli import main
-from siemens_protocol.diff import ProtocolDiff, canonical_key, diff_protocols, normalize_key
-from siemens_protocol.profiles import REGISTRY
-from siemens_protocol.vocabsuggest import suggest_aliases, verify_aliases
-from siemens_protocol.vocabulary import (
+from siemens_protocol.analysis.diff import (
+    ProtocolDiff,
+    canonical_key,
+    diff_protocols,
+    normalize_key,
+)
+from siemens_protocol.analysis.vocabsuggest import suggest_aliases, verify_aliases
+from siemens_protocol.analysis.vocabulary import (
     VOCABULARY_DIR,
     Vocabulary,
     available,
     check,
     load_vocabulary,
 )
+from siemens_protocol.cli import main
+from siemens_protocol.profiles import REGISTRY
 
 SHIPPED = available()
 

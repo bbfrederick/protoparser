@@ -7,9 +7,9 @@ from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from .flatten import flatten_sections
+from .analysis.flatten import flatten_sections
+from .analysis.sequences import default_catalog, identify
 from .layout.sections import Record, SectionMarker
-from .sequences import default_catalog, identify
 
 #: Key used for a value whose label the layout could not recover.
 UNLABELED = "(unlabeled)"

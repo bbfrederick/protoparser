@@ -16,9 +16,8 @@ from pathlib import Path
 import pytest
 
 from conftest import ParseFixture, find_example, requires_examples
-from siemens_protocol import address
-from siemens_protocol.cli import main
-from siemens_protocol.diff import (
+from siemens_protocol.analysis import address
+from siemens_protocol.analysis.diff import (
     CHANGED,
     ONLY_LEFT,
     ONLY_RIGHT,
@@ -32,7 +31,8 @@ from siemens_protocol.diff import (
     diff_scans,
     normalize_key,
 )
-from siemens_protocol.report import name_mismatch_note, render_protocol, render_scan
+from siemens_protocol.analysis.report import name_mismatch_note, render_protocol, render_scan
+from siemens_protocol.cli import main
 
 
 def flat(**pairs: str) -> dict[str, dict]:

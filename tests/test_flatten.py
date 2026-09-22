@@ -7,7 +7,7 @@ from collections import OrderedDict
 import pytest
 
 from conftest import EXAMPLE_FILES, EXAMPLE_IDS, ParseFixture, find_example, requires_examples
-from siemens_protocol.flatten import conflicts, flatten_sections
+from siemens_protocol.analysis.flatten import conflicts, flatten_sections
 
 
 def test_agreeing_occurrences_collapse_to_one_value() -> None:

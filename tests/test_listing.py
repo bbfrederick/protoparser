@@ -14,14 +14,14 @@ from pathlib import Path
 import pytest
 
 from conftest import EXAMPLE_FILES, EXAMPLE_IDS, ParseFixture, find_example, requires_examples
-from siemens_protocol.cli import main
-from siemens_protocol.listing import (
+from siemens_protocol.analysis.listing import (
     ScanRow,
     build_listing,
     format_duration,
     parse_acquisition_time,
     render_listing,
 )
+from siemens_protocol.cli import main
 
 
 def _protocol(*scans: dict) -> dict:

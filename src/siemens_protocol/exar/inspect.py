@@ -31,9 +31,9 @@ import re
 from collections import OrderedDict
 from typing import Any
 
-from ..flatten import flatten_sections
-from ..listing import format_duration
-from ..sequences import Catalog, default_catalog, identify
+from ..analysis.flatten import flatten_sections
+from ..analysis.listing import format_duration
+from ..analysis.sequences import Catalog, default_catalog, identify
 from . import patch
 from .archive import DIRECTORY, Archive, Program, Protocol, Step
 from .geometry import agrees, read_group

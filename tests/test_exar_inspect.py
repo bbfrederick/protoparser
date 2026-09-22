@@ -19,10 +19,10 @@ import pytest
 
 from conftest import EXAR_PROTOCOL_FILES, find_exar, requires_exar
 from siemens_protocol import exar
+from siemens_protocol.analysis.sequences import STOCK, THIRD_PARTY, default_catalog
 from siemens_protocol.exar import inspect as ins
 from siemens_protocol.exar import patch, store
 from siemens_protocol.pipeline import ParseOptions, parse_document
-from siemens_protocol.sequences import STOCK, THIRD_PARTY, default_catalog
 
 
 def _leaves(node: object, path: tuple[str, ...] = ()) -> list[tuple[tuple[str, ...], object]]:
@@ -223,7 +223,7 @@ def test_the_stored_scan_time_agrees_with_the_printed_one() -> None:
     -------
     None
     """
-    from siemens_protocol.listing import parse_acquisition_time
+    from siemens_protocol.analysis.listing import parse_acquisition_time
 
     archive_path = find_exar("Potpourri_P1.exar1")
     pdf = archive_path[: -len(".exar1")] + ".pdf"
@@ -1052,7 +1052,7 @@ def test_every_scan_in_the_corpus_is_addressable(protocol_archive_path: str) -> 
     """
     import collections
 
-    from siemens_protocol import address
+    from siemens_protocol.analysis import address
 
     archive = exar.read(protocol_archive_path)
     candidates = []

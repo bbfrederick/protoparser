@@ -28,15 +28,15 @@ from conftest import (
     find_example,
     requires_examples,
 )
-from siemens_protocol.cli import main
-from siemens_protocol.listing import build_listing
-from siemens_protocol.sequences import STOCK, THIRD_PARTY, VERDICTS
-from siemens_protocol.summary import (
+from siemens_protocol.analysis.listing import build_listing
+from siemens_protocol.analysis.sequences import STOCK, THIRD_PARTY, VERDICTS
+from siemens_protocol.analysis.summary import (
     UNNAMED,
     build_summary,
     protocol_name,
     render_summary,
 )
+from siemens_protocol.cli import main
 
 
 def _protocol(*scans: dict, **extra: object) -> dict:

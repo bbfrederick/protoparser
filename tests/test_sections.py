@@ -22,8 +22,7 @@ from pathlib import Path
 import pytest
 
 from conftest import ParseFixture, find_example, requires_examples
-from siemens_protocol.cli import main
-from siemens_protocol.diff import (
+from siemens_protocol.analysis.diff import (
     HEADER_SECTION,
     ONLY_LEFT,
     ONLY_RIGHT,
@@ -35,14 +34,15 @@ from siemens_protocol.diff import (
     normalize_section,
     section_groups,
 )
-from siemens_protocol.flatten import flatten_sections
-from siemens_protocol.report import render_protocol, render_scan
+from siemens_protocol.analysis.flatten import flatten_sections
+from siemens_protocol.analysis.report import render_protocol, render_scan
+from siemens_protocol.cli import main
 
 
 def sectioned(sections: dict[str, dict[str, str]]) -> dict[str, dict]:
     """Build a flattened view through the production flattening step.
 
-    Going through :func:`~siemens_protocol.flatten.flatten_sections` rather
+    Going through :func:`~siemens_protocol.analysis.flatten.flatten_sections` rather
     than hand-writing the entries is deliberate: it is the step that records
     which sections printed a key, and that provenance is what is under test.
 
@@ -73,7 +73,7 @@ def scan(sections: dict[str, dict[str, str]], name: str = "scan") -> dict:
     -------
     dict
         A scan carrying ``sections`` and the matching ``flat`` view, which is
-        what :func:`~siemens_protocol.diff.diff_scans` reads.
+        what :func:`~siemens_protocol.analysis.diff.diff_scans` reads.
     """
     return {
         "name": name,

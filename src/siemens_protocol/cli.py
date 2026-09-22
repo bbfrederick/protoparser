@@ -8,12 +8,23 @@ import os
 import sys
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
-from . import __version__, address
+from . import __version__
+from .analysis import address
+from .analysis.diff import diff_protocols, diff_scans, normalize_section, section_groups
+from .analysis.flatten import conflicts
+from .analysis.listing import build_listing, render_listing
+from .analysis.policy import PolicyError, PolicyReport, check_protocol, load_policy
+from .analysis.report import name_mismatch_note, render_protocol, render_scan, section_filter_note
+from .analysis.sequences import FLAGGED, SELECTORS, STOCK, THIRD_PARTY, UNRECOGNIZED
+from .analysis.sequences import check as check_catalog
+from .analysis.sequences import describe, identify_protocol, load_catalog
+from .analysis.sequences import render as render_sequences
+from .analysis.sequences import summarize
+from .analysis.summary import build_summary, render_summary
+from .analysis.vocabsuggest import suggest_aliases, verify_aliases
+from .analysis.vocabulary import available, check, load_vocabulary
 from .debug import write_debug
-from .diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .extract import TESSERACT_ENV
-from .flatten import conflicts
-from .listing import build_listing, render_listing
 from .model import Protocol
 from .pipeline import (
     OCR_ALWAYS,
@@ -23,17 +34,7 @@ from .pipeline import (
     ParseResult,
     parse_document,
 )
-from .policy import PolicyError, PolicyReport, check_protocol, load_policy
 from .profiles import REGISTRY
-from .report import name_mismatch_note, render_protocol, render_scan, section_filter_note
-from .sequences import FLAGGED, SELECTORS, STOCK, THIRD_PARTY, UNRECOGNIZED
-from .sequences import check as check_catalog
-from .sequences import describe, identify_protocol, load_catalog
-from .sequences import render as render_sequences
-from .sequences import summarize
-from .summary import build_summary, render_summary
-from .vocabsuggest import suggest_aliases, verify_aliases
-from .vocabulary import available, check, load_vocabulary
 
 if TYPE_CHECKING:  # imported for annotations only -- reading an archive is
     # a heavier import than the PDF path needs, so it stays deferred at runtime.

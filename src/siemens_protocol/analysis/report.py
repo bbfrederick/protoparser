@@ -147,7 +147,7 @@ def _by_section(diffs: Sequence[ParameterDiff], indent: str) -> list[str]:
     ----------
     diffs : sequence of ParameterDiff
         Differences already ordered by section, as
-        :func:`~siemens_protocol.diff.diff_parameters` returns them. Grouping
+        :func:`~siemens_protocol.analysis.diff.diff_parameters` returns them. Grouping
         is by adjacency, so the order is what decides the grouping.
     indent : str
         Prefix applied to every line.
