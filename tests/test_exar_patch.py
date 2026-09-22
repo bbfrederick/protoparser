@@ -757,9 +757,17 @@ PREDATES_RECENTRE = "Minn_CMRR_2.3mm_S8_rest_6min"
 #: *live* below, so an entry that stops being written fails here instead of
 #: going on excusing a real difference -- the same guard ``PREDATES_RECENTRE``
 #: carries. Retiring one means sending a fresh build to a scanner.
+#:
+#: ``FFT scale factor`` joined the table from probe run 2, which is months
+#: after this archive was built, so the driver now writes a value the
+#: scanner was never given -- it returned ``adFree[0]`` at the template's
+#: 1.0 while the driver would today write the printed 0.99. That is the
+#: ordinary shape of this set rather than a new kind of exception, and the
+#: mapping itself rests on a controlled edit in a later return.
 PREDATES_MAPPINGS = frozenset(
     {
         "Echoes in separate series",
+        "FFT scale factor",
         "Physio recording",
         "Triggering scheme",
     }
@@ -1591,7 +1599,27 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
     # second field for a copy that prints one change: executionopts E05 sets a
     # timing-delay flag beside the workflow one, and a geometry copy sets
     # Laterality beside the rotation it prints.
-    expected_extra = {"sAngio.ucUseTimingDelay", "sAAInitialOffset.Laterality"}
+    #
+    # The Hamming width is the same case as the two sRawFilter fields below,
+    # and run 2 settled it the same way: the console writes lWidthPercent
+    # beside ucOn, and a probe writing the width beneath that switch printed
+    # exactly what the switch alone prints and nothing more.
+    #
+    # The two sRawFilter fields are a third case and a better-understood one:
+    # switching the raw filter on, the console writes ucMode and lSlope_256
+    # beside ucOn, so a replay of its edit moves all three while the mapping
+    # claims one. That partial write is safe rather than merely tolerated --
+    # probe run 1 created ucOn alone, with no ucMode and no slope at all, and
+    # the scanner loaded it and printed "Raw Filter On". The same run wrote
+    # each of the other two beside an absent ucOn and neither changed
+    # anything printed, so they are the filter's shape and ucOn is its switch.
+    expected_extra = {
+        "sAngio.ucUseTimingDelay",
+        "sAAInitialOffset.Laterality",
+        "sRawFilter.ucMode",
+        "sRawFilter.lSlope_256",
+        "sHammingFilter.lWidthPercent",
+    }
     assert unclaimed <= expected_extra, (
         "replay left fields no mapping claims and none expected: "
         f"{sorted(unclaimed - expected_extra)}"

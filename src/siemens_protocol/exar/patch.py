@@ -72,6 +72,9 @@ SPARSE_KEYS = frozenset(
         "sSliceArray.ucImageNumbSag",
         "sSliceArray.ucImageNumbTra",
         "sPreScanNormalizeFilter.ucOn",
+        "sRawFilter.ucOn",
+        "sHammingFilter.ucOn",
+        "sKSpace.dPhaseOversamplingForDialog",
         "ucReconstructionPrio",
         "sWorkflow.ucWaitForUserStart",
         "sAAInitialOffset.SliceInformation.dInPlaneRot",
@@ -90,6 +93,8 @@ HEX_KEYS = frozenset(
         "sAdjData.uiAdjTableToleranceValid",
         "sAdjData.uiAdjFreSiliconeDetection",
         "sPreScanNormalizeFilter.ucOn",
+        "sRawFilter.ucOn",
+        "sHammingFilter.ucOn",
         "ucReconstructionPrio",
         "sWorkflow.ucWaitForUserStart",
         "ucStaticFieldCorrection",
@@ -136,6 +141,16 @@ SPARSE_ANCHORS: dict[str, tuple[str, ...]] = {
     "lRepetitions": ("dAveragesDouble",),
     "sGroupArray.asGroup[0].dDistFact": ("sGroupArray.asGroup[0].nSize",),
     "sPrepPulses.ucMTC": ("sPrepPulses.ucTIScout",),
+    # Mined out of the corpus rather than read off a console, and then
+    # validated the harder way: probe run 1 created both lines at these
+    # positions, the scanner loaded them, and its own re-export left each
+    # exactly where we had put it.
+    "sKSpace.dPhaseOversamplingForDialog": ("sKSpace.dPhaseResolution",),
+    "sRawFilter.ucOn": (
+        "sRawFilter.lSlope_256",
+        "sPreScanNormalizeFilter.ucMode",
+    ),
+    "sHammingFilter.ucOn": ("sPreScanNormalizeFilter.ucMode",),
     "ucReconstructionPrio": ("ulWrapUpMagn",),
 }
 
@@ -485,7 +500,11 @@ MAPPINGS: tuple[Mapping, ...] = (
         evidence="controlled edit: resolutionopts/RE20, Prescan->Off. Sparse: the "
         "assignment is deleted rather than set to zero, seen on 168 corpus scans. "
         "'Image Based' is deliberately absent: it stores the same absence as Off, "
-        "so it is distinguished by another field and cannot be written from here.",
+        "so it is distinguished by another field and cannot be written from here. "
+        "Corroborated from the opposite direction by probe run 1 (PROBE_RUN1, "
+        "2026-09-18), which created the assignment at 1 and got 'Prescan' back; the "
+        "same run rules out ucMode as the switch, a probe writing ucMode 1 beside an "
+        "absent ucOn having changed nothing printed at all.",
     ),
     Mapping(
         label="Prio Recon",
@@ -1270,6 +1289,163 @@ MAPPINGS: tuple[Mapping, ...] = (
             "corpus correlation over 23 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: the interpolated phase matrix, on the scans that have one"
         ),
     ),
+    Mapping(
+        label="Phase Oversampling",
+        ascconv_key="sKSpace.dPhaseOversamplingForDialog",
+        scale=0.01,
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe run 1 (PROBE_RUN1, 2026-09-18) created this assignment "
+            "at 0.2 in a copy of Minn_CMRR_2.3mm_S8_rest_6min, and the scanner's own "
+            "re-export prints '20 %' on both Routine and Geometry - Common against the "
+            "control's '0 %'. Before the probe the corpus held exactly one scan pairing the "
+            "key with a printed value (0.1 against '10 %'), which fixed the form and not much "
+            "else; the template's 81 other scans print '0 %' with the assignment absent, "
+            "which is what makes absence zero here"
+        ),
+    ),
+    Mapping(
+        label="Raw Filter",
+        ascconv_key="sRawFilter.ucOn",
+        choices=(("Off", 0), ("On", 1)),
+        evidence=(
+            "controlled edit: probe run 1 (PROBE_RUN1, 2026-09-18) created this assignment "
+            "at 1 and the scanner returned it spelled 0x1, printing 'On' against the "
+            "control's 'Off'. The switch is ucOn and not ucMode, which the same run settles "
+            "in the other direction: a probe writing ucMode 2 beside an absent ucOn was kept "
+            "verbatim and changed nothing printed at all -- and probe run 2 closed that "
+            "off from the other side, writing ucMode 1, ucMode 4 and lSlope_256 25 "
+            "each beneath ucOn 1, where all three printed exactly what ucOn alone "
+            "prints and nothing more. Off is the omitted zero, spelled "
+            "as a choice rather than as an absent_choice so that writing Off deletes the "
+            "assignment the way Normalize and Prio Recon beside it do"
+        ),
+    ),
+    Mapping(
+        label="Hamming",
+        ascconv_key="sHammingFilter.ucOn",
+        choices=(("Off", 0), ("On", 1)),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) created this "
+            "assignment at 1 in a copy of Minn_CMRR_2.3mm_S8_rest_6min and the scanner "
+            "returned it spelled 0x1, printing 'Hamming' as On against the control's "
+            "Off. Asked on its own, with no other field written, which is what "
+            "separates it from the width: a probe writing lWidthPercent 60 beneath "
+            "this same switch moved nothing the switch had not already moved"
+        ),
+    ),
+    Mapping(
+        label="Dynamic Mode",
+        ascconv_key="sKSpace.ucDynamicMode",
+        choices=(("Standard", 1), ("TWIST", 2)),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this 1 -> 2 "
+            "and the printed 'Dynamic Mode' went Standard -> TWIST, nothing else "
+            "moving. The key is constant across all 285 corpus scans of this "
+            "sequence, so no amount of corpus correlation could have found it"
+        ),
+    ),
+    Mapping(
+        label="Excite pulse duration",
+        ascconv_key="sWipMemBlock.alFree[2]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this "
+            "5960 -> 5000 and the Special card's 'Excite pulse duration' followed, "
+            "5960 us -> 5000 us, with nothing else printed or recomputed. Scoped to "
+            "the one sequence the probe ran, not to the three that share the card: "
+            "widening a sWipMemBlock mapping needs a controlled toggle on the second "
+            "sequence, which is the rule Averaging is still waiting on"
+        ),
+    ),
+    Mapping(
+        label="FFT scale factor",
+        ascconv_key="sWipMemBlock.adFree[0]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this "
+            "1.0 -> 2.0 and the Special card's 'FFT scale factor' followed, "
+            "1.00 -> 2.00, alone. This is one of the seven parameters the "
+            "driver-against-answer-key comparison could not reproduce"
+        ),
+    ),
+    Mapping(
+        label="Excitation duration",
+        ascconv_key="sWipMemBlock.adFree[0]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
+            "2000.0 -> 1800.0 and the Special card followed, 2000.00 us -> 1800.00 us, "
+            "alone. This sequence stamps no build, so builds is empty for the reason "
+            "the ABCD navigators' mappings are -- there is nothing to gate on"
+        ),
+    ),
+    Mapping(
+        label="Refocusing duration",
+        ascconv_key="sWipMemBlock.adFree[1]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
+            "4500.0 -> 4050.0 and the Special card followed, 4500.00 us -> 4050.00 us, "
+            "alone"
+        ),
+    ),
+    Mapping(
+        label="HSn modulation",
+        ascconv_key="sWipMemBlock.alFree[17]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this 16 -> 14 "
+            "and the printed 'HSn modulation' followed, alone. The probe existed "
+            "because alFree[13] and alFree[17] both held 16 against a single printed "
+            "16, so at most one could be right: alFree[13] moved to 14 in the same run "
+            "and printed nothing under that label, adding Metabolite Cycling and "
+            "Water Suppr. BW rows instead. A matching number is not a mapping"
+        ),
+    ),
+    Mapping(
+        label="Bandwidth_1ms",
+        ascconv_key="sWipMemBlock.alFree[18]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this 45 -> 40 "
+            "and the printed 'Bandwidth_1ms' followed, 45 kHz -> 40 kHz, alone"
+        ),
+    ),
+    Mapping(
+        label="Gradient factor",
+        ascconv_key="sWipMemBlock.alFree[19]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this 85 -> 76 "
+            "and the printed 'Gradient factor' followed, 85 % -> 76 %, alone"
+        ),
+    ),
+    Mapping(
+        label="Gradient Max. Amplitude",
+        ascconv_key="sWipMemBlock.alFree[20]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22), and the one in "
+            "that run where the console did not keep what was written: 33 was sent, 36 "
+            "came back stored, and 36 was printed against the template's 37. So the "
+            "label really is this element and the scanner quantises the value on the "
+            "way in -- which is a different behaviour from MT Flip Angle, where an "
+            "off-grid value is stored faithfully and only the display snaps. The grid "
+            "is not established: 36 and 37 are both reachable and 33 is not"
+        ),
+    ),
+    Mapping(
+        label="Ramp time",
+        ascconv_key="sWipMemBlock.alFree[21]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
+            "200 -> 180 and the printed 'Ramp time' followed, 200 us -> 180 us, alone"
+        ),
+    ),
 )
 
 
@@ -1550,7 +1726,7 @@ def remove_ascconv(text: str, key: str) -> str:
     return text[: found.start()] + text[found.end() :] if found else text
 
 
-def insert_ascconv(text: str, key: str, literal: str) -> str:
+def insert_ascconv(text: str, key: str, literal: str, anchors: tuple[str, ...] = ()) -> str:
     """Add an assignment that the document does not yet carry.
 
     Sparse arrays are written in ascending index order, so a new element goes
@@ -1566,6 +1742,12 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
         The assignment to add, for example ``sWipMemBlock.alFree[0]``.
     literal : str
         The value to write.
+    anchors : tuple of str, optional
+        Assignments this key is known to follow, tried ahead of
+        :data:`SPARSE_ANCHORS`. A probe writes keys nobody has curated an
+        anchor for, and mining one out of the corpus is weaker evidence than
+        reading it off the console's output, so a mined anchor is passed in
+        rather than joining the table.
 
     Returns
     -------
@@ -1578,7 +1760,7 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
         return text
     match = re.fullmatch(r"(.*)\[(\d+)\]", key)
     if match is None:
-        return _insert_scalar(text, key, literal, start, end)
+        return _insert_scalar(text, key, literal, start, end, anchors)
     stem, index = match.group(1), int(match.group(2))
     sibling = re.compile(rf"^([ \t]*){re.escape(stem)}\[(\d+)\]([ \t]*=[ \t]*).*?\r?\n", re.M)
     found = [m for m in sibling.finditer(text, start, end)]
@@ -1592,7 +1774,9 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
     return text[:at] + line + text[at:]
 
 
-def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> str:
+def _insert_scalar(
+    text: str, key: str, literal: str, start: int, end: int, anchors: tuple[str, ...] = ()
+) -> str:
     """Place a non-array assignment where the console writes it.
 
     A sparse scalar has no sibling index to sort against, and ASCCONV is
@@ -1615,6 +1799,8 @@ def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> s
         Offset of the ASCCONV block's start.
     end : int
         Offset of its end.
+    anchors : tuple of str, optional
+        Assignments to try ahead of :data:`SPARSE_ANCHORS`.
 
     Returns
     -------
@@ -1624,7 +1810,7 @@ def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> s
         treat "unchanged" as a refusal rather than a write -- silently
         writing nothing is the failure this shape invites.
     """
-    for anchor in SPARSE_ANCHORS.get(key, ()):
+    for anchor in tuple(anchors) + SPARSE_ANCHORS.get(key, ()):
         found = _assignment(anchor).search(text, start, end)
         if found is None:
             continue
