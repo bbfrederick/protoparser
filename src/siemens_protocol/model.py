@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Sequence
 
 from .analysis.flatten import flatten_sections
-from .analysis.sequences import default_catalog, identify
+from .analysis.sequences import Catalog, default_catalog, identify
 from .layout.sections import Record, SectionMarker
 
 #: Key used for a value whose label the layout could not recover.
@@ -77,9 +77,21 @@ class Scan:
     header_summary : str
         The raw ``TA: ...`` line, kept for debugging a new release.
     records : list
-        Records and section markers, in reading order.
+        Records and section markers, in reading order. PDF-only: set when
+        ``source`` is ``"pdf"``, left empty otherwise.
     pages : list of int
-        One-based page numbers this scan spans.
+        One-based page numbers this scan spans. PDF-only, for the same
+        reason as ``records`` -- an archive-backed scan has no pages, and
+        ``to_dict`` omits the key entirely rather than reporting an empty one.
+    source : str, optional
+        Where this scan came from: ``"pdf"`` (default) or ``"exar1"``. Decides
+        which of ``records``/``stored_sections`` :meth:`sections` reads, and
+        whether ``to_dict`` reports ``pages``.
+    stored_sections : OrderedDict or None, optional
+        The archive-only equivalent of ``records`` -- sections already
+        assembled by the archive reader, rather than a record stream to fold.
+        Mutually exclusive with ``records``: set this when ``source`` is
+        ``"exar1"``, leave it ``None`` for a PDF-backed scan.
     """
 
     index: int
@@ -89,6 +101,8 @@ class Scan:
     header_summary: str = ""
     records: list[Record | SectionMarker] = field(default_factory=list)
     pages: list[int] = field(default_factory=list)
+    source: str = "pdf"
+    stored_sections: OrderedDict[str, OrderedDict[str, str]] | None = None
 
     def sections(self) -> OrderedDict[str, OrderedDict[str, str]]:
         """The scan's parameters, grouped by the section they were printed in.
@@ -96,23 +110,34 @@ class Scan:
         Returns
         -------
         OrderedDict
-            Sections in printed order; see :func:`build_sections`.
+            ``stored_sections`` verbatim when set (an archive-backed scan);
+            otherwise :func:`build_sections` folded over ``records`` (a
+            PDF-backed scan), in printed order either way.
         """
+        if self.stored_sections is not None:
+            return self.stored_sections
         return build_sections(self.records)
 
-    def to_dict(self, include_flat: bool = True) -> dict:
+    def to_dict(self, include_flat: bool = True, catalog: Catalog | None = None) -> dict:
         """Serialize the scan.
 
         Parameters
         ----------
         include_flat : bool, optional
             Whether to include the flattened per-key view. Default ``True``.
+        catalog : Catalog or None, optional
+            Signatures to identify the sequence against. The shipped catalog
+            is used when omitted -- the only case any current caller needs,
+            since a caller wanting a different catalog re-identifies from the
+            serialized document afterwards (see
+            :func:`~siemens_protocol.analysis.sequences.identify_protocol`)
+            rather than relying on what is baked in here.
 
         Returns
         -------
         dict
             Index, name, path, header, provenance, sections, optional flat
-            view and pages.
+            view, and ``pages`` when ``source`` is ``"pdf"``.
         """
         sections = self.sections()
         out: OrderedDict[str, object] = OrderedDict()
@@ -125,7 +150,9 @@ class Scan:
         # migration has to be rebuilt by hand, and anything reading this
         # JSON needs it as much as the report does. Recomputed on every
         # serialization, so a catalog correction reaches old parses too --
-        # see sequences.identify.
+        # see sequences.identify. The same call site now serves both a
+        # PDF-backed and an archive-backed scan; only the sections fed to it
+        # differ, per source.
         out["provenance"] = identify(
             {
                 "index": self.index,
@@ -134,12 +161,13 @@ class Scan:
                 "header": self.header,
                 "sections": sections,
             },
-            default_catalog(),
+            catalog or default_catalog(),
         ).to_dict()
         out["sections"] = sections
         if include_flat:
             out["flat"] = flatten_sections(sections)
-        out["pages"] = self.pages
+        if self.source == "pdf":
+            out["pages"] = self.pages
         return out
 
 
@@ -157,6 +185,10 @@ class Protocol:
         How the version was decided, and with what confidence.
     scanner : str
         The running page header, naming the scanner and software build.
+    program : str, optional
+        The protocol's name as an archive's ``EdfProgram`` node states it.
+        Empty for a PDF-backed protocol, which has no such node to read;
+        ``to_dict`` omits the key rather than reporting an empty one.
     scans : list of Scan
         The protocol's scans, in printed order.
     page_count : int
@@ -173,19 +205,23 @@ class Protocol:
     software_version: str | None = None
     detection: dict[str, str] = field(default_factory=dict)
     scanner: str = ""
+    program: str = ""
     scans: list[Scan] = field(default_factory=list)
     page_count: int = 0
     front_matter_pages: list[int] = field(default_factory=list)
     ocr_pages: list[int] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
-    def to_dict(self, include_flat: bool = True) -> dict:
+    def to_dict(self, include_flat: bool = True, catalog: Catalog | None = None) -> dict:
         """Serialize the protocol.
 
         Parameters
         ----------
         include_flat : bool, optional
             Whether each scan includes the flattened view. Default ``True``.
+        catalog : Catalog or None, optional
+            Signatures to identify each scan's sequence against, passed to
+            :meth:`Scan.to_dict`. The shipped catalog is used when omitted.
 
         Returns
         -------
@@ -197,6 +233,8 @@ class Protocol:
         out["software_version"] = self.software_version
         out["detection"] = OrderedDict(self.detection)
         out["scanner"] = self.scanner
+        if self.program:
+            out["program"] = self.program
         out["page_count"] = self.page_count
         if self.front_matter_pages:
             out["front_matter_pages"] = self.front_matter_pages
@@ -204,7 +242,7 @@ class Protocol:
             out["ocr_pages"] = self.ocr_pages
         if self.warnings:
             out["warnings"] = self.warnings
-        out["scans"] = [s.to_dict(include_flat) for s in self.scans]
+        out["scans"] = [s.to_dict(include_flat, catalog) for s in self.scans]
         return out
 
     def to_json(self, include_flat: bool = True, indent: int = 2) -> str:
