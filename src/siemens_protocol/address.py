@@ -18,7 +18,10 @@ from the end: skipping a level would let two addresses that look equally
 specific behave differently, and would let an address silently start matching
 something new when a protocol is added. An address that skips one is reported
 with the full paths it nearly matched, so the missing component is visible
-rather than guessed at.
+rather than guessed at. An address naming a *container* -- the protocol when a
+scan was wanted, the directory when a protocol was -- matches nothing for the
+same reason, and is reported with what to append to it rather than as a name
+the file does not hold.
 
 The directory levels above the protocol are not decoration. Two protocols of
 ``NAV_optionscan_P1_loadtest`` are both named ``NAV_optionscan_P1 (2)``, under
@@ -214,6 +217,41 @@ def _nearly(address: Address, candidates: Sequence[tuple[Sequence[str], Any]]) -
     return seen
 
 
+def _encloses(address: Address, candidates: Sequence[tuple[Sequence[str], Any]]) -> list[str]:
+    """What an address names the container of, rather than one of.
+
+    The other spelling a reader reaches for: naming the protocol when a scan
+    was wanted, or the directory when a protocol was. The address matches
+    nothing because it is a *proper* prefix of the candidates' paths rather
+    than their trailing part, and the bare refusal then reports a protocol
+    the file plainly holds as a scan it does not.
+
+    Parameters
+    ----------
+    address : Address
+        The address that matched nothing.
+    candidates : sequence of tuple
+        ``(path, payload)`` pairs.
+
+    Returns
+    -------
+    list of str
+        For each candidate the address encloses, the components below it --
+        what appending to the address would name. Nearest ancestor first, in
+        the order the candidates came, without repeats. Empty when the
+        address encloses nothing.
+    """
+    below: list[str] = []
+    for path, _payload in candidates:
+        for depth in range(1, len(path)):
+            if matches(address, path[:-depth]):
+                rendered = "/".join(path[-depth:])
+                if rendered not in below:
+                    below.append(rendered)
+                break
+    return below
+
+
 def _hint(address: Address, candidates: Sequence[tuple[Sequence[str], Any]]) -> str:
     """A suggestion for an address matching nothing at all.
 
@@ -247,8 +285,10 @@ def select(
 
     Refuses rather than choosing whenever the address does not name exactly
     one, and the refusal carries what is needed to write a better address:
-    the full paths when they differ, and the occurrence range when they do
-    not, since paths that are identical say nothing on their own.
+    the full paths when they differ, the occurrence range when they do not,
+    since paths that are identical say nothing on their own, and what to
+    append where the address names a container rather than one of its
+    contents.
 
     Parameters
     ----------
@@ -283,6 +323,13 @@ def select(
             raise ValueError(
                 f"{source}: no {what} at {address!s}. Components must be the trailing "
                 f"part of the path, unbroken. These end in {address.leaf!r}:\n  {listed}"
+            )
+        inside = _encloses(address, candidates)
+        if inside:
+            listed = "\n  ".join(inside)
+            raise ValueError(
+                f"{source}: {address!s} names no {what}. It names something that holds "
+                f"{what}s -- append one of these to it:\n  {listed}"
             )
         raise ValueError(f"{source}: no {what} named {address.leaf!r}{_hint(address, candidates)}")
 

@@ -1482,6 +1482,71 @@ def test_a_skipped_level_reports_what_it_nearly_matched() -> None:
     assert "CMRR spectro scans/eja_svs_slaser" in message
 
 
+def test_an_address_naming_a_container_says_what_to_append() -> None:
+    """A protocol given where a scan was wanted is the confusion this catches.
+
+    A backup with several protocols refuses a bare command and lists the
+    protocols, so reaching for one of those names with a scan address is the
+    natural next move -- and it matched nothing, because a scan candidate's
+    path ends in the scan's own name and the address ends in the protocol's.
+    The bare refusal then reported a protocol the file plainly holds as a
+    scan it does not.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Inv/Frederick/Mair test", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "names no scan" in message
+    assert "holds scans" in message
+    assert "localizer" in message
+    # Only what that protocol holds: a container names its own contents, not
+    # the file's, or the suggestion is a list of addresses that do not work.
+    assert "eja_svs_slaser" not in message
+
+
+def test_a_container_further_up_reports_the_whole_remainder() -> None:
+    """What to append is every component between the address and the thing.
+
+    The nearest enclosing ancestor is the one reported, and a name the
+    container holds twice is offered once -- appending it lands on the
+    occurrence refusal, which is the message that knows how to separate them.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Frederick", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "Mair test/localizer" in message
+    assert "CMRR spectro scans/eja_svs_slaser" in message
+    assert message.count("Functional TOF/tof fast") == 1
+
+
+def test_a_container_is_reported_in_the_caller_s_vocabulary() -> None:
+    """``what`` names the contents, so a directory refusal talks of protocols.
+
+    Returns
+    -------
+    None
+    """
+    programs = [
+        (("Root", "Export", "Inv", "Clancy", "K23 VisInt Task"), "k23"),
+        (("Root", "Export", "Inv", "Clancy", "Intruders"), "intruders"),
+        (("Root", "Export", "Inv", "Baker", "PCM"), "pcm"),
+    ]
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Inv/Clancy", programs, what="protocol", source="f")
+    message = str(caught.value)
+    assert "names no protocol" in message
+    assert "holds protocols" in message
+    assert "K23 VisInt Task" in message
+    assert "PCM" not in message
+
+
 def test_a_name_repeated_in_one_protocol_asks_for_an_occurrence() -> None:
     """Identical paths say nothing, so the refusal names the range instead.
 
