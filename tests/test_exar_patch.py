@@ -24,6 +24,7 @@ import pathlib
 import re
 import subprocess
 import sys
+from unittest import mock
 
 import pytest
 
@@ -189,6 +190,13 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     exact = approximate = 0
     for one, other in zip(ours.steps, after.steps):
         for mapping in patch.MAPPINGS:
+            if mapping.read_only:
+                # Derived by the console from other parameters, so a patched
+                # protocol differs here by design: it recomputed
+                # sKSpace.lPhaseEncodingLines when the base and phase
+                # resolution moved, as it recomputes the scan times. Read
+                # from a card, never written to one.
+                continue
             if not patch.applies_to(mapping, other.protocol):
                 continue
             for key, _index in patch.expand(mapping.ascconv_key, other.protocol.xprotocol):
@@ -735,6 +743,36 @@ def _ascconv_differences(one: str, other: str) -> set[str]:
 #: to cover a scan that starts differing for some other reason.
 PREDATES_RECENTRE = "Minn_CMRR_2.3mm_S8_rest_6min"
 
+#: Labels whose mappings were derived *after* this archive was sent to the
+#: scanner, so the return cannot attest to them. A scanner return is a
+#: physical record of what was written on one day: it says the loader kept
+#: those values, and it is silent about every value written since. Excluding
+#: them is not a weakening of the check -- the alternative reading, that the
+#: scanner discarded them, is refuted by the shape of the difference, which is
+#: absence rather than disagreement (``alFree[31]`` is not present at all, and
+#: ``alFree[0]`` differs by exactly 2**29 and nothing else).
+#:
+#: Pinned by label rather than by key so the next mapping onto an already
+#: written key is not silently excused too, and asserted non-empty and
+#: *live* below, so an entry that stops being written fails here instead of
+#: going on excusing a real difference -- the same guard ``PREDATES_RECENTRE``
+#: carries. Retiring one means sending a fresh build to a scanner.
+#:
+#: ``FFT scale factor`` joined the table from probe run 2, which is months
+#: after this archive was built, so the driver now writes a value the
+#: scanner was never given -- it returned ``adFree[0]`` at the template's
+#: 1.0 while the driver would today write the printed 0.99. That is the
+#: ordinary shape of this set rather than a new kind of exception, and the
+#: mapping itself rests on a controlled edit in a later return.
+PREDATES_MAPPINGS = frozenset(
+    {
+        "Echoes in separate series",
+        "FFT scale factor",
+        "Physio recording",
+        "Triggering scheme",
+    }
+)
+
 
 @requires_exar
 def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
@@ -764,7 +802,20 @@ def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
 
     before = {step.name: step.protocol.xprotocol for step in read(template_path).steps}
     built = read(template_path)
-    report = build.apply_protocol(built, parse_document(pdf).protocol.to_dict(include_flat=True))
+    # Drive with the table as it stood when this archive was sent -- see
+    # PREDATES_MAPPINGS. Withholding those mappings rather than skipping their
+    # keys is what keeps `sWipMemBlock.alFree[0]` in the comparison: fifteen
+    # mappings share that one word, and dropping the key would stop checking
+    # the fourteen the scanner really did vouch for.
+    era = tuple(m for m in patch.MAPPINGS if m.label not in PREDATES_MAPPINGS)
+    assert len(era) == len(patch.MAPPINGS) - len(PREDATES_MAPPINGS), (
+        "PREDATES_MAPPINGS names a label the table no longer carries: "
+        f"{sorted(PREDATES_MAPPINGS - {m.label for m in patch.MAPPINGS})}"
+    )
+    with mock.patch.object(patch, "MAPPINGS", era):
+        report = build.apply_protocol(
+            built, parse_document(pdf).protocol.to_dict(include_flat=True)
+        )
     assert report.applied, "the driver wrote nothing, so there is nothing to check"
 
     assert [step.name for step in returned.steps] == list(before), "the loader dropped a scan"
@@ -821,7 +872,18 @@ def test_the_scanner_only_moved_fields_the_driver_left_to_the_template() -> None
     template = find_exar("Potpourri_P1.exar1")
     sent = read(template)
     parsed = parse_document(os.path.join(os.path.dirname(template), "Potpourri_P1_changed.pdf"))
-    build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
+    # Drive with the table as it stood when this archive was sent. Excluding
+    # the late mappings' *keys* instead would blind the comparison to the
+    # fourteen other flag bits sharing `alFree[0]`; withholding the mappings
+    # themselves leaves every one of those still compared.
+    era = tuple(m for m in patch.MAPPINGS if m.label not in PREDATES_MAPPINGS)
+    assert len(era) == len(patch.MAPPINGS) - len(PREDATES_MAPPINGS), (
+        "PREDATES_MAPPINGS names a label the table no longer carries: "
+        f"{sorted(PREDATES_MAPPINGS - {m.label for m in patch.MAPPINGS})}"
+    )
+    with mock.patch.object(patch, "MAPPINGS", era):
+        report = build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
+    assert not (PREDATES_MAPPINGS & {one.label for one in report.applied})
     returned = read(find_exar("driver_loadtest.exar1"))
 
     came_back = {step.name: step for step in returned.steps}
@@ -1537,7 +1599,27 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
     # second field for a copy that prints one change: executionopts E05 sets a
     # timing-delay flag beside the workflow one, and a geometry copy sets
     # Laterality beside the rotation it prints.
-    expected_extra = {"sAngio.ucUseTimingDelay", "sAAInitialOffset.Laterality"}
+    #
+    # The Hamming width is the same case as the two sRawFilter fields below,
+    # and run 2 settled it the same way: the console writes lWidthPercent
+    # beside ucOn, and a probe writing the width beneath that switch printed
+    # exactly what the switch alone prints and nothing more.
+    #
+    # The two sRawFilter fields are a third case and a better-understood one:
+    # switching the raw filter on, the console writes ucMode and lSlope_256
+    # beside ucOn, so a replay of its edit moves all three while the mapping
+    # claims one. That partial write is safe rather than merely tolerated --
+    # probe run 1 created ucOn alone, with no ucMode and no slope at all, and
+    # the scanner loaded it and printed "Raw Filter On". The same run wrote
+    # each of the other two beside an absent ucOn and neither changed
+    # anything printed, so they are the filter's shape and ucOn is its switch.
+    expected_extra = {
+        "sAngio.ucUseTimingDelay",
+        "sAAInitialOffset.Laterality",
+        "sRawFilter.ucMode",
+        "sRawFilter.lSlope_256",
+        "sHammingFilter.lWidthPercent",
+    }
     assert unclaimed <= expected_extra, (
         "replay left fields no mapping claims and none expected: "
         f"{sorted(unclaimed - expected_extra)}"

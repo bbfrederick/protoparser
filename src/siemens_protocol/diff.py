@@ -54,11 +54,15 @@ ONLY_RIGHT = "only_right"
 RENAMED = "renamed"
 REFORMATTED = "reformatted"
 RECASED = "recased"
+#: A field the console rewrites on every save, so a difference there says the
+#: protocol was saved again rather than that anything about it changed. Only
+#: an archive carries these; a printout does not print them.
+CHURN = "churn"
 
 #: Differences that represent a real protocol change.
 SUBSTANTIVE = (CHANGED, ONLY_LEFT, ONLY_RIGHT)
-#: Differences that are presentation only.
-COSMETIC = (RENAMED, REFORMATTED, RECASED)
+#: Differences that are presentation only, or are not about the protocol.
+COSMETIC = (RENAMED, REFORMATTED, RECASED, CHURN)
 
 #: Separator between a section's card and its tab, as every release prints it.
 _SECTION_SPLIT = " - "
@@ -480,13 +484,58 @@ class ProtocolDiff:
         """
         return sum(len(s.substantive) for s in self.scans)
 
+    @property
+    def unmatched_count(self) -> int:
+        """How many scans are present on one side only.
+
+        Counted apart from the parameter differences because it is a
+        different kind of finding: a scan the other protocol does not have at
+        all has no parameters to compare, so it contributes nothing to
+        :attr:`substantive_count` however unlike the two protocols are.
+
+        A section filter does not affect it. A scan absent from one side is
+        absent whichever sections were asked for, so this count describes the
+        whole protocol even where the parameter count describes a slice.
+
+        Returns
+        -------
+        int
+            The two unmatched lists' lengths together.
+        """
+        return len(self.only_left) + len(self.only_right)
+
+    @property
+    def differs(self) -> bool:
+        """Whether the two protocols differ at all.
+
+        The question the exit status answers, kept here rather than in the
+        command so that "did these differ" has one definition. A protocol
+        with a scan the other lacks differs from it even when every scan they
+        share is identical -- which is why this is not ``substantive_count``
+        alone, and why a caller reading only that count reports two protocols
+        of different lengths as matching.
+
+        A renamed scan is deliberately not counted. It is matched, its two
+        spellings are named in the report, and calling it a difference would
+        make every cross-release comparison of a renamed protocol fail a
+        check that is asking about parameters.
+
+        Returns
+        -------
+        bool
+            ``True`` when any parameter differs substantively or any scan is
+            unmatched.
+        """
+        return bool(self.substantive_count or self.unmatched_count)
+
     def to_dict(self) -> dict:
         """Serialize the protocol comparison.
 
         Returns
         -------
         dict
-            Files, versions, per-scan comparisons and unmatched scans.
+            Files, versions, per-scan comparisons and unmatched scans, with
+            both counts the exit status is derived from.
         """
         return {
             "left_file": self.left_file,
@@ -496,6 +545,7 @@ class ProtocolDiff:
             "scans_only_left": self.only_left,
             "scans_only_right": self.only_right,
             "substantive_count": self.substantive_count,
+            "unmatched_count": self.unmatched_count,
             "scans": [s.to_dict() for s in self.scans],
         }
 
@@ -556,6 +606,37 @@ def _flat_groups(flat: Mapping[str, dict]) -> dict[str, _Group]:
             if section not in group.sections:
                 group.sections.append(section)
     return groups
+
+
+def _is_churn(key: str, values: Sequence[str] = ()) -> bool:
+    """Whether a key is one the scanner rewrites whenever it saves.
+
+    Deferred rather than imported at module load: the list is the archive
+    reader's knowledge and belongs with it, but a comparison of two printouts
+    should not pay for reading that package to find out a printed label is
+    not an ASCCONV key. The import is cached after the first archive scan.
+
+    Parameters
+    ----------
+    key : str
+        A parameter key, printed label or ASCCONV path.
+    values : sequence of str, optional
+        The readings on either side. One key family holds a save stamp on
+        most scans and a real printed parameter on the rest, and only the
+        value tells them apart -- so a reading either side calls real is
+        real.
+
+    Returns
+    -------
+    bool
+        ``True`` for a churn field. A printed label is never one, so the
+        cheap test comes first.
+    """
+    if "." not in key:
+        return False
+    from .exar.patch import is_churn
+
+    return all(is_churn(key, value) for value in values) if values else is_churn(key)
 
 
 def _pair_status(values_left: Sequence[str], values_right: Sequence[str]) -> str:
@@ -664,6 +745,14 @@ def diff_parameters(
             status = ONLY_LEFT
         else:
             status = _pair_status(group_left.values, group_right.values)
+            # Reported rather than dropped, and cosmetic rather than
+            # substantive: two archives differing only in their save stamps
+            # are the same protocol, and counting those would make every
+            # archive comparison report differences it cannot explain.
+            if status == CHANGED and _is_churn(
+                key_left or "", [*group_left.values, *group_right.values]
+            ):
+                status = CHURN
 
         diff = ParameterDiff(
             key_left,

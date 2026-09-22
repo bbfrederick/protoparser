@@ -1360,3 +1360,79 @@ def test_a_renamed_binary_splits_cleanly_by_release() -> None:
 
     named = next(s for s in default_catalog().signatures if s.id == "dkd-semilaser")
     assert {"svs_slaser_dkd", "dkd_svs_sLASER"} <= set(named.binaries)
+
+
+def test_a_binary_matches_whatever_case_it_is_written_in() -> None:
+    # Sequence binaries live on the scanner's own filesystem, which is
+    # case-insensitive, and the corpus carries one sequence written both
+    # ways -- ep2d_bold_MGH and ep2d_bold_mgh are both current, appear in the
+    # same archives, and share all but two sWipMemBlock indices. Comparing
+    # exactly reports the unlisted spelling as an unrecognized sequence,
+    # which reads like "nobody has named this" rather than a failed compare.
+    named = Signature(id="s", vendor="v", family="f", binaries=("cmrr_mbep2d_bold",))
+    for spelling in ("cmrr_mbep2d_bold", "CMRR_MBEP2D_BOLD", "cmrr_MBep2d_Bold"):
+        assert named.match(spelling, set()) is not None, spelling
+    assert named.match("cmrr_mbep2d_diff", set()) is None
+
+
+def test_an_empty_binary_still_fails_a_kernel_gate_when_case_is_folded() -> None:
+    # The gate's whole purpose is that a scan with no readable sequence field
+    # falls to a lower-priority entry rather than being handed one by sort
+    # order, so folding must not turn "" into a match.
+    gated = Signature(id="s", vendor="v", family="f", base_binaries=("epfid",), special_all=("K",))
+    assert gated.match("EPFID", {"K"}) is not None
+    assert gated.match("", {"K"}) is None
+    assert gated.match("epse", {"K"}) is None
+
+
+def test_the_siemens_kernel_list_folds_case_the_same_way() -> None:
+    # The kernel list and the signatures must answer the same question the
+    # same way. Comparing one exactly and the other loosely would make a scan
+    # third-party under one spelling and stock under another.
+    catalog = Catalog(signatures=[], stock_binaries={"epfid": "EPI, gradient echo"})
+    assert catalog.stock_family("EPFID") == "EPI, gradient echo"
+    assert catalog.stock_family("epfid") == "EPI, gradient echo"
+    assert catalog.stock_family("epse") is None
+    assert catalog.stock_family("") is None
+
+
+def test_check_reports_two_signatures_claiming_one_binary_once_case_is_folded() -> None:
+    # Folding is what makes two spellings name one sequence, and it is also a
+    # way to write an ambiguity that exact comparison hid. base_binaries is
+    # deliberately outside this: sibling signatures share a kernel gate on
+    # purpose, slasr gating three semi-LASER variants their cards separate.
+    clashing = Catalog(
+        signatures=[
+            Signature(id="a", vendor="v", family="f", binaries=("seq_one",)),
+            Signature(id="b", vendor="v", family="f", binaries=("SEQ_ONE",)),
+        ]
+    )
+    assert any("once case is folded" in problem for problem in check(clashing))
+
+    siblings = Catalog(
+        signatures=[
+            Signature(
+                id="a", vendor="v", family="f", base_binaries=("slasr",), special_all=("X",)
+            ),
+            Signature(
+                id="b", vendor="v", family="f", base_binaries=("SLASR",), special_all=("Y",)
+            ),
+        ]
+    )
+    assert not any("once case is folded" in problem for problem in check(siblings))
+
+
+@requires_exar
+def test_the_corpus_case_variant_resolves_the_same_way_both_ways() -> None:
+    # ep2d_bold_MGH and ep2d_bold_mgh are one sequence written two ways. No
+    # signature names either today, so this asserts the property that matters
+    # -- the catalog cannot give the two spellings different verdicts -- which
+    # holds whether or not one of them is ever named.
+    catalog = default_catalog()
+    for spelling in ("ep2d_bold_mgh", "ep2d_bold_MGH"):
+        assert catalog.stock_family(spelling) is None
+    matched = {
+        spelling: sorted(s.id for s in catalog.signatures if s.match(spelling, set()) is not None)
+        for spelling in ("ep2d_bold_mgh", "ep2d_bold_MGH")
+    }
+    assert matched["ep2d_bold_mgh"] == matched["ep2d_bold_MGH"]

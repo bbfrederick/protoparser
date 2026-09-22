@@ -14,7 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from conftest import ParseFixture, find_example, requires_examples
+from conftest import (
+    ParseFixture,
+    find_example,
+    find_exar,
+    requires_examples,
+    requires_exar,
+)
 from siemens_protocol.cli import main
 from siemens_protocol.diff import ProtocolDiff, canonical_key, diff_protocols, normalize_key
 from siemens_protocol.profiles import REGISTRY
@@ -592,3 +598,62 @@ def test_cli_diff_can_turn_the_vocabulary_off(tmp_path: Path) -> None:
     assert "PAT mode" in off.read_text()
     assert "PAT mode -> Acceleration Mode" not in off.read_text()
     assert "PAT mode -> Acceleration Mode" in on.read_text()
+
+
+@requires_exar
+@requires_examples
+def test_cli_vocab_suggest_takes_a_protocol_out_of_a_backup(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """``--left-program`` reaches one protocol of a multi-program archive.
+
+    ``vocab suggest`` takes two exports, so it needs a program per side for
+    the same reason ``diff`` does. Without the flags an archive holding
+    several protocols was refused with a message naming an option the
+    subcommand did not define, which left no way to use one at all.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Captures the printed candidates.
+
+    Returns
+    -------
+    None
+    """
+    code = main(
+        [
+            "vocab",
+            "suggest",
+            find_exar("Frederick_P2.exar1"),
+            find_example("R01StressDyn.pdf", "VE11C"),
+            "--left-program",
+            "Potpourri_P1",
+        ]
+    )
+    assert code == 0
+    assert "Evidence only" in capsys.readouterr().out
+
+
+@requires_exar
+def test_cli_vocab_suggest_still_refuses_an_unnamed_backup() -> None:
+    """Without a program named, a multi-program archive is still refused.
+
+    The flags make the archive reachable; they must not make an ambiguous
+    request resolve to whichever protocol comes first.
+
+    Returns
+    -------
+    None
+    """
+    assert (
+        main(
+            [
+                "vocab",
+                "suggest",
+                find_exar("Frederick_P2.exar1"),
+                find_exar("Potpourri_P1.exar1"),
+            ]
+        )
+        == 1
+    )

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from conftest import ParseFixture, find_example, requires_examples
+from siemens_protocol import address
 from siemens_protocol.cli import main
 from siemens_protocol.diff import (
     CHANGED,
@@ -583,9 +584,9 @@ def test_cli_diff_two_scans_within_one_file(tmp_path: Path) -> None:
             "diff",
             find_example("R01StressDyn.pdf", "VE11C"),
             "--scan",
-            "SpinEchoFieldMap_AP",
+            "SpinEchoFieldMap_AP#1",
             "--scan",
-            "SpinEchoFieldMap_PA",
+            "SpinEchoFieldMap_PA#1",
             "--out",
             str(out),
         ]
@@ -879,7 +880,7 @@ def test_cli_diff_within_one_file_given_twice_matches_giving_it_once(
     None
     """
     pdf = find_example("R01StressDyn.pdf", "VE11C")
-    names = ["--left-scan", "SpinEchoFieldMap_AP", "--right-scan", "SpinEchoFieldMap_PA"]
+    names = ["--left-scan", "SpinEchoFieldMap_AP#1", "--right-scan", "SpinEchoFieldMap_PA#1"]
 
     once = tmp_path / "once.json"
     twice = tmp_path / "twice.json"
@@ -914,9 +915,9 @@ def test_cli_diff_recognizes_one_file_spelled_two_ways(tmp_path: Path) -> None:
             os.path.join(os.path.dirname(pdf), ".", os.path.basename(pdf)),
             pdf,
             "--left-scan",
-            "SpinEchoFieldMap_AP",
+            "SpinEchoFieldMap_AP#1",
             "--right-scan",
-            "SpinEchoFieldMap_PA",
+            "SpinEchoFieldMap_PA#1",
             "--json",
             "--out",
             str(out),
@@ -952,9 +953,9 @@ def test_cli_diff_two_scans_of_one_file_finds_the_known_difference(
             "diff",
             find_example("R01StressDyn.pdf", "VE11C"),
             "--left-scan",
-            "SpinEchoFieldMap_AP",
+            "SpinEchoFieldMap_AP#1",
             "--right-scan",
-            "SpinEchoFieldMap_PA",
+            "SpinEchoFieldMap_PA#1",
             "--json",
             "--out",
             str(out),
@@ -1173,3 +1174,421 @@ def test_protocol_diff_notes_every_mismatched_pair(parsed: ParseFixture) -> None
         note = name_mismatch_note(scan.name_left, scan.name_right)
         assert note is not None and note in text
     assert text.count("Names do not match exactly") == len(mismatched)
+
+
+# -- what counts as a difference --------------------------------------------
+
+
+def _staged(*names: str) -> dict:
+    """A protocol carrying scans of the given names and nothing else.
+
+    Parameters
+    ----------
+    *names : str
+        Scan names, in acquisition order.
+
+    Returns
+    -------
+    dict
+        A serialized protocol whose scans are identical but for their names.
+    """
+    return {
+        "source_file": "staged.pdf",
+        "software_version": "XA60",
+        "scans": [
+            {
+                "index": index,
+                "name": name,
+                "header": {"ta": "1:00", "sequence": "gre"},
+                "sections": {"Routine": {"TR": "2000 ms"}},
+                "flat": {"TR": {"value": "2000 ms", "sections": ["Routine"], "conflict": False}},
+            }
+            for index, name in enumerate(names)
+        ],
+    }
+
+
+def test_an_unmatched_scan_is_a_difference() -> None:
+    """A protocol with a scan the other lacks differs from it.
+
+    The scan has no counterpart, so it has no parameters to compare and
+    contributes nothing to ``substantive_count``. Reading that count alone --
+    which is what the exit status did -- reports two protocols of different
+    lengths as matching.
+
+    Returns
+    -------
+    None
+    """
+    result = diff_protocols(_staged("a", "b"), _staged("a", "b", "c"))
+    assert result.substantive_count == 0
+    assert result.unmatched_count == 1
+    assert result.differs is True
+
+
+def test_identical_protocols_do_not_differ() -> None:
+    """Nothing unmatched and nothing substantive is no difference.
+
+    Returns
+    -------
+    None
+    """
+    result = diff_protocols(_staged("a", "b"), _staged("a", "b"))
+    assert (result.substantive_count, result.unmatched_count) == (0, 0)
+    assert result.differs is False
+
+
+def test_a_renamed_scan_is_not_counted_as_unmatched() -> None:
+    """A scan matched under another name is matched, not missing.
+
+    Counting it would make every cross-release comparison of a protocol whose
+    scans were renamed fail a check that is asking about parameters, and the
+    rename is already named in the report.
+
+    Returns
+    -------
+    None
+    """
+    result = diff_protocols(_staged("a", "b", "c"), _staged("a", "b_renamed", "c"))
+    assert result.unmatched_count == 0
+    assert result.differs is False
+    assert [(s.name_left, s.name_right) for s in result.scans if s.name_left != s.name_right] == [
+        ("b", "b_renamed")
+    ]
+
+
+def test_the_tally_line_names_the_unmatched_scans() -> None:
+    """The summary line must not read as "no differences" beside one.
+
+    Returns
+    -------
+    None
+    """
+    one = render_protocol(diff_protocols(_staged("a"), _staged("a", "b")))
+    assert "1 scan on one side only" in one
+    two = render_protocol(diff_protocols(_staged("a"), _staged("a", "b", "c")))
+    assert "2 scans on one side only" in two
+    none = render_protocol(diff_protocols(_staged("a"), _staged("a")))
+    assert "on one side only" not in none
+
+
+def test_the_payload_carries_both_counts() -> None:
+    """``--json`` says why the exit status is what it is.
+
+    Returns
+    -------
+    None
+    """
+    payload = diff_protocols(_staged("a"), _staged("a", "b")).to_dict()
+    assert payload["substantive_count"] == 0
+    assert payload["unmatched_count"] == 1
+    assert payload["scans_only_right"] == ["b"]
+
+
+@requires_examples
+def test_cli_diff_exits_nonzero_on_an_unmatched_scan(tmp_path: Path) -> None:
+    """End to end: a scan on one side only sets the exit status.
+
+    Driven against a real export with one scan dropped from it, so the two
+    sides differ in exactly that one respect.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary directory for the trimmed copy.
+
+    Returns
+    -------
+    None
+    """
+    parsed = tmp_path / "full.json"
+    assert main(["parse", find_example("SYNCT.pdf"), "--out", str(parsed), "--quiet"]) == 0
+    document = json.loads(parsed.read_text(encoding="utf-8"))
+    assert len(document["scans"]) > 1
+
+    trimmed = tmp_path / "trimmed.json"
+    document["scans"] = document["scans"][:-1]
+    trimmed.write_text(json.dumps(document), encoding="utf-8")
+
+    assert main(["diff", str(parsed), str(parsed)]) == 0
+    assert main(["diff", str(parsed), str(trimmed)]) == 1
+
+
+# -- the address grammar ----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text,components,occurrence,index",
+    [
+        ("localizer", ("localizer",), None, None),
+        ("a/b/c", ("a", "b", "c"), None, None),
+        ("/a//b/", ("a", "b"), None, None),
+        ("name#2", ("name",), 2, None),
+        ("a/b#10", ("a", "b"), 10, None),
+        ("3", ("3",), None, 3),
+        ("prog/3", ("prog", "3"), None, 3),
+        # An occurrence turns a numeric leaf back into a name: "3#2" asks for
+        # the second scan called "3", which is not a position.
+        ("3#2", ("3",), 2, None),
+    ],
+)
+def test_addresses_parse(
+    text: str, components: tuple, occurrence: int | None, index: int | None
+) -> None:
+    """Each spelling reads as the components, occurrence and index it means.
+
+    Parameters
+    ----------
+    text : str
+        The address as typed.
+    components : tuple
+        Expected path components.
+    occurrence : int or None
+        Expected occurrence.
+    index : int or None
+        Expected index.
+
+    Returns
+    -------
+    None
+    """
+    parsed = address.parse(text)
+    assert parsed.components == components
+    assert parsed.occurrence == occurrence
+    assert parsed.index == index
+
+
+@pytest.mark.parametrize("text", ["", "/", "///"])
+def test_an_empty_address_names_nothing(text: str) -> None:
+    """A separator alone is refused rather than matching everything.
+
+    Parameters
+    ----------
+    text : str
+        Something that is not an address.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="names nothing"):
+        address.parse(text)
+
+
+def test_occurrences_count_from_one() -> None:
+    """``#0`` is a typo, not the first item.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="count from one"):
+        address.parse("name#0")
+
+
+def test_an_address_is_the_unbroken_tail_of_a_path() -> None:
+    """Components must be contiguous from the end.
+
+    Allowing a skipped level would let two addresses that look equally
+    specific behave differently, and would let one silently start matching
+    something new when a protocol is added.
+
+    Returns
+    -------
+    None
+    """
+    path = ("Root", "Export", "Inv", "Frederick", "CMRR spectro scans", "eja_svs_slaser")
+    for text in ["eja_svs_slaser", "CMRR spectro scans/eja_svs_slaser", "/".join(path)]:
+        assert address.matches(address.parse(text), path), text
+    for text in ["Frederick/eja_svs_slaser", "Inv/CMRR spectro scans/eja_svs_slaser", "spectro"]:
+        assert not address.matches(address.parse(text), path), text
+    # An address longer than the path cannot match it.
+    assert not address.matches(address.parse("Deeper/" + "/".join(path)), path)
+
+
+# -- resolving against what a file holds ------------------------------------
+
+
+def _candidates() -> list:
+    """Two protocols sharing a scan name, and one repeating a name inside itself.
+
+    Returns
+    -------
+    list
+        ``(path, payload)`` pairs shaped like a real backup's.
+    """
+    root = ("Root", "Export", "Inv", "Frederick")
+    return [
+        (root + ("CMRR test scans", "eja_svs_slaser"), "test/slaser"),
+        (root + ("CMRR spectro scans", "eja_svs_slaser"), "spectro/slaser"),
+        (root + ("Functional TOF", "tof fast"), "tof#1"),
+        (root + ("Functional TOF", "tof fast"), "tof#2"),
+        (root + ("Mair test", "localizer"), "mair/localizer"),
+    ]
+
+
+def test_a_qualified_address_resolves() -> None:
+    """Naming the protocol separates a scan name two protocols share.
+
+    Returns
+    -------
+    None
+    """
+    got = address.resolve(
+        "CMRR spectro scans/eja_svs_slaser", _candidates(), what="scan", source="f"
+    )
+    assert got == "spectro/slaser"
+
+
+def test_a_bare_name_unique_in_the_file_resolves() -> None:
+    """No path is needed where the name occurs once.
+
+    Returns
+    -------
+    None
+    """
+    assert address.resolve("localizer", _candidates(), what="scan", source="f") == "mair/localizer"
+
+
+def test_an_ambiguous_address_lists_the_full_paths() -> None:
+    """A refusal has to say what to prepend, or it cannot be acted on.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("eja_svs_slaser", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "names 2 scans" in message
+    assert "CMRR test scans/eja_svs_slaser" in message
+    assert "CMRR spectro scans/eja_svs_slaser" in message
+
+
+def test_a_skipped_level_reports_what_it_nearly_matched() -> None:
+    """The component an address is missing is shown rather than guessed at.
+
+    This is the spelling a reader reaches for first -- naming a directory
+    they can see and skipping the protocol between it and the scan.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Frederick/eja_svs_slaser", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "unbroken" in message
+    assert "CMRR spectro scans/eja_svs_slaser" in message
+
+
+def test_an_address_naming_a_container_says_what_to_append() -> None:
+    """A protocol given where a scan was wanted is the confusion this catches.
+
+    A backup with several protocols refuses a bare command and lists the
+    protocols, so reaching for one of those names with a scan address is the
+    natural next move -- and it matched nothing, because a scan candidate's
+    path ends in the scan's own name and the address ends in the protocol's.
+    The bare refusal then reported a protocol the file plainly holds as a
+    scan it does not.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Inv/Frederick/Mair test", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "names no scan" in message
+    assert "holds scans" in message
+    assert "localizer" in message
+    # Only what that protocol holds: a container names its own contents, not
+    # the file's, or the suggestion is a list of addresses that do not work.
+    assert "eja_svs_slaser" not in message
+
+
+def test_a_container_further_up_reports_the_whole_remainder() -> None:
+    """What to append is every component between the address and the thing.
+
+    The nearest enclosing ancestor is the one reported, and a name the
+    container holds twice is offered once -- appending it lands on the
+    occurrence refusal, which is the message that knows how to separate them.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Frederick", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "Mair test/localizer" in message
+    assert "CMRR spectro scans/eja_svs_slaser" in message
+    assert message.count("Functional TOF/tof fast") == 1
+
+
+def test_a_container_is_reported_in_the_caller_s_vocabulary() -> None:
+    """``what`` names the contents, so a directory refusal talks of protocols.
+
+    Returns
+    -------
+    None
+    """
+    programs = [
+        (("Root", "Export", "Inv", "Clancy", "K23 VisInt Task"), "k23"),
+        (("Root", "Export", "Inv", "Clancy", "Intruders"), "intruders"),
+        (("Root", "Export", "Inv", "Baker", "PCM"), "pcm"),
+    ]
+    with pytest.raises(ValueError) as caught:
+        address.resolve("Inv/Clancy", programs, what="protocol", source="f")
+    message = str(caught.value)
+    assert "names no protocol" in message
+    assert "holds protocols" in message
+    assert "K23 VisInt Task" in message
+    assert "PCM" not in message
+
+
+def test_a_name_repeated_in_one_protocol_asks_for_an_occurrence() -> None:
+    """Identical paths say nothing, so the refusal names the range instead.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError) as caught:
+        address.resolve("tof fast", _candidates(), what="scan", source="f")
+    message = str(caught.value)
+    assert "holds 2 scans named 'tof fast'" in message
+    assert "tof fast#1 .. tof fast#2" in message
+
+
+def test_an_occurrence_picks_one_of_the_repeats() -> None:
+    """``#n`` counts from one, in the order the candidates came.
+
+    Returns
+    -------
+    None
+    """
+    assert address.resolve("tof fast#1", _candidates(), what="scan", source="f") == "tof#1"
+    assert address.resolve("tof fast#2", _candidates(), what="scan", source="f") == "tof#2"
+
+
+def test_an_occurrence_past_the_end_is_refused() -> None:
+    """Asking for the fifth of two says how many there are.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="2 scans match"):
+        address.resolve("tof fast#5", _candidates(), what="scan", source="f")
+
+
+def test_a_name_matching_nothing_suggests_a_near_miss() -> None:
+    """A typo gets a suggestion rather than a bare refusal.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="did you mean 'eja_svs_slaser'"):
+        address.resolve("eja_svs_slase", _candidates(), what="scan", source="f")

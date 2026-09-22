@@ -307,6 +307,15 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
     for step in theirs.steps:
         mine = ours[step.name]
         for mapping in patch.MAPPINGS:
+            if mapping.read_only:
+                # A value the console derives from other parameters, which a
+                # built archive cannot reproduce and is not asked to: the
+                # console recomputed sKSpace.lPhaseEncodingLines from 233 to
+                # 212 here as a consequence of the base and phase resolution
+                # edits, the same way it recomputes Bandwidth and the scan
+                # times. The mapping is sound for reading a card; there is
+                # nothing for a writer to agree with.
+                continue
             if not patch.applies_to(mapping, step.protocol):
                 continue
             for key, _index in patch.expand(mapping.ascconv_key, step.protocol.xprotocol):

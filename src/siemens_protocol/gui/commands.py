@@ -182,6 +182,61 @@ class Command:
         }
 
 
+def _scan_field(what: str) -> Field:
+    """Describe the flag narrowing a one-file command to a single scan.
+
+    Parameters
+    ----------
+    what : str
+        What the command produces, completing "restrict the ... to one scan".
+
+    Returns
+    -------
+    Field
+        The control, shared by every command that reads one protocol.
+    """
+    return Field(
+        name="scan",
+        kind="text",
+        label="Scan",
+        help=(
+            f"Restrict the {what} to one scan. Its name, a zero-based index, or as "
+            "much of its path as it takes to name one, such as 'CMRR spectro "
+            "scans/eja_svs_slaser'. Add '#2' for a name the protocol uses twice. "
+            "Leave empty for the whole protocol."
+        ),
+        flag="--scan",
+    )
+
+
+def _side_program_fields() -> tuple[Field, ...]:
+    """Describe the flags picking a protocol per side of a two-input command.
+
+    ``diff`` and the two ``vocab`` actions take two exports, so the single
+    ``--program`` the one-input commands use cannot say which protocol
+    belongs to which side.
+
+    Returns
+    -------
+    tuple of Field
+        The left and right controls, in that order.
+    """
+    return tuple(
+        Field(
+            name=f"{side}_program",
+            kind="text",
+            label=f"{side.capitalize()} protocol",
+            help=(
+                f"Which protocol to take from the {side} .exar1 archive. Needed "
+                "only when it holds more than one and no scan address says which. "
+                "Give as much of its path as it takes to name one."
+            ),
+            flag=f"--{side}-program",
+        )
+        for side in ("left", "right")
+    )
+
+
 def _program_field() -> Field:
     """Describe the flag picking one protocol out of a multi-program archive.
 
@@ -196,7 +251,8 @@ def _program_field() -> Field:
         label="Protocol",
         help=(
             "Which protocol of an .exar1 archive to read. Needed only when the "
-            "archive holds more than one, which a scanner backup does."
+            "archive holds more than one, which a scanner backup does. Give as "
+            "much of its path as it takes to name one."
         ),
         flag="--program",
     )
@@ -268,6 +324,7 @@ def _parse_command() -> Command:
                 picker="save",
             ),
             _release_field("Force a Siemens release profile instead of detecting one."),
+            _scan_field("JSON"),
             Field(
                 name="ocr",
                 kind="choice",
@@ -364,7 +421,7 @@ def _diff_command() -> Command:
                 label="Left",
                 help="A PDF, or JSON this tool wrote earlier.",
                 picker="file",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
                 required=True,
             ),
             Field(
@@ -376,22 +433,28 @@ def _diff_command() -> Command:
                     "the left file, which then needs a scan named on both sides."
                 ),
                 picker="file",
-                accept=(".pdf", ".json"),
+                accept=(".pdf", ".exar1", ".json"),
             ),
             Field(
                 name="left_scan",
                 kind="text",
                 label="Left scan",
-                help="Scan to take from the left input, by name or zero-based index.",
+                help=(
+                    "Scan to take from the left input: its name, a zero-based index, "
+                    "or as much of its path as it takes to name one, such as "
+                    "'CMRR spectro scans/eja_svs_slaser'. Add '#2' for a name the "
+                    "protocol uses twice."
+                ),
                 flag="--left-scan",
             ),
             Field(
                 name="right_scan",
                 kind="text",
                 label="Right scan",
-                help="Scan to take from the right input, by name or zero-based index.",
+                help="Scan to take from the right input, spelled as the left one is.",
                 flag="--right-scan",
             ),
+            *_side_program_fields(),
             _release_field("Force a Siemens release profile for any PDF input."),
             Field(
                 name="sections",
@@ -494,6 +557,7 @@ def _check_command() -> Command:
                 required=True,
             ),
             _program_field(),
+            _scan_field("check"),
             Field(
                 name="policy",
                 kind="choice",
@@ -578,6 +642,7 @@ def _list_command() -> Command:
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
             _program_field(),
+            _scan_field("listing"),
             Field(
                 name="json",
                 kind="flag",
@@ -591,6 +656,68 @@ def _list_command() -> Command:
                 kind="path",
                 label="Write listing to",
                 help="Write the listing here. Left empty, it appears in the pane below.",
+                flag="--out",
+                picker="save",
+            ),
+        ),
+    )
+
+
+def _summary_command() -> Command:
+    """Describe the ``summary`` subcommand.
+
+    Returns
+    -------
+    Command
+        The form for summarizing one protocol.
+    """
+    return Command(
+        name="summary",
+        group="List",
+        title="Summarize",
+        summary=(
+            "Summarize one protocol in a block rather than a line per scan: how many "
+            "scans it runs, how long it takes, its longest and shortest scan, and a "
+            "census of the distinct sequences with the scans and time each accounts "
+            "for. A scan printing no readable acquisition time is excluded from the "
+            "total and counted, which is why an archive can total a few seconds under "
+            "its own printout."
+        ),
+        argv=("summary",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Input",
+                help="A PDF, an .exar1 archive, or JSON this tool wrote earlier.",
+                picker="file",
+                accept=(".pdf", ".exar1", ".json"),
+                required=True,
+            ),
+            _release_field("Force a Siemens release profile for a PDF input."),
+            _program_field(),
+            _scan_field("summary"),
+            Field(
+                name="catalog",
+                kind="path",
+                label="Catalog overlay",
+                help="A directory of signature catalogs overlaying the shipped one.",
+                flag="--catalog",
+                picker="dir",
+            ),
+            Field(
+                name="json",
+                kind="flag",
+                label="JSON output",
+                help="Emit the summary as JSON rather than a report.",
+                flag="--json",
+                default=False,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write summary to",
+                help="Write the summary here. Left empty, it appears in the pane below.",
                 flag="--out",
                 picker="save",
             ),
@@ -630,6 +757,7 @@ def _sequences_command() -> Command:
             ),
             _release_field("Force a Siemens release profile for a PDF input."),
             _program_field(),
+            _scan_field("report"),
             Field(
                 name="only",
                 kind="choice",
@@ -748,8 +876,9 @@ def _vocab_commands() -> tuple[Command, ...]:
                     ),
                     flag="--against",
                     picker="file",
-                    accept=(".pdf", ".json"),
+                    accept=(".pdf", ".exar1", ".json"),
                 ),
+                *_side_program_fields(),
                 overlay,
             ),
         ),
@@ -770,7 +899,7 @@ def _vocab_commands() -> tuple[Command, ...]:
                     label="Left export",
                     help="An export of one release.",
                     picker="file",
-                    accept=(".pdf", ".json"),
+                    accept=(".pdf", ".exar1", ".json"),
                     required=True,
                 ),
                 Field(
@@ -779,9 +908,10 @@ def _vocab_commands() -> tuple[Command, ...]:
                     label="Right export",
                     help="The same protocol exported from another release.",
                     picker="file",
-                    accept=(".pdf", ".json"),
+                    accept=(".pdf", ".exar1", ".json"),
                     required=True,
                 ),
+                *_side_program_fields(),
                 Field(
                     name="min_support",
                     kind="int",
@@ -827,6 +957,7 @@ def _archive_command() -> Command:
                 required=True,
             ),
             _program_field(),
+            _scan_field("document"),
             Field(
                 name="out",
                 kind="path",
@@ -852,6 +983,76 @@ def _archive_command() -> Command:
                     "-- 514 to 2020 assignments a scan."
                 ),
                 flag="--no-ascconv",
+            ),
+        ),
+    )
+
+
+def _tree_command() -> Command:
+    """Describe the ``tree`` subcommand.
+
+    Returns
+    -------
+    Command
+        The form and argument list for drawing an archive's folder tree.
+    """
+    return Command(
+        name="tree",
+        group="Archive",
+        title="Show an archive's tree",
+        summary=(
+            "Draw the folder tree an .exar1 archive carries, the way the unix 'tree' "
+            "command draws a directory. An archive is not always one protocol: a backup "
+            "taken at the exam or region level holds several, and every other command "
+            "then needs a protocol named to say which. The paths shown here are exactly "
+            "the addresses those commands accept."
+        ),
+        argv=("tree",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Archive",
+                help="The .exar1 archive to read. It is not modified.",
+                picker="file",
+                accept=(".exar1",),
+                required=True,
+            ),
+            _program_field(),
+            Field(
+                name="scans",
+                kind="flag",
+                label="Show scans",
+                help=(
+                    "Descend into each protocol and list its steps in running order, "
+                    "pauses and other non-acquiring steps included."
+                ),
+                flag="--scans",
+                default=False,
+            ),
+            Field(
+                name="json",
+                kind="flag",
+                label="JSON output",
+                help="Emit the tree as JSON rather than a drawing.",
+                flag="--json",
+                default=False,
+            ),
+            Field(
+                name="no_counts",
+                kind="flag",
+                label="Omit the summary",
+                help="Leave off the closing line counting directories, protocols and scans.",
+                flag="--no-counts",
+                default=False,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write tree to",
+                help="Write the tree here. Left empty, it appears in the pane below.",
+                flag="--out",
+                picker="save",
             ),
         ),
     )
@@ -959,7 +1160,9 @@ def command_specs() -> tuple[Command, ...]:
         _diff_command(),
         _check_command(),
         _list_command(),
+        _summary_command(),
         _archive_command(),
+        _tree_command(),
         _exar_command(),
         _sequences_command(),
         *_vocab_commands(),

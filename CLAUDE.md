@@ -27,6 +27,12 @@ See `Design.md` for the design and `README.md` for usage.
   the real repo and passed for the wrong reason.
 - No `timeout` on macOS. Use the Bash tool's own timeout, or
   `perl -e 'select(undef,undef,undef,20)'` to sleep.
+- **Another session may be committing into this working tree while you work.**
+  Three commits landed mid-session under the same git identity, so the
+  start-of-session `git status` is a snapshot that goes stale. Never `git
+  stash` here: it will sweep up work that is not yours, and a `pop` landing
+  on a different stack entry loses it. Check `git diff` before assuming a
+  modified file is one you touched.
 - OCR is an optional extra (`pip install -e ".[ocr]"`) plus a native tesseract
   binary: `brew install tesseract`, `apt install tesseract-ocr`, or
   `winget install UB-Mannheim.TesseractOCR`. Found on PATH, else in the
@@ -94,6 +100,10 @@ See `Design.md` for the design and `README.md` for usage.
   auth, so the old `curl` route to a check-run's annotations is no longer needed.
   Still have CI steps emit `::error::<message>`: `--log-failed` hands back the whole
   step, and that one line is what says which of a few hundred assertions went red.
+- The full suite runs ~13 minutes (785, 775, 782 s on this machine), so start
+  it in the background and keep working; a single file is seconds. Still run
+  the whole thing before reporting done -- the corpus sweeps are where a
+  change to one reader surfaces in another.
 
 ### The GUI
 
@@ -761,9 +771,33 @@ the two consistent.
   array can be built from the printout plus thickness, distance factor and
   count.
 - **In-plane rotation is radians of the printed degrees**, on 413 of 415
-  scans. The two exceptions are the same scan name in two archives --
-  `pd+t2_tse_tra` prints `0.00 deg` against a stored pi/2 -- so treat a
-  disagreement as worth reading rather than as a refutation of the rule.
+  scans, and `PROBE_NAV` confirmed it by controlled edit: 0.2 written into a
+  3D vNav's only slice element printed `11.46 deg`, which is that many
+  radians.
+
+  **It is still not a mapping, and the exceptions are why.** Five corpus
+  scans -- `pd+t2_tse_tra` in three archives, plus `tse_MDME`, `tse_dixon`
+  and `BEAT` -- store **exactly** pi/2 and print `0.00 deg`, so writing the
+  printed value back would destroy the stored rotation. The self-drive sweep
+  refuses a `Rotation` mapping for exactly those five, and that refusal was
+  taken rather than excused: an exception list here would be five scans the
+  driver silently degrades.
+
+  The obvious explanation is refuted. It is *not* an explicit adjust volume
+  overriding the display -- none of the five stores
+  `sAdjData.sAdjVolume.dInPlaneRot` at all. All five being exactly pi/2 looks
+  instead like the console expressing a read/phase swap as a rotation, which
+  would make the printed `0.00` correct and the stored pi/2 not a rotation in
+  the printed sense. Untested.
+
+  Two things the same probe found about where that value prints. The only
+  `Rotation` row on that scan sits under **`System - Adjust Volume`**, and
+  writing the *slice's* rotation moved it while the adjust volume stored none
+  -- the section names one object and displays another's value, exactly as
+  the printed `Position` does. And a lone
+  `sAdjData.sAdjVolume.sPosition.dCor` created in an otherwise empty adjust
+  volume was **deleted** by the console, the whole `sAdjData.sAdjVolume.*`
+  family coming back empty, so that object is all-or-nothing.
 - **The printed `Position` is the slice-group centre on 463 of 517 scans**,
   mapping `L/R` to `dSag`, `A/P` to `dCor` (A negative) and `H/F` to `dTra`.
   It is *not* reliable enough to write through: several spectroscopy scans
@@ -782,11 +816,32 @@ the two consistent.
   spurious mismatch: measured that way the corpus reports 115 disagreements
   instead of 54, and all four of `extravals`' apparent failures were
   manufactured.
-- **The R/L sign of the printed position is not determined by the corpus.**
-  Taking `R` as positive `dSag` agrees on 463 scans and taking it as negative
-  agrees on 465, because almost every scan sits at `dSag = 0` and cannot tell
-  the two apart. Two scans is noise, so neither spelling is established --
-  do not "correct" the mapping in either direction on this evidence.
+- **The sign of every printed coordinate is now settled, by a probe rather
+  than by the corpus.** This replaces the entry that stood here, which said
+  the R/L sign could not be determined: taking `R` as positive `dSag` agreed
+  on 463 scans and negative on 465, because almost every scan sits at
+  `dSag = 0`. Two scans is noise and neither spelling was established.
+
+  `PROBE_NAV` wrote the three components of a **3D** scan's slab centre --
+  one assignment each, since `sSliceArray.lSize` is 1 on a 3D acquisition and
+  there is no per-slice array to keep consistent -- and read the printout::
+
+      dSag = +20.0  ->  L20.0        dSag = -20.0  ->  R20.0
+      dCor = +20.0  ->  P20.0        (template -20.0 printed A20.0)
+      dTra = +30.0  ->  H30.0        (template -30.0 printed F30.0)
+
+  So **L, P and H are the positive halves** and R, A and F the negative ones.
+  The A/P reading already recorded above is confirmed; the R/L one is now
+  evidence rather than a coin toss.
+
+  Note what this does *not* settle, because the sentence it appears to
+  contradict is about a different parameter. The `Table Position` note below
+  says "L, P, F and I are the negative halves ... R, A, S and H the positive
+  ones", which disagrees on L and P -- but that note also says only the H/F
+  pair is exercised by the corpus, and H/F agrees here. The L and P halves of
+  that sentence were generalization, not evidence, and are now contradicted
+  for the slice `Position`. Whether `Table Position` really spells its own
+  axes the other way is untested.
 - **The reference mode does not affect the slice geometry.** The console's
   table-positioning choice is stored once per protocol, in
   `EdfProgramContent.TablePositioningMode`: `FIX`, `ISO`, `LocalRange`, or
@@ -898,12 +953,18 @@ the two consistent.
   Replaying those is safe by construction; writing an arbitrary value through
   the same mapping is not, and a large step is likelier to leave the range
   than a small one. Prefer the smallest change that demonstrates a write.
-- **Coupled parameters must move together or not at all.** `AutoAlign`
-  printed as `---` moves `ucAARegionMode` as well as `ucAARefMode`, and
-  writing one of a pair produces exactly the inconsistent set above. `encode`
-  refusing a choice it has not seen is the right behaviour here rather than a
-  gap: a refusal costs a look, a half-written pair costs a greyed-out scan
-  that cannot even be inspected.
+- **Coupled parameters must move together or not at all -- but the stated
+  consequence was wrong.** `AutoAlign` printed as `---` moves
+  `ucAARegionMode` as well as `ucAARefMode`, and `encode` refusing a choice
+  it has not seen is still the right behaviour: a refusal costs a look.
+
+  What this entry used to claim is that writing half the pair "produces
+  exactly the inconsistent set above", costing a greyed-out scan. `PROBE_RUN1`
+  wrote `ucAARegionMode` alone and the scan **loaded, was not greyed out, and
+  printed `AutoAlign` with an empty value** -- the `---` state itself. So the
+  refusal is conservative rather than protective, and the cost of a
+  half-written pair is a blanked display, not an uninspectable scan. Keep the
+  refusal; do not keep the reason.
 - **`paramcheck/XA60/` extends the option-scan method to the common cards.**
   Six archives, one CMRR BOLD scan repeated with a single console option
   varied per copy, split by printed card. They take `MAPPINGS` from 41 to 67.
@@ -1161,6 +1222,14 @@ the two consistent.
   but it does mean a printout cannot verify an off-grid edit, and it is unknown
   which of the two the sequence acts on. Pick an on-grid value when the point
   is to prove a write.
+
+  **A second behaviour exists and is the opposite one.**
+  `Gradient Max. Amplitude` on `dkd_svs_sLASER` was sent as 33 and came back
+  **stored** as 36, printing 36 against the template's 37 -- so there the
+  console quantises on the way in rather than only on the way out. Both
+  behaviours are now observed and nothing says which parameters take which,
+  so a returned value differing from the one written is not by itself a
+  refusal: compare it against the printout before concluding anything.
 - **A scan can be rejected as inconsistent for reasons outside its own
   protocol.** `Include Nav. = Off` on `space_mgh_epinav_ABCD` was refused in
   the every-sequence archive, while byte-identical ASCCONV -- same source
@@ -1487,6 +1556,100 @@ the two consistent.
   before concluding that none is current. For the remaining 41 there is
   genuinely no current copy and the fix is a fresh save on the scanner, but
   "no current copy of this *binary*" is never that finding on its own.
+- **Searching for other renamed binaries: one detector works and two do not.**
+  The question is whether `svs_slaser_dkd` -> `dkd_svs_sLASER` is the only
+  rename in the corpus, and the discipline that answers it is calibration --
+  a known rename exists, so a detector that cannot recover *it* cannot be
+  trusted about anything else.
+
+  Two fail that test outright. **Protocol similarity**: ASCCONV key sets are
+  ~90% shared boilerplate, so `svs_slaser_dkd`'s nearest neighbour is
+  `fastestmap` at 0.922 and the true partner does not place; weighting keys
+  by rarity lifts the partner only to second of 66, at 0.186 against
+  `fastestmap`'s 0.646. That is not a tuning failure, it is the finding --
+  two builds of one sequence across a release boundary share little rare
+  vocabulary, because conversion changes the parameter set. **String
+  similarity** fails too: the closest installed name to `svs_slaser_dkd` is
+  `eja_svs_slaser_diff` at 0.73, because reordering defeats a character
+  ratio. Any candidate list from either is noise, and both produced
+  confident-looking lists of known-distinct sequences -- `hcp_` against
+  `cmrr_`, TSE against TFL, `_tb` variants.
+
+  What works is **token-set equality**, case-folded and split on `_`, which is
+  exactly the shape of the known rename. Over 117 binaries it finds three
+  collisions and no others: the `dkd` pair, `ep2d_bold_MGH`/`ep2d_bold_mgh`
+  and `ep2d_diff_MGH`/`ep2d_diff_mgh`.
+- **Binary names vary in case, and the two case pairs are not the same
+  phenomenon.** The roster carries the lower-case spelling of each and
+  neither upper-case one, so only one of each is installed.
+
+  `ep2d_bold_MGH` is **all current** across 12 scans beside `ep2d_bold_mgh`'s
+  29, the two appear in the *same archives*, and their `sWipMemBlock` index
+  sets are near-identical (one a subset of the other). An obsolete
+  pre-rename name would not be current, so this is one sequence written two
+  ways -- the scanner's filesystem is case-insensitive and the protocol
+  records whatever case was stored.
+
+  `ep2d_diff_MGH` looks like the `dkd` case -- 31 all stale against
+  `ep2d_diff_mgh`'s 17 all current -- and its `sWipMemBlock` index set is
+  **disjoint** from the lower-case one's, sharing not one index. Asked, the
+  protocols' owner said he does not know, thinks it likely the same sequence,
+  and that some of the differences are hard to explain. So it stays open, and
+  what follows is what the corpus can and cannot contribute to it.
+
+  **The difference is at the binary, not in how the scans were configured.**
+  That was the obvious benign explanation -- a sparse block omits an
+  assignment holding zero, so two protocols of one sequence can write
+  different indices -- and it is ruled out by the *uniformity*: all 31
+  upper-case scans write exactly one index set and all 17 lower-case ones
+  exactly one, with no variation inside either group, even though the
+  upper-case scans carry five different protocol names. Where settings really
+  do vary the corpus shows it: `cmrr_mbep2d_bold` writes four distinct index
+  sets over 185 scans and `cmrr_mbep2d_diff` three over 81. Two fixed disjoint
+  sets are a property of the binaries.
+
+  That still does not separate "one sequence, two builds" from "two
+  sequences", because a build may renumber the card -- which is exactly what
+  `Mapping.builds` exists to refuse. It does settle that the lower-case
+  mapping must never decode the upper-case protocol.
+
+  **And the evidence that would settle it cannot be obtained.** Comparing the
+  printed Special *labels* would say whether these are one card renumbered or
+  two different parameter sets, since labels carry meaning where indices do
+  not. But a `ConversionNeeded` protocol cannot be opened or printed at all --
+  that is what greying out means -- so no printout of `ep2d_diff_MGH` exists
+  or can be made, on any scanner that would still need one. The upper-case
+  protocols are plainly legacy: one is named `dti-mgh-72-8-Trio ac_pc`, and
+  Trio is two scanner generations back. Every lower-case protocol, meanwhile,
+  carries the never-set ASCCONV name `Initialized by sequence`, so the corpus
+  holds no *authored* example of the current spelling either.
+- **A binary now matches whatever case it is written in.** The scanner's
+  filesystem is case-insensitive and the `ep2d_bold` pair proves the
+  variation is real, so comparing exactly reported the unlisted spelling as
+  an *unrecognized sequence* -- which reads like "nobody has named this"
+  rather than like a failed comparison, and is the worse of the two
+  failures. `names_binary` folds case for the binary route and the kernel
+  gate, and `Catalog.stock_family` does the same for the Siemens kernel list.
+
+  All seven comparison sites had to move together. Folding the signatures
+  while comparing the kernel list exactly would make one spelling
+  third-party and the other stock, which is why the fold lives in two
+  helpers rather than at each site. An empty binary still matches nothing,
+  which `base_binaries` depends on: a scan whose header carried no sequence
+  field must *fail* a kernel gate rather than pass it vacuously.
+
+  No corpus verdict moved -- zero binaries were named by a signature only
+  under another case, and every exact accounting pin still holds. Folding
+  can, though, create an ambiguity that exact comparison hid, so `check`
+  now refuses two signatures claiming one binary once case is folded.
+  `base_binaries` is deliberately outside that rule: sibling signatures
+  share a kernel gate on purpose, `slasr` gating three semi-LASER variants
+  that their cards separate, and `epse` gating both the SE and diffusion
+  multiband entries.
+
+  The owner vocabularies are left exact. `%SiemensSeq%`/`%CustomerSeq%` and
+  VB17A's `SIEMENS:`/`USER:` are strings the export writes rather than names
+  on a filesystem, and the corpus spells each one way.
 - **The owner's account of the greyed-out catalogued sequences, and what the
   archive adds to it.** `ep2d_DE_pcasl_iPAT`, `ep2d_bold_MGH_tb` and
   `mjd_mclean_flipback` are VE11C/VB17-era sequences with no XA60 build at
@@ -1711,7 +1874,13 @@ the two consistent.
 - **A printed coordinate is a magnitude plus a direction letter, and the
   letter carries the sign.** Siemens prints `F32` for a protocol holding
   `-32`: L, P, F and I are the negative halves of the three axes and R, A, S
-  and H the positive ones. On a two-column card the letter lands in a field
+  and H the positive ones. **Only the H/F half of that sentence is evidence**,
+  and the other half is now contradicted where it has been measured: a probe
+  wrote the slice `Position` directly and got `L` for a positive `dSag` and
+  `P` for a positive `dCor`, the opposite spelling. Either the convention
+  differs per label or the L/P generalization was simply wrong; what holds
+  here is `H`/`F`, which is all `negative_letters` claims. On a two-column
+  card the letter lands in a field
   of its own, which the parser names `Table Position #2`, so a mapping
   reading only the number is reading a magnitude. That is what flipped the
   sign, and `Mapping.sign_from` is the fix -- `H` against a non-negative
@@ -1816,7 +1985,15 @@ the two consistent.
   second sequence, which is what an option scan is for. Until then the driver
   refuses and the manifest *says so*: `BuildReport.out_of_scope` separates a
   label one derivation away from working from the forty nothing has looked
-  at, which `inherited` alone cannot. `build.covered_elsewhere` asks the
+  at, which `inherited` alone cannot.
+
+  **That toggle has now been run, and the answer is no.** `PROBE_NAV` wrote
+  `alFree[4]` at 2, 3, 4 and 5 into `tfl_mgh_epinav_ABCD`; every one came back
+  reverted to 1, each dragging the full 651-field reconciliation described
+  below. So the widening is *refused by the scanner*, not merely unproven,
+  and the driver's refusal stands on evidence rather than on caution. Note
+  what this cost to learn: printout-against-stored agreement on 37 of 37
+  scans predicted nothing about whether the field could be written. `build.covered_elsewhere` asks the
   mapping table rather than parsing `resolve`'s prose, so rewording a reason
   cannot reclassify anything.
 - **The duplicate-name trap bit a second time, in an analysis rather than a
@@ -2111,6 +2288,129 @@ the two consistent.
   exactly_one_program` is written archive-wide so a readable backup tightens
   it rather than needing a new test.
 
+#### Probing a sequence with a generated archive
+
+`siemens_protocol.exar.probe` builds archives that ask a scanner questions,
+and decodes the returns. An option scan authored on the console varies a
+*printed option* and we diff the archives: the label is known and the stored
+field is discovered. A probe archive inverts that -- we vary a stored field,
+the scanner prints a card, and the printout says which label that field
+drives. Three rounds have run; they took `MAPPINGS` from 115 to 128 and
+settled four questions this file had recorded as open.
+
+- **The inversion is worth having because the two directions cost differently.**
+  An option scan costs a console session per option; a probe costs a
+  dictionary entry, so one load puts fifty questions at once. It also asks
+  three things the console direction cannot: which fields may be written
+  alone, what the console recomputes from them, and which fields have no
+  printed representation at all -- that last one being invisible to the
+  driver's coverage accounting, which cannot otherwise tell a parameter
+  nobody has mapped from one that is not printed.
+- **There is a fourth outcome, and it is the one with no visible signal.**
+  Beside accepted, greyed out, and silently repaired, there is **refused and
+  reconciled**: the console reverts the written value *and* rewrites
+  unrelated parts of the protocol, while the scan loads, is not greyed out,
+  and prints as a plausible protocol. An impossible TR reverted to the
+  template's value and took the entire manual coil selection with it, 504
+  assignments deleted, `Coil Selection` going `Manual` -> `ACS All but
+  spine`. Nothing announced it. Only a field-by-field diff of the return
+  finds it, which is why the archive must be re-exported and not just the
+  PDF.
+- **Separate the three by whether the written value survived, never by how
+  much moved.** A value that *held* beside other movement is a parameter the
+  sequence derives from it -- moving TR recomputed the scan time. A value
+  *reverted* with nothing else moving is a field the sequence simply owns,
+  which is what `sIR.adFree[1..4]` on a CMRR EPI turned out to be. A value
+  reverted that *dragged other fields with it* is the console refusing and
+  rebuilding. `Finding.reconciled` is that last case and deliberately carries
+  no threshold, since a threshold over a corpus that grows is a tripwire on
+  its own composition.
+- **The reconciliation is deterministic per protocol, and not the same
+  between protocols.** All five refused probes on the CMRR EPI moved a
+  byte-identical 510-field set; all four on the ABCD vNav moved a
+  byte-identical 651-field set; the two sets differ. So the response is a
+  property of the protocol meeting this console rather than one global
+  behaviour, and its size follows that protocol's own coil block. The vNav's
+  also reaches into *mapped* parameters -- `alFree[9]`, `alFree[12]`,
+  `sPrepPulses.lFatWaterContrast` -- so a reconciled probe's printed
+  differences belong to the reconciliation and not to the question asked.
+- **Corpus variance picks the targets, and its blind spot is the reason to
+  probe at all.** A key holding one value across every scan anyone saved is
+  derived or never offered; one taking many is a key people set.
+  `probe.settable_keys` ranks by that, and it cut a CMRR BOLD protocol's 1786
+  assignments to **52** candidates once churn, the computed slice array, the
+  coil block and the mapped keys came out. But the prior measures what *this
+  site* varies, not what the console offers: it was nearly exhausted after
+  one run, and `lAverages`, `sPat.ucPATMode`, `sKSpace.ucDynamicMode` and
+  `sKSpace.ucPhasePartialFourier` are constant across all 285 corpus scans of
+  that sequence and invisible to it. `Dynamic Mode` was found by probing one
+  of those, so the second round's targets have to come from the unmapped
+  *label* list rather than from the ranking.
+- **A value coincidence is a hypothesis; the probe is what makes it evidence.**
+  Deelchand's semi-LASER prints `Gradient factor 85 %` and holds
+  `alFree[19] = 85`, and seven such coincidences were put to the scanner at
+  once: **seven of eight confirmed**, and the eighth was the point -- both
+  `alFree[13]` and `alFree[17]` held 16 against a single printed
+  `HSn modulation 16`, so at most one could be right. It is `alFree[17]`;
+  `alFree[13]` is a water-suppression mode selector that prints under other
+  labels entirely. Reading either off the number alone would have been the
+  attribution-by-inference this file forbids throughout, and would have been
+  wrong half the time here.
+- **A probe under a switch is not a probe of the switch.** A sub-option
+  beneath a flag that is off is invisible by construction -- `sRawFilter.ucMode`
+  and `lSlope_256` were written faithfully into a protocol whose `ucOn` was
+  absent and printed nothing at all. `Probe.context` writes the switch
+  alongside, and then the *switch's* printed change is inherited by every
+  probe under it: three filter probes appeared to move a line `ucOn` had
+  already been pinned to. So **a run that writes a context must also ask that
+  context alone**, and `decode` subtracts the control's effect where one
+  exists and marks the finding `confounded` where none does. Absence of a
+  control is not evidence the probe caused what moved.
+- **Prefer the smallest change -- but a smaller one does not rescue a
+  refusal.** Round 3 re-asked every field round 2 had refused, at one step
+  instead of a plausible jump: the multiband factor 8 -> 7 rather than 6,
+  `lAverages` written together with `dAveragesDouble` since the console
+  writes both, `alFree[21]` 40000 -> 41000, `adFree[8]` 110 -> 109. **Every
+  one was refused again.** So a refusal generally means the sequence owns the
+  field, not that the value was out of range, and the remedy is to stop
+  asking rather than to ask more gently.
+- **A mined ASCCONV anchor becomes evidence once a scanner accepts it.**
+  `probe.mine_anchor` reads a key's predecessor out of every corpus protocol
+  that carries it, which is the same fact `SPARSE_ANCHORS` records by hand,
+  and it is tested by calibration: a miner that cannot recover the curated
+  answers cannot be trusted about an uncurated key. It returns a *ladder*,
+  because the nearest predecessor is often sparse itself and absent from the
+  protocol being probed. Six assignments were created at mined positions,
+  three of them at fallback rungs, and the console returned every one exactly
+  where we put it -- so it does not re-sort ASCCONV on import, and three of
+  those anchors have joined `SPARSE_ANCHORS` on that footing. Anchors for a
+  *geometry* key must be mined from the whole corpus rather than from one
+  sequence: every vNav scan sits at `dSag = 0`, which the block omits, so the
+  sequence-scoped pool could not place the position probes at all.
+- **One label can be composed from two assignments, and `Mapping` cannot
+  express that.** `1st Signal/Mode` prints `<signal>/<mode>`: neither
+  `sPhysioImaging.lSignal1` nor `lMethod1` moves it alone, and together they
+  print `ECG/Trigger`. The enums are pinned -- signal 1 None, 2 ECG, 4 Pulse,
+  8 Ext., 16 Resp., 64 2nd Ext.; mode 2 Trigger, 4 Gating, with `ECG/Gating`
+  additionally printing `Gate On`/`Gate Off` -- and there is still no mapping,
+  because every `Mapping` claims exactly one `ascconv_key`. That is a gap in
+  the table's shape rather than a missing derivation, and it is the first
+  label to need it.
+- **Run several archives per trip; they are independent and scanner access is
+  not.** Round 3 sent three -- a continued CMRR sweep, the ABCD vNav, and a
+  46-element spectroscopy card with nothing mapped -- 106 probes over 117
+  scans, all returned with nothing greyed out. Separate archives rather than
+  one multi-program file, because a generated multi-program archive is
+  untested and a program that fails to build takes its whole program with it.
+  That also lets one archive carry real risk: the spectroscopy donor was the
+  one that might have gone inconsistent on being moved into a new program,
+  and the other two were unaffected by the question.
+- **`outbound/probe_*/` holds each round's archives, manifests and build
+  script**, gitignored like the rest of `outbound/`. The manifest is what
+  decodes a return weeks later and travels with its archive, so `from_json`
+  re-points at the archive beside it when the recorded path no longer
+  resolves.
+
 #### Reading an archive out
 
 `siemens-protocol-tool archive <file.exar1>` is the reading half, where `exar`
@@ -2118,6 +2418,35 @@ is the writing half, and `exar/inspect.py` is the whole of it -- it composes
 `archive`, `patch` and `geometry` and establishes nothing new about the format
 beyond the three observations below. `list`, `sequences` and `check` take an
 archive wherever they take a PDF, through `inspect.as_protocol`.
+
+- **`tree` is the command that answers "what is in this file", and its output
+  has to be paste-able into the next one.** `exar/tree.py` draws the folder
+  tree the way unix `tree` draws a directory. It is built by inverting
+  `directory_parents` rather than by reading `directory_children` downwards,
+  and that is the whole of its correctness argument: the two maps agree on
+  every corpus archive, but only the upward one is what `path_of` walks and
+  therefore what `--program` and `--scan` resolve against. A tree off the
+  downward map could print a path no command would accept, on a file where
+  nothing else disagreed. Directories and protocols are sorted by name, since
+  store row order is not known to be the console's display order; a
+  protocol's steps are *not*, because running order is meaningful -- that
+  asymmetry is the one thing in the renderer worth a test.
+- **A tree drawing read back by indentation alone passes on a broken
+  renderer.** The obvious test -- re-parse the drawing, recover each line's
+  depth from its prefix width, compare to the tree -- is satisfied by a
+  renderer that gives *every* child the branching connector, because the
+  indentation is unchanged while a trunk now runs past the last child. It was
+  found by mutating the renderer rather than by reading the test, and the fix
+  is to ask what the connectors mean against the drawing itself: a closing
+  connector says no sibling follows, a trunk at some depth says an ancestor
+  there still has one. Checking that against the *tree* instead would just
+  mirror the code being checked.
+- **Reading an archive raises `sqlite3.DatabaseError`, which no caller was
+  catching.** An `.exar1` is a SQLite database and a PDF is not, and several
+  corpus directories hold both under one stem, so pointing a command at the
+  wrong one is easy -- and it reached the terminal as a traceback saying
+  "file is not a database". `cli._read_archive` converts it to a `ValueError`
+  with a sentence, which every call site already caught beside `OSError`.
 
 - **ASCCONV spells an array index two ways, and the second one is easy to miss.**
   `alTE[0]` is the usual spelling; the corpus also carries
@@ -2165,6 +2494,24 @@ archive wherever they take a PDF, through `inspect.as_protocol`.
   archive against 51:55 from the printout -- four scans the console omits.
   It is a *derived* field the console recomputes, so a protocol this package
   has patched carries a stale one until a scanner reopens it.
+- **`as_protocol` must build `flat` with `flatten_sections`, not as a
+  key-to-value map.** The comparison is the only consumer of that view and
+  reads each entry's `value` and `conflict`, so a bare string raised
+  `AttributeError` and *no* archive could be diffed at all -- for as long as
+  archives have been accepted, and invisibly, since `list`, `sequences` and
+  `summary` all pass `need_flat=False`. Nothing an archive produces can
+  conflict, cards being a property of the page, and the test asserts that
+  rather than assuming it.
+- **A capability added to `_load_protocol` does not reach the subcommands'
+  parsers.** Archive support was added there once and every caller inherited
+  it -- including two whose parsers were never given the option that makes it
+  usable. `diff` and the two `vocab` actions refused a multi-program archive
+  by naming `--program`, a flag they did not define, so a backup was a dead
+  end with no way out. They take two inputs, hence
+  `--left-program`/`--right-program`.
+  `test_every_subcommand_that_takes_an_archive_can_choose_its_program` reads
+  the invariant off each subcommand's own help, so it also keeps that help
+  honest: both were claiming "a PDF or JSON" while accepting archives.
 
 ### Code Formatting
 
@@ -2273,6 +2620,19 @@ pip install .
   still *there*, glued onto its own key. What makes it visible is the valueless
   rate: `test_a_scan_is_not_mostly_parameters_without_a_value` holds every scan
   under 15%, where the healthy worst case is 4.7% and the broken scans ran 21-30%.
+- `diff` already aligns scans with `difflib` over *normalized* names, not by
+  position: an inserted or deleted scan leaves the rest synced and is
+  reported as such, and case, punctuation and spacing fold away first. Do not
+  rebuild it. Two things it does not do -- express a move, which comes back
+  as a delete plus an insert; and test a `replace` block's pairing, which it
+  zips positionally, so a rename adjacent to an insertion mis-pairs and
+  `Aging_SZ_SPICE`'s `dMRI_dir20_Low-b_DTI_LongTE` is paired with
+  `dMRI_dir64_MGH_AP_LongTE` on position alone.
+- `diff`'s exit status is `ProtocolDiff.differs`: a substantive parameter
+  difference *or* a scan on one side only. A renamed scan is deliberately
+  excluded -- it is matched, both spellings are in the report, and counting
+  it would fail every check on a protocol whose scans were renamed between
+  releases.
 
 
 ## Style Conventions

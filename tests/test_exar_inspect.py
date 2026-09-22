@@ -324,7 +324,7 @@ def test_reading_one_protocol_out_of_an_archive_never_guesses() -> None:
     only = archive.programs[0]
     assert _select_program(archive, None, "x").name == only.name
     assert _select_program(archive, only.name, "x").name == only.name
-    with pytest.raises(ValueError, match="holds no protocol named"):
+    with pytest.raises(ValueError, match="no protocol named"):
         _select_program(archive, "not a protocol here", "x")
 
     several = exar.read(find_exar("Frederick_P2.exar1"))
@@ -692,3 +692,556 @@ def test_the_archive_path_agrees_with_the_one_the_printout_shows() -> None:
         f"::error::archive path {document['programs'][0]['steps'][0]['path']!r} disagrees "
         f"with the printed {printed.path!r}"
     )
+
+
+def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None:
+    """A command accepting an ``.exar1`` must offer a way to say which protocol.
+
+    This is the check that was missing. ``_load_protocol`` grew archive
+    support centrally, so every caller inherited it at once -- including two
+    whose parsers were never given the flag that makes it usable. ``diff`` on
+    a scanner backup therefore failed with a message naming ``--program``, a
+    flag ``diff`` did not define, so a multi-program archive was a dead end
+    with no way out of it.
+
+    The invariant is read off each subcommand's own help rather than a
+    written-out list, so it also keeps that help honest: a command that starts
+    accepting archives has to say so, and saying so obliges it to offer the
+    option. One flag suffices for a one-input command; a two-input one needs
+    a side each, since a lone name cannot say which input it belongs to.
+
+    Returns
+    -------
+    None
+    """
+    import argparse as _argparse
+
+    from siemens_protocol.cli import build_parser
+
+    def subparsers(parser: _argparse.ArgumentParser) -> dict:
+        """Every registered subcommand of a parser, by name, or none."""
+        group = getattr(parser, "_subparsers", None)  # noqa: SLF001
+        for action in getattr(group, "_group_actions", []):  # noqa: SLF001
+            if isinstance(action, _argparse._SubParsersAction):  # noqa: SLF001
+                return dict(action.choices)
+        return {}
+
+    def flags(parser: _argparse.ArgumentParser) -> set[str]:
+        """Every option string the parser accepts."""
+        return {
+            option for action in parser._actions for option in action.option_strings
+        }  # noqa: SLF001
+
+    def positional_inputs(parser: _argparse.ArgumentParser) -> list[str]:
+        """The help of every positional, plus any that names files by flag."""
+        return [
+            action.help or ""
+            for action in parser._actions  # noqa: SLF001
+            if not action.option_strings or action.dest == "against"
+        ]
+
+    checked = []
+    for name, parser in sorted(subparsers(build_parser()).items()):
+        nested = subparsers(parser)
+        candidates = (
+            [(name, parser)]
+            if not nested
+            else [(f"{name} {sub}", child) for sub, child in sorted(nested.items())]
+        )
+        for label, target in candidates:
+            takes = [help_text for help_text in positional_inputs(target) if ".exar1" in help_text]
+            if not takes:
+                continue
+            offered = flags(target)
+            per_side = {"--left-program", "--right-program"} <= offered
+            assert "--program" in offered or per_side, (
+                f"::error::'{label}' accepts an .exar1 archive but offers no way to "
+                "pick a protocol out of one, so a multi-program backup cannot be used"
+            )
+            checked.append(label)
+
+    assert "diff" in checked, "::error::diff no longer declares that it takes an archive"
+    assert any(
+        one.startswith("vocab") for one in checked
+    ), "::error::no vocab action declares that it takes an archive"
+    assert len(checked) >= 6, f"::error::only {len(checked)} archive-taking subcommands found"
+
+
+@requires_exar
+def test_a_scan_read_from_an_archive_flattens_like_a_parsed_printout() -> None:
+    """The flattened view is the flattener's shape, not a key-to-value map.
+
+    ``as_protocol`` exists to hand every downstream command the shape a
+    parsed PDF has, and the comparison is the one consumer that reads the
+    flattened view. It reads each entry's ``value`` and ``conflict``, so a
+    bare string raised ``AttributeError`` and no archive could be diffed at
+    all -- with or without a protocol named, which is why the missing
+    ``--program`` flag was only the second obstacle.
+
+    Nothing in an archive conflicts, because the cards a page splits into are
+    a property of the page and an archive has none. That is asserted rather
+    than assumed: it is what says the one section really is the whole of it.
+
+    Returns
+    -------
+    None
+    """
+    archive = exar.read(find_exar("Potpourri_P1.exar1"))
+    protocol = ins.as_protocol(archive, archive.programs[0], "x")
+    scans = protocol["scans"]
+    assert scans, "::error::the archive yielded no scans"
+    for scan in scans:
+        for key, entry in scan["flat"].items():
+            assert isinstance(entry, dict), f"{key} flattened to {type(entry).__name__}"
+            assert "value" in entry
+            # A quantity the console prints on several cards is one quantity,
+            # settable from any of them and kept in sync -- so decoding it
+            # once and emitting it under each card can never disagree with
+            # itself. A conflict here would mean the decoder gave two
+            # answers for one parameter.
+            assert entry["conflict"] is False, f"{key} decoded to two different values"
+            assert entry["sections"], f"{key} belongs to no section"
+
+
+@requires_exar
+def test_diff_takes_one_protocol_out_of_a_backup(capsys: pytest.CaptureFixture) -> None:
+    """``--left-program`` reaches a protocol inside a multi-program archive.
+
+    The backup's copy of ``Potpourri_P1`` is compared against the
+    single-protocol export of the same name, which is the pairing the program
+    name exists to make: all 18 scans agree parameter for parameter, and the
+    backup's copy carries one extra scan.
+
+    The exit status is 1 on those unmatched scans alone, with every compared
+    scan identical: two protocols of different lengths are not the same
+    protocol.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    code = main(
+        [
+            "diff",
+            find_exar("Frederick_P2.exar1"),
+            find_exar("Potpourri_P1.exar1"),
+            "--left-program",
+            "Potpourri_P1",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "18 scans compared" in out
+    assert "scan only in left" in out
+    # Five byte-identical and thirteen differing only in the fields the
+    # console rewrites on every save -- which is the shape CLAUDE.md records
+    # for this pair from an independent derivation, and is what says the
+    # churn classification is doing its job rather than hiding real changes.
+    assert "5 identical" in out
+    assert "0 substantive differences" in out, "::error::the two protocols now differ elsewhere"
+    assert code == 1
+
+
+@requires_exar
+def test_diff_compares_two_protocols_of_one_backup(capsys: pytest.CaptureFixture) -> None:
+    """Naming a different protocol per side of one archive compares the two.
+
+    A backup holds every protocol on the scanner, so two of them should be
+    comparable without exporting either first. This is also what says the
+    same-file short-circuit keys on the program: reusing one side's parse
+    would compare a protocol against itself and report no differences at all.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    main(
+        [
+            "diff",
+            find_exar("Frederick_P2.exar1"),
+            "--left-program",
+            "MEMPRAGE",
+            "--right-program",
+            "MEMPRAGE_test",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "scan only in right" in out, "::error::the two protocols came back identical"
+
+
+@requires_exar
+def test_one_archive_and_one_protocol_still_needs_a_scan_pair() -> None:
+    """The original guard survives: one protocol cannot be diffed against itself.
+
+    Relaxing it for two programs must not relax it for one, or ``diff`` on a
+    lone archive silently compares a protocol with itself.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    assert main(["diff", find_exar("Potpourri_P1.exar1")]) == 1
+    assert (
+        main(
+            [
+                "diff",
+                find_exar("Frederick_P2.exar1"),
+                "--left-program",
+                "MEMPRAGE",
+                "--right-program",
+                "MEMPRAGE",
+            ]
+        )
+        == 1
+    )
+
+
+@requires_exar
+def test_a_scan_of_a_backup_is_addressed_by_as_much_path_as_it_takes(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """A scan two protocols share is reached by naming the protocol.
+
+    ``eja_svs_slaser`` is in both ``CMRR test scans`` and ``CMRR spectro
+    scans`` of the 31-protocol backup, so the bare name is refused with both
+    full paths and the qualified one resolves. The protocol need not be named
+    separately: the address identifies it, which is what lets a backup be
+    used at all without listing it first.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    assert (
+        main(
+            [
+                "diff",
+                backup,
+                "--left-scan",
+                "eja_svs_slaser",
+                "--right-scan",
+                "eja_svs_slaser",
+            ]
+        )
+        == 1
+    )
+    refused = capsys.readouterr().err
+    assert "names 2 scans" in refused
+    assert "CMRR test scans/eja_svs_slaser" in refused
+    assert "CMRR spectro scans/eja_svs_slaser" in refused
+
+    main(
+        [
+            "diff",
+            backup,
+            "--left-scan",
+            "CMRR spectro scans/eja_svs_slaser",
+            "--right-scan",
+            "CMRR test scans/eja_svs_slaser",
+        ]
+    )
+    assert "eja_svs_slaser" in capsys.readouterr().out
+
+
+@requires_exar
+def test_a_name_repeated_inside_one_protocol_needs_an_occurrence(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """No path separates a name one protocol uses five times.
+
+    ``Functional TOF`` runs ``tof_cs_acc10.3 fast`` five times, so the
+    address grammar has to reach past the path -- which is why an occurrence
+    is part of it rather than a convenience.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    name = "Functional TOF/tof_cs_acc10.3 fast"
+    assert main(["diff", backup, "--left-scan", name, "--right-scan", name]) == 1
+    assert "#1 .." in capsys.readouterr().err
+
+    main(["diff", backup, "--left-scan", f"{name}#1", "--right-scan", f"{name}#5"])
+    assert "tof_cs_acc10.3 fast" in capsys.readouterr().out
+
+
+@requires_exar
+def test_two_protocols_of_one_name_are_told_apart_by_their_directory(
+    capsys: pytest.CaptureFixture,
+) -> None:
+    """A protocol address is a path, because a name is not always unique.
+
+    ``NAV_optionscan_P1_loadtest`` holds two protocols both named
+    ``NAV_optionscan_P1 (2)``, under ``Investigators`` and ``Investigators
+    (2)``. The refusal lists paths rather than names, since naming one twice
+    would say nothing about how to choose.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the listing.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    archive = find_exar("NAV_optionscan_P1_loadtest.exar1")
+    assert main(["list", archive]) == 1
+    refused = capsys.readouterr().err
+    assert "Investigators/Frederick/NAV_optionscan_P1 (2)" in refused
+    assert "Investigators (2)/Frederick/NAV_optionscan_P1 (2)" in refused
+
+    assert (
+        main(["list", archive, "--program", "Investigators (2)/Frederick/NAV_optionscan_P1 (2)"])
+        == 0
+    )
+    assert capsys.readouterr().out.strip()
+
+
+@requires_exar
+def test_every_scan_in_the_corpus_is_addressable(protocol_archive_path: str) -> None:
+    """Every scan of every archive has an address that reaches it and no other.
+
+    The full path always works, since it is the longest suffix of itself; the
+    check that bites is the converse -- that resolving it comes back with the
+    scan it names rather than a sibling. Repeated names are addressed by
+    occurrence, which is what makes the sweep total rather than skipping the
+    43 scans path alone cannot separate.
+
+    Parameters
+    ----------
+    protocol_archive_path : str
+        Archive under test.
+
+    Returns
+    -------
+    None
+    """
+    import collections
+
+    from siemens_protocol import address
+
+    archive = exar.read(protocol_archive_path)
+    candidates = []
+    for program in archive.programs:
+        base = tuple(archive.path_of(program.instance))
+        for step in program.steps:
+            if step.runs_a_protocol:
+                candidates.append((base + (step.name,), (base, step.name)))
+
+    seen: collections.Counter = collections.Counter()
+    for path, payload in candidates:
+        seen[path] += 1
+        text = "/".join(path)
+        if seen[path] > 1 or sum(1 for p, _ in candidates if p == path) > 1:
+            text += f"#{seen[path]}"
+        assert (
+            address.resolve(text, candidates, what="scan", source=protocol_archive_path) == payload
+        ), f"::error::{text} did not resolve to itself"
+
+
+@requires_exar
+def test_every_command_that_reads_a_protocol_takes_a_scan_address() -> None:
+    """``--scan`` is not a ``diff`` feature; it is how any command is narrowed.
+
+    "Answer about this scan" is the same request whichever question is being
+    asked, so a command that reads a protocol and cannot be pointed at one
+    scan of it is a gap rather than a design. ``diff`` is the exception on
+    purpose: two inputs need a scan named per side, which is what
+    ``--left-scan``/``--right-scan`` are.
+
+    Read off the live parser rather than a written-out list, so a new
+    subcommand that reads a protocol has to answer for itself.
+
+    Returns
+    -------
+    None
+    """
+    import argparse as _argparse
+
+    from siemens_protocol.cli import build_parser
+
+    def subparsers(parser: _argparse.ArgumentParser) -> dict:
+        """Every registered subcommand of a parser, by name, or none."""
+        group = getattr(parser, "_subparsers", None)  # noqa: SLF001
+        for action in getattr(group, "_group_actions", []):  # noqa: SLF001
+            if isinstance(action, _argparse._SubParsersAction):  # noqa: SLF001
+                return dict(action.choices)
+        return {}
+
+    reads_a_protocol = {"parse", "list", "summary", "sequences", "check", "archive"}
+    found = subparsers(build_parser())
+    assert reads_a_protocol <= set(found), "::error::a subcommand was renamed or removed"
+    for name in sorted(reads_a_protocol):
+        options = {o for a in found[name]._actions for o in a.option_strings}  # noqa: SLF001
+        assert "--scan" in options, f"::error::'{name}' reads a protocol but takes no --scan"
+
+    two_sided = {o for a in found["diff"]._actions for o in a.option_strings}  # noqa: SLF001
+    assert {"--left-scan", "--right-scan"} <= two_sided
+
+
+@requires_exar
+def test_a_scan_address_narrows_every_one_file_command(capsys: pytest.CaptureFixture) -> None:
+    """One address reaches one scan of a 31-protocol backup, whatever is asked.
+
+    The same address is given to each command, which is the point: the
+    grammar is shared, so learning it once is enough. ``eja_svs_slaser`` is in
+    two protocols of this backup, so the qualified form is also the only form
+    that resolves.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for each command's output.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    where = "CMRR spectro scans/eja_svs_slaser"
+
+    assert main(["list", backup, "--scan", where]) == 0
+    listed = capsys.readouterr().out
+    assert "eja_svs_slaser" in listed
+    assert "total (1 scan)" in listed, "::error::the total is not singular for one scan"
+
+    assert main(["summary", backup, "--scan", where]) == 0
+    assert "scans     1" in capsys.readouterr().out
+
+    assert main(["sequences", backup, "--scan", where]) == 0
+    assert "of 1 scans" in capsys.readouterr().out
+
+
+@requires_exar
+def test_a_narrowed_scan_keeps_its_place_in_the_protocol() -> None:
+    """Narrowing renumbers nothing: the scan keeps the index it really has.
+
+    A listing of one scan that called it index 0 would be saying something
+    false about where it sits, and would not match the same scan's line in
+    the full listing.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import _load_one
+
+    backup = find_exar("Frederick_P2.exar1")
+    whole = _load_one(backup, "auto", "CMRR spectro scans", None)
+    names = [scan["name"] for scan in whole["scans"]]
+    position = names.index("eja_svs_slaser")
+    assert position > 0, "::error::this scan is first, so the check cannot fail"
+
+    one = _load_one(backup, "auto", None, "CMRR spectro scans/eja_svs_slaser")
+    assert len(one["scans"]) == 1
+    assert one["scans"][0]["index"] == whole["scans"][position]["index"]
+
+
+@requires_exar
+def test_archive_narrowed_to_one_scan_recomputes_its_counts(tmp_path: Path) -> None:
+    """A document narrowed to one scan must not describe what was removed.
+
+    This is where an address pays most -- a scan's parameter tree runs 514 to
+    2020 assignments -- and a ``scan_count`` left at 18 beside one step is
+    exactly the plausible-looking wrong number nothing else would catch.
+
+    Returns
+    -------
+    None
+    """
+    import json as _json
+
+    from siemens_protocol.cli import main
+
+    archive = find_exar("Potpourri_P1.exar1")
+    out = tmp_path / "one.json"
+    assert (
+        main(
+            [
+                "archive",
+                archive,
+                "--scan",
+                "localizer_64ch_uncombined",
+                "--out",
+                str(out),
+                "--quiet",
+            ]
+        )
+        == 0
+    )
+    document = _json.loads(out.read_text(encoding="utf-8"))
+
+    assert document["program_count"] == 1
+    program = document["programs"][0]
+    assert program["step_count"] == 1
+    assert program["scan_count"] == 1
+    assert program["pause_count"] == 0
+    assert [step["name"] for step in program["steps"]] == ["localizer_64ch_uncombined"]
+    assert program["steps"][0]["ascconv"], "::error::the parameter tree was dropped"
+
+
+@requires_exar
+def test_archive_keeps_one_of_two_protocols_that_share_a_name(tmp_path: Path) -> None:
+    """``--program`` filters the document by path, not by name.
+
+    ``NAV_optionscan_P1_loadtest`` holds two protocols both named
+    ``NAV_optionscan_P1 (2)``, so filtering on the name kept both and reported
+    a protocol_count of 2 for a request that named one.
+
+    Returns
+    -------
+    None
+    """
+    import json as _json
+
+    from siemens_protocol.cli import main
+
+    archive = find_exar("NAV_optionscan_P1_loadtest.exar1")
+    wanted = "Investigators (2)/Frederick/NAV_optionscan_P1 (2)"
+    out = tmp_path / "one.json"
+    assert (
+        main(
+            ["archive", archive, "--program", wanted, "--no-ascconv", "--out", str(out), "--quiet"]
+        )
+        == 0
+    )
+    document = _json.loads(out.read_text(encoding="utf-8"))
+
+    assert document["program_count"] == 1
+    assert document["programs"][0]["path"].endswith(wanted)

@@ -72,6 +72,9 @@ SPARSE_KEYS = frozenset(
         "sSliceArray.ucImageNumbSag",
         "sSliceArray.ucImageNumbTra",
         "sPreScanNormalizeFilter.ucOn",
+        "sRawFilter.ucOn",
+        "sHammingFilter.ucOn",
+        "sKSpace.dPhaseOversamplingForDialog",
         "ucReconstructionPrio",
         "sWorkflow.ucWaitForUserStart",
         "sAAInitialOffset.SliceInformation.dInPlaneRot",
@@ -90,6 +93,8 @@ HEX_KEYS = frozenset(
         "sAdjData.uiAdjTableToleranceValid",
         "sAdjData.uiAdjFreSiliconeDetection",
         "sPreScanNormalizeFilter.ucOn",
+        "sRawFilter.ucOn",
+        "sHammingFilter.ucOn",
         "ucReconstructionPrio",
         "sWorkflow.ucWaitForUserStart",
         "ucStaticFieldCorrection",
@@ -136,6 +141,16 @@ SPARSE_ANCHORS: dict[str, tuple[str, ...]] = {
     "lRepetitions": ("dAveragesDouble",),
     "sGroupArray.asGroup[0].dDistFact": ("sGroupArray.asGroup[0].nSize",),
     "sPrepPulses.ucMTC": ("sPrepPulses.ucTIScout",),
+    # Mined out of the corpus rather than read off a console, and then
+    # validated the harder way: probe run 1 created both lines at these
+    # positions, the scanner loaded them, and its own re-export left each
+    # exactly where we had put it.
+    "sKSpace.dPhaseOversamplingForDialog": ("sKSpace.dPhaseResolution",),
+    "sRawFilter.ucOn": (
+        "sRawFilter.lSlope_256",
+        "sPreScanNormalizeFilter.ucMode",
+    ),
+    "sHammingFilter.ucOn": ("sPreScanNormalizeFilter.ucMode",),
     "ucReconstructionPrio": ("ulWrapUpMagn",),
 }
 
@@ -201,6 +216,15 @@ class Mapping:
         necessarily the choice stored as zero, so it has to be observed rather
         than derived. Only ``Protocol filename`` has been seen this way, where
         ``Generic`` is both stored as ``1`` and displayed for nothing stored.
+    read_only : bool
+        Whether this mapping may only be *read*. A parameter the console
+        derives is printed as a display of something it computed, so the
+        printed number is sound to decode and unsound to write back: the
+        scan resolution in the phase direction is stored as the line count
+        the console worked out from base resolution, phase resolution and
+        the phase FOV, and writing the printed number over it puts a figure
+        there the console did not choose. Such a mapping decodes on a card
+        and is invisible to the writer.
     bit : int or None
         Position of this parameter's flag within ``ascconv_key``, for a
         checkbox packed into a shared word. Writing one is a read-modify-write
@@ -236,6 +260,7 @@ class Mapping:
     sequences: tuple[str, ...] = ()
     choices: tuple[tuple[str, int], ...] = ()
     absent_choice: str | None = None
+    read_only: bool = False
     bit: int | None = None
     builds: tuple[str, ...] = ()
     when: tuple[str, str] | None = None
@@ -323,6 +348,12 @@ MAPPINGS: tuple[Mapping, ...] = (
         preview_path="sub.0.msr.matrix",
         ascconv_key="sKSpace.lBaseResolution",
         evidence="controlled edit: P1 pair, 2 scans",
+        # The corpus shows "Scan Res. R >> L" tracking this same key, and
+        # the owner confirms it: the readout direction's scan resolution is
+        # the base resolution, printed under a second name on the cards a
+        # spectroscopy scan uses. One key takes one mapping, so it is
+        # recorded here rather than added as a duplicate the writer would
+        # have to choose between.
     ),
     Mapping(
         label="Slices per Slab",
@@ -469,7 +500,11 @@ MAPPINGS: tuple[Mapping, ...] = (
         evidence="controlled edit: resolutionopts/RE20, Prescan->Off. Sparse: the "
         "assignment is deleted rather than set to zero, seen on 168 corpus scans. "
         "'Image Based' is deliberately absent: it stores the same absence as Off, "
-        "so it is distinguished by another field and cannot be written from here.",
+        "so it is distinguished by another field and cannot be written from here. "
+        "Corroborated from the opposite direction by probe run 1 (PROBE_RUN1, "
+        "2026-09-18), which created the assignment at 1 and got 'Prescan' back; the "
+        "same run rules out ucMode as the switch, a probe writing ucMode 1 beside an "
+        "absent ucOn having changed nothing printed at all.",
     ),
     Mapping(
         label="Prio Recon",
@@ -723,6 +758,69 @@ MAPPINGS: tuple[Mapping, ...] = (
         builds=(CMRR_R017,),
         evidence="controlled edit: CMRR_optionscan_P1, single-option toggle -> bit 28",
     ),
+    # Bit 29 and the two scalars below are gated to the BOLD sequence alone.
+    # Every controlled edit establishing them is a BOLD one, and a
+    # sWipMemBlock index means whatever its own binary reads it as -- the
+    # decoder agreeing elsewhere is the wrong kind of evidence for widening,
+    # exactly as it is for `Averaging`. A toggle on the second sequence is
+    # what an option scan would supply.
+    Mapping(
+        label="Echoes in separate series",
+        ascconv_key="sWipMemBlock.alFree[0]",
+        bit=29,
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        evidence=(
+            "controlled edit by subtraction: Potpourri_P1 -> Potpourri_P1_changed moves ten "
+            "Special-card options on both Minn_CMRR_2.3mm_S8_rest_6min and rfMRI REST ME PA "
+            "XA60, and the one scan that also toggles this label is the one scan whose word "
+            "also moves bit 29. Two scans sharing ten toggles isolate the eleventh. Agrees "
+            "with the printed card on 202 corpus scans with both states observed, none against."
+        ),
+    ),
+    Mapping(
+        label="Triggering scheme",
+        ascconv_key="sWipMemBlock.alFree[27]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        choices=(
+            ("Standard", 1),
+            ("Every Slice", 2),
+            ("Paradigm/Vol.", 3),
+            ("Paradigm/Slc.", 4),
+        ),
+        evidence=(
+            "controlled edit: CMRR_PARAMSCAN P10/P11/P12 vary this option alone from "
+            "the P0 "
+            "baseline, giving Every Slice, Paradigm/Vol. and Paradigm/Slc. against Standard; "
+            "the console's own Potpourri_P1 -> _changed edit independently moves Standard -> "
+            "Every Slice as 1 -> 2. All four choices observed. Agrees with the printed card "
+            "on 311 corpus scans, none against."
+        ),
+    ),
+    Mapping(
+        label="Physio recording",
+        ascconv_key="sWipMemBlock.alFree[31]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        choices=(
+            ("Off", 0),
+            ("Legacy", 1),
+            ("File", 2),
+            ("DICOM", 3),
+            ("Multiple", 4),
+        ),
+        absent_choice="Off",
+        evidence=(
+            "controlled edit: CMRR_PARAMSCAN P6/P7/P8/P9 vary this option alone from "
+            "the P0 "
+            "baseline, giving DICOM, File, Multiple and Legacy; the console's own "
+            "Potpourri_P1 -> _changed edit independently moves Off -> DICOM and Off -> Legacy "
+            "by creating the assignment, which is what makes Off the omitted zero rather than "
+            "a stored one. All five choices observed. Agrees with the printed card on 352 "
+            "corpus scans, none against."
+        ),
+    ),
     # ---- The ABCD navigated sequences. Shared between the MPRAGE and
     # SPACE variants, which agree on every index below.
     Mapping(
@@ -838,6 +936,516 @@ MAPPINGS: tuple[Mapping, ...] = (
         sequences=("tfl_mgh_multiecho",),
         evidence="controlled edit: MEMPRAGE_optionscan_P1, all five states observed",
     ),
+    # -- derived from the corpus rather than from a controlled edit ---------
+    #
+    # Each of these was found by asking which ASCCONV key induces the same
+    # partition over the 483 scans where an archive sits beside its own
+    # printout: a consistent bijection between stored and printed values,
+    # which covers numbers, scaled numbers and enums at once and is vacuous
+    # unless the label actually varies. A candidate was kept only where
+    # exactly one key tracks the label *and* the key's own name echoes it,
+    # so the correlation and the naming are two independent witnesses.
+    #
+    # They are weaker evidence than the controlled edits above, in one
+    # specific way: an enum carries only the choices the corpus happened to
+    # exercise, so `encode` refuses a value nobody has printed. That is the
+    # same conservatism the option-scan enums already have.
+    #
+    # Two candidates were dropped after the fact, for a reason the rule as
+    # first written could not see: it checked for two candidates claiming one
+    # key, but not for a candidate claiming a key an *existing* mapping
+    # already writes. `Save Original Images` collided with `MSMA`, which is
+    # verified and keeps it; `TE 1` collided with `TE`, which is the same
+    # parameter under the name a multi-echo scan prints for it -- a case
+    # `resolve` already covers by falling back to the label Preview carries.
+    #
+    # Deliberately excluded: anything in sWipMemBlock, which is scratch
+    # memory whose meaning is per sequence and must name its sequences; any
+    # key two labels track equally well; and any key whose name does not
+    # corroborate, since co-occurrence alone proposes nonsense.
+    Mapping(
+        label="Adj. Water Suppr.",
+        ascconv_key="sAdjData.uiAdjWatSupMode",
+        choices=(("Off", 1), ("On", 2)),
+        evidence=(
+            "corpus correlation: 'Adj. Water Suppr.' and sAdjData.uiAdjWatSupMode induce the same partition over 64 paired scans, and the key's own name echoes the label (adj). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Coil Combination",
+        ascconv_key="ucCoilCombineMode",
+        choices=(("Adaptive Combine", 2), ("Sum of Squares", 1)),
+        evidence=(
+            "corpus correlation: 'Coil Combination' and ucCoilCombineMode induce the same partition over 413 paired scans, and the key's own name echoes the label (coil). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Concatenations",
+        ascconv_key="sSliceArray.lConc",
+        evidence=(
+            "corpus correlation: 'Concatenations' and sSliceArray.lConc induce the same partition over 246 paired scans, and the key's own name echoes the label (concatenations~conc). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Contrasts",
+        ascconv_key="lContrasts",
+        evidence=(
+            "corpus correlation: 'Contrasts' and lContrasts induce the same partition over 294 paired scans, and the key's own name echoes the label (contrasts). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Delta Frequency",
+        ascconv_key="sSpecPara.dDeltaFrequency",
+        absent_choice="0.00 ppm",
+        evidence=(
+            "corpus correlation: 'Delta Frequency' and sSpecPara.dDeltaFrequency induce the same partition over 69 paired scans, and the key's own name echoes the label (delta, frequency). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Dimension",
+        ascconv_key="sKSpace.ucDimension",
+        choices=(("2D", 2), ("3D", 4)),
+        evidence=(
+            "corpus correlation: 'Dimension' and sKSpace.ucDimension induce the same partition over 395 paired scans, and the key's own name echoes the label (dimension). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Elliptical Filter",
+        ascconv_key="sEllipticalFilter.ucOn",
+        choices=(("On", 1),),
+        absent_choice="Off",
+        evidence=(
+            "corpus correlation: 'Elliptical Filter' and sEllipticalFilter.ucOn induce the same partition over 406 paired scans, and the key's own name echoes the label (elliptical, filter). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Fat Saturation",
+        ascconv_key="sPrepPulses.ucFatSatMode",
+        choices=(("Strong", 2), ("Weak", 1)),
+        evidence=(
+            "corpus correlation: 'Fat Saturation' and sPrepPulses.ucFatSatMode induce the same partition over 32 paired scans, and the key's own name echoes the label (fat). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Flip Angle Mode",
+        ascconv_key="ucFlipAngleMode",
+        choices=(("Constant", 1), ("T1 Var", 4), ("T2 Var", 16)),
+        evidence=(
+            "corpus correlation: 'Flip Angle Mode' and ucFlipAngleMode induce the same partition over 49 paired scans, and the key's own name echoes the label (angle, flip). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Flow Compensation",
+        ascconv_key="acFlowComp[0]",
+        choices=(("None", 1), ("On", 2), ("Slice/Read", 16)),
+        evidence=(
+            "corpus correlation: 'Flow Compensation' and acFlowComp[0] induce the same partition over 245 paired scans, and the key's own name echoes the label (flow). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Free Echo Spacing",
+        ascconv_key="sFastImaging.ucFreeEchoSpacing",
+        choices=(("On", 1),),
+        absent_choice="Off",
+        evidence=(
+            "corpus correlation: 'Free Echo Spacing' and sFastImaging.ucFreeEchoSpacing induce the same partition over 232 paired scans, and the key's own name echoes the label (echo, free, spacing). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Gradient Mode",
+        ascconv_key="sGRADSPEC.ucMode",
+        choices=(
+            ("Fast", 1),
+            ("Fast*", 17),
+            ("Normal", 2),
+            ("Performance", 8),
+            ("Performance*", 24),
+            ("Whisper", 4),
+        ),
+        evidence=(
+            "corpus correlation: 'Gradient Mode' and sGRADSPEC.ucMode induce the same partition over 413 paired scans, and the key's own name echoes the label (gradient~gradspec). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Introduction",
+        ascconv_key="ucEnableIntro",
+        choices=(("On", 1),),
+        absent_choice="Off",
+        evidence=(
+            "corpus correlation: 'Introduction' and ucEnableIntro induce the same partition over 411 paired scans, and the key's own name echoes the label (introduction~intro). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Magn. Preparation",
+        ascconv_key="sPrepPulses.ucInversion",
+        choices=(("Non-sel. IR", 2), ("None", 4), ("Slice-sel. IR", 1)),
+        evidence=(
+            "corpus correlation: 'Magn. Preparation' and sPrepPulses.ucInversion induce the same partition over 345 paired scans, and the key's own name echoes the label (preparation~prep). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Multi-Slice Mode",
+        ascconv_key="sKSpace.ucMultiSliceMode",
+        choices=(("Interleaved", 2), ("Sequential", 1), ("Single Shot", 4)),
+        evidence=(
+            "corpus correlation: 'Multi-Slice Mode' and sKSpace.ucMultiSliceMode induce the same partition over 366 paired scans, and the key's own name echoes the label (multi, slice). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Multiple Series",
+        ascconv_key="ucOneSeriesForAllMeas",
+        choices=(("Each Measurement", 4), ("Off", 1)),
+        evidence=(
+            "corpus correlation: 'Multiple Series' and ucOneSeriesForAllMeas induce the same partition over 243 paired scans, and the key's own name echoes the label (series). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Phase Cycling",
+        ascconv_key="sSpecPara.lPhaseCyclingType",
+        choices=(("Auto", 2), ("None", 1), ("Two Step", 4)),
+        evidence=(
+            "corpus correlation: 'Phase Cycling' and sSpecPara.lPhaseCyclingType induce the same partition over 57 paired scans, and the key's own name echoes the label (cycling, phase). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Phase Encoding",
+        ascconv_key="sSpecPara.lPhaseEncodingType",
+        choices=(("Full", 1), ("Weighted", 4)),
+        evidence=(
+            "corpus correlation: 'Phase Encoding' and sSpecPara.lPhaseEncodingType induce the same partition over 23 paired scans, and the key's own name echoes the label (encoding, phase). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Phase Resolution",
+        ascconv_key="sKSpace.dPhaseResolution",
+        scale=0.01,
+        evidence=(
+            "corpus correlation: 'Phase Resolution' and sKSpace.dPhaseResolution induce the same partition over 412 paired scans, and the key's own name echoes the label (phase, resolution). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Preparation Scans",
+        ascconv_key="sSpecPara.lPreparingScans",
+        absent_choice="0",
+        evidence=(
+            "corpus correlation: 'Preparation Scans' and sSpecPara.lPreparingScans induce the same partition over 59 paired scans, and the key's own name echoes the label (scans). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="RF Pulse Type",
+        ascconv_key="sTXSPEC.ucRFPulseType",
+        choices=(("Fast", 1), ("Low SAR", 4), ("Normal", 2)),
+        evidence=(
+            "corpus correlation: 'RF Pulse Type' and sTXSPEC.ucRFPulseType induce the same partition over 283 paired scans, and the key's own name echoes the label (pulse, rf). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Reconstruction",
+        ascconv_key="ucReconstructionMode",
+        choices=(("Magn./Phase", 8), ("Magnitude", 1)),
+        evidence=(
+            "corpus correlation: 'Reconstruction' and ucReconstructionMode induce the same partition over 412 paired scans, and the key's own name echoes the label (reconstruction). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Reduce Motion Sens.",
+        ascconv_key="ucReduceMotionSens",
+        choices=(("On", 1),),
+        absent_choice="Off",
+        evidence=(
+            "corpus correlation: 'Reduce Motion Sens.' and ucReduceMotionSens induce the same partition over 13 paired scans, and the key's own name echoes the label (motion, reduce, sens). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Reference Scans",
+        ascconv_key="sPat.ucRefScanMode",
+        choices=(
+            ("EPI/Separate", 256),
+            ("GRE/Separate", 4),
+            ("Integrated", 2),
+            ("TSE/Separate", 512),
+        ),
+        evidence=(
+            "corpus correlation: 'Reference Scans' and sPat.ucRefScanMode induce the same partition over 128 paired scans, and the key's own name echoes the label (scans~scan). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Remove Oversampling",
+        ascconv_key="sSpecPara.ucRemoveOversampling",
+        choices=(("Off", 0), ("On", 1)),
+        evidence=(
+            "corpus correlation: 'Remove Oversampling' and sSpecPara.ucRemoveOversampling induce the same partition over 59 paired scans, and the key's own name echoes the label (oversampling, remove). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Slice Oversampling",
+        ascconv_key="sKSpace.dSliceOversamplingForDialog",
+        scale=0.01,
+        absent_choice="0.0 %",
+        evidence=(
+            "corpus correlation: 'Slice Oversampling' and sKSpace.dSliceOversamplingForDialog induce the same partition over 155 paired scans, and the key's own name echoes the label (oversampling, slice). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Slice Partial Fourier",
+        ascconv_key="sKSpace.ucSlicePartialFourier",
+        choices=(("6/8", 4), ("7/8", 8), ("Off", 16)),
+        evidence=(
+            "corpus correlation: 'Slice Partial Fourier' and sKSpace.ucSlicePartialFourier induce the same partition over 154 paired scans, and the key's own name echoes the label (fourier, partial, slice). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Slice Resolution",
+        ascconv_key="sKSpace.dSliceResolution",
+        scale=0.01,
+        evidence=(
+            "corpus correlation: 'Slice Resolution' and sKSpace.dSliceResolution induce the same partition over 154 paired scans, and the key's own name echoes the label (resolution, slice). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="TI",
+        ascconv_key="alTI[0]",
+        scale=1000.0,
+        evidence=(
+            "corpus correlation: 'TI' and alTI[0] induce the same partition over 71 paired scans, and the key's own name echoes the label (ti). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Vector Size",
+        ascconv_key="sSpecPara.lVectorSize",
+        evidence=(
+            "corpus correlation: 'Vector Size' and sSpecPara.lVectorSize induce the same partition over 64 paired scans, and the key's own name echoes the label (size, vector). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Water s. BW",
+        ascconv_key="sSpecPara.dSpecWaterSupprBandwidth",
+        evidence=(
+            "corpus correlation: 'Water s. BW' and sSpecPara.dSpecWaterSupprBandwidth induce the same partition over 29 paired scans, and the key's own name echoes the label (water). Derived, not from a controlled edit."
+        ),
+    ),
+    Mapping(
+        label="Wrap-up Magn.",
+        ascconv_key="ulWrapUpMagn",
+        choices=(("None", 1), ("Restore", 2)),
+        evidence=(
+            "corpus correlation: 'Wrap-up Magn.' and ulWrapUpMagn induce the same partition over 50 paired scans, and the key's own name echoes the label (magn, up, wrap). Derived, not from a controlled edit."
+        ),
+    ),
+    # -- derived from the corpus, then confirmed by the protocols' owner ----
+    #
+    # Each of these is a key the correlation picked out alone but the harvest
+    # declined, because the key's own name does not echo the printed label --
+    # no lexical rule gets from "Acceleration Mode" to ucPATMode. They were
+    # put to the owner as derivations to check rather than written as
+    # settled, and he confirmed them, which is the order that makes an
+    # inference safe to keep.
+    Mapping(
+        label="Acceleration Mode",
+        ascconv_key="sPat.ucPATMode",
+        choices=(("GRAPPA", 2), ("None", 1), ("SMS", 32)),
+        evidence=(
+            "corpus correlation over 373 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: PAT is the parallel acquisition technique the card calls acceleration"
+        ),
+    ),
+    Mapping(
+        label="Allowed Delay",
+        ascconv_key="lMeasPause",
+        scale=1000000.0,
+        absent_choice="0 s",
+        evidence=(
+            "corpus correlation over 85 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: lMeasPause is the pause between measurements the card calls a delay"
+        ),
+    ),
+    Mapping(
+        label="Scan Res. A >> P",
+        read_only=True,
+        ascconv_key="sKSpace.lPhaseEncodingLines",
+        evidence=(
+            "corpus correlation over 23 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: the phase-encoding direction's scan resolution is its line count"
+        ),
+    ),
+    Mapping(
+        label="Scan Res. F >> H",
+        read_only=True,
+        ascconv_key="sKSpace.lPartitions",
+        evidence=(
+            "corpus correlation over 8 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: the slice direction's scan resolution is the partition count"
+        ),
+    ),
+    Mapping(
+        label="Interpol. Res. R >> L",
+        read_only=True,
+        ascconv_key="sSpecPara.lFinalMatrixSizeRead",
+        evidence=(
+            "corpus correlation over 23 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: the interpolated readout matrix, on the scans that have one"
+        ),
+    ),
+    Mapping(
+        label="Interpol. Res. A >> P",
+        read_only=True,
+        ascconv_key="sSpecPara.lFinalMatrixSizePhase",
+        evidence=(
+            "corpus correlation over 23 paired scans, put to the protocols' owner as a derivation and confirmed by him. The key's own name does not echo the label, which is why the automatic harvest declined it: the interpolated phase matrix, on the scans that have one"
+        ),
+    ),
+    Mapping(
+        label="Phase Oversampling",
+        ascconv_key="sKSpace.dPhaseOversamplingForDialog",
+        scale=0.01,
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe run 1 (PROBE_RUN1, 2026-09-18) created this assignment "
+            "at 0.2 in a copy of Minn_CMRR_2.3mm_S8_rest_6min, and the scanner's own "
+            "re-export prints '20 %' on both Routine and Geometry - Common against the "
+            "control's '0 %'. Before the probe the corpus held exactly one scan pairing the "
+            "key with a printed value (0.1 against '10 %'), which fixed the form and not much "
+            "else; the template's 81 other scans print '0 %' with the assignment absent, "
+            "which is what makes absence zero here"
+        ),
+    ),
+    Mapping(
+        label="Raw Filter",
+        ascconv_key="sRawFilter.ucOn",
+        choices=(("Off", 0), ("On", 1)),
+        evidence=(
+            "controlled edit: probe run 1 (PROBE_RUN1, 2026-09-18) created this assignment "
+            "at 1 and the scanner returned it spelled 0x1, printing 'On' against the "
+            "control's 'Off'. The switch is ucOn and not ucMode, which the same run settles "
+            "in the other direction: a probe writing ucMode 2 beside an absent ucOn was kept "
+            "verbatim and changed nothing printed at all -- and probe run 2 closed that "
+            "off from the other side, writing ucMode 1, ucMode 4 and lSlope_256 25 "
+            "each beneath ucOn 1, where all three printed exactly what ucOn alone "
+            "prints and nothing more. Off is the omitted zero, spelled "
+            "as a choice rather than as an absent_choice so that writing Off deletes the "
+            "assignment the way Normalize and Prio Recon beside it do"
+        ),
+    ),
+    Mapping(
+        label="Hamming",
+        ascconv_key="sHammingFilter.ucOn",
+        choices=(("Off", 0), ("On", 1)),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) created this "
+            "assignment at 1 in a copy of Minn_CMRR_2.3mm_S8_rest_6min and the scanner "
+            "returned it spelled 0x1, printing 'Hamming' as On against the control's "
+            "Off. Asked on its own, with no other field written, which is what "
+            "separates it from the width: a probe writing lWidthPercent 60 beneath "
+            "this same switch moved nothing the switch had not already moved"
+        ),
+    ),
+    Mapping(
+        label="Dynamic Mode",
+        ascconv_key="sKSpace.ucDynamicMode",
+        choices=(("Standard", 1), ("TWIST", 2)),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this 1 -> 2 "
+            "and the printed 'Dynamic Mode' went Standard -> TWIST, nothing else "
+            "moving. The key is constant across all 285 corpus scans of this "
+            "sequence, so no amount of corpus correlation could have found it"
+        ),
+    ),
+    Mapping(
+        label="Excite pulse duration",
+        ascconv_key="sWipMemBlock.alFree[2]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this "
+            "5960 -> 5000 and the Special card's 'Excite pulse duration' followed, "
+            "5960 us -> 5000 us, with nothing else printed or recomputed. Scoped to "
+            "the one sequence the probe ran, not to the three that share the card: "
+            "widening a sWipMemBlock mapping needs a controlled toggle on the second "
+            "sequence, which is the rule Averaging is still waiting on"
+        ),
+    ),
+    Mapping(
+        label="FFT scale factor",
+        ascconv_key="sWipMemBlock.adFree[0]",
+        sequences=("cmrr_mbep2d_bold",),
+        builds=(CMRR_R017,),
+        evidence=(
+            "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this "
+            "1.0 -> 2.0 and the Special card's 'FFT scale factor' followed, "
+            "1.00 -> 2.00, alone. This is one of the seven parameters the "
+            "driver-against-answer-key comparison could not reproduce"
+        ),
+    ),
+    Mapping(
+        label="Excitation duration",
+        ascconv_key="sWipMemBlock.adFree[0]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
+            "2000.0 -> 1800.0 and the Special card followed, 2000.00 us -> 1800.00 us, "
+            "alone. This sequence stamps no build, so builds is empty for the reason "
+            "the ABCD navigators' mappings are -- there is nothing to gate on"
+        ),
+    ),
+    Mapping(
+        label="Refocusing duration",
+        ascconv_key="sWipMemBlock.adFree[1]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
+            "4500.0 -> 4050.0 and the Special card followed, 4500.00 us -> 4050.00 us, "
+            "alone"
+        ),
+    ),
+    Mapping(
+        label="HSn modulation",
+        ascconv_key="sWipMemBlock.alFree[17]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this 16 -> 14 "
+            "and the printed 'HSn modulation' followed, alone. The probe existed "
+            "because alFree[13] and alFree[17] both held 16 against a single printed "
+            "16, so at most one could be right: alFree[13] moved to 14 in the same run "
+            "and printed nothing under that label, adding Metabolite Cycling and "
+            "Water Suppr. BW rows instead. A matching number is not a mapping"
+        ),
+    ),
+    Mapping(
+        label="Bandwidth_1ms",
+        ascconv_key="sWipMemBlock.alFree[18]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this 45 -> 40 "
+            "and the printed 'Bandwidth_1ms' followed, 45 kHz -> 40 kHz, alone"
+        ),
+    ),
+    Mapping(
+        label="Gradient factor",
+        ascconv_key="sWipMemBlock.alFree[19]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this 85 -> 76 "
+            "and the printed 'Gradient factor' followed, 85 % -> 76 %, alone"
+        ),
+    ),
+    Mapping(
+        label="Gradient Max. Amplitude",
+        ascconv_key="sWipMemBlock.alFree[20]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22), and the one in "
+            "that run where the console did not keep what was written: 33 was sent, 36 "
+            "came back stored, and 36 was printed against the template's 37. So the "
+            "label really is this element and the scanner quantises the value on the "
+            "way in -- which is a different behaviour from MT Flip Angle, where an "
+            "off-grid value is stored faithfully and only the display snaps. The grid "
+            "is not established: 36 and 37 are both reachable and 33 is not"
+        ),
+    ),
+    Mapping(
+        label="Ramp time",
+        ascconv_key="sWipMemBlock.alFree[21]",
+        sequences=("dkd_svs_sLASER",),
+        evidence=(
+            "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
+            "200 -> 180 and the printed 'Ramp time' followed, 200 us -> 180 us, alone"
+        ),
+    ),
 )
 
 
@@ -933,16 +1541,40 @@ class Manifest:
     stale: list[str] = field(default_factory=list)
     approximate: list[str] = field(default_factory=list)
 
+    #: Substring identifying a refusal to write a value the console derives.
+    #: Matched on the reason rather than carried as a flag because a `Skipped`
+    #: records what happened, and what happened here is a refusal like any
+    #: other -- it is only the *verdict* on the run that differs.
+    DERIVED_REASON = "a value the console derives"
+
+    @property
+    def derived(self) -> list["Skipped"]:
+        """The refusals that were the right answer rather than a shortfall.
+
+        A parameter the console computes from others is printed as a display
+        of that computation, so there is nothing to write: the scan
+        resolution in the phase direction is the line count the console
+        worked out, and putting the printed number there would overwrite its
+        arithmetic with a rounding of its own output.
+
+        Returns
+        -------
+        list of Skipped
+            The read-only refusals among the skips.
+        """
+        return [one for one in self.skipped if self.DERIVED_REASON in one.reason]
+
     @property
     def complete(self) -> bool:
-        """Return whether every requested value was written.
+        """Return whether every value that *could* be written was.
 
         Returns
         -------
         bool
-            ``True`` when nothing was skipped.
+            ``True`` when nothing was skipped except values the console
+            derives, which no run could have written.
         """
-        return not self.skipped
+        return not [one for one in self.skipped if self.DERIVED_REASON not in one.reason]
 
     def report(self) -> str:
         """Render the manifest as text for a user to read.
@@ -1094,7 +1726,7 @@ def remove_ascconv(text: str, key: str) -> str:
     return text[: found.start()] + text[found.end() :] if found else text
 
 
-def insert_ascconv(text: str, key: str, literal: str) -> str:
+def insert_ascconv(text: str, key: str, literal: str, anchors: tuple[str, ...] = ()) -> str:
     """Add an assignment that the document does not yet carry.
 
     Sparse arrays are written in ascending index order, so a new element goes
@@ -1110,6 +1742,12 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
         The assignment to add, for example ``sWipMemBlock.alFree[0]``.
     literal : str
         The value to write.
+    anchors : tuple of str, optional
+        Assignments this key is known to follow, tried ahead of
+        :data:`SPARSE_ANCHORS`. A probe writes keys nobody has curated an
+        anchor for, and mining one out of the corpus is weaker evidence than
+        reading it off the console's output, so a mined anchor is passed in
+        rather than joining the table.
 
     Returns
     -------
@@ -1122,7 +1760,7 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
         return text
     match = re.fullmatch(r"(.*)\[(\d+)\]", key)
     if match is None:
-        return _insert_scalar(text, key, literal, start, end)
+        return _insert_scalar(text, key, literal, start, end, anchors)
     stem, index = match.group(1), int(match.group(2))
     sibling = re.compile(rf"^([ \t]*){re.escape(stem)}\[(\d+)\]([ \t]*=[ \t]*).*?\r?\n", re.M)
     found = [m for m in sibling.finditer(text, start, end)]
@@ -1136,7 +1774,9 @@ def insert_ascconv(text: str, key: str, literal: str) -> str:
     return text[:at] + line + text[at:]
 
 
-def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> str:
+def _insert_scalar(
+    text: str, key: str, literal: str, start: int, end: int, anchors: tuple[str, ...] = ()
+) -> str:
     """Place a non-array assignment where the console writes it.
 
     A sparse scalar has no sibling index to sort against, and ASCCONV is
@@ -1159,6 +1799,8 @@ def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> s
         Offset of the ASCCONV block's start.
     end : int
         Offset of its end.
+    anchors : tuple of str, optional
+        Assignments to try ahead of :data:`SPARSE_ANCHORS`.
 
     Returns
     -------
@@ -1168,7 +1810,7 @@ def _insert_scalar(text: str, key: str, literal: str, start: int, end: int) -> s
         treat "unchanged" as a refusal rather than a write -- silently
         writing nothing is the failure this shape invites.
     """
-    for anchor in SPARSE_ANCHORS.get(key, ()):
+    for anchor in tuple(anchors) + SPARSE_ANCHORS.get(key, ()):
         found = _assignment(anchor).search(text, start, end)
         if found is None:
             continue
@@ -1252,6 +1894,223 @@ def sequence_of(protocol: Protocol) -> str:
     """
     entry = protocol.preview.get(SEQUENCE_PATH)
     return str(entry.value) if entry is not None and entry.value is not None else ""
+
+
+#: ASCCONV assignments the console rewrites on every save, whatever the
+#: protocol says. Re-saving an unmodified protocol regenerates the GUID
+#: leading ``sWipMemBlock.tFree`` and every
+#: ``sCoilSelectMeas.aRxCoilSelectData[N].tCheckUUID``, and updates
+#: ``sSpecPara.lFinalMatrixSizePhase``/``...Read``, which despite their names
+#: hold a date and a time. Two protocols differing only here are the same
+#: protocol saved twice.
+#:
+#: ``tFree`` is on the list because of its GUID, not its tail: the rest of it
+#: is the sequence build stamp, which is the only record of which binary
+#: wrote a protocol. A reader wanting that asks :func:`sequence_stamp`.
+#: Fields the console rewrites on every save, whatever the protocol says.
+#: Re-saving an unmodified protocol regenerates the GUID leading
+#: ``sWipMemBlock.tFree`` and every
+#: ``sCoilSelectMeas.aRxCoilSelectData[N].tCheckUUID``.
+#:
+#: ``tFree`` is here for its GUID, not its tail: the rest of it is the
+#: sequence build stamp, the only record of which binary wrote a protocol.
+#: A reader wanting that asks :func:`sequence_stamp`.
+CHURN_KEYS = re.compile(r"tCheckUUID|sWipMemBlock\.tFree$")
+
+#: ``sSpecPara.lFinalMatrixSize{Read,Phase}`` is churn only *sometimes*, and
+#: the name is honest when it is not. On a scan that prints an interpolation
+#: resolution it holds exactly that -- 8, 16, 128 or 256 on all 23 such scans
+#: in the corpus, matching the printed value -- and on the other 156 it holds
+#: a clock reading in ``Read`` (91202..181127) and a date in ``Phase``
+#: (20260528..20260904). The two populations do not overlap by three orders
+#: of magnitude, so the value decides.
+#:
+#: This bound is deliberately generous. Reading a real matrix size as a save
+#: stamp would *hide* a printed parameter; reading a stamp as a matrix size
+#: only shows a difference that is real in the bytes. The second is the safe
+#: way to be wrong, so the bound sits far above any plausible matrix size.
+STAMP_KEYS = re.compile(r"sSpecPara\.lFinalMatrixSize")
+#: Above this, a ``lFinalMatrixSize`` reading is a date or a time.
+STAMP_FLOOR = 4096
+
+
+def is_churn(key: str, value: str | None = None) -> bool:
+    """Whether a difference in this field says only that the protocol was saved.
+
+    Parameters
+    ----------
+    key : str
+        A dotted ASCCONV key.
+    value : str or None, optional
+        What the field holds, where the caller has it. One key family is
+        churn only for some values, and without the value it is reported as
+        churn -- which is what the key alone can support, and is how this
+        read before the exception was found.
+
+    Returns
+    -------
+    bool
+        ``True`` when a difference there says the protocol was saved again
+        rather than that anything about it changed.
+    """
+    if CHURN_KEYS.search(key):
+        return True
+    if not STAMP_KEYS.search(key):
+        return False
+    if value is None:
+        return True
+    try:
+        return abs(float(value)) > STAMP_FLOOR
+    except (TypeError, ValueError):
+        return True
+
+
+#: The printed card each mapped parameter appears on, derived from every
+#: shipped example rather than written by hand: for each label, the sections
+#: the corpus actually prints it under, keeping any card accounting for a
+#: tenth or more of its printings.
+#:
+#: A label may belong to several, and that is the printout rather than an
+#: ambiguity -- a scan prints ``TR`` on Routine, Contrast, Geometry and
+#: Physio, exactly as it prints ``Position`` up to four times. All of them
+#: are kept, so the parameter is found wherever a person goes looking for it,
+#: and the flattened view folds the repeats back into one reading.
+#:
+#: A bare group is dropped where a ``Group - Page`` for it is also kept:
+#: ``System`` beside ``System - Adjustments`` is the same card on a release
+#: that does not subdivide, named less precisely.
+CARDS: dict[str, tuple[str, ...]] = {
+    "ABCD navigator": ("Sequence - Special",),
+    "Acceleration Factor PE": ("Resolution - Acceleration",),
+    "Acceleration Mode": ("Resolution - Acceleration",),
+    "Add. grad time": ("Sequence - Special",),
+    "Adj. Water Suppr.": ("System - Adjustments",),
+    "Adjust with Body Coil": ("System - Adjustments",),
+    "Adjustment Tolerance": ("System - Adjustments",),
+    "Allowed Delay": ("Sequence - Assistant",),
+    "Apply freq to": ("Sequence - Special",),
+    "Apply moco to": ("Sequence - Special",),
+    "Assume Silicone": ("System - Adjustments",),
+    "AutoAlign": ("Geometry - AutoAlign", "Routine"),
+    "Averaging": ("Sequence - Special",),
+    "B0 Shim": ("System - Adjustments",),
+    "B1 Shim": ("System - Adjustments", "System - pTx"),
+    "Base Resolution": ("Resolution - Common",),
+    "Coil Combination": ("System - Miscellaneous",),
+    "Coil Focus": ("System - Miscellaneous",),
+    "Concatenations": ("Routine", "Geometry - Common", "Physio - Signal", "Physio - PACE"),
+    "Confirm Frequency": ("System - Adjustments",),
+    "Contrasts": ("Contrast - Common", "Sequence - Part 1"),
+    "Coronal": ("System - Miscellaneous",),
+    "Delta Frequency": ("Sequence - Common",),
+    "Dimension": ("Sequence - Part 1",),
+    "Disable B1 control loop": ("Sequence - Special",),
+    "Disable freq. update": ("Sequence - Special",),
+    "Distance Factor": ("Routine", "Geometry - Common"),
+    "Distortion Correction": ("Resolution - Filter",),
+    "Echoes in separate series": ("Sequence - Special",),
+    "Elliptical Filter": ("Resolution - Filter",),
+    "FOV Phase": ("Routine", "Resolution - Common", "Geometry - Common", "Physio - Cardiac"),
+    "FOV Read": ("Routine", "Resolution - Common", "Geometry - Common", "Physio - Cardiac"),
+    "Fat Saturation": ("Contrast - Common",),
+    "Fat-Water Contrast": ("Contrast - Common", "Physio - Cardiac"),
+    "Feedback Delay": ("Sequence - Special",),
+    "Flip Angle": ("Contrast - Common",),
+    "Flip Angle Mode": ("Contrast - Common",),
+    "Flow Compensation": ("Sequence - Part 1",),
+    "Force GPA balance": ("Sequence - Special",),
+    "Force equal slice timing": ("Sequence - Special",),
+    "Free Echo Spacing": ("Sequence - Part 1",),
+    "Gradient Mode": ("Sequence - Part 1",),
+    "Gradient spoiling": ("Sequence - Special",),
+    "Image Scaling": ("System - Tx/Rx",),
+    "Include Nav.": ("Sequence - Special",),
+    "Initial Rotation": ("Geometry - AutoAlign",),
+    "Interpol. Res. A >> P": ("Resolution - Common",),
+    "Interpol. Res. R >> L": ("Resolution - Common",),
+    "Introduction": ("Sequence - Part 2", "Sequence - Part 1"),
+    "Invert RO/PE polarity": ("Sequence - Special",),
+    "K-space streaming": ("Sequence - Special",),
+    "MB LeakBlock kernel": ("Sequence - Special",),
+    "MB RF phase scramble": ("Sequence - Special",),
+    "MB dual kernel": ("Sequence - Special",),
+    "MSMA": ("System - Miscellaneous",),
+    "MT Flip Angle": ("Sequence - Special",),
+    "MT Offset": ("Sequence - Special",),
+    "MTC": ("Contrast - Common",),
+    "Magn. Preparation": ("Contrast - Common", "Physio - Cardiac"),
+    "Matrix Optimization": ("System - Miscellaneous",),
+    "Measurements": ("Contrast - Dynamic", "BOLD", "Inline - Subtraction"),
+    "Moco ref. image": ("Sequence - Special",),
+    "Multi-Slice Mode": ("Geometry - Common",),
+    "Multiple Series": ("Contrast - Dynamic",),
+    "Nav. location": ("Sequence - Special",),
+    "Normalize": ("Resolution - Filter",),
+    "Opt. MB RF pulse BW": ("Sequence - Special",),
+    "PF omits higher k-space": ("Sequence - Special",),
+    "Phase Cycling": ("Sequence - Common",),
+    "Phase Encoding": ("Resolution - Common",),
+    "Phase Partial Fourier": ("Resolution - Acceleration",),
+    "Phase Resolution": ("Resolution - Common", "Physio - Cardiac"),
+    "Physio recording": ("Sequence - Special",),
+    "Preparation Scans": ("Contrast - Common", "Sequence - Common"),
+    "Prio Recon": ("Properties",),
+    "Protocol filename": ("Sequence - Special",),
+    "RF Pulse Type": ("Sequence - Part 1",),
+    "Reacq. threshold": ("Sequence - Special",),
+    "Readout polarity": ("Sequence - Special",),
+    "Reconstruction": ("Contrast - Common", "Contrast - Dynamic"),
+    "Reduce Motion Sens.": ("Sequence - Part 2", "Sequence - Part 1"),
+    "Reference Lines PE": ("Resolution - Acceleration",),
+    "Reference Scans": ("Resolution - Acceleration",),
+    "Reference scan mode": ("Resolution - iPAT", "Resolution - Acceleration"),
+    "Remeasure": ("Sequence - Special",),
+    "Remove Oversampling": ("Sequence - Common",),
+    "SENSE1 coil combine": ("Sequence - Special",),
+    "Sagittal": ("System - Miscellaneous",),
+    "Scan Res. A >> P": ("Resolution - Common",),
+    "Scan Res. F >> H": ("Resolution - Common",),
+    "Series": ("Geometry - Common",),
+    "Single-band images": ("Sequence - Special",),
+    "Slice Oversampling": ("Routine", "Geometry - Common"),
+    "Slice Partial Fourier": ("Resolution - Acceleration",),
+    "Slice Resolution": ("Resolution - Common",),
+    "Slice Thickness": ("Routine", "Resolution - Common", "Geometry - Common"),
+    "Slices per Slab": ("Routine", "Geometry - Common"),
+    "Static Field Correction": ("Resolution - Filter",),
+    "Suppress 16-bit DICOM": ("Sequence - Special",),
+    "TE": ("Routine", "Contrast - Common"),
+    "TE 2": ("Routine", "Contrast - Common"),
+    "TE 3": ("Routine", "Contrast - Common"),
+    "TE 4": ("Routine", "Contrast - Common"),
+    "TI": ("Contrast - Common", "Physio - Cardiac"),
+    "TR": ("Routine", "Contrast - Common", "Geometry - Common", "Physio - Signal"),
+    "Table Position": ("Geometry - Tim Planning Suite",),
+    "Time-shifted MB RF": ("Sequence - Special",),
+    "Transversal": ("System - Miscellaneous",),
+    "Triggering scheme": ("Sequence - Special",),
+    "Vector Size": ("Resolution - Common",),
+    "Wait for User to Start": ("Properties",),
+    "Water s. BW": ("Contrast - Common",),
+    "Wrap-up Magn.": ("Contrast - Common",),
+}
+
+
+def cards_for(label: str) -> tuple[str, ...]:
+    """The printed cards a mapped parameter appears on.
+
+    Parameters
+    ----------
+    label : str
+        A printed parameter label.
+
+    Returns
+    -------
+    tuple of str
+        The section titles, most-printed first. Empty for a label the corpus
+        never prints, which no mapping currently has.
+    """
+    return CARDS.get(label, ())
 
 
 def sequence_stamp(protocol: Protocol) -> str:
@@ -1345,6 +2204,134 @@ def applies_to(mapping: Mapping, protocol: Protocol) -> bool:
     return True
 
 
+def _stored_int(literal: str) -> int | None:
+    """Read a stored assignment as an integer, whatever base it is written in.
+
+    The console writes a flag as ``0x1`` and a small enum as ``2``, and the
+    same field can arrive as ``1.0`` from something that round-tripped
+    through a float.
+
+    Parameters
+    ----------
+    literal : str
+        The assignment's right-hand side.
+
+    Returns
+    -------
+    int or None
+        The value, or ``None`` when it is not a number.
+    """
+    text = literal.strip()
+    try:
+        return int(text, 0) if text.lower().startswith(("0x", "-0x")) else int(float(text))
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_element(mapping: Mapping, protocol: Protocol) -> str | None:
+    """Read the first element of an assignment replicated across an array.
+
+    ``FOV Read`` and ``Slice Thickness`` are stored on every
+    ``sSliceArray.asSlice[]`` element and hold the same value on each, so the
+    first is the displayed one. Reading it is not a shortcut: the whole point
+    of the replication is that the elements agree.
+
+    Parameters
+    ----------
+    mapping : Mapping
+        A mapping whose key is an array pattern.
+    protocol : Protocol
+        The protocol to read from.
+
+    Returns
+    -------
+    str or None
+        The first element's literal, or ``None`` when the array is empty.
+    """
+    for key, _index in expand(mapping.ascconv_key, protocol.xprotocol):
+        literal = read_ascconv(protocol.xprotocol, key)
+        if literal is not None:
+            return literal
+    return None
+
+
+def display(mapping: Mapping, protocol: Protocol) -> str | None:
+    """What a protocol stores for a mapped parameter, in the form a card shows.
+
+    The read direction of :data:`MAPPINGS`, which was built for writing. An
+    archive carries no cards, so a comparison of two archives can only speak
+    in printed terms by decoding: ``sAdjData.uiAdjWithBC = 0x1`` is
+    ``Adjust with Body Coil: On`` on the System card, and that is the form
+    someone changing a protocol on the console needs.
+
+    Declines rather than guesses. A derived value (``basis``) and a signed
+    coordinate (``sign_from``) are left to the raw parameter section, as is
+    any mapping whose gates say it does not apply to this scan -- a flag bit
+    belonging to another sequence, or to a build this one was not derived
+    from.
+
+    Parameters
+    ----------
+    mapping : Mapping
+        The parameter to read.
+    protocol : Protocol
+        The protocol to read it from.
+
+    Returns
+    -------
+    str or None
+        The displayed value, or ``None`` when this mapping cannot be decoded
+        for this protocol.
+    """
+    if not applies_to(mapping, protocol):
+        return None
+    if mapping.basis is not None or mapping.sign_from is not None:
+        return None
+
+    if "[*]" in mapping.ascconv_key:
+        literal = _first_element(mapping, protocol)
+    else:
+        literal = read_ascconv(protocol.xprotocol, mapping.ascconv_key)
+
+    # A field the console is currently using as a save stamp is not holding
+    # this parameter, whatever its name says. One key family is a real
+    # interpolation matrix on the scans that have one and a date or a time on
+    # the rest, and the value is what tells them apart -- the same test that
+    # decides whether a difference there is churn.
+    if literal is not None and is_churn(mapping.ascconv_key, literal):
+        return None
+
+    if mapping.bit is not None:
+        # A word holding zero is not written at all, so an absent assignment
+        # is every flag off rather than an unknown.
+        word = 0 if literal is None else (_stored_int(literal) or 0)
+        return "On" if word >> mapping.bit & 1 else "Off"
+
+    # An omitted assignment is not an unknown: this format does not write a
+    # field holding zero, so where a mapping has been observed in that state
+    # the absence *is* the reading. Applies to a scaled number as much as to
+    # a choice -- Slice Oversampling omits the field for "0.0 %".
+    if literal is None and mapping.absent_choice is not None:
+        return mapping.absent_choice
+
+    if mapping.choices:
+        if literal is None:
+            return None
+        stored = _stored_int(literal)
+        for text, number in mapping.choices:
+            if stored == number:
+                return text
+        return None
+
+    if literal is None:
+        return None
+    try:
+        number = float(literal) / mapping.scale - mapping.offset
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+    return f"{number:g}"
+
+
 def expand(pattern: str, text: str) -> list[tuple[str, int | None]]:
     """Resolve an ``[*]`` target against the indices a document defines.
 
@@ -1404,7 +2391,11 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
         not be resolved.
     """
     wanted = name.strip().casefold()
-    in_scope = [m for m in MAPPINGS if applies_to(m, protocol)]
+    # Read-only mappings are out of scope here by construction: this is the
+    # lookup the writer uses, and a derived parameter is one the console
+    # recomputes from its inputs. `display` consults MAPPINGS directly and
+    # so still decodes them.
+    in_scope = [m for m in MAPPINGS if not m.read_only and applies_to(m, protocol)]
     hits = [m for m in in_scope if m.label.strip().casefold() == wanted]
     if not hits:
         hits = [m for m in in_scope if m.preview_path == name]
@@ -1427,6 +2418,16 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
     if len(hits) > 1:
         keys = ", ".join(sorted(m.ascconv_key for m in hits))
         return (None, f"label {name!r} maps to several parameters: {keys}")
+    derived = [m for m in MAPPINGS if m.read_only and m.label.strip().casefold() == wanted]
+    if derived:
+        # Named for what it is, rather than falling through to the build-gate
+        # reason below, which would blame a sequence build for a parameter
+        # that no build would let anyone write.
+        return (
+            None,
+            f"{name!r} is a value the console derives from other parameters, so it is "
+            "read from a protocol and never written to one",
+        )
     elsewhere = [m for m in MAPPINGS if m.label.strip().casefold() == wanted]
     if elsewhere:
         runs = sequence_of(protocol) or "an unnamed sequence"
