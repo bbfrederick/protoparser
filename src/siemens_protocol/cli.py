@@ -551,6 +551,38 @@ def build_parser() -> argparse.ArgumentParser:
         "--quiet", action="store_true", help="suppress the summary line on stderr"
     )
 
+    tree_cmd = sub.add_parser(
+        "tree",
+        help="show an .exar1 archive's folder tree",
+        description=(
+            "Draw the folder tree an .exar1 archive carries, the way the unix "
+            "'tree' command draws a directory. An archive is not always one "
+            "protocol: a backup taken at the exam or region level holds "
+            "several -- the scanner's tree is Region / Exam / Program, and a "
+            "Program is what we call a protocol -- and every other command "
+            "then needs --program to say which. This is how to see what is in "
+            "the file and by what path, and the paths it prints are exactly "
+            "the addresses --program and --scan accept."
+        ),
+    )
+    tree_cmd.add_argument("input", help="an .exar1 archive")
+    add_program_option(tree_cmd)
+    tree_cmd.add_argument(
+        "--scans",
+        action="store_true",
+        help=(
+            "descend into each protocol and list its steps in running order, "
+            "pauses and other non-acquiring steps included"
+        ),
+    )
+    tree_cmd.add_argument(
+        "--no-counts", dest="counts", action="store_false", help="omit the summary line"
+    )
+    tree_cmd.add_argument("--json", action="store_true", help="emit the tree as JSON")
+    tree_cmd.add_argument(
+        "--out", metavar="FILE", help="write the tree here rather than to standard output"
+    )
+
     exar_cmd = sub.add_parser(
         "exar",
         help="write a protocol PDF's parameters into an XA .exar1 archive",
@@ -874,14 +906,53 @@ def _load_protocol(
         return payload
     if path.lower().endswith(EXAR_SUFFIX):
         from .exar import inspect as exar_inspect
-        from .exar import read as read_exar
 
-        archive = read_exar(path)
+        archive = _read_archive(path)
         return exar_inspect.as_protocol(
             archive, _select_program(archive, program, path), path, include_flat=need_flat
         )
     result = parse_document(path, ParseOptions(version=version))
     return result.protocol.to_dict(include_flat=True)
+
+
+def _read_archive(path: str) -> "Archive":
+    """Open an ``.exar1`` archive, reporting an unreadable one as a message.
+
+    :func:`..exar.read` opens a SQLite database, so a file that is not one
+    raises ``sqlite3.DatabaseError`` -- which no caller here catches, and
+    which therefore reached the terminal as a traceback saying "file is not a
+    database". Pointing a command at the PDF beside the archive is an easy
+    mistake to make, several corpus directories holding both under one stem,
+    so it is worth a sentence rather than a stack.
+
+    Parameters
+    ----------
+    path : str
+        The archive to open.
+
+    Returns
+    -------
+    Archive
+        The archive.
+
+    Raises
+    ------
+    ValueError
+        If the file is not a readable SQLite database. Every caller already
+        catches ``ValueError`` beside ``OSError``, which is what lets this be
+        added without a new branch at each of them.
+    """
+    import sqlite3
+
+    from .exar import read as read_exar
+
+    try:
+        return read_exar(path)
+    except sqlite3.DatabaseError as exc:
+        raise ValueError(
+            f"{path} is not a readable .exar1 archive ({exc}). An .exar1 file is a "
+            "SQLite database; a PDF or JSON export is not one"
+        ) from exc
 
 
 def _program_paths(archive: "Archive") -> list[tuple[tuple[str, ...], "Program"]]:
@@ -1259,9 +1330,7 @@ def _program_for_scan(path: str, wanted: str, program: str | None) -> str | None
     """
     if program is not None:
         return program
-    from .exar import read as read_exar
-
-    archive = read_exar(path)
+    archive = _read_archive(path)
     programs = _program_paths(archive)
     if len(programs) < 2:
         return None
@@ -2041,10 +2110,9 @@ def _run_archive(args: argparse.Namespace) -> int:
         ``0`` on success, ``1`` when the archive could not be read or written.
     """
     from .exar import inspect as exar_inspect
-    from .exar import read as read_exar
 
     try:
-        archive = read_exar(args.input)
+        archive = _read_archive(args.input)
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
@@ -2136,6 +2204,62 @@ def _summarize_archive(document: Mapping, destination: str) -> str:
     return f"{' | '.join(parts)} -> {destination}"
 
 
+def _run_tree(args: argparse.Namespace) -> int:
+    """Run the ``tree`` subcommand.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments carrying ``input``, ``program``, ``scans``,
+        ``counts``, ``json`` and ``out``.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``1`` when the archive could not be read or the
+        tree could not be written. An archive holding no protocol is not an
+        error: exporting an empty folder node rather than the protocol tree
+        is an export mistake and reads correctly, and saying so is exactly
+        what this command is for.
+    """
+    from .exar import tree as exar_tree
+
+    try:
+        archive = _read_archive(args.input)
+        wanted = (
+            _select_program(archive, args.program, args.input)
+            if args.program is not None
+            else None
+        )
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    roots = exar_tree.build(archive, program=wanted, scans=args.scans)
+    if args.json:
+        payload = {
+            "source_file": args.input,
+            "format": "exar1",
+            "baseline": archive.baseline,
+            "roots": [node.to_dict() for node in roots],
+            "counts": exar_tree.tally(roots),
+        }
+        text = json.dumps(payload, indent=2, ensure_ascii=False)
+    else:
+        text = exar_tree.render(roots, counts=args.counts)
+
+    if args.out:
+        try:
+            with open(args.out, "w", encoding="utf-8") as handle:
+                handle.write(text + "\n")
+        except OSError as exc:
+            print(f"could not write {args.out}: {exc}", file=sys.stderr)
+            return 1
+    else:
+        print(text)
+    return 0
+
+
 def _run_exar(args: argparse.Namespace) -> int:
     """Write a PDF's mapped parameters into a template archive.
 
@@ -2150,11 +2274,10 @@ def _run_exar(args: argparse.Namespace) -> int:
         Process exit status.
     """
     from .exar import build as exar_build
-    from .exar import read as read_exar
     from .exar import validate as exar_validate
 
     try:
-        archive = read_exar(args.archive)
+        archive = _read_archive(args.archive)
         protocol = _load_protocol(args.input, getattr(args, "release", "auto"))
     except (OSError, ValueError) as exc:
         print(f"{exc}", file=sys.stderr)
@@ -2224,6 +2347,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "archive":
         return _run_archive(args)
+
+    if args.command == "tree":
+        return _run_tree(args)
 
     if args.command == "exar":
         return _run_exar(args)

@@ -312,6 +312,9 @@ siemens-protocol-tool parse examples/XA60/R01StressDyn.pdf
 siemens-protocol-tool parse examples/ --out parsed/          # batch a directory
 siemens-protocol-tool versions                               # list version profiles
 
+# see what an .exar1 archive holds, and by what path
+siemens-protocol-tool tree backup.exar1
+
 # inventory one protocol, a line per scan
 siemens-protocol-tool list protocol.pdf
 
@@ -616,6 +619,69 @@ An archive may hold more than one protocol: an export taken at the exam or
 region level rather than at a single one, which is what a scanner backup is.
 Every command that reads one refuses to guess in that case and names the
 choices, so `--program` says which to read.
+
+
+### Seeing what an archive holds
+
+`tree` draws that folder tree the way the unix command of the same name draws
+a directory, which is how to find out what is in an unfamiliar file without
+rendering it:
+
+```
+$ siemens-protocol-tool tree examples/XA60/Frederick_P2/Frederick_P2.exar1
+Root
+└── Export
+    └── Investigators - validated on FIT
+        └── Frederick
+            ├── ABCD_morphometry_20ch (4 scans)
+            ├── ADMS_CCF (18 scans)
+            ├── CMRR spectro scans (15 scans)
+            ├── Mair test (74 scans)
+            ...
+            └── scanbuddy test (5 scans)
+
+4 directories, 31 protocols, 453 scans
+```
+
+The scanner's tree is Region / Exam / Program, and a *Program* is what this
+tool calls a protocol — so the folders above are the exam and region levels,
+and the leaves are what `--program` names. The paths printed here are exactly
+the addresses `--program` and `--scan` accept, which is deliberate: the tree
+is built from the same child-to-parent map every other command resolves an
+address against.
+
+Directories and protocols are sorted by name, because the order they are
+stored in is not known to be the one the console displays. `--scans` descends
+into each protocol, and there the order is the *running* order, which is
+meaningful and is therefore left alone:
+
+```
+$ siemens-protocol-tool tree examples/XA60/CHR-MDD.exar1 --scans
+Root
+└── Export
+    └── Investigators
+        └── Millman
+            └── CHR-MDD (23 scans)
+                ├── Localizer
+                ├── AAHScout
+                ...
+                ├── Do NOT add Raw Filter to 3D MPR [pause]
+                ├── T1_MEMPRAGE_64ch_gr2
+                ...
+                └── dMRI_dir107_PA_FORTOPUP
+
+4 directories, 1 protocol, 23 scans, 10 other steps
+```
+
+A step in the running order need not run anything: ten of this protocol's
+thirty-three are instructions an operator put between scans, and the printout
+does not list them as scans either. They are drawn in place and marked, and
+they are counted apart from the scans.
+
+`--program` restricts the tree to one protocol, keeping the folders above it
+and dropping the ones that then lead nowhere. `--json` emits the same tree as
+a document, `--out` writes it to a file, and `--no-counts` drops the closing
+line.
 
 These get large. A whole-scanner export -- 97 MB, 499 protocols across 61
 investigator folders, 8217 scans -- takes about four minutes and produces

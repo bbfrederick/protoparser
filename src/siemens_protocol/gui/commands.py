@@ -988,6 +988,76 @@ def _archive_command() -> Command:
     )
 
 
+def _tree_command() -> Command:
+    """Describe the ``tree`` subcommand.
+
+    Returns
+    -------
+    Command
+        The form and argument list for drawing an archive's folder tree.
+    """
+    return Command(
+        name="tree",
+        group="Archive",
+        title="Show an archive's tree",
+        summary=(
+            "Draw the folder tree an .exar1 archive carries, the way the unix 'tree' "
+            "command draws a directory. An archive is not always one protocol: a backup "
+            "taken at the exam or region level holds several, and every other command "
+            "then needs a protocol named to say which. The paths shown here are exactly "
+            "the addresses those commands accept."
+        ),
+        argv=("tree",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Archive",
+                help="The .exar1 archive to read. It is not modified.",
+                picker="file",
+                accept=(".exar1",),
+                required=True,
+            ),
+            _program_field(),
+            Field(
+                name="scans",
+                kind="flag",
+                label="Show scans",
+                help=(
+                    "Descend into each protocol and list its steps in running order, "
+                    "pauses and other non-acquiring steps included."
+                ),
+                flag="--scans",
+                default=False,
+            ),
+            Field(
+                name="json",
+                kind="flag",
+                label="JSON output",
+                help="Emit the tree as JSON rather than a drawing.",
+                flag="--json",
+                default=False,
+            ),
+            Field(
+                name="no_counts",
+                kind="flag",
+                label="Omit the summary",
+                help="Leave off the closing line counting directories, protocols and scans.",
+                flag="--no-counts",
+                default=False,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write tree to",
+                help="Write the tree here. Left empty, it appears in the pane below.",
+                flag="--out",
+                picker="save",
+            ),
+        ),
+    )
+
+
 def _exar_command() -> Command:
     """Describe the archive-writing command.
 
@@ -1092,6 +1162,7 @@ def command_specs() -> tuple[Command, ...]:
         _list_command(),
         _summary_command(),
         _archive_command(),
+        _tree_command(),
         _exar_command(),
         _sequences_command(),
         *_vocab_commands(),

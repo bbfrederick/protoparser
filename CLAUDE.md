@@ -2223,6 +2223,35 @@ is the writing half, and `exar/inspect.py` is the whole of it -- it composes
 beyond the three observations below. `list`, `sequences` and `check` take an
 archive wherever they take a PDF, through `inspect.as_protocol`.
 
+- **`tree` is the command that answers "what is in this file", and its output
+  has to be paste-able into the next one.** `exar/tree.py` draws the folder
+  tree the way unix `tree` draws a directory. It is built by inverting
+  `directory_parents` rather than by reading `directory_children` downwards,
+  and that is the whole of its correctness argument: the two maps agree on
+  every corpus archive, but only the upward one is what `path_of` walks and
+  therefore what `--program` and `--scan` resolve against. A tree off the
+  downward map could print a path no command would accept, on a file where
+  nothing else disagreed. Directories and protocols are sorted by name, since
+  store row order is not known to be the console's display order; a
+  protocol's steps are *not*, because running order is meaningful -- that
+  asymmetry is the one thing in the renderer worth a test.
+- **A tree drawing read back by indentation alone passes on a broken
+  renderer.** The obvious test -- re-parse the drawing, recover each line's
+  depth from its prefix width, compare to the tree -- is satisfied by a
+  renderer that gives *every* child the branching connector, because the
+  indentation is unchanged while a trunk now runs past the last child. It was
+  found by mutating the renderer rather than by reading the test, and the fix
+  is to ask what the connectors mean against the drawing itself: a closing
+  connector says no sibling follows, a trunk at some depth says an ancestor
+  there still has one. Checking that against the *tree* instead would just
+  mirror the code being checked.
+- **Reading an archive raises `sqlite3.DatabaseError`, which no caller was
+  catching.** An `.exar1` is a SQLite database and a PDF is not, and several
+  corpus directories hold both under one stem, so pointing a command at the
+  wrong one is easy -- and it reached the terminal as a traceback saying
+  "file is not a database". `cli._read_archive` converts it to a `ValueError`
+  with a sentence, which every call site already caught beside `OSError`.
+
 - **ASCCONV spells an array index two ways, and the second one is easy to miss.**
   `alTE[0]` is the usual spelling; the corpus also carries
   `sDiffusion.sFreeDiffusionData.sComment.0`, a bare digit as a path component
