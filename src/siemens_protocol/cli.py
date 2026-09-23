@@ -1155,6 +1155,35 @@ def _scan_over_a_directory(args: argparse.Namespace) -> str | None:
     return None
 
 
+def _archive_given_to_parse(path: str) -> str | None:
+    """Redirect an ``.exar1`` archive given to ``parse`` to ``archive``.
+
+    ``parse`` reads printouts, and handing it an archive otherwise reaches
+    PyMuPDF, whose "Failed to open file ... as type exar1" reads like a
+    corrupt file rather than the wrong subcommand. It is a redirect rather
+    than a dispatch on purpose: the two commands write different documents
+    -- printed cards against the stored ASCCONV tree -- and a schema that
+    silently followed the input's extension would be the worse confusion.
+
+    Parameters
+    ----------
+    path : str
+        The ``parse`` input, a file or a directory.
+
+    Returns
+    -------
+    str or None
+        The message to print, or ``None`` when the input is not an archive.
+        A directory is never refused, since ``parse`` walks it for PDFs only.
+    """
+    if os.path.isdir(path) or not path.lower().endswith(EXAR_SUFFIX):
+        return None
+    return (
+        f"{path} is an .exar1 archive, and 'parse' reads PDF printouts; use "
+        f"'siemens-protocol-tool archive {path}' to read an archive into JSON"
+    )
+
+
 def _restrict_parsed(protocol: "Protocol", wanted: str, source: str) -> None:
     """Narrow a freshly parsed protocol to the one scan an address names.
 
@@ -2360,6 +2389,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "vocab":
         return _run_vocab(args)
+
+    redirect = _archive_given_to_parse(args.input)
+    if redirect is not None:
+        print(redirect, file=sys.stderr)
+        return 1
 
     targets = _inputs(args.input)
     if not targets:

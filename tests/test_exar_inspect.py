@@ -1176,6 +1176,67 @@ def test_a_narrowed_scan_keeps_its_place_in_the_protocol() -> None:
     assert one["scans"][0]["index"] == whole["scans"][position]["index"]
 
 
+@pytest.mark.parametrize("name", ["protocol.exar1", "PROTOCOL.EXAR1"])
+def test_parse_redirects_an_archive_to_the_archive_command(
+    name: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """``parse`` handed an archive names ``archive`` instead of failing to open it.
+
+    The check is on the suffix alone, so the file need not be a real archive
+    -- which keeps this running where the corpus is absent. Without it
+    PyMuPDF answered "Failed to open file ... as type exar1", which reads as
+    a corrupt file rather than the wrong subcommand.
+
+    Parameters
+    ----------
+    name : str
+        The archive's file name, in both cases the suffix is matched in.
+    tmp_path : Path
+        Where to put the stand-in archive.
+    capsys : pytest.CaptureFixture
+        Captures the message.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    archive = tmp_path / name
+    archive.write_bytes(b"not read")
+
+    assert main(["parse", str(archive)]) == 1
+    err = capsys.readouterr().err
+    assert f"siemens-protocol-tool archive {archive}" in err
+    assert "Failed to open" not in err
+    assert list(tmp_path.iterdir()) == [archive], "::error::parse wrote output anyway"
+
+
+def test_parse_still_walks_a_directory_whose_name_ends_like_an_archive(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The redirect is for a file; a directory is walked for PDFs as before.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Where to make the oddly named directory.
+    capsys : pytest.CaptureFixture
+        Captures the message.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    folder = tmp_path / "exports.exar1"
+    folder.mkdir()
+
+    assert main(["parse", str(folder)]) == 1
+    assert "no PDFs found" in capsys.readouterr().err
+
+
 @requires_exar
 def test_archive_narrowed_to_one_scan_recomputes_its_counts(tmp_path: Path) -> None:
     """A document narrowed to one scan must not describe what was removed.
