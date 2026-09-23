@@ -196,9 +196,10 @@ def protocol_name(protocol: Mapping) -> str:
     stated = protocol.get("program")
     if stated:
         return str(stated)
-    # Deferred: reading the archive package is a heavier import than a PDF
-    # summary needs, and this is the one function of it a printout wants.
-    from ..exar.build import program_name
+    # Deferred: the generate package pulls in the archive machinery, which is
+    # a heavier import than a PDF summary needs, and this is the one function
+    # of it a printout wants.
+    from .generate.build import program_name
 
     return program_name(protocol) or ""
 

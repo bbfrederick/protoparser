@@ -21,7 +21,8 @@ import pathlib
 import pytest
 
 from conftest import find_exar, requires_exar  # noqa: F401
-from siemens_protocol.exar import inspect, patch, probe, read, validate
+from siemens_protocol.analysis.generate import probe
+from siemens_protocol.exar import ascconv, inspect, read, validate
 
 #: A template known to hold a CMRR multiband scan, which is the sequence the
 #: corpus has most evidence about and so the one a probe run starts from.
@@ -59,10 +60,10 @@ def test_writing_an_existing_assignment_replaces_it() -> None:
     None
     """
     text = _donor_text()
-    assert patch.read_ascconv(text, "alTR[0]") is not None
+    assert ascconv.read_ascconv(text, "alTR[0]") is not None
     after, how = probe.write_key(text, "alTR[0]", "660000")
     assert how == "set"
-    assert patch.read_ascconv(after, "alTR[0]") == "660000"
+    assert ascconv.read_ascconv(after, "alTR[0]") == "660000"
 
 
 @requires_exar
@@ -76,7 +77,7 @@ def test_removing_an_assignment_is_how_a_sparse_array_spells_zero() -> None:
     text = _donor_text()
     after, how = probe.write_key(text, "alTR[0]", None)
     assert how == "removed"
-    assert patch.read_ascconv(after, "alTR[0]") is None
+    assert ascconv.read_ascconv(after, "alTR[0]") is None
     again, how = probe.write_key(after, "alTR[0]", None)
     assert how == "unchanged"
     assert again == after
@@ -86,7 +87,7 @@ def test_removing_an_assignment_is_how_a_sparse_array_spells_zero() -> None:
 def test_a_refusal_is_never_reported_as_a_write() -> None:
     """An assignment with nowhere to go leaves the text alone and says so.
 
-    This is the failure the shape invites: :func:`patch.insert_ascconv`
+    This is the failure the shape invites: :func:`ascconv.insert_ascconv`
     reports "nowhere to put it" by returning the text unchanged, so a caller
     that does not check records a write that wrote nothing.
 
@@ -96,7 +97,7 @@ def test_a_refusal_is_never_reported_as_a_write() -> None:
     """
     text = _donor_text()
     key = "sNothing.ucInvented"
-    assert patch.read_ascconv(text, key) is None
+    assert ascconv.read_ascconv(text, key) is None
     after, how = probe.write_key(text, key, "1", anchors=("sAlsoNotThere.ucMissing",))
     assert how == "refused"
     assert after == text
@@ -106,7 +107,7 @@ def test_a_refusal_is_never_reported_as_a_write() -> None:
 def test_the_anchor_miner_recovers_the_curated_anchors() -> None:
     """Calibration: a miner that misses a known answer proves nothing.
 
-    Every entry in :data:`patch.SPARSE_ANCHORS` was read off the console's
+    Every entry in :data:`ascconv.SPARSE_ANCHORS` was read off the console's
     own output, so each is a question whose answer is already known. The
     miner is only worth pointing at an uncurated key if it reproduces these.
 
@@ -123,7 +124,7 @@ def test_the_anchor_miner_recovers_the_curated_anchors() -> None:
     """
     protocols = probe.acquiring_protocols([find_exar(TEMPLATE)])
     checked = 0
-    for key, curated in patch.SPARSE_ANCHORS.items():
+    for key, curated in ascconv.SPARSE_ANCHORS.items():
         mined = probe.mine_anchor(key, protocols)
         if not mined:
             continue

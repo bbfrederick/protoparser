@@ -14,7 +14,7 @@ spaces, and the linked list that fixes the running order of the scans.
 
 from __future__ import annotations
 
-from . import generate, patch, validate
+from . import ascconv, generate, validate
 from .archive import (
     COPY_REFERENCE,
     COPY_REFERENCE_GROUPS,
@@ -40,8 +40,8 @@ __all__ = [
     "Archive",
     "Link",
     "Program",
+    "ascconv",
     "generate",
-    "patch",
     "validate",
     "Envelope",
     "Instance",

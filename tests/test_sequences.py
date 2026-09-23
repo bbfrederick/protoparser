@@ -1340,8 +1340,8 @@ def test_a_renamed_binary_splits_cleanly_by_release() -> None:
     None
     """
     from siemens_protocol.exar import archive as exar_archive
+    from siemens_protocol.exar import ascconv as exar_ascconv
     from siemens_protocol.exar import inspect as exar_inspect
-    from siemens_protocol.exar import patch as exar_patch
 
     key = "sProtConsistencyInfo.tBaselineString"
     seen: dict[str, set[bool]] = {"svs_slaser_dkd": set(), "dkd_svs_sLASER": set()}
@@ -1352,7 +1352,7 @@ def test_a_renamed_binary_splits_cleanly_by_release() -> None:
             binary = exar_inspect.sequence_file(step.protocol).rsplit("\\", 1)[-1]
             if binary not in seen:
                 continue
-            stale = exar_patch.read_ascconv(step.protocol.xprotocol, key)
+            stale = exar_ascconv.read_ascconv(step.protocol.xprotocol, key)
             seen[binary].add((stale or "").strip('"') == "ConversionNeeded")
 
     assert seen["svs_slaser_dkd"] == {True}, "a current protocol under the old name"

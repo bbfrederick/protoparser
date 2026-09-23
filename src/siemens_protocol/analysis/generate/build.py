@@ -36,8 +36,9 @@ from dataclasses import dataclass, field
 from typing import Any
 from typing import Mapping as MappingType
 
-from . import geometry, patch
-from .archive import Archive
+from ...exar import ascconv, geometry
+from ...exar.archive import Archive
+from . import mappings
 
 #: Units the card prints beside a value and the protocol does not store.
 UNIT_SUFFIX = re.compile(
@@ -146,7 +147,7 @@ class BuildReport:
     Attributes
     ----------
     applied : list
-        Values written, as :class:`patch.Applied` records.
+        Values written, as :class:`mappings.Applied` records.
     skipped : list
         Values a mapping claimed and could not write, with reasons.
     unchanged : int
@@ -160,7 +161,7 @@ class BuildReport:
         left indistinguishable from parameters nothing knows about.
     reasons : dict
         One representative reason per label in ``out_of_scope``, as
-        :func:`patch.resolve` phrased it.
+        :func:`mappings.resolve` phrased it.
     matched : list of str
         Scan names present in both the PDF and the template.
     unmatched : list of str
@@ -169,8 +170,8 @@ class BuildReport:
         Template scans the PDF does not mention, left exactly as they were.
     """
 
-    applied: list[patch.Applied] = field(default_factory=list)
-    skipped: list[patch.Skipped] = field(default_factory=list)
+    applied: list[mappings.Applied] = field(default_factory=list)
+    skipped: list[mappings.Skipped] = field(default_factory=list)
     unchanged: int = 0
     inherited: collections.Counter = field(default_factory=collections.Counter)
     out_of_scope: collections.Counter = field(default_factory=collections.Counter)
@@ -537,7 +538,7 @@ def stored_display(protocol: Any, mapping: Any) -> float | None:
     ----------
     protocol : Protocol
         The protocol holding the ASCCONV block.
-    mapping : patch.Mapping
+    mapping : mappings.Mapping
         The mapping to invert.
 
     Returns
@@ -550,7 +551,7 @@ def stored_display(protocol: Any, mapping: Any) -> float | None:
         return None
     if "[*]" in mapping.ascconv_key:
         return None
-    literal = patch.read_ascconv(protocol.xprotocol, mapping.ascconv_key)
+    literal = ascconv.read_ascconv(protocol.xprotocol, mapping.ascconv_key)
     if literal is None:
         return None
     try:
@@ -559,12 +560,12 @@ def stored_display(protocol: Any, mapping: Any) -> float | None:
         return None
 
 
-def _moved(record: patch.Applied) -> bool:
+def _moved(record: mappings.Applied) -> bool:
     """Return whether a written record actually changed anything.
 
     Parameters
     ----------
-    record : patch.Applied
+    record : mappings.Applied
         One written value.
 
     Returns
@@ -577,7 +578,7 @@ def _moved(record: patch.Applied) -> bool:
     return str(record.previous) != str(record.value)
 
 
-def apply_direction(magnitude: Any, letter: Any, mapping: patch.Mapping) -> Any:
+def apply_direction(magnitude: Any, letter: Any, mapping: mappings.Mapping) -> Any:
     """Turn a printed magnitude and its direction letter into a signed value.
 
     Siemens prints a position as a magnitude beside a letter naming the
@@ -593,7 +594,7 @@ def apply_direction(magnitude: Any, letter: Any, mapping: patch.Mapping) -> Any:
         The companion field, or ``None`` when the printout does not carry one.
     mapping : Mapping
         The parameter being written, for its
-        :attr:`~.patch.Mapping.negative_letters`.
+        :attr:`~.mappings.Mapping.negative_letters`.
 
     Returns
     -------
@@ -626,14 +627,14 @@ POSITIVE_LETTERS = ("R", "A", "S", "H")
 def covered_elsewhere(protocol: Any, label: str) -> bool:
     """Say whether some mapping carries this label but not for this protocol.
 
-    A label nothing in :data:`patch.MAPPINGS` knows about and one that is
+    A label nothing in :data:`mappings.MAPPINGS` knows about and one that is
     mapped for a different sequence -- or a different build of the same
     sequence -- both reach the manifest as "inherited", and they are not the
     same finding. The second is a mapping away from working, so the report
     names it. `Averaging` is the example: derived from ``tfl_mgh_multiecho``
     and therefore refused on ``tfl_mgh_epinav_ABCD``, which prints it too.
 
-    The question is asked of the table rather than of :func:`patch.resolve`'s
+    The question is asked of the table rather than of :func:`mappings.resolve`'s
     prose, so a reworded reason cannot silently reclassify anything.
 
     Parameters
@@ -649,14 +650,14 @@ def covered_elsewhere(protocol: Any, label: str) -> bool:
         True when the label is mapped somewhere and out of scope here.
     """
     wanted = label.strip().casefold()
-    carried = [m for m in patch.MAPPINGS if m.label.strip().casefold() == wanted]
+    carried = [m for m in mappings.MAPPINGS if m.label.strip().casefold() == wanted]
     if carried and all(m.read_only for m in carried):
         # A value the console derives is understood rather than unexamined:
         # it decodes on a card and there is nothing for the writer to do
         # with it, so it belongs beside the sequence-gated ones rather than
         # among the parameters nothing has looked at.
         return True
-    return bool(carried) and not any(patch.applies_to(m, protocol) for m in carried)
+    return bool(carried) and not any(mappings.applies_to(m, protocol) for m in carried)
 
 
 def _apply_scan(
@@ -682,7 +683,7 @@ def _apply_scan(
     requests: dict[str, Any] = {}
     printed = printed_parameters(scan)
     for label, value in printed.items():
-        mapping, reason = patch.resolve(step.protocol, label)
+        mapping, reason = mappings.resolve(step.protocol, label)
         # A label printed only on the Sequence card is that binary's own, so
         # only a mapping scoped to sequences may claim it. Anything else is a
         # collision of names between a sequence's parameter and a general one.
@@ -722,7 +723,7 @@ def _apply_scan(
         requests[label] = wanted
     if not requests:
         return
-    document, applied, skipped = patch.patch_document(step.protocol, requests, step=step.name)
+    document, applied, skipped = mappings.patch_document(step.protocol, requests, step=step.name)
     # A value the template already holds is confirmation, not a write. The
     # Special card has no preview side, so its records carry no previous
     # displayed value at all -- comparing that would count every one of them

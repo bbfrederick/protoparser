@@ -25,7 +25,7 @@ answers three things the console direction cannot ask:
   distinguish from a field nobody has looked at.
 
 Nothing here decides that a probed value is *valid*.  That remains what only
-a scanner can say, exactly as :mod:`~.patch` records: this module promises
+a scanner can say, exactly as :mod:`~.mappings` records: this module promises
 only that it wrote what it was asked to.
 """
 
@@ -42,9 +42,10 @@ from typing import Any, Iterable
 from typing import Mapping as MappingType
 from typing import Sequence
 
-from . import build, generate, inspect, patch, validate
-from .archive import Archive, Protocol, Step
-from .archive import read as read_archive
+from ...exar import ascconv, generate, inspect, validate
+from ...exar.archive import Archive, Protocol, Step
+from ...exar.archive import read as read_archive
+from . import build, mappings
 
 #: Key families a probe list should never target.  The coil selection block
 #: is hardware rather than a protocol choice -- the two scanners in the corpus
@@ -144,7 +145,7 @@ class Placed:
         absent.
     how : str
         What the write did: ``set``, ``created``, ``removed``, ``unchanged``
-        or ``refused``.  A refusal is :func:`patch.insert_ascconv` having
+        or ``refused``.  A refusal is :func:`ascconv.insert_ascconv` having
         nowhere to put a new assignment, and must not be read as a write.
     recentred : bool
         Whether the slice array was rebuilt because this write invalidated
@@ -191,7 +192,7 @@ class ProbeManifest:
         Sequence file name that scan runs.
     build_id : str
         Sequence build stamp, so a mapping derived here records the build it
-        was derived from, which is what :attr:`patch.Mapping.builds` gates on.
+        was derived from, which is what :attr:`mappings.Mapping.builds` gates on.
     outbound : str
         Path the archive was written to.
     controls : list of str
@@ -339,7 +340,7 @@ def write_key(
 ) -> tuple[str, str]:
     """Write one ASCCONV assignment, creating or deleting it as needed.
 
-    This is the raw counterpart of :func:`patch.patch_document`, which writes
+    This is the raw counterpart of :func:`mappings.patch_document`, which writes
     through a verified mapping.  A probe has no mapping by definition -- the
     mapping is what it is trying to establish -- so it addresses the
     assignment directly, and takes on the obligation the mapping layer
@@ -365,26 +366,26 @@ def write_key(
         The new text, and what was done: ``set``, ``created``, ``removed``,
         ``unchanged`` or ``refused``.
     """
-    existing = patch.read_ascconv(text, key)
+    existing = ascconv.read_ascconv(text, key)
     if literal is None:
         if existing is None:
             return (text, "unchanged")
-        return (patch.remove_ascconv(text, key), "removed")
+        return (ascconv.remove_ascconv(text, key), "removed")
     if existing is None:
-        grown = patch.insert_ascconv(text, key, literal, anchors=tuple(anchors))
+        grown = ascconv.insert_ascconv(text, key, literal, anchors=tuple(anchors))
         # insert_ascconv reports "nowhere to put it" by returning the text
         # unchanged.  Unchecked, that is a write reported as applied which
         # wrote nothing.
         return (text, "refused") if grown == text else (grown, "created")
     if existing == literal:
         return (text, "unchanged")
-    return (patch.write_ascconv(text, key, literal), "set")
+    return (ascconv.write_ascconv(text, key, literal), "set")
 
 
 def nearest_anchor(text: str, anchors: Sequence[str]) -> tuple[str, int]:
     """Pick the anchor an insertion will actually land on.
 
-    :func:`patch.insert_ascconv` tries anchors in order and uses the first
+    :func:`ascconv.insert_ascconv` tries anchors in order and uses the first
     the document carries, so this reproduces that choice in order to record
     it.  Knowing which rung was used is what separates a probe that
     reproduces the console's own layout from one that guessed a position.
@@ -403,7 +404,7 @@ def nearest_anchor(text: str, anchors: Sequence[str]) -> tuple[str, int]:
         empty string and ``-1`` when none of them is present.
     """
     for rank, anchor in enumerate(anchors):
-        if patch.read_ascconv(text, anchor) is not None:
+        if ascconv.read_ascconv(text, anchor) is not None:
             return (anchor, rank)
     return ("", -1)
 
@@ -438,7 +439,7 @@ def apply_probe(protocol: Protocol, probe: Probe) -> tuple[dict[str, Any], str, 
         if how == "refused":
             return (document, f"context refused: {entry.key}", False, "", -1)
     anchor, rank = ("", -1)
-    if probe.literal is not None and patch.read_ascconv(before, probe.key) is None:
+    if probe.literal is not None and ascconv.read_ascconv(before, probe.key) is None:
         anchor, rank = nearest_anchor(before, probe.anchors)
     after, how = write_key(before, probe.key, probe.literal, probe.anchors)
     recentred = False
@@ -541,7 +542,7 @@ def build_probes(
     donor = read_archive(donor_path)
     origin = _source_step(donor, source_scan)
     sequence = inspect.sequence_file(origin.protocol)
-    stamp = patch.build_id(patch.sequence_stamp(origin.protocol))
+    stamp = ascconv.build_id(ascconv.sequence_stamp(origin.protocol))
 
     names = _lay_out(probes, controls)
     with tempfile.TemporaryDirectory() as scratch:
@@ -660,7 +661,7 @@ def _patch_probes(
         if probe is None:
             continue
         step = steps[name]
-        before = patch.read_ascconv(step.protocol.xprotocol, probe.key)
+        before = ascconv.read_ascconv(step.protocol.xprotocol, probe.key)
         document, how, recentred, anchor, rank = apply_probe(step.protocol, probe)
         if how in ("set", "created", "removed"):
             final.replace_content(step.protocol.instance, document)
@@ -726,7 +727,7 @@ def mine_anchor(
     """Read out of the corpus which assignment a key follows.
 
     ASCCONV is emitted in the schema's order, so a created assignment cannot
-    be placed by sorting its name; :data:`patch.SPARSE_ANCHORS` records the
+    be placed by sorting its name; :data:`ascconv.SPARSE_ANCHORS` records the
     predecessor for each key that has needed one, read off the console's own
     output.  A probe targets keys nobody has curated, and the same fact is
     recoverable at scale: every protocol that carries the key states its
@@ -737,7 +738,7 @@ def mine_anchor(
     being probed -- both of this module's first two probes were refused that
     way, their anchors being ``ucOn`` flags the template omits.  Candidates
     are ordered by how close they sit to the key and then by how many
-    protocols agree, which is why :data:`patch.SPARSE_ANCHORS` holds tuples
+    protocols agree, which is why :data:`ascconv.SPARSE_ANCHORS` holds tuples
     too.
 
     Parameters
@@ -808,7 +809,7 @@ def settable_keys(
     values: dict[str, set[str]] = collections.defaultdict(set)
     for protocol in protocols:
         for key, literal in inspect.ascconv_table(protocol.xprotocol).items():
-            if patch.is_churn(key) or key.startswith(NEVER_PROBE) or key in DERIVED_KEYS:
+            if ascconv.is_churn(key) or key.startswith(NEVER_PROBE) or key in DERIVED_KEYS:
                 continue
             values[key].add(literal)
     if skip_mapped:
@@ -830,7 +831,7 @@ def _is_mapped(key: str) -> bool:
         True when some mapping claims it, its wildcard form, or its stem.
     """
     wild = re.sub(r"\[\d+\]", "[*]", key)
-    claimed = {mapping.ascconv_key for mapping in patch.MAPPINGS}
+    claimed = {mapping.ascconv_key for mapping in mappings.MAPPINGS}
     stems = {name.split("[")[0] for name in claimed}
     return key in claimed or wild in claimed or key.split("[")[0] in stems
 
@@ -1076,7 +1077,7 @@ def _drift(
     """
     moved: dict[str, tuple[str | None, str | None]] = {}
     for name in set(sent) | set(back):
-        if name == key or patch.is_churn(name):
+        if name == key or ascconv.is_churn(name):
             continue
         was, now = sent.get(name), back.get(name)
         if was == now:

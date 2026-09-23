@@ -27,7 +27,8 @@ from conftest import (  # noqa: F401
     protocol_archive_path,
     requires_exar,
 )
-from siemens_protocol.exar import generate, patch, read, validate
+from siemens_protocol.analysis.generate import mappings
+from siemens_protocol.exar import ascconv, generate, read, validate
 from siemens_protocol.exar.archive import STEP_KINDS, Instance, pack_guids
 
 #: An assignment into the ``sWipMemBlock`` scratch block, which is what a
@@ -107,7 +108,7 @@ def test_a_copy_can_be_given_content_of_its_own(tmp_path: pathlib.Path) -> None:
     # only addressable afterwards.
     grown = read(str(first))
     copy = {s.name: s for s in grown.steps}["COPY_with_its_own_TR"]
-    document, applied, skipped = patch.patch_document(copy.protocol, {"TR": 652.0})
+    document, applied, skipped = mappings.patch_document(copy.protocol, {"TR": 652.0})
     assert applied and not skipped
     grown.replace_content(copy.protocol.instance, document)
     second = tmp_path / "patched.exar1"
@@ -265,7 +266,7 @@ def test_driving_an_archive_from_its_own_pdf_writes_nothing() -> None:
     -------
     None
     """
-    from siemens_protocol.exar import build
+    from siemens_protocol.analysis.generate import build
 
     archive = read(find_exar("Potpourri_P1.exar1"))
     report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1.pdf")))
@@ -291,7 +292,7 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
     -------
     None
     """
-    from siemens_protocol.exar import build
+    from siemens_protocol.analysis.generate import build
 
     archive = read(find_exar("Potpourri_P1.exar1"))
     report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1_changed.pdf")))
@@ -306,7 +307,7 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
     compared = 0
     for step in theirs.steps:
         mine = ours[step.name]
-        for mapping in patch.MAPPINGS:
+        for mapping in mappings.MAPPINGS:
             if mapping.read_only:
                 # A value the console derives from other parameters, which a
                 # built archive cannot reproduce and is not asked to: the
@@ -316,11 +317,11 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
                 # times. The mapping is sound for reading a card; there is
                 # nothing for a writer to agree with.
                 continue
-            if not patch.applies_to(mapping, step.protocol):
+            if not mappings.applies_to(mapping, step.protocol):
                 continue
-            for key, _index in patch.expand(mapping.ascconv_key, step.protocol.xprotocol):
-                got = patch.read_ascconv(mine.protocol.xprotocol, key)
-                want = patch.read_ascconv(step.protocol.xprotocol, key)
+            for key, _index in ascconv.expand(mapping.ascconv_key, step.protocol.xprotocol):
+                got = ascconv.read_ascconv(mine.protocol.xprotocol, key)
+                want = ascconv.read_ascconv(step.protocol.xprotocol, key)
                 if got is None and want is None:
                     continue
                 compared += 1
@@ -329,7 +330,7 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
                         int(want or 0) >> mapping.bit & 1
                     ), f"{step.name}: {mapping.label}"
                 elif mapping.basis is not None:
-                    # FOV Phase is quantised by the console; see patch.Manifest.
+                    # FOV Phase is quantised by the console; see mappings.Manifest.
                     assert abs(float(got) - float(want)) <= 5e-4 * max(1.0, abs(float(want)))
                 else:
                     assert got == want, f"{step.name}: {mapping.label}"
@@ -348,7 +349,7 @@ def test_the_report_counts_what_it_could_not_write() -> None:
     -------
     None
     """
-    from siemens_protocol.exar import build
+    from siemens_protocol.analysis.generate import build
 
     archive = read(find_exar("Potpourri_P1.exar1"))
     report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1.pdf")))
@@ -370,7 +371,7 @@ def test_a_scan_the_template_lacks_is_reported_not_invented() -> None:
     -------
     None
     """
-    from siemens_protocol.exar import build
+    from siemens_protocol.analysis.generate import build
 
     archive = read(find_exar("Potpourri_P1.exar1"))
     parsed = _parse(find_pdf("Potpourri_P1.pdf"))
@@ -404,11 +405,11 @@ def _foreign_scan(donor: object, target: object, needs_preview: str | None = Non
     Step
         The first suitable scan, in running order.
     """
-    here = {patch.sequence_of(s.protocol) for s in target.steps if s.runs_a_protocol}
+    here = {ascconv.sequence_of(s.protocol) for s in target.steps if s.runs_a_protocol}
     for step in donor.steps:
         if not step.runs_a_protocol or step.name in UNTRUSTWORTHY_SCANS:
             continue
-        if patch.sequence_of(step.protocol) in here:
+        if ascconv.sequence_of(step.protocol) in here:
             continue
         if needs_preview is not None and needs_preview not in step.protocol.preview:
             continue
@@ -476,7 +477,7 @@ def test_an_imported_step_can_be_given_content_of_its_own(tmp_path: pathlib.Path
     target.write(str(first))
 
     grown = read(str(first))
-    manifest = patch.apply(grown, {"IMPORTED_FOREIGN": {"TR": 810.0}})
+    manifest = mappings.apply(grown, {"IMPORTED_FOREIGN": {"TR": 810.0}})
     assert manifest.applied and not manifest.skipped
     second = tmp_path / "patched.exar1"
     grown.write(str(second))
@@ -542,7 +543,7 @@ def test_every_customer_sequence_in_the_corpus_assembles_into_one_archive(
                 continue
             if not WIP_ELEMENT.search(step.protocol.xprotocol):
                 continue
-            wanted.setdefault(patch.sequence_of(step.protocol), (path, step.name))
+            wanted.setdefault(ascconv.sequence_of(step.protocol), (path, step.name))
     assert len(wanted) > 10, "the corpus sweep found almost nothing, so this proves little"
 
     target = read(find_exar("Potpourri_P1.exar1"))
@@ -558,7 +559,7 @@ def test_every_customer_sequence_in_the_corpus_assembles_into_one_archive(
 
     built = read(str(written))
     assert validate.problems(built) == []
-    assembled = {patch.sequence_of(s.protocol) for s in built.steps if s.name.startswith("SEQ")}
+    assembled = {ascconv.sequence_of(s.protocol) for s in built.steps if s.name.startswith("SEQ")}
     assert assembled == set(wanted)
 
 

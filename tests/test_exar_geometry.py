@@ -23,7 +23,7 @@ from conftest import (  # noqa: F401
     requires_exar,
     requires_paramcheck,
 )
-from siemens_protocol.exar import geometry, patch, read
+from siemens_protocol.exar import ascconv, geometry, read
 
 #: The one array in the corpus that disagrees with its own inputs, and the
 #: only one this library is responsible for. ``driver_loadtest`` is the
@@ -130,7 +130,7 @@ def test_a_multi_group_slice_array_is_refused_rather_than_misread() -> None:
         text = steps[name].protocol.xprotocol
         assert geometry.read_group(text) is None, f"{name} was read as one group"
         # It is a real multi-group array, not merely an unreadable one.
-        assert patch.read_ascconv(text, "sGroupArray.asGroup[1].nSize") is not None
+        assert ascconv.read_ascconv(text, "sGroupArray.asGroup[1].nSize") is not None
 
 
 @requires_paramcheck
@@ -176,7 +176,7 @@ def test_driving_a_protocol_leaves_every_slice_array_consistent() -> None:
     -------
     None
     """
-    from siemens_protocol.exar import build
+    from siemens_protocol.analysis.generate import build
     from siemens_protocol.pipeline import parse_document
 
     template = find_exar("Potpourri_P1.exar1")
@@ -227,7 +227,7 @@ def test_a_slice_array_that_arrived_broken_is_left_alone() -> None:
     -------
     None
     """
-    from siemens_protocol.exar import build
+    from siemens_protocol.analysis.generate import build
 
     intact = "\n".join(
         [

@@ -634,7 +634,7 @@ def _is_churn(key: str, values: Sequence[str] = ()) -> bool:
     """
     if "." not in key:
         return False
-    from ..exar.patch import is_churn
+    from ..exar.ascconv import is_churn
 
     return all(is_churn(key, value) for value in values) if values else is_churn(key)
 

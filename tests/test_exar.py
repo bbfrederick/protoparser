@@ -26,7 +26,8 @@ from conftest import (  # noqa: F401  (fixtures)
     requires_paramcheck,
 )
 from siemens_protocol import exar
-from siemens_protocol.exar import archive, build, envelope, inspect, patch, store
+from siemens_protocol.analysis.generate import build, mappings
+from siemens_protocol.exar import archive, ascconv, envelope, inspect, store
 from siemens_protocol.pipeline import parse_document
 
 #: The double that used to be the one divergence between our serializer and
@@ -445,7 +446,7 @@ def test_protocol_previews_carry_the_labels_the_pdf_prints(archive_path: str) ->
         entries = step.protocol.preview
         assert "$id" not in entries
         if not entries:
-            stale = patch.read_ascconv(
+            stale = ascconv.read_ascconv(
                 step.protocol.xprotocol, "sProtConsistencyInfo.tBaselineString"
             )
             assert (stale or "").strip(
@@ -1131,7 +1132,7 @@ def test_every_flag_bit_agrees_with_the_card_that_printed_it(protocol_archive_pa
         return
     programs = {build.match_name(one.name): one for one in loaded.programs}
 
-    bits = [one for one in patch.MAPPINGS if one.bit is not None]
+    bits = [one for one in mappings.MAPPINGS if one.bit is not None]
     known = KNOWN_FLAG_DISAGREEMENTS.get(os.path.basename(protocol_archive_path), set())
     checked = 0
     for program_name, key in pairs.matched:
@@ -1147,7 +1148,7 @@ def test_every_flag_bit_agrees_with_the_card_that_printed_it(protocol_archive_pa
         for step in programs[program_name].steps:
             if not step.runs_a_protocol:
                 continue
-            if not any(str(patch.sequence_of(step.protocol)) in one.sequences for one in bits):
+            if not any(str(ascconv.sequence_of(step.protocol)) in one.sequences for one in bits):
                 continue
             name = build.match_name(step.name)
             blocks = printed.get(name, [])
@@ -1155,7 +1156,7 @@ def test_every_flag_bit_agrees_with_the_card_that_printed_it(protocol_archive_pa
             if seen[name] > len(blocks):
                 continue
             card = blocks[seen[name] - 1]
-            raw = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[0]")
+            raw = ascconv.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[0]")
             word = int(raw, 0) if raw else 0
             for one in bits:
                 shown = card.get(one.label)
@@ -1194,14 +1195,14 @@ def test_the_flag_sweep_is_not_vacuous() -> None:
     -------
     None
     """
-    bits = [one for one in patch.MAPPINGS if one.bit is not None]
+    bits = [one for one in mappings.MAPPINGS if one.bit is not None]
     assert bits, "no flag bits are mapped at all"
     carrying = 0
     for path, _version in EXAR_PROTOCOL_FILES:
         for step in exar.read(path).steps:
             if not step.runs_a_protocol:
                 continue
-            if any(str(patch.sequence_of(step.protocol)) in one.sequences for one in bits):
+            if any(str(ascconv.sequence_of(step.protocol)) in one.sequences for one in bits):
                 carrying += 1
     assert carrying > 300, f"only {carrying} scans run a sequence whose flags are mapped"
 
@@ -1384,8 +1385,8 @@ def test_a_decoded_parameter_matches_the_card_that_printed_it(
         for _title, params in (scan.get("sections") or {}).items():
             for key, value in (params or {}).items():
                 printed.setdefault(key.split(" #")[0], str(value))
-        for mapping in patch.MAPPINGS:
-            decoded = patch.display(mapping, step.protocol)
+        for mapping in mappings.MAPPINGS:
+            decoded = mappings.display(mapping, step.protocol)
             shown = printed.get(mapping.label)
             if decoded is None or shown is None:
                 continue
@@ -1448,7 +1449,8 @@ def test_the_decode_sweep_is_not_vacuous() -> None:
             }
             compared += sum(
                 1
-                for mapping in patch.MAPPINGS
-                if mapping.label in printed and patch.display(mapping, step.protocol) is not None
+                for mapping in mappings.MAPPINGS
+                if mapping.label in printed
+                and mappings.display(mapping, step.protocol) is not None
             )
     assert compared > 5000, f"::error::only {compared} decoded readings were checked"

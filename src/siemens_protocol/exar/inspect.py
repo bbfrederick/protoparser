@@ -2,12 +2,15 @@
 
 This module turns the tree :mod:`.archive` decodes into the plain values a
 higher-level reader needs -- the sequence binary and the tree it came from,
-the ``Preview`` map, the mapped Special-card view, the slice-geometry
-summary, a prescription link, the folder tree -- without assembling the
-cross-format document itself. That adapter, which lets the readers written
-for parsed PDFs run against an archive unchanged, lives in
-:mod:`siemens_protocol.analysis.archive_view`; this module supplies it every
-low-level fact it reads.
+the ``Preview`` map, the slice-geometry summary, a prescription link, the
+folder tree -- without assembling the cross-format document itself, and
+without interpreting a value in terms of what a printed label means (that is
+:mod:`siemens_protocol.analysis.generate.mappings`' job, one layer up; its
+``card_view`` is what shows an archive's mapped parameters under the cards a
+printout would show them on). The adapter that assembles the cross-format
+document, and lets the readers written for parsed PDFs run against an
+archive unchanged, lives in :mod:`siemens_protocol.analysis.archive_view`;
+this module supplies it every low-level fact it reads.
 
 An archive and a printout are not the same document, and pretending
 otherwise would misdescribe both. A printout is what the console chose to
@@ -28,7 +31,7 @@ anyone reading either:
   all.
 
 Nothing new about the format is established here; every field read is one
-:mod:`.archive`, :mod:`.patch` or :mod:`.geometry` already reads and tests.
+:mod:`.archive`, :mod:`.ascconv` or :mod:`.geometry` already reads and tests.
 """
 
 from __future__ import annotations
@@ -37,7 +40,7 @@ import re
 from collections import OrderedDict
 from typing import Any
 
-from . import patch
+from . import ascconv
 from .archive import DIRECTORY, Archive, Protocol
 from .geometry import agrees, read_group
 
@@ -45,10 +48,6 @@ from .geometry import agrees, read_group
 #: the archive has none, and no release prints a section by this name, so it
 #: cannot be confused with one by anything reading section titles.
 ASCCONV_SECTION = "ASCCONV"
-
-#: Where a decoded parameter goes when the corpus records no card for it.
-#: Every mapping currently has one, so this is a guard rather than a case.
-UNCARDED_SECTION = "Parameters"
 
 #: The release profile a baseline's ``MAJORVERSION`` belongs to.
 #:
@@ -102,8 +101,8 @@ def ascconv_table(text: str) -> "OrderedDict[str, str]":
 
     The literal is kept exactly as stored rather than decoded to a number.
     That is not laziness: the console writes ``0x1`` for some flags and ``1``
-    for others -- which is why :mod:`.patch` has to enumerate ``HEX_KEYS`` and
-    ``INT_KEYS`` -- so normalizing the spelling would make this document
+    for others -- which is why :mod:`.ascconv` has to enumerate ``HEX_KEYS``
+    and ``INT_KEYS`` -- so normalizing the spelling would make this document
     disagree with the file it describes.
 
     Parameters
@@ -117,7 +116,7 @@ def ascconv_table(text: str) -> "OrderedDict[str, str]":
         Key to literal, in file order. Empty when there is no ASCCONV block,
         which is a readable state rather than an error.
     """
-    start, end = patch.ascconv_bounds(text)
+    start, end = ascconv.ascconv_bounds(text)
     if start < 0:
         return OrderedDict()
     found = _ASSIGNMENT.finditer(text, start, end)
@@ -219,7 +218,7 @@ def sequence_file(protocol: Protocol) -> str:
         For example ``%CustomerSeq%\\cmrr_mbep2d_bold``. Empty when the
         protocol carries no ASCCONV block.
     """
-    raw = patch.read_ascconv(protocol.xprotocol, "tSequenceFileName")
+    raw = ascconv.read_ascconv(protocol.xprotocol, "tSequenceFileName")
     return (raw or "").strip().strip('"')
 
 
@@ -388,58 +387,6 @@ def step_names(archive: Archive) -> dict[str, str]:
         One entry per step across every program.
     """
     return {step.instance.object_id: step.name for step in archive.steps}
-
-
-def card_view(
-    protocol: Protocol,
-    printed: "OrderedDict[str, str] | None" = None,
-) -> "OrderedDict[str, OrderedDict[str, str]]":
-    """A protocol's mapped parameters, under the cards a printout prints them on.
-
-    An archive stores no cards -- what a page splits into Routine, Contrast
-    and Geometry is a property of the page -- but the parameters are the same
-    parameters, and a person changing a protocol works from the card. So the
-    mapping table is read backwards: each entry it can decode is emitted
-    under its printed label, on every card :data:`~.patch.CARDS` records it
-    printed on.
-
-    A quantity really does appear on several cards, and the console keeps
-    them in sync -- change ``TR`` on Routine and Contrast shows the new value
-    -- so emitting it under each is faithful rather than duplication, and the
-    flattened view folds the repeats back into one reading whose ``sections``
-    name where it was found.
-
-    This is a fraction of what a page prints: the table covers the parameters
-    a controlled edit has pinned, not the several hundred a printout carries.
-    The rest stays in the raw parameter section, which is what makes the
-    archive comparison complete even where it cannot be eloquent.
-
-    Parameters
-    ----------
-    protocol : Protocol
-        The protocol to read.
-    printed : OrderedDict or None, optional
-        The console's own ``Preview`` rendering, which wins where it carries
-        the label. It is the same quantity either way, but the console
-        renders it with its unit -- ``20.0 deg`` against a decoded ``20`` --
-        and two spellings of one value flatten to a *conflict*, which would
-        report the parameter as disagreeing with itself.
-
-    Returns
-    -------
-    OrderedDict
-        ``{card title: {printed label: displayed value}}``, cards in the
-        order the mapping table first reaches them.
-    """
-    cards: "OrderedDict[str, OrderedDict[str, str]]" = OrderedDict()
-    preview = printed or {}
-    for mapping in patch.MAPPINGS:
-        shown = preview.get(mapping.label, patch.display(mapping, protocol))
-        if shown is None:
-            continue
-        for card in patch.cards_for(mapping.label) or (UNCARDED_SECTION,):
-            cards.setdefault(card, OrderedDict())[mapping.label] = shown
-    return cards
 
 
 def directories(archive: Archive, parents: dict[str, str]) -> list[dict[str, str]]:

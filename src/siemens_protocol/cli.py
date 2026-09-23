@@ -2274,7 +2274,7 @@ def _run_exar(args: argparse.Namespace) -> int:
     int
         Process exit status.
     """
-    from .exar import build as exar_build
+    from .analysis.generate import build as exar_build
     from .exar import validate as exar_validate
 
     try:

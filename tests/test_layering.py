@@ -12,12 +12,11 @@ third one somewhere under the low-level tree -- ``exar/``, ``extract/``,
 routing through ``model.py`` the way ``archive_view.py`` does.
 
 The sweep is static (``ast``, not an import trace at run time) so it also
-catches a deferred, function-local import -- the shape both of the two
-existing cross-layer reaches (``analysis/diff.py``'s and
-``analysis/summary.py``'s deferred imports of ``exar.patch``/``exar.build``,
-which run the other direction and are not what this test guards) already
-took, and which a plain ``grep`` for a module-level ``import`` line would
-miss.
+catches a deferred, function-local import -- the shape the one remaining
+cross-layer reach (``analysis/diff.py``'s deferred import of ``is_churn``
+out of the low-level ASCCONV codec, which runs the other direction and is
+not what this test guards) already took, and which a plain ``grep`` for a
+module-level ``import`` line would miss.
 """
 
 from __future__ import annotations

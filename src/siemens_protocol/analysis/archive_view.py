@@ -2,13 +2,18 @@
 
 :mod:`siemens_protocol.exar.inspect` reads the low-level facts an archive
 stores -- the sequence binary and the tree it came from, the ``Preview``
-map, the mapped Special-card view, the slice geometry, a prescription link.
-This module is the adapter that assembles those facts into the same
-document shape a parsed PDF produces, through the same
+map, the slice geometry, a prescription link. This module is the adapter
+that assembles those facts into the same document shape a parsed PDF
+produces, through the same
 :class:`~siemens_protocol.model.Scan`/:class:`~siemens_protocol.model.Protocol`
 that :mod:`~siemens_protocol.pipeline` builds for a PDF, so the readers
 written for one -- the listing, the sequence catalog, the policy checker,
-the comparison -- run against an archive unchanged.
+the comparison -- run against an archive unchanged. :func:`card_view` lives
+here rather than in :mod:`~siemens_protocol.exar.inspect` for the same
+reason: showing an archive's parameters under the cards a printout would
+show them on means interpreting a stored value through
+:mod:`~siemens_protocol.analysis.generate.mappings`' business-rules table,
+which is exactly the domain knowledge the low-level module does not carry.
 
 An archive and a printout are still not the same document -- see the module
 docstring of :mod:`siemens_protocol.exar.inspect` for why -- so this module
@@ -27,12 +32,17 @@ from collections import OrderedDict
 from typing import Any
 
 from .. import model
-from ..exar import inspect, patch
+from ..exar import ascconv, inspect
 from ..exar.archive import Archive, Program
 from ..exar.archive import Protocol as ArchiveProtocol
 from ..exar.archive import Step
+from .generate import mappings
 from .listing import format_duration
 from .sequences import Catalog, default_catalog
+
+#: Where a decoded parameter goes when the corpus records no card for it.
+#: Every mapping currently has one, so this is a guard rather than a case.
+UNCARDED_SECTION = "Parameters"
 
 
 def acquisition_time(protocol: ArchiveProtocol) -> str:
@@ -54,7 +64,7 @@ def acquisition_time(protocol: ArchiveProtocol) -> str:
         ``M:SS``, or empty when the assignment is absent -- which it is on the
         one-second setter scans, where the console omits it as a zero.
     """
-    raw = patch.read_ascconv(protocol.xprotocol, "lTotalScanTimeSec")
+    raw = ascconv.read_ascconv(protocol.xprotocol, "lTotalScanTimeSec")
     if raw is None:
         return ""
     try:
@@ -88,7 +98,7 @@ def header_of(step: Step) -> dict[str, str]:
     protocol = step.protocol
     stored = inspect.sequence_file(protocol)
     header: "OrderedDict[str, str]" = OrderedDict()
-    binary = stored.rsplit("\\", 1)[-1] if stored else patch.sequence_of(protocol)
+    binary = stored.rsplit("\\", 1)[-1] if stored else ascconv.sequence_of(protocol)
     if binary:
         header["sequence"] = binary
     owner = inspect.sequence_owner(stored)
@@ -96,13 +106,65 @@ def header_of(step: Step) -> dict[str, str]:
         header["sequence_owner"] = owner
     if stored:
         header["sequence_file"] = stored
-    stamp = patch.sequence_stamp(protocol)
+    stamp = ascconv.sequence_stamp(protocol)
     if stamp:
         header["sequence_build"] = stamp
     time = acquisition_time(protocol)
     if time:
         header["ta"] = time
     return dict(header)
+
+
+def card_view(
+    protocol: ArchiveProtocol,
+    printed: "OrderedDict[str, str] | None" = None,
+) -> "OrderedDict[str, OrderedDict[str, str]]":
+    """A protocol's mapped parameters, under the cards a printout prints them on.
+
+    An archive stores no cards -- what a page splits into Routine, Contrast
+    and Geometry is a property of the page -- but the parameters are the same
+    parameters, and a person changing a protocol works from the card. So the
+    mapping table is read backwards: each entry it can decode is emitted
+    under its printed label, on every card :data:`~.generate.mappings.CARDS`
+    records it printed on.
+
+    A quantity really does appear on several cards, and the console keeps
+    them in sync -- change ``TR`` on Routine and Contrast shows the new value
+    -- so emitting it under each is faithful rather than duplication, and the
+    flattened view folds the repeats back into one reading whose ``sections``
+    name where it was found.
+
+    This is a fraction of what a page prints: the table covers the parameters
+    a controlled edit has pinned, not the several hundred a printout carries.
+    The rest stays in the raw parameter section, which is what makes the
+    archive comparison complete even where it cannot be eloquent.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to read.
+    printed : OrderedDict or None, optional
+        The console's own ``Preview`` rendering, which wins where it carries
+        the label. It is the same quantity either way, but the console
+        renders it with its unit -- ``20.0 deg`` against a decoded ``20`` --
+        and two spellings of one value flatten to a *conflict*, which would
+        report the parameter as disagreeing with itself.
+
+    Returns
+    -------
+    OrderedDict
+        ``{card title: {printed label: displayed value}}``, cards in the
+        order the mapping table first reaches them.
+    """
+    cards: "OrderedDict[str, OrderedDict[str, str]]" = OrderedDict()
+    preview = printed or {}
+    for mapping in mappings.MAPPINGS:
+        shown = preview.get(mapping.label, mappings.display(mapping, protocol))
+        if shown is None:
+            continue
+        for card in mappings.cards_for(mapping.label) or (UNCARDED_SECTION,):
+            cards.setdefault(card, OrderedDict())[mapping.label] = shown
+    return cards
 
 
 def scan_from_step(
@@ -165,7 +227,7 @@ def scan_from_step(
             # block still follows: the table covers a fraction of what a
             # protocol holds, and the remainder is where the differences a
             # Preview-only view was missing actually live.
-            sections.update(inspect.card_view(step.protocol, preview))
+            sections.update(card_view(step.protocol, preview))
             sections[inspect.ASCCONV_SECTION] = inspect.ascconv_table(step.protocol.xprotocol)
     return model.Scan(
         index=index,

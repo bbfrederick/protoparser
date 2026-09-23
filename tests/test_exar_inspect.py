@@ -20,9 +20,11 @@ import pytest
 from conftest import EXAR_PROTOCOL_FILES, find_exar, requires_exar
 from siemens_protocol import exar
 from siemens_protocol.analysis import archive_view
+from siemens_protocol.analysis.generate import mappings
 from siemens_protocol.analysis.sequences import STOCK, THIRD_PARTY, default_catalog
+from siemens_protocol.exar import ascconv
 from siemens_protocol.exar import inspect as ins
-from siemens_protocol.exar import patch, store
+from siemens_protocol.exar import store
 from siemens_protocol.pipeline import ParseOptions, parse_document
 
 
@@ -403,7 +405,7 @@ def test_the_archive_subcommand_writes_beside_the_archive(tmp_path: Path) -> Non
 
 @requires_exar
 def test_every_corpus_archive_pairs_its_preview_labels_with_the_patcher() -> None:
-    """The printed-label view uses the labels ``patch.resolve`` looks up.
+    """The printed-label view uses the labels ``mappings.resolve`` looks up.
 
     The two read ``Preview`` for different reasons -- one to display a
     parameter, one to write it -- and a label spelled differently in the
@@ -423,7 +425,7 @@ def test_every_corpus_archive_pairs_its_preview_labels_with_the_patcher() -> Non
         for label in ("TR", "Slice Thickness", "FOV Read"):
             if label not in view:
                 continue
-            mapping, _reason = patch.resolve(step.protocol, label)
+            mapping, _reason = mappings.resolve(step.protocol, label)
             assert mapping is not None, (
                 f"::error::{step.name}: {label!r} is in the document's printed view "
                 "but resolves to no mapping"
@@ -520,10 +522,10 @@ def test_the_navigator_prot_name_tracks_its_flag_on_console_authored_scans(
     for step in archive.steps:
         if not step.runs_a_protocol:
             continue
-        stamp = patch.sequence_stamp(step.protocol)
+        stamp = ascconv.sequence_stamp(step.protocol)
         if not stamp.endswith(".prot"):
             continue
-        flag = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[15]")
+        flag = ascconv.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[15]")
         if flag is None:
             # ``alFree[15]`` is an ABCD-generation field. Every navigator
             # whose binary ends `_ABCD` carries it -- space_mgh_epinav_ABCD,
@@ -573,9 +575,9 @@ def test_the_prot_rule_is_actually_exercised_by_the_corpus() -> None:
         for step in archive.steps:
             if not step.runs_a_protocol:
                 continue
-            if not patch.sequence_stamp(step.protocol).endswith(".prot"):
+            if not ascconv.sequence_stamp(step.protocol).endswith(".prot"):
                 continue
-            flag = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[15]")
+            flag = ascconv.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.alFree[15]")
             if flag is not None:
                 seen[flag.strip()] = seen.get(flag.strip(), 0) + 1
     assert set(seen) == {"1", "2"}, f"::error::console-authored scans show alFree[15] {seen}"

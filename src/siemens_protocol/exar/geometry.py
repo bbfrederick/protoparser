@@ -32,7 +32,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from . import patch
+from . import ascconv
 
 #: The three protocol axes, in the order the console writes them.
 AXES = ("dSag", "dCor", "dTra")
@@ -134,7 +134,7 @@ def _number(text: str, key: str, fallback: float | None = None) -> float | None:
     float or None
         The number, or ``fallback``.
     """
-    found = patch.read_ascconv(text, key)
+    found = ascconv.read_ascconv(text, key)
     return float(found) if found is not None else fallback
 
 
@@ -157,7 +157,7 @@ def read_group(text: str) -> SliceGroup | None:
     thickness = _number(text, "sSliceArray.asSlice[0].dThickness")
     if not count or count < 2 or not thickness:
         return None
-    if patch.read_ascconv(text, "sGroupArray.asGroup[1].nSize") is not None:
+    if ascconv.read_ascconv(text, "sGroupArray.asGroup[1].nSize") is not None:
         return None
     positions = [
         [_number(text, f"sSliceArray.asSlice[{n}].sPosition.{a}", 0.0) for a in AXES]
@@ -227,13 +227,13 @@ def rebuild(text: str, group: SliceGroup) -> str:
         position = group.position(index)
         for axis, value in zip(AXES, position):
             key = f"sSliceArray.asSlice[{index}].sPosition.{axis}"
-            existing = patch.read_ascconv(text, key)
+            existing = ascconv.read_ascconv(text, key)
             if existing is None:
                 # The console omits an axis holding zero; writing one back is
                 # only right when the value is no longer zero.
                 if abs(value) < TOLERANCE:
                     continue
-                text = patch.insert_ascconv(text, key, patch.format_like(value, "0.0"))
+                text = ascconv.insert_ascconv(text, key, ascconv.format_like(value, "0.0"))
                 continue
             if abs(float(existing) - value) < TOLERANCE:
                 # Already right. Rewriting it would replace the console's
@@ -243,9 +243,13 @@ def rebuild(text: str, group: SliceGroup) -> str:
                 # edits a protocol nobody changed makes every later diff
                 # useless.
                 continue
-            text = patch._store(text, key, patch.format_like(value, existing), existing, False)
+            text = ascconv.store_ascconv(
+                text, key, ascconv.format_like(value, existing), existing, False
+            )
         for key, value in ((f"sSliceArray.asSlice[{index}].dThickness", group.thickness),):
-            existing = patch.read_ascconv(text, key)
+            existing = ascconv.read_ascconv(text, key)
             if existing is not None and abs(float(existing) - value) >= TOLERANCE:
-                text = patch._store(text, key, patch.format_like(value, existing), existing, False)
+                text = ascconv.store_ascconv(
+                    text, key, ascconv.format_like(value, existing), existing, False
+                )
     return text

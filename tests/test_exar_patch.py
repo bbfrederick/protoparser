@@ -39,9 +39,10 @@ from conftest import (  # noqa: F401
     requires_exar,
     requires_paramcheck,
 )
-from siemens_protocol.exar import build, envelope
+from siemens_protocol.analysis.generate import build, mappings
+from siemens_protocol.exar import ascconv, envelope
 from siemens_protocol.exar import inspect as ins
-from siemens_protocol.exar import patch, read
+from siemens_protocol.exar import read
 from siemens_protocol.exar.archive import Protocol
 from siemens_protocol.pipeline import parse_document
 
@@ -101,7 +102,7 @@ def test_patching_reproduces_the_console_edit(tmp_path: pathlib.Path) -> None:
     assert wanted, "the reference pair records no TR change to reproduce"
 
     archive = read(source)
-    manifest = patch.apply(archive, wanted)
+    manifest = mappings.apply(archive, wanted)
     assert manifest.complete, manifest.report()
     assert len(manifest.applied) == len(wanted)
 
@@ -115,7 +116,7 @@ def test_patching_reproduces_the_console_edit(tmp_path: pathlib.Path) -> None:
             one.protocol.by_label(CONTROLLED)[0].value
             == other.protocol.by_label(CONTROLLED)[0].value
         ), f"preview TR differs on {one.name}"
-        assert patch.read_ascconv(one.protocol.xprotocol, "alTR[0]") == patch.read_ascconv(
+        assert ascconv.read_ascconv(one.protocol.xprotocol, "alTR[0]") == ascconv.read_ascconv(
             other.protocol.xprotocol, "alTR[0]"
         ), f"ASCCONV alTR[0] differs on {one.name}"
 
@@ -151,8 +152,8 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     wanted: dict[str, dict[str, object]] = {}
     for one, other in zip(before.steps, after.steps):
         asked: dict[str, object] = {}
-        for mapping in patch.MAPPINGS:
-            if not patch.applies_to(mapping, one.protocol):
+        for mapping in mappings.MAPPINGS:
+            if not mappings.applies_to(mapping, one.protocol):
                 continue
             if mapping.preview_path is not None:
                 was = one.protocol.preview.get(mapping.preview_path)
@@ -160,8 +161,8 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
                 if was is not None and now is not None and was.value != now.value:
                     asked[mapping.label] = now.value
                 continue
-            was_raw = patch.read_ascconv(one.protocol.xprotocol, mapping.ascconv_key)
-            now_raw = patch.read_ascconv(other.protocol.xprotocol, mapping.ascconv_key)
+            was_raw = ascconv.read_ascconv(one.protocol.xprotocol, mapping.ascconv_key)
+            now_raw = ascconv.read_ascconv(other.protocol.xprotocol, mapping.ascconv_key)
             if mapping.bit is not None:
                 was_on = bool(int(was_raw or 0) >> mapping.bit & 1)
                 now_on = bool(int(now_raw or 0) >> mapping.bit & 1)
@@ -181,7 +182,7 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     assert wanted, "the reference pair records no mapped change to reproduce"
 
     archive = read(source)
-    manifest = patch.apply(archive, wanted)
+    manifest = mappings.apply(archive, wanted)
     assert manifest.complete, manifest.report()
     written = tmp_path / "patched.exar1"
     archive.write(str(written))
@@ -189,7 +190,7 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     ours = read(str(written))
     exact = approximate = 0
     for one, other in zip(ours.steps, after.steps):
-        for mapping in patch.MAPPINGS:
+        for mapping in mappings.MAPPINGS:
             if mapping.read_only:
                 # Derived by the console from other parameters, so a patched
                 # protocol differs here by design: it recomputed
@@ -197,11 +198,11 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
                 # resolution moved, as it recomputes the scan times. Read
                 # from a card, never written to one.
                 continue
-            if not patch.applies_to(mapping, other.protocol):
+            if not mappings.applies_to(mapping, other.protocol):
                 continue
-            for key, _index in patch.expand(mapping.ascconv_key, other.protocol.xprotocol):
-                got = patch.read_ascconv(one.protocol.xprotocol, key)
-                want = patch.read_ascconv(other.protocol.xprotocol, key)
+            for key, _index in ascconv.expand(mapping.ascconv_key, other.protocol.xprotocol):
+                got = ascconv.read_ascconv(one.protocol.xprotocol, key)
+                want = ascconv.read_ascconv(other.protocol.xprotocol, key)
                 if got is None or want is None:
                     continue
                 if mapping.bit is not None:
@@ -297,7 +298,7 @@ def test_replaying_every_single_option_toggle_matches_the_console(name: str) -> 
 
     groups: dict[str, list[int]] = {}
     for position, step in enumerate(archive.steps):
-        groups.setdefault(patch.sequence_of(step.protocol), []).append(position)
+        groups.setdefault(ascconv.sequence_of(step.protocol), []).append(position)
 
     replayed = 0
     for positions in groups.values():
@@ -310,21 +311,21 @@ def test_replaying_every_single_option_toggle_matches_the_console(name: str) -> 
             for label, value in now.items():
                 if was.get(label) == value:
                     continue
-                mapping, _reason = patch.resolve(baseline, label)
+                mapping, _reason = mappings.resolve(baseline, label)
                 if mapping is not None:
                     asked[label] = UNIT_SUFFIX.sub("", str(value)).strip()
             if not asked:
                 continue
             replayed += 1
-            document, _applied, skipped = patch.patch_document(baseline, asked)
+            document, _applied, skipped = mappings.patch_document(baseline, asked)
             assert not skipped, [s.reason for s in skipped]
             target = archive.steps[position].protocol.xprotocol
             for label in asked:
-                mapping, _reason = patch.resolve(baseline, label)
+                mapping, _reason = mappings.resolve(baseline, label)
                 assert mapping is not None
-                for key, _index in patch.expand(mapping.ascconv_key, target):
-                    ours = patch.read_ascconv(document["Data"], key)
-                    theirs = patch.read_ascconv(target, key)
+                for key, _index in ascconv.expand(mapping.ascconv_key, target):
+                    ours = ascconv.read_ascconv(document["Data"], key)
+                    theirs = ascconv.read_ascconv(target, key)
                     if mapping.bit is not None:
                         assert (int(ours or 0) >> mapping.bit & 1) == (
                             int(theirs or 0) >> mapping.bit & 1
@@ -347,11 +348,11 @@ def test_a_patch_writes_both_locations_not_just_the_preview() -> None:
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
     step = archive.steps[0]
-    before = patch.read_ascconv(step.protocol.xprotocol, "alTR[0]")
-    document, applied, skipped = patch.patch_document(step.protocol, {"TR": 1234.0})
+    before = ascconv.read_ascconv(step.protocol.xprotocol, "alTR[0]")
+    document, applied, skipped = mappings.patch_document(step.protocol, {"TR": 1234.0})
     assert not skipped and len(applied) == 1
     assert document["Preview"]["sub.0.msr.tr.0"]["Value"] == 1234.0
-    assert patch.read_ascconv(document["Data"], "alTR[0]") == "1234000"
+    assert ascconv.read_ascconv(document["Data"], "alTR[0]") == "1234000"
     assert before != "1234000", "the fixture already held the value under test"
 
 
@@ -369,9 +370,9 @@ def test_the_millisecond_to_microsecond_scale_is_applied() -> None:
     None
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
-    document, applied, _ = patch.patch_document(archive.steps[0].protocol, {"TR": 2000.0})
+    document, applied, _ = mappings.patch_document(archive.steps[0].protocol, {"TR": 2000.0})
     assert applied[0].value == 2000.0
-    assert patch.read_ascconv(document["Data"], "alTR[0]") == "2000000"
+    assert ascconv.read_ascconv(document["Data"], "alTR[0]") == "2000000"
 
 
 def test_an_integer_literal_stays_an_integer() -> None:
@@ -381,8 +382,8 @@ def test_an_integer_literal_stays_an_integer() -> None:
     -------
     None
     """
-    assert patch.format_like(2000000.0, "650000") == "2000000"
-    assert patch.format_like(90.0, "80.0") == "90.0"
+    assert ascconv.format_like(2000000.0, "650000") == "2000000"
+    assert ascconv.format_like(90.0, "80.0") == "90.0"
 
 
 def test_rewriting_an_assignment_preserves_its_separator() -> None:
@@ -397,9 +398,9 @@ def test_rewriting_an_assignment_preserves_its_separator() -> None:
     None
     """
     text = "### ASCCONV BEGIN ###\nalTR[0]\t = \t650000\n### ASCCONV END ###\n"
-    assert patch.write_ascconv(text, "alTR[0]", "651000") == text.replace("650000", "651000")
+    assert ascconv.write_ascconv(text, "alTR[0]", "651000") == text.replace("650000", "651000")
     spaced = text.replace("\t = \t", "  =  ")
-    assert patch.write_ascconv(spaced, "alTR[0]", "651000") == spaced.replace("650000", "651000")
+    assert ascconv.write_ascconv(spaced, "alTR[0]", "651000") == spaced.replace("650000", "651000")
 
 
 def test_only_the_named_assignment_is_rewritten() -> None:
@@ -410,7 +411,7 @@ def test_only_the_named_assignment_is_rewritten() -> None:
     None
     """
     text = "### ASCCONV BEGIN ###\nalTR[0]\t = \t100\nalTR[01]\t = \t200\n### ASCCONV END ###\n"
-    result = patch.write_ascconv(text, "alTR[0]", "999")
+    result = ascconv.write_ascconv(text, "alTR[0]", "999")
     assert "alTR[0]\t = \t999" in result
     assert "alTR[01]\t = \t200" in result
 
@@ -423,7 +424,7 @@ def test_an_assignment_outside_the_ascconv_block_is_left_alone() -> None:
     None
     """
     text = "alTR[0]  = 1\n### ASCCONV BEGIN ###\nalTR[0]\t = \t650000\n### ASCCONV END ###\n"
-    result = patch.write_ascconv(text, "alTR[0]", "42")
+    result = ascconv.write_ascconv(text, "alTR[0]", "42")
     assert result.startswith("alTR[0]  = 1\n")
     assert "\t = \t42" in result
 
@@ -446,7 +447,7 @@ def test_an_unmapped_label_is_reported_not_written() -> None:
     None
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
-    _, applied, skipped = patch.patch_document(archive.steps[0].protocol, {"Bandwidth": 2000.0})
+    _, applied, skipped = mappings.patch_document(archive.steps[0].protocol, {"Bandwidth": 2000.0})
     assert not applied
     assert len(skipped) == 1
     assert (
@@ -464,7 +465,7 @@ def test_a_request_for_a_missing_step_is_skipped_with_a_reason() -> None:
     None
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
-    manifest = patch.apply(archive, {"no_such_scan": {"TR": 100.0}})
+    manifest = mappings.apply(archive, {"no_such_scan": {"TR": 100.0}})
     assert not manifest.complete
     assert manifest.skipped[0].reason == "no such step in archive"
 
@@ -481,7 +482,7 @@ def test_a_protocol_without_the_field_is_skipped_not_invented() -> None:
     lacking = [s for s in archive.steps if "sub.0.msr.ips" not in s.protocol.preview]
     if not lacking:
         pytest.skip("every protocol in this archive carries sub.0.msr.ips")
-    _, applied, skipped = patch.patch_document(lacking[0].protocol, {"Slices per Slab": 9})
+    _, applied, skipped = mappings.patch_document(lacking[0].protocol, {"Slices per Slab": 9})
     assert not applied
     assert "no sub.0.msr.ips" in skipped[0].reason
 
@@ -511,8 +512,8 @@ def test_a_choice_the_sequence_shows_for_an_absent_element_is_not_rewritten() ->
         for s in read(find_exar("allcustomer_20260909.exar1")).steps
         if s.name == "ep_moco_nav_set_ABCD"
     )
-    assert patch.read_ascconv(default.protocol.xprotocol, "sWipMemBlock.alFree[1]") is None
-    document, applied, skipped = patch.patch_document(
+    assert ascconv.read_ascconv(default.protocol.xprotocol, "sWipMemBlock.alFree[1]") is None
+    document, applied, skipped = mappings.patch_document(
         default.protocol, {"Protocol filename": "Generic"}
     )
     assert not skipped
@@ -524,7 +525,7 @@ def test_a_choice_the_sequence_shows_for_an_absent_element_is_not_rewritten() ->
         for s in read(find_exar("Potpourri_P1.exar1")).steps
         if s.name == "ABCD_T2w_SPC_vNav_setter"
     )
-    _, applied, skipped = patch.patch_document(other.protocol, {"Protocol filename": "Generic"})
+    _, applied, skipped = mappings.patch_document(other.protocol, {"Protocol filename": "Generic"})
     assert not skipped
     assert [(a.ascconv_previous, a.ascconv_value) for a in applied] == [("3", "1")]
 
@@ -555,7 +556,7 @@ def test_a_patch_re_addresses_only_the_protocol_it_touched(tmp_path: pathlib.Pat
     name = archive.steps[0].name
     before = {s.name: s.protocol.instance.content_hash for s in archive.steps}
 
-    patch.apply(archive, {name: {"TR": 1234.0}})
+    mappings.apply(archive, {name: {"TR": 1234.0}})
     after = {s.name: s.protocol.instance.content_hash for s in archive.steps}
 
     assert after[name] != before[name]
@@ -573,7 +574,7 @@ def test_a_run_that_writes_nothing_leaves_the_archive_alone(tmp_path: pathlib.Pa
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
     before = {s.name: s.protocol.instance.content_hash for s in archive.steps}
-    manifest = patch.apply(archive, {archive.steps[0].name: {"Nonexistent Parameter": 1}})
+    manifest = mappings.apply(archive, {archive.steps[0].name: {"Nonexistent Parameter": 1}})
     assert not manifest.applied
     after = {s.name: s.protocol.instance.content_hash for s in archive.steps}
     assert after == before
@@ -594,7 +595,7 @@ def test_the_patched_archive_survives_a_write_and_read(tmp_path: pathlib.Path) -
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
     name = archive.steps[3].name
-    patch.apply(archive, {name: {"TR": 1750.0}})
+    mappings.apply(archive, {name: {"TR": 1750.0}})
     written = tmp_path / "patched.exar1"
     archive.write(str(written))
 
@@ -602,7 +603,7 @@ def test_the_patched_archive_survives_a_write_and_read(tmp_path: pathlib.Path) -
     assert [s.name for s in back.steps] == [s.name for s in archive.steps]
     found = {s.name: s for s in back.steps}[name]
     assert found.protocol.by_label("TR")[0].value == 1750.0
-    assert patch.read_ascconv(found.protocol.xprotocol, "alTR[0]") == "1750000"
+    assert ascconv.read_ascconv(found.protocol.xprotocol, "alTR[0]") == "1750000"
 
 
 # --------------------------------------------------------------------------
@@ -624,7 +625,7 @@ def test_the_manifest_counts_what_it_did_not_write() -> None:
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
     name = archive.steps[0].name
-    manifest = patch.apply(archive, {name: {"TR": 900.0}})
+    manifest = mappings.apply(archive, {name: {"TR": 900.0}})
     assert manifest.inherited > 0
     assert "inherited" in manifest.report()
 
@@ -638,7 +639,7 @@ def test_the_manifest_names_the_values_the_console_would_recompute() -> None:
     None
     """
     archive = read(find_exar("Potpourri_P2.exar1"))
-    manifest = patch.apply(archive, {archive.steps[0].name: {"TR": 900.0}})
+    manifest = mappings.apply(archive, {archive.steps[0].name: {"TR": 900.0}})
     assert "lScanTimeSec" in manifest.stale
     assert "not recomputed" in manifest.report()
 
@@ -695,9 +696,9 @@ def test_a_patched_protocol_survives_a_real_scanner_load(source: str, returned: 
     for original, result in zip(before.steps, returned_programs[0].steps):
         writable = {
             key
-            for mapping in patch.MAPPINGS
-            if patch.applies_to(mapping, result.protocol)
-            for key, _index in patch.expand(mapping.ascconv_key, result.protocol.xprotocol)
+            for mapping in mappings.MAPPINGS
+            if mappings.applies_to(mapping, result.protocol)
+            for key, _index in ascconv.expand(mapping.ascconv_key, result.protocol.xprotocol)
         }
         differing = _ascconv_differences(original.protocol.xprotocol, result.protocol.xprotocol)
         if not differing:
@@ -725,7 +726,7 @@ def _ascconv_differences(one: str, other: str) -> set[str]:
     """
 
     def table(text: str) -> dict[str, str]:
-        start, end = patch.ascconv_bounds(text)
+        start, end = ascconv.ascconv_bounds(text)
         if start < 0:
             return {}
         found = re.finditer(
@@ -807,12 +808,12 @@ def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
     # keys is what keeps `sWipMemBlock.alFree[0]` in the comparison: fifteen
     # mappings share that one word, and dropping the key would stop checking
     # the fourteen the scanner really did vouch for.
-    era = tuple(m for m in patch.MAPPINGS if m.label not in PREDATES_MAPPINGS)
-    assert len(era) == len(patch.MAPPINGS) - len(PREDATES_MAPPINGS), (
+    era = tuple(m for m in mappings.MAPPINGS if m.label not in PREDATES_MAPPINGS)
+    assert len(era) == len(mappings.MAPPINGS) - len(PREDATES_MAPPINGS), (
         "PREDATES_MAPPINGS names a label the table no longer carries: "
-        f"{sorted(PREDATES_MAPPINGS - {m.label for m in patch.MAPPINGS})}"
+        f"{sorted(PREDATES_MAPPINGS - {m.label for m in mappings.MAPPINGS})}"
     )
-    with mock.patch.object(patch, "MAPPINGS", era):
+    with mock.patch.object(mappings, "MAPPINGS", era):
         report = build.apply_protocol(
             built, parse_document(pdf).protocol.to_dict(include_flat=True)
         )
@@ -830,7 +831,7 @@ def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
         (one.step, key)
         for one in report.applied
         for key, _index in (
-            patch.expand(one.ascconv_key.split(" x")[0], before[one.step])
+            ascconv.expand(one.ascconv_key.split(" x")[0], before[one.step])
             or [(one.ascconv_key, None)]
         )
     }
@@ -852,7 +853,7 @@ def test_the_scanner_only_moved_fields_the_driver_left_to_the_template() -> None
     The complement of the check above: that one asks whether our writes
     survived, this one asks whether the scanner made changes of its own. Every
     difference must be on the churn list -- the GUIDs and stamps a save
-    regenerates, and the derived scan time :class:`patch.Manifest` already
+    regenerates, and the derived scan time :class:`mappings.Manifest` already
     names -- because anything else would be the loader disagreeing with a value
     it accepted.
 
@@ -876,12 +877,12 @@ def test_the_scanner_only_moved_fields_the_driver_left_to_the_template() -> None
     # the late mappings' *keys* instead would blind the comparison to the
     # fourteen other flag bits sharing `alFree[0]`; withholding the mappings
     # themselves leaves every one of those still compared.
-    era = tuple(m for m in patch.MAPPINGS if m.label not in PREDATES_MAPPINGS)
-    assert len(era) == len(patch.MAPPINGS) - len(PREDATES_MAPPINGS), (
+    era = tuple(m for m in mappings.MAPPINGS if m.label not in PREDATES_MAPPINGS)
+    assert len(era) == len(mappings.MAPPINGS) - len(PREDATES_MAPPINGS), (
         "PREDATES_MAPPINGS names a label the table no longer carries: "
-        f"{sorted(PREDATES_MAPPINGS - {m.label for m in patch.MAPPINGS})}"
+        f"{sorted(PREDATES_MAPPINGS - {m.label for m in mappings.MAPPINGS})}"
     )
-    with mock.patch.object(patch, "MAPPINGS", era):
+    with mock.patch.object(mappings, "MAPPINGS", era):
         report = build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
     assert not (PREDATES_MAPPINGS & {one.label for one in report.applied})
     returned = read(find_exar("driver_loadtest.exar1"))
@@ -954,19 +955,19 @@ def test_every_shipped_mapping_agrees_with_the_corpus(protocol_archive_path: str
         if not step.runs_a_protocol:
             continue
         protocol = step.protocol
-        for mapping in patch.MAPPINGS:
-            if mapping.preview_path is None or not patch.applies_to(mapping, protocol):
+        for mapping in mappings.MAPPINGS:
+            if mapping.preview_path is None or not mappings.applies_to(mapping, protocol):
                 continue
             entry = protocol.preview.get(mapping.preview_path)
             if entry is None or not isinstance(entry.value, (int, float)):
                 continue
-            for key, index in patch.expand(mapping.ascconv_key, protocol.xprotocol):
-                literal = patch.read_ascconv(protocol.xprotocol, key)
+            for key, index in ascconv.expand(mapping.ascconv_key, protocol.xprotocol):
+                literal = ascconv.read_ascconv(protocol.xprotocol, key)
                 if literal is None:
                     continue
                 want = float(entry.value) * mapping.scale
                 if mapping.basis is not None:
-                    basis = patch.read_ascconv(
+                    basis = ascconv.read_ascconv(
                         protocol.xprotocol, mapping.basis.replace("[*]", f"[{index}]")
                     )
                     if basis is None:
@@ -1000,13 +1001,13 @@ def test_a_sequence_specific_mapping_is_refused_on_another_sequence() -> None:
     steps = {s.name: s for s in archive.steps}
     cmrr = steps["Minn_CMRR_2.3mm_S8_rest_6min"].protocol
     neuro = steps["can_neuromelanin"].protocol
-    assert patch.sequence_of(cmrr) == "cmrr_mbep2d_bold"
-    assert patch.sequence_of(neuro) == "can_neuromelanin"
+    assert ascconv.sequence_of(cmrr) == "cmrr_mbep2d_bold"
+    assert ascconv.sequence_of(neuro) == "can_neuromelanin"
 
-    found, _ = patch.resolve(neuro, "MT Flip Angle")
+    found, _ = mappings.resolve(neuro, "MT Flip Angle")
     assert found is not None and found.ascconv_key == "sWipMemBlock.alFree[0]"
 
-    refused, reason = patch.resolve(cmrr, "MT Flip Angle")
+    refused, reason = mappings.resolve(cmrr, "MT Flip Angle")
     assert refused is None
     assert "cmrr_mbep2d_bold" in reason
 
@@ -1024,12 +1025,12 @@ def test_an_array_target_writes_every_slice_not_only_the_first() -> None:
     """
     archive = read(find_exar("Potpourri_P1.exar1"))
     step = {s.name: s for s in archive.steps}["Minn_CMRR_2.3mm_S8_rest_6min"]
-    targets = patch.expand("sSliceArray.asSlice[*].dReadoutFOV", step.protocol.xprotocol)
+    targets = ascconv.expand("sSliceArray.asSlice[*].dReadoutFOV", step.protocol.xprotocol)
     assert len(targets) > 1, "this fixture should have a multi-slice array"
 
-    document, applied, skipped = patch.patch_document(step.protocol, {"FOV Read": 199.0})
+    document, applied, skipped = mappings.patch_document(step.protocol, {"FOV Read": 199.0})
     assert not skipped and len(applied) == 1
-    written = {patch.read_ascconv(document["Data"], key) for key, _ in targets}
+    written = {ascconv.read_ascconv(document["Data"], key) for key, _ in targets}
     assert written == {"199.0"}, f"not every slice was written: {sorted(written)}"
 
 
@@ -1043,12 +1044,12 @@ def test_a_derived_target_is_scaled_by_its_basis() -> None:
     """
     archive = read(find_exar("Potpourri_P1.exar1"))
     step = {s.name: s for s in archive.steps}["Minn_CMRR_2.3mm_S8_rest_6min"]
-    document, applied, skipped = patch.patch_document(
+    document, applied, skipped = mappings.patch_document(
         step.protocol, {"FOV Read": 200.0, "FOV Phase": 50.0}
     )
     assert not skipped and len(applied) == 2
-    assert patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dReadoutFOV") == "200.0"
-    assert patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dPhaseFOV") == "100.0"
+    assert ascconv.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dReadoutFOV") == "200.0"
+    assert ascconv.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dPhaseFOV") == "100.0"
 
 
 @requires_exar
@@ -1067,9 +1068,9 @@ def test_a_special_card_mapping_writes_ascconv_with_no_preview_side() -> None:
     assert not step.protocol.by_label("MT Flip Angle")
 
     before = dict(step.protocol.document["Preview"])
-    document, applied, skipped = patch.patch_document(step.protocol, {"MT Flip Angle": 355})
+    document, applied, skipped = mappings.patch_document(step.protocol, {"MT Flip Angle": 355})
     assert not skipped and len(applied) == 1
-    assert patch.read_ascconv(document["Data"], "sWipMemBlock.alFree[0]") == "355"
+    assert ascconv.read_ascconv(document["Data"], "sWipMemBlock.alFree[0]") == "355"
     assert document["Preview"] == before, "an ASCCONV-only mapping touched the preview"
 
 
@@ -1083,9 +1084,9 @@ def test_a_float_is_written_the_way_the_console_writes_one() -> None:
     -------
     None
     """
-    assert patch.format_like(201.26200000000003, "207.0") == "201.262"
-    assert patch.format_like(1.0, "2.0") == "1.0"
-    assert patch.format_like(2000000.0, "650000") == "2000000"
+    assert ascconv.format_like(201.26200000000003, "207.0") == "201.262"
+    assert ascconv.format_like(1.0, "2.0") == "1.0"
+    assert ascconv.format_like(2000000.0, "650000") == "2000000"
 
 
 @requires_exar
@@ -1106,11 +1107,11 @@ def test_the_sequence_build_stamp_is_stable_where_the_guid_beside_it_is_not() ->
     for step in archive.steps:
         if not step.runs_a_protocol:
             continue
-        if not patch.sequence_of(step.protocol).startswith("cmrr_"):
+        if not ascconv.sequence_of(step.protocol).startswith("cmrr_"):
             continue
-        raw = patch.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.tFree")
+        raw = ascconv.read_ascconv(step.protocol.xprotocol, "sWipMemBlock.tFree")
         guids.add(raw.strip('"').split("||")[0])
-        stamps.add(patch.sequence_stamp(step.protocol))
+        stamps.add(ascconv.sequence_stamp(step.protocol))
     assert len(guids) > 1, "the GUID prefix should differ between saves"
     # One stamp per binary: the BOLD, SE and diffusion sequences were built
     # minutes apart from one commit.
@@ -1132,18 +1133,18 @@ def test_the_build_stamp_survives_an_edit_and_a_round_trip(tmp_path: pathlib.Pat
     None
     """
     archive = read(find_exar("CMRR_optionscan_P1.exar1"))
-    step = next(s for s in archive.steps if patch.sequence_of(s.protocol).startswith("cmrr_"))
-    before = patch.sequence_stamp(step.protocol)
+    step = next(s for s in archive.steps if ascconv.sequence_of(s.protocol).startswith("cmrr_"))
+    before = ascconv.sequence_stamp(step.protocol)
     assert before
 
-    document, applied, skipped = patch.patch_document(step.protocol, {"MB dual kernel": True})
+    document, applied, skipped = mappings.patch_document(step.protocol, {"MB dual kernel": True})
     assert not skipped and applied
     archive.replace_content(step.protocol.instance, document)
     written = tmp_path / "patched.exar1"
     archive.write(str(written))
 
     back = {s.name: s for s in read(str(written)).steps}[step.name]
-    assert patch.sequence_stamp(back.protocol) == before
+    assert ascconv.sequence_stamp(back.protocol) == before
 
 
 @requires_exar
@@ -1173,8 +1174,8 @@ def test_what_tfree_holds_depends_on_the_sequence(sequence: str, shape: str) -> 
     for name in ("CMRR_optionscan_P1.exar1", "NAV_optionscan_P1.exar1"):
         archive = read(find_exar(name))
         for step in archive.steps:
-            if patch.sequence_of(step.protocol) == sequence:
-                assert shape in patch.sequence_stamp(step.protocol)
+            if ascconv.sequence_of(step.protocol) == sequence:
+                assert shape in ascconv.sequence_stamp(step.protocol)
                 return
     pytest.skip(f"no {sequence} scan available")
 
@@ -1190,7 +1191,7 @@ def test_a_sequence_that_writes_no_stamp_yields_an_empty_string() -> None:
     class Bare:
         xprotocol = "### ASCCONV BEGIN ###\nalTR[0]\t = \t100\n### ASCCONV END ###\n"
 
-    assert patch.sequence_stamp(Bare()) == ""
+    assert ascconv.sequence_stamp(Bare()) == ""
 
 
 def test_every_mapping_records_how_it_was_established() -> None:
@@ -1204,7 +1205,7 @@ def test_every_mapping_records_how_it_was_established() -> None:
     -------
     None
     """
-    for mapping in patch.MAPPINGS:
+    for mapping in mappings.MAPPINGS:
         assert mapping.evidence.strip()
         assert mapping.scale > 0
         assert mapping.label.strip()
@@ -1226,7 +1227,7 @@ def test_no_two_mappings_claim_the_same_ascconv_key() -> None:
     -------
     None
     """
-    identity = [(m.ascconv_key, m.sequences, m.when, m.bit) for m in patch.MAPPINGS]
+    identity = [(m.ascconv_key, m.sequences, m.when, m.bit) for m in mappings.MAPPINGS]
     assert len(identity) == len(set(identity))
 
 
@@ -1253,9 +1254,11 @@ def test_no_protocol_has_two_mappings_writing_one_key(protocol_archive_path: str
         if not step.runs_a_protocol:
             continue
         protocol = step.protocol
-        keys = [(m.ascconv_key, m.bit) for m in patch.MAPPINGS if patch.applies_to(m, protocol)]
+        keys = [
+            (m.ascconv_key, m.bit) for m in mappings.MAPPINGS if mappings.applies_to(m, protocol)
+        ]
         assert len(keys) == len(set(keys)), (
-            f"{step.name} ({patch.sequence_of(protocol)}) has two mappings "
+            f"{step.name} ({ascconv.sequence_of(protocol)}) has two mappings "
             f"writing one key: {sorted(k for k in keys if keys.count(k) > 1)}"
         )
 
@@ -1275,18 +1278,18 @@ def test_slice_thickness_follows_the_acquisition_dimension() -> None:
     steps = {s.name: s for s in archive.steps}
     flat = steps["Minn_CMRR_2.3mm_S8_rest_6min"].protocol
     slab = steps["ABCD_T1w_MPR_vNav"].protocol
-    assert patch.read_ascconv(flat.xprotocol, "sKSpace.ucDimension") == "2"
-    assert patch.read_ascconv(slab.xprotocol, "sKSpace.ucDimension") == "4"
+    assert ascconv.read_ascconv(flat.xprotocol, "sKSpace.ucDimension") == "2"
+    assert ascconv.read_ascconv(slab.xprotocol, "sKSpace.ucDimension") == "4"
 
-    two_d, _ = patch.resolve(flat, "Slice Thickness")
-    three_d, _ = patch.resolve(slab, "Slice Thickness")
+    two_d, _ = mappings.resolve(flat, "Slice Thickness")
+    three_d, _ = mappings.resolve(slab, "Slice Thickness")
     assert two_d is not None and two_d.basis is None
     assert three_d is not None and three_d.basis == "sKSpace.lImagesPerSlab"
 
-    partitions = float(patch.read_ascconv(slab.xprotocol, "sKSpace.lImagesPerSlab"))
-    document, applied, skipped = patch.patch_document(slab, {"Slice Thickness": 1.25})
+    partitions = float(ascconv.read_ascconv(slab.xprotocol, "sKSpace.lImagesPerSlab"))
+    document, applied, skipped = mappings.patch_document(slab, {"Slice Thickness": 1.25})
     assert not skipped and len(applied) == 1
-    written = float(patch.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dThickness"))
+    written = float(ascconv.read_ascconv(document["Data"], "sSliceArray.asSlice[0].dThickness"))
     assert written == 1.25 * partitions
 
 
@@ -1303,7 +1306,7 @@ def test_every_build_gated_mapping_still_applies_across_the_corpus() -> None:
     -------
     None
     """
-    gated = [m for m in patch.MAPPINGS if m.builds]
+    gated = [m for m in mappings.MAPPINGS if m.builds]
     assert gated, "nothing is build-gated, so this test asserts nothing"
     checked = 0
     for path, _version in EXAR_PROTOCOL_FILES:
@@ -1311,9 +1314,9 @@ def test_every_build_gated_mapping_still_applies_across_the_corpus() -> None:
             if not step.runs_a_protocol:
                 continue
             for mapping in gated:
-                if patch.sequence_of(step.protocol) not in mapping.sequences:
+                if ascconv.sequence_of(step.protocol) not in mapping.sequences:
                     continue
-                found, why = patch.resolve(step.protocol, mapping.label)
+                found, why = mappings.resolve(step.protocol, mapping.label)
                 assert found is mapping, f"{step.name}: {mapping.label} refused -- {why}"
                 checked += 1
     assert checked > 100, f"only {checked} gated resolutions exercised"
@@ -1338,24 +1341,24 @@ def test_a_later_sequence_build_refuses_a_bit_mapping() -> None:
     step = next(
         s
         for s in archive.steps
-        if s.runs_a_protocol and patch.sequence_of(s.protocol) == "cmrr_mbep2d_bold"
+        if s.runs_a_protocol and ascconv.sequence_of(s.protocol) == "cmrr_mbep2d_bold"
     )
-    assert patch.resolve(step.protocol, "Single-band images")[0] is not None
+    assert mappings.resolve(step.protocol, "Single-band images")[0] is not None
 
     document = dict(step.protocol.document)
     document["Data"] = step.protocol.xprotocol.replace(
         "R017 nxva60a/main r/91b106c1e", "R018 nxva60a/main r/0000000"
     )
     later = Protocol(instance=step.protocol.instance, document=document)
-    assert patch.sequence_of(later) == patch.sequence_of(step.protocol)
+    assert ascconv.sequence_of(later) == ascconv.sequence_of(step.protocol)
 
-    found, why = patch.resolve(later, "Single-band images")
+    found, why = mappings.resolve(later, "Single-band images")
     assert found is None
     assert "R018" in why and "R017" in why, why
     # The reason must not blame the sequence, which matches perfectly.
     assert "but this protocol runs" not in why, why
     # Only the packed card is gated; a parameter in its own field is not.
-    assert patch.resolve(later, "TR")[0] is not None
+    assert mappings.resolve(later, "TR")[0] is not None
 
 
 # --------------------------------------------------------------------------
@@ -1397,7 +1400,7 @@ def _ascconv(text: str) -> dict[str, str]:
     dict
         One entry per assignment.
     """
-    low, high = patch.ascconv_bounds(text)
+    low, high = ascconv.ascconv_bounds(text)
     pairs = (line.partition("=") for line in text[low:high].splitlines()[1:])
     return {k.strip(): v.strip() for k, sep, v in pairs if sep}
 
@@ -1469,7 +1472,7 @@ def _option_scan(archive_path: str, pdf_path: str) -> tuple:
     pairs = [
         (p, s)
         for p, s in pairs
-        if s.runs_a_protocol and patch.sequence_of(s.protocol) == "cmrr_mbep2d_bold"
+        if s.runs_a_protocol and ascconv.sequence_of(s.protocol) == "cmrr_mbep2d_bold"
     ]
     prints = [_printed(p) for p, _ in pairs]
     blocks = [_ascconv(s.protocol.xprotocol) for _, s in pairs]
@@ -1540,7 +1543,7 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
     -------
     None
     """
-    labels = {m.label for m in patch.MAPPINGS}
+    labels = {m.label for m in mappings.MAPPINGS}
     replayed, refused, differing = 0, [], []
     unclaimed: set[str] = set()
     contributing = 0
@@ -1565,7 +1568,7 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
             if label not in labels:
                 continue
             value = build.printed_value(printed_now.get(label))
-            document, applied, skipped = patch.patch_document(base, {label: value})
+            document, applied, skipped = mappings.patch_document(base, {label: value})
             if skipped:
                 refused.append((label, skipped[0].reason))
                 continue
@@ -1584,8 +1587,8 @@ def test_every_derived_option_replays_into_the_console_result() -> None:
             # field some mapping claims.
             claimed = {
                 key
-                for m in patch.MAPPINGS
-                for key, _index in patch.expand(m.ascconv_key, base.xprotocol)
+                for m in mappings.MAPPINGS
+                for key, _index in ascconv.expand(m.ascconv_key, base.xprotocol)
             }
             blamed = diff & claimed
             if blamed:
@@ -1704,7 +1707,7 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
     -------
     None
     """
-    enums = [m for m in patch.MAPPINGS if m.choices and m.bit is None]
+    enums = [m for m in mappings.MAPPINGS if m.choices and m.bit is None]
     checked, wrong = 0, []
     for path, _version in EXAR_PROTOCOL_FILES + [(a, "XA60") for a, _p in PARAMCHECK_PAIRS]:
         pdf = os.path.splitext(path)[0] + ".pdf"
@@ -1721,7 +1724,7 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
                 continue
             shown_by_label = _printed(held[0])
             for mapping in enums:
-                if not patch.applies_to(mapping, step.protocol):
+                if not mappings.applies_to(mapping, step.protocol):
                     continue
                 shown = shown_by_label.get(mapping.label)
                 if shown is None:
@@ -1729,9 +1732,11 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
                 wanted = dict(mapping.choices).get(str(build.printed_value(shown)))
                 if wanted is None:
                     continue
-                targets = patch.expand(mapping.ascconv_key, step.protocol.xprotocol)
+                targets = ascconv.expand(mapping.ascconv_key, step.protocol.xprotocol)
                 stored = (
-                    patch.read_ascconv(step.protocol.xprotocol, targets[0][0]) if targets else None
+                    ascconv.read_ascconv(step.protocol.xprotocol, targets[0][0])
+                    if targets
+                    else None
                 )
                 checked += 1
                 if stored is None:
@@ -1740,7 +1745,7 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
                     # sequence supplies a default instead, as the choice
                     # `absent_choice` names. Both are legitimate; anything
                     # else is a table that disagrees with the console.
-                    if wanted != 0 and not patch.displays_when_absent(mapping, float(wanted)):
+                    if wanted != 0 and not mappings.displays_when_absent(mapping, float(wanted)):
                         wrong.append(f"{step.name}: {mapping.label}={shown!r} stored nothing")
                     continue
                 if int(str(stored), 0) != wanted:
@@ -1780,7 +1785,7 @@ def test_the_slice_array_is_a_function_of_its_group_parameters() -> None:
             text = step.protocol.xprotocol
 
             def value(key: str, fallback: float | None = None) -> float | None:
-                found = patch.read_ascconv(text, key)
+                found = ascconv.read_ascconv(text, key)
                 return float(found) if found is not None else fallback
 
             count = value("sSliceArray.lSize")
@@ -1809,7 +1814,7 @@ def test_the_slice_array_is_a_function_of_its_group_parameters() -> None:
                 )
             checked += 1
             if os.path.basename(archive_path).startswith("extravals") and (
-                patch.sequence_of(step.protocol) == "cmrr_mbep2d_bold"
+                ascconv.sequence_of(step.protocol) == "cmrr_mbep2d_bold"
             ):
                 # Only the repeated copies. The localizer beside them sits
                 # off isocentre and belongs to no perturbation series.
@@ -1947,13 +1952,13 @@ def test_the_slice_normal_follows_from_the_printed_orientation() -> None:
                 continue
             shown = _printed(scan)
             text = step.protocol.xprotocol
-            if patch.read_ascconv(text, "sSliceArray.asSlice[0].sNormal.dTra") is None:
+            if ascconv.read_ascconv(text, "sSliceArray.asSlice[0].sNormal.dTra") is None:
                 continue
             wanted = _normal_from_printed(str(shown.get("Orientation", "")))
             if wanted is None:
                 continue
             stored = [
-                float(patch.read_ascconv(text, f"sSliceArray.asSlice[0].sNormal.{a}") or 0.0)
+                float(ascconv.read_ascconv(text, f"sSliceArray.asSlice[0].sNormal.{a}") or 0.0)
                 for a in axes
             ]
             # Half a printed step per tilt, plus room for the stored value's
@@ -2159,7 +2164,7 @@ def test_a_printed_direction_letter_decides_the_sign() -> None:
     -------
     None
     """
-    mapping = next(one for one in patch.MAPPINGS if one.label == "Table Position")
+    mapping = next(one for one in mappings.MAPPINGS if one.label == "Table Position")
     assert mapping.sign_from, "Table Position no longer reads its direction letter"
 
     agree, letters = 0, collections.Counter()
@@ -2177,7 +2182,7 @@ def test_a_printed_direction_letter_decides_the_sign() -> None:
                 if not step.runs_a_protocol:
                     continue
                 scan = scans.get(build.match_name(step.name))
-                stored = patch.read_ascconv(step.protocol.xprotocol, mapping.ascconv_key)
+                stored = ascconv.read_ascconv(step.protocol.xprotocol, mapping.ascconv_key)
                 if scan is None or stored is None:
                     continue
                 printed = _printed(scan)
@@ -2209,7 +2214,7 @@ def test_a_direction_letter_that_is_neither_is_refused() -> None:
     -------
     None
     """
-    mapping = next(one for one in patch.MAPPINGS if one.label == "Table Position")
+    mapping = next(one for one in mappings.MAPPINGS if one.label == "Table Position")
     assert build.apply_direction(32, "F", mapping) == -32.0
     assert build.apply_direction(32, "H", mapping) == 32.0
     for unusable in (None, "", "X", "posterior"):
@@ -2267,10 +2272,10 @@ def test_covered_elsewhere_asks_the_table_and_not_the_prose() -> None:
 
     # Mapped, but derived from a different sequence in the same family.
     assert build.covered_elsewhere(navigator, "Averaging")
-    assert patch.resolve(navigator, "Averaging")[0] is None
+    assert mappings.resolve(navigator, "Averaging")[0] is None
     # Mapped and in scope here, so not "elsewhere".
     assert not build.covered_elsewhere(navigator, "TR")
-    assert patch.resolve(navigator, "TR")[0] is not None
+    assert mappings.resolve(navigator, "TR")[0] is not None
     # Printed by the protocol and mapped by nothing at all.
     assert not build.covered_elsewhere(navigator, "Inline Movie")
     # Case and surrounding space must not decide it.
