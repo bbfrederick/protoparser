@@ -1,25 +1,31 @@
-"""Read an ``.exar1`` archive into a hierarchical, queryable document.
+"""Read the low-level facts an ``.exar1`` archive stores.
 
-The rest of this package exists to *change* an archive. This module exists to
-*look* at one: it turns the tree :mod:`.archive` decodes into plain JSON-able
-dictionaries, so an archive can be browsed and queried the way a parsed PDF
-already can.
+This module turns the tree :mod:`.archive` decodes into the plain values a
+higher-level reader needs -- the sequence binary and the tree it came from,
+the ``Preview`` map, the mapped Special-card view, the slice-geometry
+summary, a prescription link, the folder tree -- without assembling the
+cross-format document itself. That adapter, which lets the readers written
+for parsed PDFs run against an archive unchanged, lives in
+:mod:`siemens_protocol.analysis.archive_view`; this module supplies it every
+low-level fact it reads.
 
-The two are not the same document, and pretending otherwise would misdescribe
-both. A printout is what the console chose to display; an archive is what the
-console stored. Three differences matter to anyone reading the output:
+An archive and a printout are not the same document, and pretending
+otherwise would misdescribe both. A printout is what the console chose to
+display; an archive is what the console stored. Three differences matter to
+anyone reading either:
 
 * The archive's printed-label view is ``Preview`` alone -- roughly forty
   console-summary parameters per scan, against the several hundred a PDF page
   prints. The complete parameter set is the ASCCONV block, which the PDF does
-  not carry at all, and which is emitted here as ``ascconv``.
+  not carry at all, and which :func:`ascconv_table`/:func:`nest` expose.
 * The archive states which tree a sequence binary came from
   (``%SiemensSeq%`` or ``%CustomerSeq%``), which no Numaris/X printout does.
   That is the archive saying who supplied the sequence, so it identifies
   third-party sequences that a PDF of the same protocol cannot.
 * Prescription links -- one scan slaved to another's slices, centre or table
   position -- exist only here. The printout of a linked scan is byte-identical
-  to an unlinked one, so ``links`` has no counterpart on the PDF side at all.
+  to an unlinked one, so :func:`link_of` has no counterpart on the PDF side at
+  all.
 
 Nothing new about the format is established here; every field read is one
 :mod:`.archive`, :mod:`.patch` or :mod:`.geometry` already reads and tests.
@@ -31,11 +37,8 @@ import re
 from collections import OrderedDict
 from typing import Any
 
-from ..analysis.flatten import flatten_sections
-from ..analysis.listing import format_duration
-from ..analysis.sequences import Catalog, default_catalog, identify
 from . import patch
-from .archive import DIRECTORY, Archive, Program, Protocol, Step
+from .archive import DIRECTORY, Archive, Protocol
 from .geometry import agrees, read_group
 
 #: Section title carrying an archive scan's whole ASCCONV block. Not a card:
@@ -243,76 +246,6 @@ def sequence_owner(file_name: str) -> str:
     return prefix if prefix in SEQUENCE_TREES else ""
 
 
-def acquisition_time(protocol: Protocol) -> str:
-    """A protocol's total scan time, formatted as the listing reads it.
-
-    ``lTotalScanTimeSec`` is a *derived* field: the console recomputes it when
-    a parameter it depends on moves, and a protocol this package has patched
-    carries a stale one until a scanner reopens it. It agrees with the printed
-    ``TA`` on every corpus scan that stores one.
-
-    Parameters
-    ----------
-    protocol : Protocol
-        The protocol to read.
-
-    Returns
-    -------
-    str
-        ``M:SS``, or empty when the assignment is absent -- which it is on the
-        one-second setter scans, where the console omits it as a zero.
-    """
-    raw = patch.read_ascconv(protocol.xprotocol, "lTotalScanTimeSec")
-    if raw is None:
-        return ""
-    try:
-        return format_duration(float(raw))
-    except ValueError:
-        return ""
-
-
-def header_of(step: Step) -> dict[str, str]:
-    """The summary fields a scan would print in its header box.
-
-    Named and spelled to match :attr:`..model.Scan.header` so the same
-    readers work on both, which is what lets ``list`` and ``sequences`` accept
-    an archive. ``sequence`` is the binary's bare name because that is what a
-    catalog signature matches on; the prefix travels separately in
-    ``sequence_owner``.
-
-    Parameters
-    ----------
-    step : Step
-        The step to describe. One that runs no protocol yields an empty
-        header rather than raising.
-
-    Returns
-    -------
-    dict of str to str
-        Keys present only when the protocol carries them.
-    """
-    if not step.runs_a_protocol:
-        return {}
-    protocol = step.protocol
-    stored = sequence_file(protocol)
-    header: "OrderedDict[str, str]" = OrderedDict()
-    binary = stored.rsplit("\\", 1)[-1] if stored else patch.sequence_of(protocol)
-    if binary:
-        header["sequence"] = binary
-    owner = sequence_owner(stored)
-    if owner:
-        header["sequence_owner"] = owner
-    if stored:
-        header["sequence_file"] = stored
-    stamp = patch.sequence_stamp(protocol)
-    if stamp:
-        header["sequence_build"] = stamp
-    time = acquisition_time(protocol)
-    if time:
-        header["ta"] = time
-    return dict(header)
-
-
 def preview_of(protocol: Protocol) -> dict[str, Any]:
     """A protocol's ``Preview`` map, keyed by the label the console shows.
 
@@ -441,7 +374,7 @@ def link_of(link: Any, names: dict[str, str]) -> dict[str, Any]:
     return out
 
 
-def _step_names(archive: Archive) -> dict[str, str]:
+def step_names(archive: Archive) -> dict[str, str]:
     """Map every step's object id to its displayed name.
 
     Parameters
@@ -509,212 +442,7 @@ def card_view(
     return cards
 
 
-def scan_of(
-    step: Step,
-    index: int,
-    catalog: Catalog,
-    folder: str = "",
-    parameters: bool = False,
-) -> dict[str, Any]:
-    """A step in the shape :meth:`..model.Scan.to_dict` produces.
-
-    This is the adapter that lets the readers written for parsed PDFs -- the
-    listing, the sequence catalog, the policy checker -- run against an
-    archive unchanged. ``sections`` holds one section, ``Preview``, because
-    the archive has no cards: what a printout splits into Routine, Contrast
-    and Geometry is a property of the page, not of the protocol. That is why a
-    scan read from an archive never contributes a Special card to
-    :func:`..sequences.special_keys`, and so is identified by its binary and
-    its stated owner alone.
-
-    Parameters
-    ----------
-    step : Step
-        The step to describe.
-    index : int
-        Its zero-based position in the running order.
-    catalog : Catalog
-        Signatures to identify the sequence against.
-    folder : str, optional
-        The program's folder path, as :meth:`..archive.Archive.path_of`
-        builds it. Default empty, which leaves ``path`` empty rather than
-        inventing one.
-    parameters : bool, optional
-        Whether to carry the whole ASCCONV block as a second section.
-        Default ``False``, which is what the ``archive`` document wants --
-        it emits the parameter tree nested under ``ascconv`` instead, and
-        carrying it twice would double a document that is already the bulk
-        of the file.
-
-    Returns
-    -------
-    dict
-        Index, name, path, header, provenance and sections.
-    """
-    header = header_of(step)
-    sections = OrderedDict()
-    if step.runs_a_protocol:
-        preview = printed_view(step.protocol)
-        sections["Preview"] = preview
-        if parameters:
-            # The console's Preview is a ~40-parameter summary, so a reader
-            # given that alone sees about two percent of what the protocol
-            # holds -- and sees it without being told, which is how a
-            # comparison of two archives came to report differences confined
-            # to Preview while 82 ASCCONV assignments differed beneath it.
-            # One section rather than one per struct: the archive has no
-            # cards, the key path already carries the structure, and a
-            # section named after a struct would be read as a card by
-            # anything matching on section titles.
-            # The cards first, because they speak in the labels a console
-            # shows and are what someone changing a protocol reads. The raw
-            # block still follows: the table covers a fraction of what a
-            # protocol holds, and the remainder is where the differences a
-            # Preview-only view was missing actually live.
-            sections.update(card_view(step.protocol, preview))
-            sections[ASCCONV_SECTION] = ascconv_table(step.protocol.xprotocol)
-    scan: dict[str, Any] = {
-        "index": index,
-        "name": step.name,
-        "path": f"{folder}/{step.name}" if folder else "",
-        "header": header,
-        "sections": sections,
-    }
-    scan["provenance"] = identify(scan, catalog).to_dict()
-    return scan
-
-
-def step_of(
-    step: Step,
-    index: int,
-    names: dict[str, str],
-    catalog: Catalog,
-    *,
-    ascconv: bool = True,
-    folder: str = "",
-) -> dict[str, Any]:
-    """One step of a program, described in the archive's own terms.
-
-    Parameters
-    ----------
-    step : Step
-        The step to describe.
-    index : int
-        Its zero-based position in the running order, which comes from the
-        ``FirstStepId``/``LinksFrom`` chain rather than from the ``Children``
-        blob -- the blob holds the same steps permuted, which yields every
-        value correct and every scan under the wrong name.
-    names : dict of str to str
-        Step object ids to names, for resolving links.
-    catalog : Catalog
-        Signatures to identify the sequence against.
-    ascconv : bool, optional
-        Whether to include the nested ASCCONV tree, which is by far the
-        largest part of the document -- 514 to 2020 assignments per scan.
-        Default ``True``.
-    folder : str, optional
-        The program's folder path. Default empty.
-
-    Returns
-    -------
-    dict
-        The step's identity, what it runs, and what it stores.
-    """
-    out: dict[str, Any] = {
-        "index": index,
-        "name": step.name,
-        "kind": step.instance.kind,
-        "acquires": step.acquires,
-        "is_pause": step.is_pause,
-        "runs_a_protocol": step.runs_a_protocol,
-    }
-    if not step.runs_a_protocol:
-        return out
-    protocol = step.protocol
-    out["header"] = header_of(step)
-    out["path"] = f"{folder}/{step.name}" if folder else ""
-    out["provenance"] = identify(scan_of(step, index, catalog, folder), catalog).to_dict()
-    out["preview"] = preview_of(protocol)
-    geometry = geometry_of(protocol)
-    if geometry is not None:
-        out["geometry"] = geometry
-    if ascconv:
-        out["ascconv"] = nest(ascconv_table(protocol.xprotocol))
-    return out
-
-
-def program_of(
-    archive: Archive,
-    program: Program,
-    index: int,
-    catalog: Catalog,
-    *,
-    ascconv: bool = True,
-    parents: dict[str, str] | None = None,
-    names: dict[str, str] | None = None,
-) -> dict[str, Any]:
-    """One protocol of an archive: its steps in running order, and its links.
-
-    Parameters
-    ----------
-    archive : Archive
-        The archive the program belongs to.
-    program : Program
-        The program to describe.
-    index : int
-        Its position among the archive's programs.
-    catalog : Catalog
-        Signatures to identify sequences against.
-    ascconv : bool, optional
-        Whether each step includes its ASCCONV tree. Default ``True``.
-    parents : dict of str to str or None, optional
-        A prebuilt :attr:`..archive.Archive.directory_parents`. Pass one when
-        describing many programs: building it parses the root document, which
-        is megabytes of JSON on a whole-scanner export.
-    names : dict of str to str or None, optional
-        A prebuilt step-name index. Building it walks every program in the
-        archive, so computing it per program is quadratic -- on a
-        whole-scanner export with 499 programs that is the difference between
-        seconds and not finishing.
-
-    Returns
-    -------
-    dict
-        Name, folder path, counts, the steps, and every relation the program
-        carries.
-        ``relation_counts`` breaks those down by kind, because a relation
-        count is not a link count: 1248 of the corpus's 1440 relations have
-        an empty ``Kind`` and carry no payload, and they arrive duplicated up
-        to eleven deep between the same two steps. Reporting the total as
-        "links" made a 19-link protocol look like a 117-link one.
-    """
-    if names is None:
-        names = _step_names(archive)
-    # The steps sit *under* the program, so their folder is its whole path --
-    # the printout agrees, ending \...\Frederick\Potpourri_P1\localizer.
-    folder = "/".join(archive.path_of(program.instance, parents))
-    steps = [
-        step_of(step, position, names, catalog, ascconv=ascconv, folder=folder)
-        for position, step in enumerate(program.steps)
-    ]
-    counts: dict[str, int] = {}
-    for link in program.links:
-        kind = link.kind or ""
-        counts[kind] = counts.get(kind, 0) + 1
-    return {
-        "index": index,
-        "name": program.name,
-        "path": folder,
-        "step_count": len(program.steps),
-        "scan_count": sum(1 for step in program.steps if step.runs_a_protocol),
-        "pause_count": sum(1 for step in program.steps if step.is_pause),
-        "relation_counts": counts,
-        "links": [link_of(link, names) for link in program.links],
-        "steps": steps,
-    }
-
-
-def _directories(archive: Archive, parents: dict[str, str]) -> list[dict[str, str]]:
+def directories(archive: Archive, parents: dict[str, str]) -> list[dict[str, str]]:
     """Every directory in the archive, with its path through the tree.
 
     An earlier version of this reported a flat list, on the evidence that the
@@ -744,129 +472,3 @@ def _directories(archive: Archive, parents: dict[str, str]) -> list[dict[str, st
         if label:
             found.append({"name": label, "path": "/".join(archive.path_of(instance, parents))})
     return sorted(found, key=lambda entry: entry["path"])
-
-
-def describe(
-    archive: Archive,
-    source: str,
-    *,
-    ascconv: bool = True,
-    catalog: Catalog | None = None,
-) -> dict[str, Any]:
-    """Turn a whole archive into a JSON-able document.
-
-    Parameters
-    ----------
-    archive : Archive
-        The archive to describe.
-    source : str
-        Path to report as the document's origin.
-    ascconv : bool, optional
-        Whether each step includes its nested ASCCONV tree. Default ``True``.
-    catalog : Catalog or None, optional
-        Signatures to identify sequences against. The shipped catalog is
-        loaded when omitted.
-
-    Returns
-    -------
-    dict
-        The archive, its programs and their steps. ``programs`` is a list
-        because an archive may hold several: an export taken at the exam or
-        region level rather than at one protocol, which is what a scanner
-        backup is.
-    """
-    catalog = catalog or default_catalog()
-    major = archive.major_version
-    release = RELEASES.get(major[:4])
-    warnings: list[str] = []
-    if release is None:
-        warnings.append(
-            f"baseline names release {major!r}, which this build has no profile for; "
-            "the parameters are still read, only the release label is unknown"
-        )
-    programs = archive.programs
-    out: dict[str, Any] = {
-        "source_file": source,
-        "format": "exar1",
-        "software_version": release,
-        "baseline": archive.baseline,
-        "major_version": major,
-        "program_count": len(programs),
-    }
-    if warnings:
-        out["warnings"] = warnings
-    parents = archive.directory_parents
-    directories = _directories(archive, parents)
-    if directories:
-        out["directories"] = directories
-    names = {step.instance.object_id: step.name for p in programs for step in p.steps}
-    out["programs"] = [
-        program_of(archive, program, index, catalog, ascconv=ascconv, parents=parents, names=names)
-        for index, program in enumerate(programs)
-    ]
-    return out
-
-
-def as_protocol(
-    archive: Archive,
-    program: Program,
-    source: str,
-    *,
-    catalog: Catalog | None = None,
-    include_flat: bool = True,
-) -> dict[str, Any]:
-    """One program in the shape a parsed PDF has.
-
-    Only the steps that run a protocol become scans, because that is what a
-    printout prints: a pause step is an instruction an operator put in the
-    running order -- "Pause for saliva collection" -- and the PDF does not
-    list it as a scan.
-
-    Parameters
-    ----------
-    archive : Archive
-        The archive the program belongs to.
-    program : Program
-        The program to render.
-    source : str
-        Path to report as the document's origin.
-    catalog : Catalog or None, optional
-        Signatures to identify sequences against. The shipped catalog is
-        loaded when omitted.
-    include_flat : bool, optional
-        Whether each scan carries the flattened per-key view. Default
-        ``True``.
-
-    Returns
-    -------
-    dict
-        A document the listing, the sequence report, the policy checker and
-        the comparison all accept.
-    """
-    catalog = catalog or default_catalog()
-    folder = "/".join(archive.path_of(program.instance))
-    scans = []
-    for step in program.steps:
-        if not step.runs_a_protocol:
-            continue
-        scan = scan_of(step, len(scans), catalog, folder, parameters=True)
-        if include_flat:
-            # Built by the same flattener a parsed printout uses, not as a
-            # plain key-to-value map. The comparison is the one consumer of
-            # this view and it reads each entry's ``value`` and ``conflict``,
-            # so a bare string raised an AttributeError and no archive could
-            # be diffed at all. An archive has one section, so nothing here
-            # ever conflicts -- which is right, since a parameter printed
-            # inconsistently across cards is a property of the page and the
-            # archive has no cards.
-            scan["flat"] = flatten_sections(scan["sections"])
-        scans.append(scan)
-    return {
-        "source_file": source,
-        "software_version": RELEASES.get(archive.major_version[:4]),
-        "detection": {"method": "baseline", "confidence": "high"},
-        "scanner": archive.baseline,
-        "program": program.name,
-        "page_count": 0,
-        "scans": scans,
-    }

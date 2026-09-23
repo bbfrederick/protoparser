@@ -19,6 +19,7 @@ import pytest
 
 from conftest import EXAR_PROTOCOL_FILES, find_exar, requires_exar
 from siemens_protocol import exar
+from siemens_protocol.analysis import archive_view
 from siemens_protocol.analysis.sequences import STOCK, THIRD_PARTY, default_catalog
 from siemens_protocol.exar import inspect as ins
 from siemens_protocol.exar import patch, store
@@ -203,7 +204,7 @@ def test_a_scan_read_from_an_archive_matches_the_export_beside_it() -> None:
     archive_path = find_exar("Potpourri_P1.exar1")
     pdf = archive_path[: -len(".exar1")] + ".pdf"
     archive = exar.read(archive_path)
-    document = ins.as_protocol(archive, archive.programs[0], archive_path)
+    document = archive_view.as_protocol(archive, archive.programs[0], archive_path)
     printed = parse_document(pdf, ParseOptions()).protocol.to_dict()
 
     assert [s["name"] for s in document["scans"]] == [s["name"] for s in printed["scans"]]
@@ -236,7 +237,7 @@ def test_the_stored_scan_time_agrees_with_the_printed_one() -> None:
     for step in archive.programs[0].steps:
         if not step.runs_a_protocol:
             continue
-        stored = ins.acquisition_time(step.protocol)
+        stored = archive_view.acquisition_time(step.protocol)
         if not stored:
             continue
         assert parse_acquisition_time(stored) == printed[step.name], (
@@ -262,7 +263,7 @@ def test_the_links_a_printout_cannot_show_are_reported_by_name() -> None:
     """
     archive_path = find_exar("copyparametertest.exar1")
     archive = exar.read(archive_path)
-    document = ins.describe(archive, archive_path, ascconv=False)
+    document = archive_view.describe(archive, archive_path, ascconv=False)
     program = document["programs"][0]
     names = {step["name"] for step in program["steps"]}
 
@@ -288,7 +289,7 @@ def test_reading_every_corpus_archive_yields_a_document(protocol_archive_path: s
     None
     """
     archive = exar.read(protocol_archive_path)
-    document = ins.describe(archive, protocol_archive_path, ascconv=False)
+    document = archive_view.describe(archive, protocol_archive_path, ascconv=False)
     text = json.dumps(document, ensure_ascii=False)
     assert text
 
@@ -357,7 +358,7 @@ def test_a_multi_program_archive_describes_every_protocol_it_holds() -> None:
     None
     """
     archive = exar.read(find_exar("Frederick_P2.exar1"))
-    document = ins.describe(archive, "Frederick_P2.exar1", ascconv=False)
+    document = archive_view.describe(archive, "Frederick_P2.exar1", ascconv=False)
     assert document["program_count"] == len(document["programs"]) > 1
     for program, decoded in zip(document["programs"], archive.programs):
         assert program["name"] == decoded.name
@@ -684,7 +685,7 @@ def test_the_archive_path_agrees_with_the_one_the_printout_shows() -> None:
     archive_path = find_exar("Potpourri_P1.exar1")
     pdf = archive_path[: -len(".exar1")] + ".pdf"
     archive = exar.read(archive_path)
-    document = ins.describe(archive, archive_path, ascconv=False)
+    document = archive_view.describe(archive, archive_path, ascconv=False)
     printed = parse_document(pdf, ParseOptions()).protocol.scans[0]
 
     tail = document["programs"][0]["steps"][0]["path"].split("/")[-3:]
@@ -787,7 +788,7 @@ def test_a_scan_read_from_an_archive_flattens_like_a_parsed_printout() -> None:
     None
     """
     archive = exar.read(find_exar("Potpourri_P1.exar1"))
-    protocol = ins.as_protocol(archive, archive.programs[0], "x")
+    protocol = archive_view.as_protocol(archive, archive.programs[0], "x")
     scans = protocol["scans"]
     assert scans, "::error::the archive yielded no scans"
     for scan in scans:

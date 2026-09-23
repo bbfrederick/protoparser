@@ -906,10 +906,10 @@ def _load_protocol(
                     )
         return payload
     if path.lower().endswith(EXAR_SUFFIX):
-        from .exar import inspect as exar_inspect
+        from .analysis import archive_view
 
         archive = _read_archive(path)
-        return exar_inspect.as_protocol(
+        return archive_view.as_protocol(
             archive, _select_program(archive, program, path), path, include_flat=need_flat
         )
     result = parse_document(path, ParseOptions(version=version))
@@ -2067,7 +2067,7 @@ def _restrict_document(document: dict, wanted: str, source: str) -> None:
     Parameters
     ----------
     document : dict
-        The document from :func:`~..exar.inspect.describe`, modified in place.
+        The document from :func:`~..analysis.archive_view.describe`, modified in place.
     wanted : str
         The scan address.
     source : str
@@ -2110,7 +2110,7 @@ def _run_archive(args: argparse.Namespace) -> int:
     int
         ``0`` on success, ``1`` when the archive could not be read or written.
     """
-    from .exar import inspect as exar_inspect
+    from .analysis import archive_view
 
     try:
         archive = _read_archive(args.input)
@@ -2118,7 +2118,7 @@ def _run_archive(args: argparse.Namespace) -> int:
         print(f"{exc}", file=sys.stderr)
         return 1
 
-    document = exar_inspect.describe(archive, args.input, ascconv=args.ascconv)
+    document = archive_view.describe(archive, args.input, ascconv=args.ascconv)
     if args.program is not None:
         try:
             wanted = _select_program(archive, args.program, args.input)
@@ -2172,7 +2172,7 @@ def _summarize_archive(document: Mapping, destination: str) -> str:
     Parameters
     ----------
     document : mapping
-        The document :func:`..exar.inspect.describe` built.
+        The document :func:`..analysis.archive_view.describe` built.
     destination : str
         Where it was written.
 
