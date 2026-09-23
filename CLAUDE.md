@@ -540,6 +540,29 @@ what a scan, protocol and session are, and how the scanner organizes them --
 supplied by the user rather than derived, so prefer it to inference and keep
 the two consistent.
 
+**Module map, current as of the low-level/high-level split** -- every
+`patch.*`/`build.*`/`probe.*` reference below still names the right *symbol*,
+just not the file it used to live in:
+- `exar/patch.py` no longer exists. Its ASCCONV text codec
+  (`ascconv_bounds`/`read_ascconv`/`write_ascconv`/`insert_ascconv`/
+  `remove_ascconv`/`expand`/`format_like`) and the per-protocol facts
+  (`sequence_of`, `sequence_stamp`, `build_id`, `is_churn`) moved to
+  `exar/ascconv.py`, unchanged, since they carry no knowledge of what a
+  printed label means. Everything that does -- `Mapping`, `MAPPINGS`,
+  `CARDS`/`cards_for`, `Applied`/`Skipped`/`Manifest`, `applies_to`,
+  `display`, `resolve`, `encode`, `patch_document`, `apply` -- moved to
+  `analysis/generate/mappings.py`. Two formerly-private helpers callers
+  outside the file now need were given public names: `_store` ->
+  `ascconv.store_ascconv`, `_model` -> `ascconv.default_literal`.
+- `exar/build.py` and `exar/probe.py` moved wholesale to
+  `analysis/generate/build.py` and `analysis/generate/probe.py` -- both are
+  driver/tooling logic built on the mappings table, not format mechanics.
+- `exar/inspect.py`'s `card_view` (an archive's parameters under the cards a
+  printout would show them on, needing `MAPPINGS`) moved to
+  `analysis/archive_view.py` for the same reason.
+- `tests/test_layering.py` enforces the boundary this implies: nothing under
+  `exar/`, `extract/`, `layout/` or `profiles/` may import `analysis`.
+
 - **Three published sources describe this format, and they agree with what
   was derived here.** Tobias Rautenkranz's `exar1-read`
   (https://gitlab.com/tobiasrautenkranz/exar1-read, GPL-3.0), the NeuroStars
@@ -2292,8 +2315,9 @@ the two consistent.
 
 #### Probing a sequence with a generated archive
 
-`siemens_protocol.exar.probe` builds archives that ask a scanner questions,
-and decodes the returns. An option scan authored on the console varies a
+`siemens_protocol.analysis.generate.probe` builds archives that ask a
+scanner questions, and decodes the returns. An option scan authored on the
+console varies a
 *printed option* and we diff the archives: the label is known and the stored
 field is discovered. A probe archive inverts that -- we vary a stored field,
 the scanner prints a card, and the printout says which label that field
@@ -2417,14 +2441,18 @@ settled four questions this file had recorded as open.
 
 `siemens-protocol-tool archive <file.exar1>` is the reading half, where `exar`
 is the writing half. `exar/inspect.py` reads the low-level facts -- the
-sequence binary and its owning tree, the `Preview` map, the mapped
-Special-card view, the slice geometry, a prescription link, the folder tree --
-composing `archive`, `patch` and `geometry`, and establishes nothing new about
-the format beyond the three observations below. `analysis/archive_view.py` is
-the adapter on top of it: `as_protocol`/`describe` assemble those facts into a
+sequence binary and its owning tree, the `Preview` map, the slice geometry, a
+prescription link, the folder tree -- composing `archive`, `ascconv` and
+`geometry`, and establishes nothing new about the format beyond the three
+observations below. `analysis/archive_view.py` is the adapter on top of it:
+`as_protocol`/`describe`/`card_view` assemble those facts into a
 `model.Scan`/`model.Protocol`, the same classes a parsed PDF produces, so
 `list`, `sequences` and `check` take an archive wherever they take a PDF
-through `archive_view.as_protocol` without the caller knowing which. The two
+through `archive_view.as_protocol` without the caller knowing which.
+`card_view` -- an archive's parameters under the cards a printout would show
+them on -- lives here rather than in `exar/inspect.py` because it needs
+`analysis/generate/mappings.py`'s `MAPPINGS` table, which is domain knowledge
+about what a printed label means, not a fact about the file format. The two
 used to be one module, independently re-deriving the `sequences.identify`/
 `flatten.flatten_sections` call a PDF-derived scan already makes inside
 `model.Scan.to_dict` -- a low-level/high-level split enforced now by
