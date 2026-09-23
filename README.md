@@ -808,7 +808,7 @@ As of the current catalog every scan in all 30 snapshots is accounted for:
 
 ### The catalog
 
-`src/siemens_protocol/sequences/catalog.json` is data, like the
+`src/siemens_protocol/analysis/sequences/catalog.json` is data, like the
 [vocabularies](#standard-parameter-names) and for the same reason: a wrong
 entry hides real work instead of merely failing to name it. Each signature
 carries a note recording the evidence behind it, printed by `--explain`.
@@ -985,7 +985,7 @@ error and `?` a warning, and `--warnings-ok` passes on warnings alone.
 ### Writing a policy
 
 A policy is a JSON file of rules. Shipped ones live in
-`src/siemens_protocol/policy/`; `--policy-dir DIR` searches your own first, and
+`src/siemens_protocol/analysis/policy/`; `--policy-dir DIR` searches your own first, and
 `--policy` takes either a name or a path.
 
 ```json
@@ -1265,7 +1265,7 @@ images to viewer` names a viewer that was itself renamed to MR View&GO. Nothing
 in the spelling connects those.
 
 So each release carries a JSON dictionary in
-`src/siemens_protocol/vocabulary/` mapping its own labels onto shared
+`src/siemens_protocol/analysis/vocabulary/` mapping its own labels onto shared
 **canonical names**, which are snake_case so they stay distinguishable from the
 space-separated forms ordinary normalization produces:
 

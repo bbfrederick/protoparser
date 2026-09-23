@@ -219,9 +219,10 @@ needs is below, and the same applies to any new canonical name.
 
 ### Third-party sequence detection
 
-`sequences/catalog.json` names the customer sequences; `sequences/__init__.py`
-matches scans against it. The point of the feature is that Siemens' conversion
-handles stock sequences and third-party ones are what force a manual rebuild.
+`analysis/sequences/catalog.json` names the customer sequences;
+`analysis/sequences/__init__.py` matches scans against it. The point of the
+feature is that Siemens' conversion handles stock sequences and third-party
+ones are what force a manual rebuild.
 
 - **Three detectors, each sufficient alone, never AND-ed.** The sequence binary,
   the Special card, and VB17A's stated `sequence_owner`. An AND of the first two
@@ -552,7 +553,8 @@ the two consistent.
   `ChangeSet`/`InstanceChangeSet`/`ElementToInstanceMap` tables, the
   `FirstStepId`/`LinksFrom`/`LastStepId` chain, and that **the Card grouping a
   printout shows is not in the archive** -- which is the same conclusion the
-  `inspect.scan_of` note reaches. Nothing already established had to change.
+  `archive_view.scan_from_step` note reaches. Nothing already established had
+  to change.
 
   Four things they add. `Content.Format` is the literal `"DS"`, checked rather
   than assumed (confirmed on all 20 corpus archives). `InstanceChangeSet.State`
@@ -1289,8 +1291,8 @@ the two consistent.
   test matches `gre` and `tse` as well and a test written that way asserts
   nothing. Two of the sixteen -- `resolve` and `tfl` -- are Siemens'. "Prints
   a Special card" and "is third party" are separate questions, which is the
-  same distinction `sequences/catalog.json` draws with its `unrecognized`
-  verdict.
+  same distinction `analysis/sequences/catalog.json` draws with its
+  `unrecognized` verdict.
 - **`EdfProgramContent` has five parallel maps keyed by step id, not one.**
   `LinksFrom` (outgoing), `LinksTo` (incoming, as `$ref` back-pointers into the
   link objects `LinksFrom` defines), `Ranks` (`{Rank: 0..N, StepId}`, the
@@ -2414,10 +2416,20 @@ settled four questions this file had recorded as open.
 #### Reading an archive out
 
 `siemens-protocol-tool archive <file.exar1>` is the reading half, where `exar`
-is the writing half, and `exar/inspect.py` is the whole of it -- it composes
-`archive`, `patch` and `geometry` and establishes nothing new about the format
-beyond the three observations below. `list`, `sequences` and `check` take an
-archive wherever they take a PDF, through `inspect.as_protocol`.
+is the writing half. `exar/inspect.py` reads the low-level facts -- the
+sequence binary and its owning tree, the `Preview` map, the mapped
+Special-card view, the slice geometry, a prescription link, the folder tree --
+composing `archive`, `patch` and `geometry`, and establishes nothing new about
+the format beyond the three observations below. `analysis/archive_view.py` is
+the adapter on top of it: `as_protocol`/`describe` assemble those facts into a
+`model.Scan`/`model.Protocol`, the same classes a parsed PDF produces, so
+`list`, `sequences` and `check` take an archive wherever they take a PDF
+through `archive_view.as_protocol` without the caller knowing which. The two
+used to be one module, independently re-deriving the `sequences.identify`/
+`flatten.flatten_sections` call a PDF-derived scan already makes inside
+`model.Scan.to_dict` -- a low-level/high-level split enforced now by
+`tests/test_layering.py`, which fails if anything under `exar/`, `extract/`,
+`layout/` or `profiles/` imports `analysis` again.
 
 - **`tree` is the command that answers "what is in this file", and its output
   has to be paste-able into the next one.** `exar/tree.py` draws the folder
@@ -2481,8 +2493,9 @@ archive wherever they take a PDF, through `inspect.as_protocol`.
   whose it is.
 - **The archive has no cards, so a scan read from one prints no Special
   card.** What a page splits into Routine, Contrast and Geometry is a property
-  of the page. `inspect.scan_of` therefore emits one section, `Preview`, and
-  `sequences.special_keys` finds nothing in it -- which is correct, not a gap:
+  of the page. `archive_view.scan_from_step` therefore emits one section,
+  `Preview`, and `sequences.special_keys` finds nothing in it -- which is
+  correct, not a gap:
   the binary and the stated owner are the two signals an archive carries, and
   they are enough. It does mean the PDF-shaped view of an archive is the
   console's ~40-parameter summary, not the several hundred a page prints, so a
