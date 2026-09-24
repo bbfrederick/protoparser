@@ -683,7 +683,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Triggering scheme",
         ascconv_key="sWipMemBlock.alFree[27]",
-        sequences=("cmrr_mbep2d_bold",),
+        sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_se"),
         builds=(CMRR_R017,),
         choices=(
             ("Standard", 1),
@@ -1264,7 +1264,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="FFT scale factor",
         ascconv_key="sWipMemBlock.adFree[0]",
-        sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_diff"),
+        sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_diff", "cmrr_mbep2d_se"),
         builds=(CMRR_R017,),
         evidence=(
             "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this "
@@ -2060,7 +2060,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="OVS flip angle PH",
         ascconv_key="sWipMemBlock.alFree[36]",
-        sequences=("eja_svs_mpress",),
+        sequences=("eja_svs_mpress", "eja_svs_press"),
         evidence=(
             "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written 81 "
             "into a template holding 90, and the printed 'OVS flip angle PH' "
@@ -2072,7 +2072,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="OVS flip angle SL",
         ascconv_key="sWipMemBlock.alFree[37]",
-        sequences=("eja_svs_mpress",),
+        sequences=("eja_svs_mpress", "eja_svs_press"),
         evidence=(
             "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written 81 "
             "into a template holding 90, and the printed 'OVS flip angle SL' "
@@ -2372,7 +2372,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="VERSE Factor",
         ascconv_key="sWipMemBlock.adFree[4]",
-        sequences=("ep2d_bold_mgh",),
+        sequences=("ep2d_bold_mgh", "ep2d_se_sms_mgh", "ep2d_diff_mgh"),
         evidence=(
             "controlled edit: probe round 5 (2026-09-23), PROBE_MGHBOLD. written "
             "2.0 into a template holding 1.0, and the printed 'VERSE Factor' "
@@ -2397,9 +2397,9 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Grad. rev. fat suppr.",
         ascconv_key="sWipMemBlock.alFree[25]",
-        sequences=("cmrr_mbep2d_diff",),
+        sequences=("cmrr_mbep2d_diff", "cmrr_mbep2d_se"),
         builds=(CMRR_R017,),
-        choices=(("Enabled", 2),),
+        choices=(("Disabled", 1), ("Enabled", 2)),
         evidence=(
             "controlled edit: probe round 5 (2026-09-23), PROBE_CMRRDIFF. The "
             "template holds 2 and prints Enabled; the probe wrote 3 and the card "
@@ -2418,6 +2418,196 @@ MAPPINGS: tuple[Mapping, ...] = (
             "against a card reading Normal -> High B1. fastestmap stamps no "
             "build, so builds is empty for the reason the ABCD navigators' "
             "mappings are: there is nothing to gate on."
+        ),
+    ),
+    Mapping(
+        label="Spoil duration (SP)",
+        ascconv_key="sWipMemBlock.alFree[10]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written "
+            "3600 into a template holding 4000, and the printed 'Spoil duration "
+            "(SP)' followed, alone and with nothing else printed or recomputed. "
+            "That archive's TR probe held and printed, so the write path is "
+            "confirmed for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. Num: Echo",
+        ascconv_key="sWipMemBlock.alFree[11]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 16 "
+            "into a template holding 18, and the printed 'EPSI. Num: Echo' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. BlipLeng: Phas",
+        ascconv_key="sWipMemBlock.alFree[13]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 230 "
+            "into a template holding 256, and the printed 'EPSI. BlipLeng: Phas' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. BlipStep: Phas",
+        ascconv_key="sWipMemBlock.alFree[14]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 4 "
+            "into a template holding 3, and the printed 'EPSI. BlipStep: Phas' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. BlipStep: Slic",
+        ascconv_key="sWipMemBlock.alFree[15]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. deleted "
+            "from a template holding 1, and the printed 'EPSI. BlipStep: Slic' read "
+            "0 -- the omitted zero a sWipMemBlock array spells by absence, alone "
+            "and with nothing else printed or recomputed. That archive's TR probe "
+            "held and printed, so the write path is confirmed for this sequence "
+            "before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. Ramp. Samp",
+        ascconv_key="sWipMemBlock.alFree[16]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 14 "
+            "into a template holding 16, and the printed 'EPSI. Ramp. Samp' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Ramping time (PE)",
+        ascconv_key="sWipMemBlock.alFree[6]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 108 "
+            "into a template holding 120, and the printed 'Ramping time (PE)' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Blip ramp time (PE)",
+        ascconv_key="sWipMemBlock.alFree[8]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 54 "
+            "into a template holding 60, and the printed 'Blip ramp time (PE)' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Blip ramp time (SL)",
+        ascconv_key="sWipMemBlock.alFree[9]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_ZPLV2E. written 54 "
+            "into a template holding 60, and the printed 'Blip ramp time (SL)' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Imaging Dummy TRs",
+        ascconv_key="sWipMemBlock.alFree[20]",
+        sequences=("ep2d_se_sms_mgh", "ep2d_diff_mgh"),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_MGHSE. deleted from "
+            "a template holding -1, and the printed 'Imaging Dummy TRs' read 0 -- "
+            "the omitted zero a sWipMemBlock array spells by absence, alone and "
+            "with nothing else printed or recomputed. That archive's TR probe held "
+            "and printed, so the write path is confirmed for this sequence before "
+            "any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Gradient moment factor",
+        ascconv_key="sWipMemBlock.adFree[1]",
+        sequences=("tfl_mgh_multiecho",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_MEMPR. written 2.0 "
+            "into a template holding 1.0, and the printed 'Gradient moment factor' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="number of noise lines",
+        ascconv_key="sWipMemBlock.alFree[2]",
+        sequences=("NoiseSensitivityMap",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_NSM. written 345 "
+            "into a template holding 384, and the printed 'number of noise lines' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Labeling Duration.",
+        ascconv_key="sWipMemBlock.alFree[47]",
+        sequences=("CMRR_XFL_mbPCASL",),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_XFL. written "
+            "1350000 into a template holding 1500000, and the printed 'Labeling "
+            "Duration.' followed, alone and with nothing else printed or "
+            "recomputed. That archive's TR probe held and printed, so the write "
+            "path is confirmed for this sequence before any unmapped element is "
+            "read."
+        ),
+    ),
+    Mapping(
+        label="ICE program",
+        ascconv_key="sWipMemBlock.alFree[1]",
+        sequences=("NoiseSensitivityMap",),
+        choices=(("CoilArrayUtil", 3), ("OptSNRPrep", 4)),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_NSM, 3 -> 4 against "
+            "a card reading CoilArrayUtil -> OptSNRPrep. Both readings are names "
+            "the console printed, which is what separates this from the two "
+            "toggles beside it on the same card: alFree[5] and alFree[7] each "
+            "moved 11 -> 9 against an Off -> On display, and one transition "
+            "cannot tell a two-value enum from a number whose row is derived, so "
+            "neither is mapped."
+        ),
+    ),
+    Mapping(
+        label="PCASL Options",
+        ascconv_key="sWipMemBlock.alFree[63]",
+        sequences=("CMRR_XFL_mbPCASL",),
+        choices=(("mdPCASL", 3),),
+        evidence=(
+            "controlled edit: probe round 6 (2026-09-24), PROBE_XFL. The template "
+            "holds 3 and prints mdPCASL; the probe wrote 4 and the card printed "
+            "'Choice 4', which is the console having no name for that value "
+            "rather than a fourth option. Only the named reading is listed, for "
+            "the reason Grad. rev. fat suppr. lists one: a sweep landing this "
+            "automatically would have entered 'Choice 4' as a value."
         ),
     ),
 )

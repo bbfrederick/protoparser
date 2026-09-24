@@ -51,11 +51,22 @@ from . import mappings
 #: mode to expect here: not a parse error, but confirmed derivations
 #: appearing to be wrong.
 #:
+#: Round 6 added ``lines`` and the optional trailing period. CMRR's pCASL
+#: sequence writes ``1500000 us.`` under a label that is itself spelled
+#: ``Labeling Duration.``, so the period is that author's punctuation rather
+#: than a decimal point, and ``NoiseSensitivityMap`` prints ``384 lines``.
+#: Both are small and counted: 8 readings and 2 across the examples. They are
+#: listed here for the reason the whole pattern exists -- an unstripped unit
+#: does not fail loudly, it makes a confirmed mapping look like it
+#: contradicts its own printout.
+#:
 #: The leading ``\s+`` is what makes adding a two-letter unit safe -- matching
 #: one anywhere would turn ``RMS`` into ``R``, which is the trap recorded
-#: against this pattern already.
+#: against this pattern already. The trailing ``\.?`` is safe for the same
+#: reason: it can only match after a unit that itself followed whitespace.
 UNIT_SUFFIX = re.compile(
-    r"\s+(ms|us|s|mm|cm|deg|degree|degrees|Hz|Hz/Px|kHz|%|#|TRs|TR|min|sec|mT/m|ppm)\s*$",
+    r"\s+(ms|us|s|mm|cm|deg|degree|degrees|Hz|Hz/Px|kHz|%|#|TRs|TR|min|sec|mT/m|ppm|lines)"
+    r"\.?\s*$",
     re.I,
 )
 
