@@ -703,7 +703,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Physio recording",
         ascconv_key="sWipMemBlock.alFree[31]",
-        sequences=("cmrr_mbep2d_bold",),
+        sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_diff"),
         builds=(CMRR_R017,),
         choices=(
             ("Off", 0),
@@ -1264,7 +1264,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="FFT scale factor",
         ascconv_key="sWipMemBlock.adFree[0]",
-        sequences=("cmrr_mbep2d_bold",),
+        sequences=("cmrr_mbep2d_bold", "cmrr_mbep2d_diff"),
         builds=(CMRR_R017,),
         evidence=(
             "controlled edit: probe run 2 (PROBE_RUN2, 2026-09-22) moved this "
@@ -1346,6 +1346,1078 @@ MAPPINGS: tuple[Mapping, ...] = (
         evidence=(
             "controlled edit: probe round 3 (PROBE_SVS, 2026-09-22) moved this "
             "200 -> 180 and the printed 'Ramp time' followed, 200 us -> 180 us, alone"
+        ),
+    ),
+    Mapping(
+        label="Blip ramp time (SL)",
+        ascconv_key="sWipMemBlock.alFree[10]",
+        sequences=("ZPL_RG_EPSI_SE_v1b", "ZPL_RG_EPSI_FID_v1h"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 54 into "
+            "a template holding 60, and the printed 'Blip ramp time (SL)' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Refocussing pulse voi",
+        ascconv_key="sWipMemBlock.alFree[16]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 144 into "
+            "a template holding 160, and the printed 'Refocussing pulse voi' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher duration (Cr)",
+        ascconv_key="sWipMemBlock.alFree[17]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 1080 "
+            "into a template holding 1200, and the printed 'Crusher duration (Cr)' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="TE values[3]",
+        ascconv_key="sWipMemBlock.alFree[22]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 378 into "
+            "a template holding 420, and the printed 'TE values[3]' followed, alone "
+            "and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="TE values[4]",
+        ascconv_key="sWipMemBlock.alFree[23]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 558 into "
+            "a template holding 620, and the printed 'TE values[4]' followed, alone "
+            "and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="TE values[5]",
+        ascconv_key="sWipMemBlock.alFree[24]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 738 into "
+            "a template holding 820, and the printed 'TE values[5]' followed, alone "
+            "and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="TE values[6]",
+        ascconv_key="sWipMemBlock.alFree[25]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 918 into "
+            "a template holding 1020, and the printed 'TE values[6]' followed, alone "
+            "and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="TE values[7]",
+        ascconv_key="sWipMemBlock.alFree[26]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 1098 "
+            "into a template holding 1220, and the printed 'TE values[7]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="TE values[8]",
+        ascconv_key="sWipMemBlock.alFree[27]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 1278 "
+            "into a template holding 1420, and the printed 'TE values[8]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[1]",
+        ascconv_key="sWipMemBlock.alFree[28]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 48 into "
+            "a template holding 54, and the printed 'Echo-Pairs. EPSI[1]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[2]",
+        ascconv_key="sWipMemBlock.alFree[29]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 230 into "
+            "a template holding 256, and the printed 'Echo-Pairs. EPSI[2]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[3]",
+        ascconv_key="sWipMemBlock.alFree[30]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 36 into "
+            "a template holding 40, and the printed 'Echo-Pairs. EPSI[3]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[4]",
+        ascconv_key="sWipMemBlock.alFree[31]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 36 into "
+            "a template holding 40, and the printed 'Echo-Pairs. EPSI[4]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[5]",
+        ascconv_key="sWipMemBlock.alFree[32]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 36 into "
+            "a template holding 40, and the printed 'Echo-Pairs. EPSI[5]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[6]",
+        ascconv_key="sWipMemBlock.alFree[33]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 36 into "
+            "a template holding 40, and the printed 'Echo-Pairs. EPSI[6]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[7]",
+        ascconv_key="sWipMemBlock.alFree[34]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 36 into "
+            "a template holding 40, and the printed 'Echo-Pairs. EPSI[7]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echo-Pairs. EPSI[8]",
+        ascconv_key="sWipMemBlock.alFree[35]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 36 into "
+            "a template holding 40, and the printed 'Echo-Pairs. EPSI[8]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echos of FID",
+        ascconv_key="sWipMemBlock.alFree[36]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 12 into "
+            "a template holding 14, and the printed 'Echos of FID' followed, alone "
+            "and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echos before TEs[1]",
+        ascconv_key="sWipMemBlock.alFree[37]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Echos before TEs[1]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Echos before TEs[2]",
+        ascconv_key="sWipMemBlock.alFree[38]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 48 into "
+            "a template holding 54, and the printed 'Echos before TEs[2]' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Mode: RFspoil",
+        ascconv_key="sWipMemBlock.alFree[3]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. deleted from a "
+            "template holding 1, and the printed 'Mode: RFspoil' read 0 -- the "
+            "omitted zero a sWipMemBlock array spells by absence, alone and with "
+            "nothing recomputed. Every one of that card's 47 elements printed "
+            "something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[1]",
+        ascconv_key="sWipMemBlock.alFree[45]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[1]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[2]",
+        ascconv_key="sWipMemBlock.alFree[46]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 7 into a "
+            "template holding 8, and the printed 'Crusher amplitude1(Cr)[2]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[3]",
+        ascconv_key="sWipMemBlock.alFree[47]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[3]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[4]",
+        ascconv_key="sWipMemBlock.alFree[48]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[4]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[5]",
+        ascconv_key="sWipMemBlock.alFree[49]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[5]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[6]",
+        ascconv_key="sWipMemBlock.alFree[50]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[6]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[7]",
+        ascconv_key="sWipMemBlock.alFree[51]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[7]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Crusher amplitude1(Cr)[8]",
+        ascconv_key="sWipMemBlock.alFree[52]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 14 into "
+            "a template holding 16, and the printed 'Crusher amplitude1(Cr)[8]' "
+            "followed, alone and with nothing recomputed. Every one of that card's 47 "
+            "elements printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Fnav. read points",
+        ascconv_key="sWipMemBlock.alFree[53]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 90 into "
+            "a template holding 100, and the printed 'Fnav. read points' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Fnav. dwell time",
+        ascconv_key="sWipMemBlock.alFree[54]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 9 into a "
+            "template holding 10, and the printed 'Fnav. dwell time' followed, alone "
+            "and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Ramping time (PE)",
+        ascconv_key="sWipMemBlock.alFree[7]",
+        sequences=("ZPL_RG_EPSI_SE_v1b", "ZPL_RG_EPSI_FID_v1h"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 108 into "
+            "a template holding 120, and the printed 'Ramping time (PE)' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Grad duration (PE)",
+        ascconv_key="sWipMemBlock.alFree[8]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 540 into "
+            "a template holding 600, and the printed 'Grad duration (PE)' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="Blip ramp time (PE)",
+        ascconv_key="sWipMemBlock.alFree[9]",
+        sequences=("ZPL_RG_EPSI_SE_v1b", "ZPL_RG_EPSI_FID_v1h"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_ZPL. written 54 into "
+            "a template holding 60, and the printed 'Blip ramp time (PE)' followed, "
+            "alone and with nothing recomputed. Every one of that card's 47 elements "
+            "printed something, which is why the whole sweep landed at once."
+        ),
+    ),
+    Mapping(
+        label="OVS slab thickness",
+        ascconv_key="sWipMemBlock.adFree[10]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="OVS slab pos. offset",
+        ascconv_key="sWipMemBlock.adFree[13]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Spoiler max. amplitude",
+        ascconv_key="sWipMemBlock.adFree[1]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Spoiler amp. ratio",
+        ascconv_key="sWipMemBlock.adFree[7]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Refocus grad. factor",
+        ascconv_key="sWipMemBlock.adFree[8]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Spoiler duration",
+        ascconv_key="sWipMemBlock.alFree[12]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR flip angle",
+        ascconv_key="sWipMemBlock.alFree[13]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="OVS pulse duration",
+        ascconv_key="sWipMemBlock.alFree[15]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 1",
+        ascconv_key="sWipMemBlock.alFree[16]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 2",
+        ascconv_key="sWipMemBlock.alFree[17]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 3",
+        ascconv_key="sWipMemBlock.alFree[18]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 4",
+        ascconv_key="sWipMemBlock.alFree[19]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Refocus pulse duration",
+        ascconv_key="sWipMemBlock.alFree[1]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 5",
+        ascconv_key="sWipMemBlock.alFree[20]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 6",
+        ascconv_key="sWipMemBlock.alFree[21]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Excite pulse duration",
+        ascconv_key="sWipMemBlock.alFree[24]",
+        sequences=("eja_svs_press", "eja_svs_mpress"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. clean "
+            "on this donor alone; the sibling held the value without printing a "
+            "single label, so the scope stops here."
+        ),
+    ),
+    Mapping(
+        label="Gradient ramp time",
+        ascconv_key="sWipMemBlock.alFree[34]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="OVS flip angle RO",
+        ascconv_key="sWipMemBlock.alFree[35]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Acq. window shift",
+        ascconv_key="sWipMemBlock.alFree[38]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="Min. settling delay",
+        ascconv_key="sWipMemBlock.alFree[41]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="HS refoc. pulse N",
+        ascconv_key="sWipMemBlock.alFree[48]",
+        sequences=("eja_svs_slaser", "eja_svs_slaser_diff"),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. clean "
+            "on this donor alone; the sibling held the value without printing a "
+            "single label, so the scope stops here."
+        ),
+    ),
+    Mapping(
+        label="HS refoc. pulse R",
+        ascconv_key="sWipMemBlock.alFree[49]",
+        sequences=("eja_svs_slaser", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. clean "
+            "on this donor alone; the sibling held the value without printing a "
+            "single label, so the scope stops here."
+        ),
+    ),
+    Mapping(
+        label="OVS HS pulse N",
+        ascconv_key="sWipMemBlock.alFree[60]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="OVS HS pulse R",
+        ascconv_key="sWipMemBlock.alFree[61]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 7",
+        ascconv_key="sWipMemBlock.alFree[8]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="VAPOR delay 8",
+        ascconv_key="sWipMemBlock.alFree[9]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        evidence=(
+            "controlled edit: probe round 4 (2026-09-23), PROBE_EJA/PROBE_EJAP. "
+            "confirmed on both donors, which is what scopes it to two sequences "
+            "rather than one: the eja suite shares its card across eleven sequences "
+            "and a mapping stays scoped until a controlled toggle runs on each."
+        ),
+    ),
+    Mapping(
+        label="MEGA flip angle",
+        ascconv_key="sWipMemBlock.alFree[39]",
+        sequences=("eja_svs_mpress",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written 162 "
+            "into a template holding 180, and the printed 'MEGA flip angle' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Editing pulse freq. [1]",
+        ascconv_key="sWipMemBlock.adFree[2]",
+        sequences=("eja_svs_mpress",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written 8.1 "
+            "into a template holding 9.0, and the printed 'Editing pulse freq. [1]' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Editing pulse freq. [2]",
+        ascconv_key="sWipMemBlock.adFree[3]",
+        sequences=("eja_svs_mpress",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written "
+            "1.71 into a template holding 1.9, and the printed 'Editing pulse freq. "
+            "[2]' followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Editing pulse BW",
+        ascconv_key="sWipMemBlock.adFree[6]",
+        sequences=("eja_svs_mpress",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written "
+            "90.0 into a template holding 100.0, and the printed 'Editing pulse BW' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="OVS flip angle PH",
+        ascconv_key="sWipMemBlock.alFree[36]",
+        sequences=("eja_svs_mpress",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written 81 "
+            "into a template holding 90, and the printed 'OVS flip angle PH' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="OVS flip angle SL",
+        ascconv_key="sWipMemBlock.alFree[37]",
+        sequences=("eja_svs_mpress",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MPRESS. written 81 "
+            "into a template holding 90, and the printed 'OVS flip angle SL' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Jump ramp time (JP)",
+        ascconv_key="sWipMemBlock.alFree[11]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 153 "
+            "into a template holding 170, and the printed 'Jump ramp time (JP)' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Jump flat time (JP)",
+        ascconv_key="sWipMemBlock.alFree[12]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 180 "
+            "into a template holding 200, and the printed 'Jump flat time (JP)' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Ramping time (SP)",
+        ascconv_key="sWipMemBlock.alFree[13]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 162 "
+            "into a template holding 180, and the printed 'Ramping time (SP)' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Spoil duration (SP)",
+        ascconv_key="sWipMemBlock.alFree[14]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written "
+            "3600 into a template holding 4000, and the printed 'Spoil duration "
+            "(SP)' followed, alone and with nothing else printed or recomputed. "
+            "That archive's TR probe held and printed, so the write path is "
+            "confirmed for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. Num: Echo",
+        ascconv_key="sWipMemBlock.alFree[15]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 66 "
+            "into a template holding 74, and the printed 'EPSI. Num: Echo' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSI. Ramp. Samp",
+        ascconv_key="sWipMemBlock.alFree[17]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 14 "
+            "into a template holding 16, and the printed 'EPSI. Ramp. Samp' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSC. Num: Echo",
+        ascconv_key="sWipMemBlock.alFree[31]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 43 "
+            "into a template holding 48, and the printed 'EPSC. Num: Echo' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="EPSC. Ramp. Samp",
+        ascconv_key="sWipMemBlock.alFree[32]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 14 "
+            "into a template holding 16, and the printed 'EPSC. Ramp. Samp' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Fnav. Read points",
+        ascconv_key="sWipMemBlock.alFree[47]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 90 "
+            "into a template holding 100, and the printed 'Fnav. Read points' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Fnav. Dwell time",
+        ascconv_key="sWipMemBlock.alFree[48]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 9 "
+            "into a template holding 10, and the printed 'Fnav. Dwell time' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Mnav. Echo Pair",
+        ascconv_key="sWipMemBlock.alFree[49]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_ZPLFID. written 9 "
+            "into a template holding 10, and the printed 'Mnav. Echo Pair' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="PAT ref. FA",
+        ascconv_key="sWipMemBlock.alFree[2]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 4 "
+            "into a template holding 5, and the printed 'PAT ref. FA' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Fat sat. FA",
+        ascconv_key="sWipMemBlock.alFree[3]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 99 "
+            "into a template holding 110, and the printed 'Fat sat. FA' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Variable FA",
+        ascconv_key="sWipMemBlock.alFree[4]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 5 "
+            "into a template holding 4, and the printed 'Variable FA' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="MT flip angle",
+        ascconv_key="sWipMemBlock.alFree[11]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 153 "
+            "into a template holding 170, and the printed 'MT flip angle' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="MT off-res.",
+        ascconv_key="sWipMemBlock.alFree[12]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 1800 "
+            "into a template holding 2000, and the printed 'MT off-res.' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="MT RF duration",
+        ascconv_key="sWipMemBlock.alFree[13]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 11520 "
+            "into a template holding 12800, and the printed 'MT RF duration' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="GRAPPA Regularization",
+        ascconv_key="sWipMemBlock.alFree[18]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 4500 "
+            "into a template holding 5000, and the printed 'GRAPPA Regularization' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Ramp sampling",
+        ascconv_key="sWipMemBlock.adFree[2]",
+        sequences=("rslh_ep3d_vaso",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_VASO. written 2.0 "
+            "into a template holding 1.0, and the printed 'Ramp sampling' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Excite pulse duration",
+        ascconv_key="sWipMemBlock.alFree[2]",
+        sequences=("fastestmap",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_FASTMAP. written "
+            "5760 into a template holding 6400, and the printed 'Excite pulse "
+            "duration' followed, alone and with nothing else printed or recomputed. "
+            "That archive's TR probe held and printed, so the write path is "
+            "confirmed for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Refocus pulse duration",
+        ascconv_key="sWipMemBlock.alFree[3]",
+        sequences=("fastestmap",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_FASTMAP. written "
+            "5760 into a template holding 6400, and the printed 'Refocus pulse "
+            "duration' followed, alone and with nothing else printed or recomputed. "
+            "That archive's TR probe held and printed, so the write path is "
+            "confirmed for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Bar FoV",
+        ascconv_key="sWipMemBlock.alFree[12]",
+        sequences=("fastestmap",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_FASTMAP. written "
+            "345 into a template holding 384, and the printed 'Bar FoV' followed, "
+            "alone and with nothing else printed or recomputed. That archive's TR "
+            "probe held and printed, so the write path is confirmed for this "
+            "sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Bar thickness",
+        ascconv_key="sWipMemBlock.adFree[2]",
+        sequences=("fastestmap",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_FASTMAP. written "
+            "9.0 into a template holding 10.0, and the printed 'Bar thickness' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="VoI fit factor",
+        ascconv_key="sWipMemBlock.adFree[3]",
+        sequences=("fastestmap",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_FASTMAP. written "
+            "90.0 into a template holding 100.0, and the printed 'VoI fit factor' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="VERSE Factor",
+        ascconv_key="sWipMemBlock.adFree[4]",
+        sequences=("ep2d_bold_mgh",),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_MGHBOLD. written "
+            "2.0 into a template holding 1.0, and the printed 'VERSE Factor' "
+            "followed, alone and with nothing else printed or recomputed. That "
+            "archive's TR probe held and printed, so the write path is confirmed "
+            "for this sequence before any unmapped element is read."
+        ),
+    ),
+    Mapping(
+        label="Online multi-band recon.",
+        ascconv_key="sWipMemBlock.alFree[9]",
+        sequences=("cmrr_mbep2d_diff",),
+        builds=(CMRR_R017,),
+        choices=(("Online", 3), ("Remote", 4)),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_CMRRDIFF, 3 -> 4 "
+            "against a card reading Online -> Remote. Only the two values the "
+            "probe moved between are listed, which is what an option scan "
+            "leaves behind and the reason encode refuses the rest."
+        ),
+    ),
+    Mapping(
+        label="Grad. rev. fat suppr.",
+        ascconv_key="sWipMemBlock.alFree[25]",
+        sequences=("cmrr_mbep2d_diff",),
+        builds=(CMRR_R017,),
+        choices=(("Enabled", 2),),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_CMRRDIFF. The "
+            "template holds 2 and prints Enabled; the probe wrote 3 and the card "
+            "printed 'Invalid', so 3 is out of range rather than a third choice "
+            "and only the observed one is listed. A sweep landing this "
+            "automatically would have written 'Invalid' in as a value."
+        ),
+    ),
+    Mapping(
+        label="Refocus pulses",
+        ascconv_key="sWipMemBlock.alFree[10]",
+        sequences=("fastestmap",),
+        choices=(("Normal", 2), ("High B1", 3)),
+        evidence=(
+            "controlled edit: probe round 5 (2026-09-23), PROBE_FASTMAP, 2 -> 3 "
+            "against a card reading Normal -> High B1. fastestmap stamps no "
+            "build, so builds is empty for the reason the ABCD navigators' "
+            "mappings are: there is nothing to gate on."
         ),
     ),
 )

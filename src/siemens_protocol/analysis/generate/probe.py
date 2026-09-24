@@ -864,6 +864,9 @@ class Finding:
         Other assignments the console moved, as ``key -> (sent, returned)``.
         Churn is excluded; the derived scan times are not, since a probe
         moving them is evidence about what the parameter feeds.
+    before : str or None
+        The literal the template held, so a refusal can be told from a
+        value the console quantised.
     uncontrolled : tuple of str
         Context assignments this run never asked on their own, so nothing
         here can say whether a printed difference belongs to the probe or
@@ -901,6 +904,7 @@ class Finding:
     printed: dict[tuple[str, str], tuple[Any, Any]] = field(default_factory=dict)
     from_context: dict[tuple[str, str], tuple[Any, Any]] = field(default_factory=dict)
     uncontrolled: tuple[str, ...] = ()
+    before: str | None = None
 
     @property
     def own_printed(self) -> dict[tuple[str, str], tuple[Any, Any]]:
@@ -950,33 +954,65 @@ class Finding:
         )
 
     @property
-    def reconciled(self) -> bool:
-        """Return whether the console rejected this value and rebuilt around it.
+    def refused(self) -> bool:
+        """Return whether the console put the template's own value back.
 
-        Three outcomes share the shape "something else moved", and they mean
-        opposite things, so they are separated by whether the probed value
-        itself survived rather than by how much moved.  A value that *held*
-        beside other movement is a parameter the sequence derives from it --
-        moving TR recomputed the scan time.  A value that did *not* hold, with
-        nothing else moving, is a field the sequence simply owns, which is
-        what the four ``sIR.adFree`` probes turned out to be.  A value that
-        did not hold *and* dragged other fields with it is the console
-        refusing the write and reconciling the protocol around the refusal.
-
-        That third case is the dangerous one and it is why no threshold is
-        used here: an impossible TR was reverted to the template's value and
-        took the entire manual coil selection with it, 504 assignments
-        deleted, while the scan loaded and was never greyed out.  A probe in
-        that state has not answered its question and its printed differences
-        belong to the reconciliation, not to the parameter.
+        This is what separates a refusal from a *quantisation*, and round 4
+        is where the difference started to matter. Writing 171 into the ZPL
+        EPSI's `alFree[21]` returned 185 against a template holding 190 --
+        a third value, which is the console choosing a legal one rather
+        than declining. Writing 0 into `alFree[19]` returned the template's
+        2, which is declining.
 
         Returns
         -------
         bool
-            True when the written value did not survive and other fields
-            moved with it.
+            Whether the written value was replaced by the one it replaced.
         """
-        return self.verdict in ("revised", "absent") and bool(self.recomputed)
+        return self.verdict != "held" and same_value(self.stored or "", self.before)
+
+    @property
+    def snapped(self) -> bool:
+        """Return whether the console stored a value neither side asked for.
+
+        A third value means something downstream recomputed -- the shape
+        CLAUDE.md already names for `Bandwidth`. It is not a refusal and the
+        printed difference may still be this parameter's, so these are worth
+        reading rather than discarding.
+
+        Returns
+        -------
+        bool
+            Whether the stored value is neither written nor inherited.
+        """
+        return self.verdict != "held" and not self.refused
+
+    @property
+    def reconciled(self) -> bool:
+        """Return whether the console refused this value and rebuilt around it.
+
+        Three outcomes share the shape "something else moved", and they mean
+        opposite things, so they are separated by what happened to the
+        probed value rather than by how much moved. A value that *held*
+        beside other movement is a parameter the sequence derives from it.
+        A value replaced by the template's own, with nothing else moving, is
+        a field the sequence owns. A value replaced by the template's own
+        that *dragged other fields with it* is the console refusing the
+        write and reconciling the protocol around the refusal.
+
+        The template comparison is load-bearing and was added in round 4.
+        Three ZPL probes -- ``alFree[0]``, ``alFree[19]`` and ``alFree[21]``
+        -- came back with an identical nine-field cascade; two had the
+        template's own value back and one held 185 against a written 171 and
+        a template's 190. Without the comparison all three read as refusals,
+        so a quantised value was being discarded as a rejection.
+
+        Returns
+        -------
+        bool
+            Whether the write was declined and other fields moved with it.
+        """
+        return self.refused and bool(self.recomputed)
 
 
 def same_value(stored: str, wanted: str | None) -> bool:
@@ -1183,6 +1219,37 @@ def _attribute_context(findings: list[Finding]) -> None:
         found.uncontrolled = tuple(missing)
 
 
+def _zeroed(key: str, wanted: str) -> bool:
+    """Return whether an absent assignment is the zero that was asked for.
+
+    A ``sWipMemBlock`` array omits an element holding zero, so writing ``0``
+    and reading absence back is the console *honouring* the write, not
+    refusing it. Round 4 probed every lone ``1`` at ``0`` -- the state a card
+    is likeliest to display differently -- which made this the common case
+    rather than a corner. The console honoured 40 such writes across rounds 4
+    and 5, 10 of them clean mappings that reading absence as a refusal would
+    have discarded.
+
+    Parameters
+    ----------
+    key : str
+        The probed assignment.
+    wanted : str
+        The literal that was written.
+
+    Returns
+    -------
+    bool
+        True when the key omits its zero and zero is what was written.
+    """
+    if not ascconv.omits_zero(key):
+        return False
+    try:
+        return float(wanted) == 0.0
+    except (TypeError, ValueError):
+        return False
+
+
 def _read_one(
     placed: Placed,
     sent: MappingType[str, MappingType[str, str]],
@@ -1219,7 +1286,7 @@ def _read_one(
     stored = table.get(placed.probe.key)
     wanted = placed.probe.literal
     if stored is None:
-        verdict = "held" if wanted is None else "absent"
+        verdict = "held" if wanted is None or _zeroed(placed.probe.key, wanted) else "absent"
     else:
         verdict = "held" if same_value(stored, wanted) else "revised"
 
@@ -1235,6 +1302,7 @@ def _read_one(
     return Finding(
         name=placed.name,
         probe=placed.probe,
+        before=placed.before,
         verdict=verdict,
         stored=stored,
         recomputed=moved,

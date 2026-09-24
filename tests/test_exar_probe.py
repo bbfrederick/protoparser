@@ -609,22 +609,43 @@ def test_a_rejected_value_that_drags_other_fields_is_not_a_result() -> None:
     """
     asked = probe.Probe("alTR[0]", "50000", "TR")
     derived = probe.Finding(
-        name="a", probe=asked, verdict="held", recomputed={"lTotalScanTimeSec": ("369", "374")}
+        name="a",
+        probe=asked,
+        before="650000",
+        verdict="held",
+        recomputed={"lTotalScanTimeSec": ("369", "374")},
     )
-    owned = probe.Finding(name="b", probe=asked, verdict="revised", stored="650000")
+    owned = probe.Finding(
+        name="b", probe=asked, before="650000", verdict="revised", stored="650000"
+    )
     rebuilt = probe.Finding(
         name="c",
         probe=asked,
+        before="650000",
         verdict="revised",
         stored="650000",
         recomputed={
             "sCoilSelectMeas.aRxCoilSelectData[0].asList[5].lElementSelected": ("1", None)
         },
     )
+    # A third value is the console choosing a legal one rather than declining.
+    # The ZPL EPSI returned 185 for a written 171 against a template holding
+    # 190, and three such probes read as refusals until this was separated out.
+    quantised = probe.Finding(
+        name="d",
+        probe=probe.Probe("sWipMemBlock.alFree[21]", "171", "ramp"),
+        before="190",
+        verdict="revised",
+        stored="185",
+        recomputed={"sWipMemBlock.alFree[7]": ("120", "110")},
+    )
     assert not derived.reconciled, "a value that held is not a refusal"
     assert not owned.reconciled, "a field the sequence owns is not a reconciliation"
     assert rebuilt.reconciled
     assert not rebuilt.clean
+    assert owned.refused and not owned.snapped
+    assert quantised.snapped and not quantised.refused
+    assert not quantised.reconciled, "a quantised value is not a refused one"
 
 
 def test_a_switch_is_credited_with_what_the_switch_prints() -> None:
@@ -681,3 +702,24 @@ def test_a_context_with_no_control_leaves_the_attribution_open() -> None:
     assert findings[0].uncontrolled == ("sRawFilter.ucOn",)
     assert findings[0].confounded
     assert not findings[0].clean
+
+
+@requires_exar
+def test_zero_written_into_a_sparse_element_is_honoured_by_deleting_it() -> None:
+    """An absent assignment can be the write succeeding, not being refused.
+
+    A ``sWipMemBlock`` array omits an element holding zero, so writing ``0``
+    and reading absence back is the console doing what was asked. Round 4
+    probed every lone ``1`` at ``0`` -- the state a card is likeliest to
+    display differently -- so this went from a corner case to the common one,
+    and reading it as a refusal discarded 10 confirmed mappings across the
+    two rounds, out of 40 writes the console honoured this way.
+
+    Returns
+    -------
+    None
+    """
+    assert probe._zeroed("sWipMemBlock.alFree[1]", "0")
+    assert probe._zeroed("sWipMemBlock.adFree[3]", "0.0")
+    assert not probe._zeroed("sWipMemBlock.alFree[1]", "2")
+    assert not probe._zeroed("alTR[0]", "0"), "a dense key holding zero still writes it"
