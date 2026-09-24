@@ -16,6 +16,9 @@ as text. Both appear in one row of ``Instance``: the id columns are text, and
 
 from __future__ import annotations
 
+import errno
+import os
+import pathlib
 import sqlite3
 from dataclasses import dataclass, field
 from typing import Any, Iterator
@@ -191,8 +194,39 @@ class Container:
         return list(found.dicts()) if found is not None else []
 
 
+def _read_only_uri(path: str) -> str:
+    """Return a SQLite URI that opens ``path`` without creating or writing it.
+
+    The URI form is what carries ``mode=ro``; it also has to be escaped, and
+    several corpus archives have spaces in their names, so this goes through
+    :meth:`pathlib.Path.as_uri` rather than through string concatenation.
+
+    Parameters
+    ----------
+    path : str
+        Path to an existing file.
+
+    Returns
+    -------
+    str
+        A ``file:`` URI with the read-only query appended.
+    """
+    return pathlib.Path(path).resolve().as_uri() + "?mode=ro"
+
+
 def read(path: str) -> Container:
     """Load every table of an ``.exar1`` file.
+
+    The connection is opened **read-only, and only if the file already
+    exists**, because the obvious spelling does neither.
+    ``sqlite3.connect`` creates an empty database at a path that has none,
+    so a mistyped or wrongly-joined archive name left a 0-byte ``.exar1``
+    behind and then failed several layers up with "archive declares no
+    branch" -- a sentence about the *contents* of a file the caller had just
+    silently created. In a corpus directory that is worse than a bad error
+    message: the stray file is discovered by the same globs the real
+    archives are, so the next test run reads it, and the damage presents as
+    corpus corruption rather than as a typo.
 
     Parameters
     ----------
@@ -203,8 +237,24 @@ def read(path: str) -> Container:
     -------
     Container
         The schema and rows, ready to inspect or write back.
+
+    Raises
+    ------
+    FileNotFoundError
+        If nothing exists at ``path``. This is an ``OSError``, which every
+        caller in this package already handles beside ``ValueError``.
+    IsADirectoryError
+        If ``path`` names a directory. Also an ``OSError``, and reported
+        separately because "no such file" is untrue of a path that exists.
+    sqlite3.DatabaseError
+        If the file exists but is not a SQLite database -- a PDF beside the
+        archive under the same stem being the easy mistake.
     """
-    connection = sqlite3.connect(path)
+    if os.path.isdir(path):
+        raise IsADirectoryError(errno.EISDIR, os.strerror(errno.EISDIR), path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+    connection = sqlite3.connect(_read_only_uri(path), uri=True)
     try:
         container = Container()
         catalog = connection.execute(

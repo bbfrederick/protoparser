@@ -1454,3 +1454,80 @@ def test_the_decode_sweep_is_not_vacuous() -> None:
                 and mappings.display(mapping, step.protocol) is not None
             )
     assert compared > 5000, f"::error::only {compared} decoded readings were checked"
+
+
+def test_reading_a_missing_archive_reports_it_and_creates_nothing(tmp_path: pathlib.Path) -> None:
+    """A path with no file is a missing file, not an archive with no branch.
+
+    ``sqlite3.connect`` creates an empty database at a path that has none, so
+    the obvious spelling of :func:`store.read` silently produced a 0-byte
+    ``.exar1`` and then failed several layers up with "archive declares no
+    branch" -- a statement about the contents of a file the caller had just
+    created. That is worse than a poor message inside a corpus directory: the
+    stray is discovered by the same globs the real archives are, so it is read
+    by the next sweep and presents as corpus damage rather than as a typo.
+
+    Returns
+    -------
+    None
+    """
+    missing = tmp_path / "nope.exar1"
+
+    with pytest.raises(FileNotFoundError):
+        exar.read(str(missing))
+
+    assert not missing.exists(), "reading a missing archive must not create one"
+
+
+def test_reading_a_directory_says_so_rather_than_claiming_it_is_absent(
+    tmp_path: pathlib.Path,
+) -> None:
+    """A directory exists, so "no such file" would be untrue of it.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(IsADirectoryError):
+        exar.read(str(tmp_path))
+
+
+def test_reading_a_file_that_is_not_a_database_still_says_that(tmp_path: pathlib.Path) -> None:
+    """The existence check must not swallow the wrong-file-type message.
+
+    Several corpus directories hold a PDF and an archive under one stem, so
+    pointing a command at the wrong one is the easy mistake, and
+    ``cli._read_archive`` turns this exception into a sentence about it. A
+    guard that reported every unreadable file as missing would lose that.
+
+    Returns
+    -------
+    None
+    """
+    decoy = tmp_path / "decoy.exar1"
+    decoy.write_bytes(b"%PDF-1.4 this is not a database")
+
+    with pytest.raises(sqlite3.DatabaseError):
+        exar.read(str(decoy))
+
+
+@requires_exar
+def test_reading_an_archive_does_not_modify_it(archive_path: str) -> None:
+    """Reading leaves the file alone.
+
+    This passes on the read-write connection too, because opening a *clean*
+    database does not modify it -- so it is a guard on the invariant rather
+    than the test that catches the bug this was written beside. Its real work
+    is the corpus sweep: `mode=ro` cannot open a database whose rollback
+    journal needs recovery, and every archive opening this way is what says
+    none of them is in that state and the flag is therefore safe to keep.
+
+    Returns
+    -------
+    None
+    """
+    before = os.stat(archive_path)
+    exar.read(archive_path)
+    after = os.stat(archive_path)
+
+    assert (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)

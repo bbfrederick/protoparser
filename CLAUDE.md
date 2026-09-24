@@ -2651,6 +2651,36 @@ used to be one module, independently re-deriving the `sequences.identify`/
   wrong one is easy -- and it reached the terminal as a traceback saying
   "file is not a database". `cli._read_archive` converts it to a `ValueError`
   with a sentence, which every call site already caught beside `OSError`.
+- **Reading an archive that does not exist used to *create* it, and the
+  damage looked like corpus corruption.** `sqlite3.connect` makes an empty
+  database at a path that has none, so `store.read` on a mistyped or
+  wrongly-joined name left a 0-byte `.exar1` behind and then failed several
+  layers up with `archive declares no branch` -- a statement about the
+  contents of a file the caller had just created, and one that says nothing
+  about the actual mistake.
+
+  Inside `examples/` that is worse than a bad message. The stray is found by
+  the same globs the real archives are, so the next sweep reads it and the
+  symptom is a corpus archive that has gone to zero bytes. It was diagnosed
+  that way on the way to writing this entry, complete with a wrong conclusion
+  that a file had been lost -- the real archives were in subdirectories
+  (`examples/XA60/Frederick_P2/Frederick_P2.exar1`, not
+  `examples/XA60/Frederick_P2.exar1`), tracked and intact, and the bare name
+  had been read off a `path.name` listing. **A listing that prints only the
+  basename is the trap**, since two corpus archives genuinely differ only in
+  their directory.
+
+  `store.read` now refuses a path with no file (`FileNotFoundError`) and a
+  path naming a directory (`IsADirectoryError`) -- both `OSError`, which the
+  CLI already handles -- and opens the connection **read-only** through a
+  `file:...?mode=ro` URI so sqlite cannot create or modify whatever it is
+  given. The URI goes through `pathlib.Path.as_uri` rather than string
+  concatenation, several corpus archives having spaces in their names. All 59
+  corpus archives open that way, which is what makes the flag safe: `mode=ro`
+  cannot open a database whose rollback journal needs recovery, so the sweep
+  passing is evidence that none of them is in that state. The wrong-file-type
+  message above is deliberately still reachable, and a test holds it so the
+  existence guard cannot swallow it.
 
 - **ASCCONV spells an array index two ways, and the second one is easy to miss.**
   `alTE[0]` is the usual spelling; the corpus also carries
