@@ -41,8 +41,21 @@ from ...exar.archive import Archive
 from . import mappings
 
 #: Units the card prints beside a value and the protocol does not store.
+#: ``us`` and ``#`` joined the list with the spectroscopy and EPSI cards, whose
+#: parameters are overwhelmingly pulse durations and echo counts. Measured
+#: against the table as it now stands, 30 mapped labels print a bare ``us``
+#: and 19 a bare ``#`` -- 1214 and 115 readings across the examples -- every
+#: one of which was being compared *with* its unit against a decoded bare
+#: number. That reads as a pile of mappings contradicting their own
+#: printouts rather than as a gap in this vocabulary, which is the failure
+#: mode to expect here: not a parse error, but confirmed derivations
+#: appearing to be wrong.
+#:
+#: The leading ``\s+`` is what makes adding a two-letter unit safe -- matching
+#: one anywhere would turn ``RMS`` into ``R``, which is the trap recorded
+#: against this pattern already.
 UNIT_SUFFIX = re.compile(
-    r"\s+(ms|s|mm|cm|deg|degree|degrees|Hz|Hz/Px|kHz|%|TRs|TR|min|sec|mT/m|ppm)\s*$",
+    r"\s+(ms|us|s|mm|cm|deg|degree|degrees|Hz|Hz/Px|kHz|%|#|TRs|TR|min|sec|mT/m|ppm)\s*$",
     re.I,
 )
 

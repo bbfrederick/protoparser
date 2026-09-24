@@ -1873,6 +1873,19 @@ just not the file it used to live in:
 - **Strip a printed unit only after whitespace.** Matching it anywhere turns
   `RMS` into `R`, because `MS` is a unit and the comparison is
   case-insensitive -- which then fails to resolve as an `Averaging` choice.
+
+  **The leading `\s+` is also what makes the vocabulary safe to extend, and
+  it needed extending.** `us` and `#` were missing until the spectroscopy and
+  EPSI cards arrived, whose parameters are overwhelmingly pulse durations and
+  echo counts. Every reading of such a label was being compared *with* its
+  unit against a decoded bare number, so `'2560'` met `'2560 us'` and a great
+  many confirmed mappings read as contradicting their own printouts --
+  measured against the table as it now stands, **30 mapped labels print a
+  bare `us` and 19 a bare `#`**, 1214 and 115 readings across the examples. That is the failure mode to expect from a missing unit -- not a
+  parse error but a pile of mappings appearing to be wrong, which is easy to
+  mistake for a bad derivation and hard to mistake for a vocabulary gap. A
+  card carrying parameters unlike anything already mapped is the moment to
+  check `UNIT_SUFFIX` before trusting a disagreement.
 - **A readable archive can hold no protocols at all.** Exporting an empty
   folder node rather than the protocol tree yields a valid SQLite file with
   the directory scaffolding, a `Root` label and nothing else -- five
@@ -2016,7 +2029,11 @@ just not the file it used to live in:
   `alFree[4]` at 2, 3, 4 and 5 into `tfl_mgh_epinav_ABCD`; every one came back
   reverted to 1, each dragging the full 651-field reconciliation described
   below. So the widening is *refused by the scanner*, not merely unproven,
-  and the driver's refusal stands on evidence rather than on caution. Note
+  and the driver's refusal stands on evidence rather than on caution. The
+  rule has since been exercised in the other direction -- `FFT scale factor`
+  and `Physio recording` widened from `cmrr_mbep2d_bold` to
+  `cmrr_mbep2d_diff` on a controlled toggle in probe round 5 -- so it
+  discriminates rather than merely refusing. Note
   what this cost to learn: printout-against-stored agreement on 37 of 37
   scans predicted nothing about whether the field could be written. `build.covered_elsewhere` asks the
   mapping table rather than parsing `resolve`'s prose, so rewording a reason
@@ -2321,8 +2338,12 @@ console varies a
 *printed option* and we diff the archives: the label is known and the stored
 field is discovered. A probe archive inverts that -- we vary a stored field,
 the scanner prints a card, and the printout says which label that field
-drives. Three rounds have run; they took `MAPPINGS` from 115 to 128 and
-settled four questions this file had recorded as open.
+drives. Five rounds have run; they took `MAPPINGS` from 115 to 222 and
+settled four questions this file had recorded as open. Rounds 4 and 5 are
+where the method stopped adding mappings one at a time: 373 probes over ten
+archives, 84 and 90 clean readings, and -- more usefully for planning the
+next round -- 98 elements shown to print nothing and 58 the sequence
+refuses to have written.
 
 - **The inversion is worth having because the two directions cost differently.**
   An option scan costs a console session per option; a probe costs a
@@ -2351,6 +2372,40 @@ settled four questions this file had recorded as open.
   rebuilding. `Finding.reconciled` is that last case and deliberately carries
   no threshold, since a threshold over a corpus that grows is a tripwire on
   its own composition.
+- **A refusal returns the *template's* value; a third value is something
+  else entirely.** `reconciled` used to read "the write did not survive and
+  other fields moved", which conflates declining with quantising. Writing
+  171 into the ZPL EPSI's `alFree[21]` returned **185** against a template
+  holding 190 -- neither what was asked nor what was there, which is the
+  console choosing a legal value, the same shape this file already records
+  for `Bandwidth` and for `Gradient Max. Amplitude`. Writing 0 into
+  `alFree[19]` returned the template's 2, which is declining.
+  `Finding.refused` now compares against `before` and `Finding.snapped` is
+  its complement.
+
+  What makes this more than bookkeeping is that the three ZPL probes the old
+  rule lumped together -- `alFree[0]`, `alFree[19]` and `alFree[21]` --
+  carried an **identical nine-field cascade**, and two of them are genuine
+  refusals while the third is a quantisation. So the size of the disturbance
+  says nothing about which outcome it is, which is the "never by how much
+  moved" rule above meeting a case where it actually bites: reading the
+  cascade would have called all three refused and discarded a live reading.
+  A returned value differing from the one written is not by itself a
+  refusal. Compare it against the template.
+- **Writing zero into a sparse element is honoured by deleting it, and that
+  reads as a refusal unless you ask.** A `sWipMemBlock` array omits an
+  element holding zero, so writing `0` and reading absence back is the
+  console doing exactly what it was told. This sat undetected through three
+  rounds because it never came up; round 4 probed every lone `1` at `0` --
+  the state a card is likeliest to display differently -- which made it the
+  common case overnight. **Across rounds 4 and 5 the console honoured 40 such
+  writes, 16 in round 4 and 24 in round 5, and 10 of them are clean
+  mappings** that would otherwise have been filed as refusals.
+  `probe._zeroed` asks `ascconv.omits_zero` and is why `verdict` is `held`
+  rather than `absent` there. Note the asymmetry with the bullet above: both
+  are cases where the *stored* side cannot be read without knowing what the
+  template held and what the key's spelling rules are, which is the argument
+  for decoding through the manifest rather than by diffing two archives.
 - **The reconciliation is deterministic per protocol, and not the same
   between protocols.** All five refused probes on the CMRR EPI moved a
   byte-identical 510-field set; all four on the ABCD vNav moved a
@@ -2400,6 +2455,44 @@ settled four questions this file had recorded as open.
   one was refused again.** So a refusal generally means the sequence owns the
   field, not that the value was out of range, and the remedy is to stop
   asking rather than to ask more gently.
+- **A field that prints nothing is a result, and across rounds 4 and 5 it is
+  the *majority* result.** 98 of 373 probes were written, accepted, held
+  their value, and moved not one printed parameter, against 174 that named a
+  label. `MAPPINGS` records only the positives, so nothing in the code
+  remembers these -- and the next round, choosing targets the same way, asks
+  them again. That is a whole archive's worth of scanner time spent
+  re-deriving a known answer, which is the argument for writing them down
+  here rather than the usual one about prose. By card: **18 of 40** on
+  `cmrr_mbep2d_diff`, 19 on the eja suite's shared card, 8 on
+  `ZPL_RG_EPSI_FID_v1h`, 4 on `fastestmap`, 2 on `rslh_ep3d_vaso`, 1 on
+  `ep2d_bold_mgh`. It is also the outcome the console direction cannot
+  produce at all: an option scan starts from a printed label, so a parameter
+  with no printed representation is unreachable by construction, and the
+  driver's coverage accounting cannot tell it from one nobody has mapped.
+- **A negative result is scoped to a sequence exactly as a mapping is, and
+  the eja suite proves it rather than merely suggesting it.** Four donors
+  probed the shared card -- `eja_svs_slaser`, `eja_svs_press`,
+  `eja_svs_mpress`, `eja_svs_slaser_diff` -- and 52 elements were asked on
+  more than one of them. **46 agree; the 6 that disagree fall along technique
+  lines.** `alFree[48]`/`[49]` print `HS refoc. pulse N`/`R` on the two
+  semi-LASERs and nothing on PRESS or MEGA-PRESS, which is what a sequence
+  without hyperbolic-secant refocusing would do; `adFree[2]`/`[3]`/`[6]` and
+  `alFree[7]` print the editing-pulse frequencies and bandwidth on MEGA-PRESS
+  and nothing on the diffusion-weighted semi-LASER. So "prints nothing" is a
+  fact about a (sequence, element) pair and never about an index, which is
+  the `sWipMemBlock`-has-no-global-meaning rule arriving from the negative
+  side. Do not carry a blind element forward as settled for a sibling.
+- **A refused field is the same kind of durable fact, and on some sequences
+  it is most of the card.** 58 of 373 probes came back holding the template's
+  own value: **13 of 24** on `rslh_ep3d_vaso` (`alFree[5..10]` and
+  `alFree[14..17]`, two contiguous runs), **14 of 40** on `cmrr_mbep2d_diff`,
+  **8 of 11** on `ep2d_bold_mgh`, 6 on `ZPL_RG_EPSI_SE_v1b`, 6 on
+  `ZPL_RG_EPSI_FID_v1h`, 5 on `fastestmap`. Round 3 established that a
+  smaller step does not rescue a refusal, so these are closed questions
+  rather than ones to re-ask more gently -- and `ep2d_bold_mgh` at 8 of 11 is
+  the shape worth recognising early: a sequence whose card is mostly derived
+  is one where probing is nearly exhausted after a single archive, and the
+  next archive is better spent elsewhere.
 - **A mined ASCCONV anchor becomes evidence once a scanner accepts it.**
   `probe.mine_anchor` reads a key's predecessor out of every corpus protocol
   that carries it, which is the same fact `SPARSE_ANCHORS` records by hand,
@@ -2422,6 +2515,68 @@ settled four questions this file had recorded as open.
   because every `Mapping` claims exactly one `ascconv_key`. That is a gap in
   the table's shape rather than a missing derivation, and it is the first
   label to need it.
+- **`clean` refuses a finding whose scan time moved, and that costs twelve
+  readings across the two rounds.** The rule requires that the console
+  recomputed *nothing*, which is deliberately stricter than the question
+  being asked: a sequence deriving its scan time from what was written is
+  the console doing its job, and `lScanTimeSec`/`lTotalScanTimeSec` are the
+  two fields `Manifest.stale` already names as derived. Twelve findings were
+  excluded for those two fields alone, nine distinct (key, label) pairs --
+  `alFree[1]` -> `Mode. Bipolar` on the ZPL EPSI, `alFree[20]` ->
+  `Imaging Dummy TRs` on `ep2d_bold_mgh`, four `Mode:`/`EPSC.` readings on
+  `ZPL_RG_EPSI_FID_v1h`, and `alFree[10]` -> `Measurements` on **all four**
+  eja donors independently.
+
+  They are recorded and not landed, which is a judgement rather than an
+  oversight. Loosening `clean` to ignore the derived times would land all
+  twelve at once and would also make the rule trustworthy for a different
+  reason than it is now -- it is conservative, and every mapping in the table
+  rests on it.
+
+  **They need no scanner time, which is what checking rather than assuming
+  established.** The worry `clean` encodes is that a recomputation might be
+  what moved the printed label. Here it demonstrably is not: each of the
+  twelve has exactly one entry in `printed` -- not merely one in
+  `own_printed` -- and none of those labels is a duration, while the
+  recomputation is confined to the two fields the console derives from any
+  duration-affecting parameter. So the attribution is unambiguous on the data
+  already in hand, and the right instrument is a second, narrower property
+  beside `clean` rather than a sixth round or a looser `clean`. Note also
+  that the eja
+  `Measurements` is exactly the sequence-private collision
+  `build.sequence_card_only` exists for: it prints on `Sequence - Common`,
+  where the `Measurements` that `lRepetitions` stores does not, so landing it
+  needs the `sequences` scope whatever else changes.
+- **The first successful widening of a `sWipMemBlock` mapping, and the guard
+  it immediately needed.** The rule is that a mapping stays scoped to one
+  sequence until a controlled toggle runs on a second; `Averaging` is the
+  entry that failed that test, refused by the scanner on
+  `tfl_mgh_epinav_ABCD`. Round 5 ran the toggle the other way and it passed:
+  `FFT scale factor` and `Physio recording` now name `cmrr_mbep2d_diff`
+  beside `cmrr_mbep2d_bold`, on a controlled edit rather than on the two
+  sequences agreeing about what they already store.
+
+  Automating that widening is where it went wrong. A sweep that widens on
+  (index, label) alone extended CMRR's build-gated `Excite pulse duration`
+  onto `fastestmap`, which shares the index and the label and nothing else --
+  handing an unrelated binary a `CMRR_R017` gate. Widen only within a
+  card-sharing *family*; anything else gets its own entry. This is the
+  no-global-meaning rule being violated by the tooling written to apply it,
+  which is worth noticing as a class: a scoping rule enforced in the table
+  and not in the thing that edits the table is enforced nowhere.
+- **A sweep must not land an enum as a number, and one reading of `Invalid`
+  is why.** Round 5's lander wrote four enums as plain numeric mappings,
+  which would decode `3` where the card prints `Online`. Three were
+  hand-written with `choices` instead and the fourth left out. The one that
+  matters is `Grad. rev. fat suppr.`: the template holds 2 and prints
+  `Enabled`, the probe wrote 3, and the card printed **`Invalid`** -- so 3 is
+  out of range rather than a third choice, and an automatic landing would
+  have written `Invalid` into the table as a value. Whether a second reading
+  is a choice or an out-of-range value the console labels is a judgement no
+  sweep should make, and it is only visible because the console prints
+  something rather than refusing. `Debug loop type` is left unmapped for the
+  neighbouring reason: it prints *blank* when the assignment goes, and
+  nothing in the return says what the blank means.
 - **Run several archives per trip; they are independent and scanner access is
   not.** Round 3 sent three -- a continued CMRR sweep, the ABCD vNav, and a
   46-element spectroscopy card with nothing mapped -- 106 probes over 117
@@ -2431,6 +2586,15 @@ settled four questions this file had recorded as open.
   That also lets one archive carry real risk: the spectroscopy donor was the
   one that might have gone inconsistent on being moved into a new program,
   and the other two were unaffected by the question.
+
+  Round 5 took it to **seven archives, 235 probes over 242 scans**, all
+  returned with nothing greyed out, and that is where the per-archive TR
+  control earned its place: every archive carries one probe on a parameter
+  already mapped, so a card showing nothing can be read as "this sequence
+  derives these" rather than as "the write path failed for this donor". All
+  seven held and printed. Without it a wholly negative archive is
+  uninterpretable, which is the state `ep2d_bold_mgh` came back in at 8
+  refusals out of 11.
 - **`outbound/probe_*/` holds each round's archives, manifests and build
   script**, gitignored like the rest of `outbound/`. The manifest is what
   decodes a return weeks later and travels with its archive, so `from_json`
@@ -2487,6 +2651,36 @@ used to be one module, independently re-deriving the `sequences.identify`/
   wrong one is easy -- and it reached the terminal as a traceback saying
   "file is not a database". `cli._read_archive` converts it to a `ValueError`
   with a sentence, which every call site already caught beside `OSError`.
+- **Reading an archive that does not exist used to *create* it, and the
+  damage looked like corpus corruption.** `sqlite3.connect` makes an empty
+  database at a path that has none, so `store.read` on a mistyped or
+  wrongly-joined name left a 0-byte `.exar1` behind and then failed several
+  layers up with `archive declares no branch` -- a statement about the
+  contents of a file the caller had just created, and one that says nothing
+  about the actual mistake.
+
+  Inside `examples/` that is worse than a bad message. The stray is found by
+  the same globs the real archives are, so the next sweep reads it and the
+  symptom is a corpus archive that has gone to zero bytes. It was diagnosed
+  that way on the way to writing this entry, complete with a wrong conclusion
+  that a file had been lost -- the real archives were in subdirectories
+  (`examples/XA60/Frederick_P2/Frederick_P2.exar1`, not
+  `examples/XA60/Frederick_P2.exar1`), tracked and intact, and the bare name
+  had been read off a `path.name` listing. **A listing that prints only the
+  basename is the trap**, since two corpus archives genuinely differ only in
+  their directory.
+
+  `store.read` now refuses a path with no file (`FileNotFoundError`) and a
+  path naming a directory (`IsADirectoryError`) -- both `OSError`, which the
+  CLI already handles -- and opens the connection **read-only** through a
+  `file:...?mode=ro` URI so sqlite cannot create or modify whatever it is
+  given. The URI goes through `pathlib.Path.as_uri` rather than string
+  concatenation, several corpus archives having spaces in their names. All 59
+  corpus archives open that way, which is what makes the flag safe: `mode=ro`
+  cannot open a database whose rollback journal needs recovery, so the sweep
+  passing is evidence that none of them is in that state. The wrong-file-type
+  message above is deliberately still reachable, and a test holds it so the
+  existence guard cannot swallow it.
 
 - **ASCCONV spells an array index two ways, and the second one is easy to miss.**
   `alTE[0]` is the usual spelling; the corpus also carries
