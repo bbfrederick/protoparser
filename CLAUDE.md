@@ -1886,6 +1886,15 @@ just not the file it used to live in:
   mistake for a bad derivation and hard to mistake for a vocabulary gap. A
   card carrying parameters unlike anything already mapped is the moment to
   check `UNIT_SUFFIX` before trusting a disagreement.
+
+  Round 6 added two more spellings, and found both that way rather than by
+  a test going red. `lines` (`NoiseSensitivityMap` prints `384 lines`) and
+  an optional **trailing period** -- CMRR's pCASL writes `1500000 us.`
+  under a label itself spelled `Labeling Duration.`, so the period is that
+  author's punctuation and not a decimal point. Eight readings and two
+  across the examples. The trailing `\.?` is safe for the same reason the
+  leading `\s+` is -- it can only match after a unit that itself followed
+  whitespace -- and `RMS` and `Linear` still survive the pattern.
 - **A readable archive can hold no protocols at all.** Exporting an empty
   folder node rather than the protocol tree yields a valid SQLite file with
   the directory scaffolding, a `Root` label and nothing else -- five
@@ -2338,12 +2347,22 @@ console varies a
 *printed option* and we diff the archives: the label is known and the stored
 field is discovered. A probe archive inverts that -- we vary a stored field,
 the scanner prints a card, and the printout says which label that field
-drives. Five rounds have run; they took `MAPPINGS` from 115 to 222 and
-settled four questions this file had recorded as open. Rounds 4 and 5 are
-where the method stopped adding mappings one at a time: 373 probes over ten
-archives, 84 and 90 clean readings, and -- more usefully for planning the
-next round -- 98 elements shown to print nothing and 58 the sequence
-refuses to have written.
+drives. Six rounds have run; they took `MAPPINGS` from 115 to 237 and
+settled four questions this file had recorded as open. Rounds 4 to 6 are
+where the method stopped adding mappings one at a time: 553 probes over
+twenty archives, and -- more usefully for planning the next round -- 163
+elements shown to print nothing and 95 the sequence refuses to have
+written.
+
+Round 6 is also where the *targeting* became the expensive part rather than
+the decoding. A corpus survey before building it found that most of the
+largest untouched cards cannot be probed at all: `svs_slaser_dkd` (32
+elements), `hcp_mbep2d_{bold,se,diff}` (26-27 each), `tgse_multipcasl_current`
+(18) and `pulseq_v151` (16) have **no current copy anywhere** -- every corpus
+copy carries `ConversionNeeded`, so the donor would be greyed out and deleted
+before the question was asked. Those need a fresh console save before a probe
+can reach them, which is a request to make of a person rather than a build to
+run.
 
 - **The inversion is worth having because the two directions cost differently.**
   An option scan costs a console session per option; a probe costs a
@@ -2469,6 +2488,12 @@ refuses to have written.
   produce at all: an option scan starts from a printed label, so a parameter
   with no printed representation is unreachable by construction, and the
   driver's coverage accounting cannot tell it from one nobody has mapped.
+
+  Round 6 adds 65 more over ten archives and makes the point harder: two
+  of its cards are *nothing but* negatives. `tfl_b1map` returned 5 blind
+  and 3 refused, `resolve` 3 blind, and neither yielded a single mapping.
+  Those are cheap archives to have sent and expensive ones to send twice,
+  which is the whole argument for writing a blind element down.
 - **A negative result is scoped to a sequence exactly as a mapping is, and
   the eja suite proves it rather than merely suggesting it.** Four donors
   probed the shared card -- `eja_svs_slaser`, `eja_svs_press`,
@@ -2482,6 +2507,39 @@ refuses to have written.
   fact about a (sequence, element) pair and never about an index, which is
   the `sWipMemBlock`-has-no-global-meaning rule arriving from the negative
   side. Do not carry a blind element forward as settled for a sibling.
+- **A sibling sharing a card is a hypothesis, and for CMRR it was mostly
+  wrong.** Round 6's largest archive put 39 widening probes into
+  `cmrr_mbep2d_se`, on the premise that the third multiband sibling shares
+  the card `bold` and `diff` are mapped from. **Three landed.** Twenty print
+  nothing and fourteen are refused -- and that is almost exactly round 5's
+  `cmrr_mbep2d_diff` result (4 clean, 18 blind, 14 refused of 40), so it is
+  not a fact about SE. The CMRR EPI card is *mostly derived*, and
+  `cmrr_mbep2d_bold` is the outlier that exposes more of it than its
+  siblings do. Budget the next CMRR archive accordingly, and note the shape
+  for other families: the sequence a table was first derived from is the one
+  most likely to be unrepresentative, because it was chosen for being
+  informative.
+
+  The three that did land are worth the archive on their own --
+  `FFT scale factor`, `Grad. rev. fat suppr.` and `Triggering scheme` now
+  name all three siblings or two of them -- but 3 of 39 is the number to
+  remember when a widening archive is proposed.
+- **One element can be a master control rather than a parameter, and
+  `Mapping` cannot express that either.** `sWipMemBlock.alFree[62]` on the
+  eja suite moved **21 printed labels at once** -- the whole OVS and VAPOR
+  block, `Enable OVS`, the eight VAPOR delays, the OVS flip angles, pulse
+  durations and slab geometry. It was probed as one of the suite's five
+  remaining shared elements and is plainly a preset selector or an enable
+  that rewrites the block beneath it. Nothing in the table can hold that: a
+  `Mapping` claims one `ascconv_key` against one printed label, and this is
+  one key against twenty-one. It is the second shape after `1st Signal/Mode`
+  that the table's form excludes rather than merely lacking a derivation for,
+  and the two fail in opposite directions -- that one is two keys to one
+  label, this is one key to many.
+
+  The other four (`adFree[12]`, `adFree[14]`, `adFree[15]`, `alFree[59]`)
+  print nothing on any of the five eja donors now probed, so the suite's
+  shared card is closed: everything on it is mapped, blind, or this.
 - **A refused field is the same kind of durable fact, and on some sequences
   it is most of the card.** 58 of 373 probes came back holding the template's
   own value: **13 of 24** on `rslh_ep3d_vaso` (`alFree[5..10]` and
@@ -2492,7 +2550,9 @@ refuses to have written.
   rather than ones to re-ask more gently -- and `ep2d_bold_mgh` at 8 of 11 is
   the shape worth recognising early: a sequence whose card is mostly derived
   is one where probing is nearly exhausted after a single archive, and the
-  next archive is better spent elsewhere.
+  next archive is better spent elsewhere. Round 6 adds 37, including
+  **14 of 39** on `cmrr_mbep2d_se` and 6 each on the two MGH SMS
+  variants.
 - **A mined ASCCONV anchor becomes evidence once a scanner accepts it.**
   `probe.mine_anchor` reads a key's predecessor out of every corpus protocol
   that carries it, which is the same fact `SPARSE_ANCHORS` records by hand,
@@ -2547,6 +2607,30 @@ refuses to have written.
   `build.sequence_card_only` exists for: it prints on `Sequence - Common`,
   where the `Measurements` that `lRepetitions` stores does not, so landing it
   needs the `sequences` scope whatever else changes.
+- **Two findings on one card, both refused, because a single transition
+  cannot say what kind of parameter it is.** `NoiseSensitivityMap`'s
+  `alFree[5]` and `alFree[7]` each hold 11, were each written 9, and each
+  moved its own printed row from `Off` to `On` -- `Condition number` and
+  `coil channel reordering`. Both are clean by every rule the decoder has.
+  Neither is mapped, because 11 and 9 are not 0 and 1: the pair could be a
+  two-value enum, or a number whose row displays a derived Off/On, and one
+  transition does not separate those. A third value on either element
+  settles it in one scan.
+
+  The shared 11 is worth noting as a decode hazard rather than a finding:
+  two elements moving `11 -> 9` and printing the same words looks exactly
+  like one probe being attributed twice, and the donor really does hold 11
+  in both. Check the donor before concluding a decoder is misattributing.
+- **A lander that dedupes on (key, label) silently narrows a scope.**
+  Round 6 confirmed `alFree[20]` -> `Imaging Dummy TRs` independently on
+  `ep2d_se_sms_mgh` and `ep2d_diff_mgh`, each with its own TR control --
+  and the sweep keyed its new-mapping dict on the pair, so the second
+  donor was dropped and the mapping landed naming one sequence. The
+  evidence was *stronger* than what got written, which is the direction
+  that does not announce itself: an over-claim trips a test, an
+  under-claim just makes the driver refuse a sequence it has earned.
+  Same tool, same class of bug as round 5's `fastestmap` over-claim, so
+  treat scope as the thing to re-read after any automated landing.
 - **The first successful widening of a `sWipMemBlock` mapping, and the guard
   it immediately needed.** The rule is that a mapping stays scoped to one
   sequence until a controlled toggle runs on a second; `Averaging` is the
@@ -2564,6 +2648,24 @@ refuses to have written.
   no-global-meaning rule being violated by the tooling written to apply it,
   which is worth noticing as a class: a scoping rule enforced in the table
   and not in the thing that edits the table is enforced nowhere.
+- **`clean` tests attribution, not whether the console accepted the value.**
+  It asks that exactly one printed label moved, that the write survived and
+  that nothing was recomputed -- and an out-of-range write satisfies all
+  three, because the row really did change and `Invalid` is a change. Four of
+  round 6's 51 clean findings printed something the console does not name:
+  `Grad. rev. fat suppr.` and `Triggering scheme` on `cmrr_mbep2d_se` both
+  went to **`Invalid`**, `PCASL Options` to **`Choice 4`**, and
+  `Debug loop type` to **blank**. So `clean` is necessary and not sufficient,
+  and a landing sweep needs a second screen on the *printed* value.
+
+  Two of the four still carry real information, which is why the screen has
+  to be a judgement and not a filter. The SE readings say `1 = Disabled` and
+  `1 = Standard` on that sibling, so both mappings widened and
+  `Grad. rev. fat suppr.` gained the `Disabled` choice its diff-derived entry
+  lacked -- the *attribution* is confirmed by the row moving, and only the
+  new value is illegal. The other two are dropped: `Choice 4` is the console
+  having no name for the value, and the blank is what round 5 already refused
+  to interpret.
 - **A sweep must not land an enum as a number, and one reading of `Invalid`
   is why.** Round 5's lander wrote four enums as plain numeric mappings,
   which would decode `3` where the card prints `Online`. Three were
