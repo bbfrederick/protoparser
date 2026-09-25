@@ -69,6 +69,16 @@ DERIVED_KEYS: frozenset[str] = frozenset(
     }
 )
 
+#: The derived fields a probe may move while keeping its attribution. They
+#: are a *subset* of :data:`DERIVED_KEYS`, and the difference is the whole
+#: argument: a scan time is computed **from** acquisition parameters and
+#: nothing is computed from it, so a probe whose write moved one caused it.
+#: `dRefSNR` and `dOverallImageScaleFactor` are equally derived and are left
+#: out, because nothing here establishes that they are terminal in the same
+#: way -- and admitting them would change nothing, since across rounds 4 to 6
+#: these two are the only derived keys any probe ever moved.
+TERMINAL_DERIVED: frozenset[str] = frozenset({"lScanTimeSec", "lTotalScanTimeSec"})
+
 #: Stands in for a label one scan prints and the other does not.  A plain
 #: ``None`` would be indistinguishable from a label printed with an empty
 #: value, which is what a blanked ``AutoAlign`` looks like.
@@ -951,6 +961,43 @@ class Finding:
             and len(self.own_printed) == 1
             and not self.recomputed
             and not self.confounded
+        )
+
+    @property
+    def attributable(self) -> bool:
+        """Return whether one label moved and this probe is what moved it.
+
+        This is :attr:`clean` with one allowance: the console may recompute
+        the derived scan times. `clean` forbids *any* recomputation, which is
+        deliberately stricter than the question being asked -- it guards
+        against the printed label having moved because of something the
+        console recomputed rather than because of the write. That worry does
+        not apply to :data:`TERMINAL_DERIVED`, which nothing is computed
+        *from*: a probe that lengthened the acquisition caused both the
+        printed change and the new scan time.
+
+        Across probe rounds 4 to 6 this admits 18 findings `clean` refuses,
+        over 14 distinct (key, label) pairs -- `Measurements` on four eja
+        sequences independently, `Imaging Dummy TRs`, and the ZPL EPSI's
+        `Mode:`, `EPSC.` and `T2Prep.` readings. Every one has exactly one
+        entry in :attr:`printed`, so nothing else moved on the card either,
+        and every one stores a plain number, so none needed `choices`.
+
+        `clean` is kept unchanged and is the stricter of the two: every
+        clean finding is attributable, and the reverse does not hold.
+
+        Returns
+        -------
+        bool
+            True when the write survived, exactly one printed parameter
+            moved that this probe's own field accounts for, and any
+            recomputation was confined to the terminal derived fields.
+        """
+        return (
+            self.verdict == "held"
+            and len(self.own_printed) == 1
+            and not self.confounded
+            and set(self.recomputed) <= TERMINAL_DERIVED
         )
 
     @property

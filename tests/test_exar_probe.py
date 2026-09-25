@@ -723,3 +723,70 @@ def test_zero_written_into_a_sparse_element_is_honoured_by_deleting_it() -> None
     assert probe._zeroed("sWipMemBlock.adFree[3]", "0.0")
     assert not probe._zeroed("sWipMemBlock.alFree[1]", "2")
     assert not probe._zeroed("alTR[0]", "0"), "a dense key holding zero still writes it"
+
+
+@requires_exar
+def test_attributable_allows_a_derived_scan_time_and_clean_still_does_not() -> None:
+    """The two properties differ by exactly one allowance, in one direction.
+
+    `clean` forbids any recomputation, which guards against the printed label
+    having moved because of something the console recomputed rather than
+    because of the write. That worry does not reach the derived scan times:
+    nothing is computed *from* them, so a probe that lengthened the
+    acquisition caused both the printed change and the new time.
+
+    The asymmetry is the part worth pinning. Every clean finding must be
+    attributable; the reverse must not hold, or the new property is merely a
+    second name for the old one.
+
+    Returns
+    -------
+    None
+    """
+    asked = probe.Probe("sWipMemBlock.alFree[10]", "0", "meas")
+    timed = probe.Finding(
+        name="a",
+        probe=asked,
+        before="1",
+        verdict="held",
+        printed={("Sequence - Common", "Measurements"): ("1", "0")},
+        recomputed={"lTotalScanTimeSec": ("219", "27"), "lScanTimeSec": ("219", "27")},
+    )
+    rebuilt = probe.Finding(
+        name="b",
+        probe=asked,
+        before="1",
+        verdict="held",
+        printed={("Sequence - Common", "Measurements"): ("1", "0")},
+        recomputed={"sPat.lAccelFactPE": ("2", "3")},
+    )
+    quiet = probe.Finding(
+        name="c",
+        probe=asked,
+        before="1",
+        verdict="held",
+        printed={("Sequence - Common", "Measurements"): ("1", "0")},
+    )
+
+    assert timed.attributable, "a derived scan time does not break attribution"
+    assert not timed.clean, "clean is unchanged and still refuses any recomputation"
+    assert not rebuilt.attributable, "an ordinary field moving is not attributable"
+    assert quiet.clean and quiet.attributable, "clean must imply attributable"
+
+
+@requires_exar
+def test_the_terminal_derived_set_is_narrower_than_the_derived_one() -> None:
+    """Only the fields nothing is computed *from* may be allowed through.
+
+    ``DERIVED_KEYS`` also names ``dRefSNR`` and the image scale factor, which
+    are equally recomputed but not shown to be terminal. Admitting them would
+    change nothing -- across rounds 4 to 6 the scan times are the only derived
+    keys any probe moved -- so the narrower set costs no findings and keeps the
+    argument defensible.
+
+    Returns
+    -------
+    None
+    """
+    assert probe.TERMINAL_DERIVED < probe.DERIVED_KEYS
+    assert probe.TERMINAL_DERIVED == {"lScanTimeSec", "lTotalScanTimeSec"}

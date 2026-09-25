@@ -2533,7 +2533,7 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="Imaging Dummy TRs",
         ascconv_key="sWipMemBlock.alFree[20]",
-        sequences=("ep2d_se_sms_mgh", "ep2d_diff_mgh"),
+        sequences=("ep2d_se_sms_mgh", "ep2d_diff_mgh", "ep2d_bold_mgh"),
         absent_choice="0",
         evidence=(
             "controlled edit: probe round 6 (2026-09-24), PROBE_MGHSE. deleted from "
@@ -2608,6 +2608,194 @@ MAPPINGS: tuple[Mapping, ...] = (
             "rather than a fourth option. Only the named reading is listed, for "
             "the reason Grad. rev. fat suppr. lists one: a sweep landing this "
             "automatically would have entered 'Choice 4' as a value."
+        ),
+    ),
+    Mapping(
+        label="Measurements",
+        ascconv_key="sWipMemBlock.alFree[10]",
+        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 4, round 5, round 6. deleted from a "
+            "template holding 1, and the printed 'Measurements' read 0, with "
+            "exactly one printed parameter moving and the console recomputing only "
+            "the derived scan times -- Finding.attributable rather than "
+            "Finding.clean, which forbids any recomputation. A scan time is "
+            "computed from the acquisition and nothing is computed from it, so the "
+            "probe that lengthened the scan caused both. Confirmed independently on "
+            "4 donors."
+        ),
+    ),
+    Mapping(
+        label="Mode. Bipolar",
+        ascconv_key="sWipMemBlock.alFree[1]",
+        sequences=("ZPL_RG_EPSI_SE_v1b",),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 4. deleted from a template holding 1, and "
+            "the printed 'Mode. Bipolar' read 0, with exactly one printed parameter "
+            "moving and the console recomputing only the derived scan times -- "
+            "Finding.attributable rather than Finding.clean, which forbids any "
+            "recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="Mode: T2-Prep",
+        ascconv_key="sWipMemBlock.alFree[1]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6. written 8 into a template holding 9, "
+            "and the printed 'Mode: T2-Prep' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="EPSC. Num: Phas",
+        ascconv_key="sWipMemBlock.alFree[29]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5. written 21 into a template holding 24, "
+            "and the printed 'EPSC. Num: Phas' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="EPSC. Num: Slic",
+        ascconv_key="sWipMemBlock.alFree[30]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5. written 21 into a template holding 24, "
+            "and the printed 'EPSC. Num: Slic' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="T2Prep. Echo time",
+        ascconv_key="sWipMemBlock.alFree[30]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6. written 90000 into a template holding "
+            "100000, and the printed 'T2Prep. Echo time' followed, with exactly one "
+            "printed parameter moving and the console recomputing only the derived "
+            "scan times -- Finding.attributable rather than Finding.clean, which "
+            "forbids any recomputation. A scan time is computed from the "
+            "acquisition and nothing is computed from it, so the probe that "
+            "lengthened the scan caused both."
+        ),
+    ),
+    Mapping(
+        label="T2Prep. Pulse mode",
+        ascconv_key="sWipMemBlock.alFree[31]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 6. deleted from a template holding 1, and "
+            "the printed 'T2Prep. Pulse mode' read 0, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="Prep. Num Wait TR",
+        ascconv_key="sWipMemBlock.alFree[32]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        evidence=(
+            "controlled edit: probe round 6. written 5 into a template holding 4, "
+            "and the printed 'Prep. Num Wait TR' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="EPSC2. Num: Phas",
+        ascconv_key="sWipMemBlock.alFree[33]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5. written 5 into a template holding 6, "
+            "and the printed 'EPSC2. Num: Phas' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="EPSC2. Num: Slic",
+        ascconv_key="sWipMemBlock.alFree[34]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5. written 5 into a template holding 6, "
+            "and the printed 'EPSC2. Num: Slic' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="Mode: MotionNav",
+        ascconv_key="sWipMemBlock.alFree[3]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        evidence=(
+            "controlled edit: probe round 5. written 54 into a template holding 60, "
+            "and the printed 'Mode: MotionNav' followed, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="Mode: BipolNav",
+        ascconv_key="sWipMemBlock.alFree[4]",
+        sequences=("ZPL_RG_EPSI_FID_v2e",),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 6. deleted from a template holding 1, and "
+            "the printed 'Mode: BipolNav' read 0, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
+        ),
+    ),
+    Mapping(
+        label="Mode: BipolNav",
+        ascconv_key="sWipMemBlock.alFree[5]",
+        sequences=("ZPL_RG_EPSI_FID_v1h",),
+        absent_choice="0",
+        evidence=(
+            "controlled edit: probe round 5. deleted from a template holding 1, and "
+            "the printed 'Mode: BipolNav' read 0, with exactly one printed "
+            "parameter moving and the console recomputing only the derived scan "
+            "times -- Finding.attributable rather than Finding.clean, which forbids "
+            "any recomputation. A scan time is computed from the acquisition and "
+            "nothing is computed from it, so the probe that lengthened the scan "
+            "caused both."
         ),
     ),
 )
