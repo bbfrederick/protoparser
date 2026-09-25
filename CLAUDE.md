@@ -2347,8 +2347,11 @@ console varies a
 *printed option* and we diff the archives: the label is known and the stored
 field is discovered. A probe archive inverts that -- we vary a stored field,
 the scanner prints a card, and the printout says which label that field
-drives. Six rounds have run; they took `MAPPINGS` from 115 to 237 and
-settled four questions this file had recorded as open. Rounds 4 to 6 are
+drives. Six rounds have run; they took `MAPPINGS` from 115 to 250 and
+settled four questions this file had recorded as open. The last 13 of those
+came from no scanner trip at all -- `Finding.attributable` re-read returns
+already in hand, which is the cheapest round there is and the one to try
+before building another archive. Rounds 4 to 6 are
 where the method stopped adding mappings one at a time: 553 probes over
 twenty archives, and -- more usefully for planning the next round -- 163
 elements shown to print nothing and 95 the sequence refuses to have
@@ -2587,26 +2590,66 @@ run.
   `ZPL_RG_EPSI_FID_v1h`, and `alFree[10]` -> `Measurements` on **all four**
   eja donors independently.
 
-  They are recorded and not landed, which is a judgement rather than an
-  oversight. Loosening `clean` to ignore the derived times would land all
-  twelve at once and would also make the rule trustworthy for a different
-  reason than it is now -- it is conservative, and every mapping in the table
-  rests on it.
+  **They needed no scanner time, and the instrument is a second property
+  rather than a looser `clean`.** The worry `clean` encodes is that a
+  recomputation might be what moved the printed label. That worry does not
+  reach the derived scan times, and the reason is directional: a scan time is
+  computed **from** the acquisition and nothing is computed from it, so a
+  probe that lengthened the scan caused both the printed change and the new
+  time. `Finding.attributable` is `clean` with exactly that allowance, and
+  `probe.TERMINAL_DERIVED` is the pair it permits.
 
-  **They need no scanner time, which is what checking rather than assuming
-  established.** The worry `clean` encodes is that a recomputation might be
-  what moved the printed label. Here it demonstrably is not: each of the
-  twelve has exactly one entry in `printed` -- not merely one in
-  `own_printed` -- and none of those labels is a duration, while the
-  recomputation is confined to the two fields the console derives from any
-  duration-affecting parameter. So the attribution is unambiguous on the data
-  already in hand, and the right instrument is a second, narrower property
-  beside `clean` rather than a sixth round or a looser `clean`. Note also
-  that the eja
-  `Measurements` is exactly the sequence-private collision
-  `build.sequence_card_only` exists for: it prints on `Sequence - Common`,
-  where the `Measurements` that `lRepetitions` stores does not, so landing it
-  needs the `sequences` scope whatever else changes.
+  Measured over rounds 4 to 6 it admits **18 findings across 14 distinct
+  (key, label) pairs**, every one with a single entry in `printed` -- not
+  merely in `own_printed` -- and every one storing a plain number, so none
+  needed `choices` and none printed a value the console could not name. 13
+  landed as new mappings and one completed an existing scope: round 5's
+  `Imaging Dummy TRs` on `ep2d_bold_mgh` joins the two MGH siblings round 6
+  landed, so that mapping now names all three.
+
+  `clean` is deliberately **unchanged**. Every clean finding is attributable
+  and the reverse does not hold, which a test pins in both directions -- a
+  second property that turned out to be a synonym for the first would be
+  worth nothing. `TERMINAL_DERIVED` is also deliberately *narrower* than
+  `DERIVED_KEYS`, which names `dRefSNR` and the image scale factor too:
+  those are equally recomputed and not shown to be terminal, and admitting
+  them changes nothing, since the scan times are the only derived keys any
+  probe has moved.
+- **A label can be unresolvable even once both of its mappings are right,
+  and the eja `Measurements` is the case.** Landing
+  `sWipMemBlock.alFree[10]` scoped to the four eja sequences gives that
+  suite a correct `Measurements`, and the general `lRepetitions` one still
+  applies to everything -- so an eja protocol now matches **two** mappings
+  for one printed label, and `resolve` refuses an ambiguous label rather
+  than picking. Four of the corpus's 90 sequences therefore resolve
+  `Measurements` to nothing.
+
+  That is not a regression, which is worth checking rather than assuming:
+  `build.sequence_card_only` was already refusing the general mapping on
+  those scans, since they print `Measurements` on `Sequence - Common` alone.
+  The driver refused before and refuses now; what moves is the reason, and
+  what is gained is the decode -- `display` takes a mapping rather than a
+  label, so `card_view` reads the eja value correctly where it previously
+  could not.
+
+  What would unlock the write is a preference rule: a mapping naming this
+  sequence is a narrower answer than one naming none, which is the same
+  logic `rank()` already applies in the sequence catalog. That is a change
+  to `resolve`'s contract and is not made here. It is the third shape the
+  table's form struggles with, after `1st Signal/Mode` (two keys, one label)
+  and `alFree[62]` (one key, many labels) -- this one is two mappings, one
+  label, both correct.
+- **One sequence's own versions renumber the block, which until now was a
+  risk rather than an observation.** `ZPL_RG_EPSI_FID_v1h` reads
+  `alFree[30]` as `EPSC. Num: Slic`; `ZPL_RG_EPSI_FID_v2e` reads the same
+  index as `T2Prep. Echo time`. Both were confirmed by controlled edit, one
+  round apart. `Mapping.builds` exists for exactly this and the entry on it
+  says a later release "is free to renumber `alFree` indices ... and nothing
+  in the protocol would announce it" -- here that has happened, between two
+  builds of one sequence, and the only thing separating them is that the
+  version is in the binary name and so already in `sequences`. A family
+  whose versions are *not* spelled apart that way would have silently
+  decoded one as the other.
 - **Two findings on one card, both refused, because a single transition
   cannot say what kind of parameter it is.** `NoiseSensitivityMap`'s
   `alFree[5]` and `alFree[7]` each hold 11, were each written 9, and each
