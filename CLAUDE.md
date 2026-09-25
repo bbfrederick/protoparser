@@ -2347,7 +2347,7 @@ console varies a
 *printed option* and we diff the archives: the label is known and the stored
 field is discovered. A probe archive inverts that -- we vary a stored field,
 the scanner prints a card, and the printout says which label that field
-drives. Six rounds have run; they took `MAPPINGS` from 115 to 250 and
+drives. Six rounds have run; they took `MAPPINGS` from 115 to 249 and
 settled four questions this file had recorded as open. The last 13 of those
 came from no scanner trip at all -- `Finding.attributable` re-read returns
 already in hand, which is the cheapest round there is and the one to try
@@ -2587,8 +2587,10 @@ run.
   excluded for those two fields alone, nine distinct (key, label) pairs --
   `alFree[1]` -> `Mode. Bipolar` on the ZPL EPSI, `alFree[20]` ->
   `Imaging Dummy TRs` on `ep2d_bold_mgh`, four `Mode:`/`EPSC.` readings on
-  `ZPL_RG_EPSI_FID_v1h`, and `alFree[10]` -> `Measurements` on **all four**
-  eja donors independently.
+  `ZPL_RG_EPSI_FID_v1h`, and `alFree[10]` -> `Measurements` on all four eja
+  donors independently -- that last one since **withdrawn as wrong**, for
+  the reason the entry below gives. It is the only one of the 14 that did
+  not survive, and it was agreed on by more donors than any other.
 
   **They needed no scanner time, and the instrument is a second property
   rather than a looser `clean`.** The worry `clean` encodes is that a
@@ -2605,7 +2607,9 @@ run.
   needed `choices` and none printed a value the console could not name. 13
   landed as new mappings and one completed an existing scope: round 5's
   `Imaging Dummy TRs` on `ep2d_bold_mgh` joins the two MGH siblings round 6
-  landed, so that mapping now names all three.
+  landed, so that mapping now names all three. **Twelve of the thirteen
+  stand**; the eja `Measurements` was withdrawn, and the entry below is the
+  reason it is worth reading before trusting any of the others.
 
   `clean` is deliberately **unchanged**. Every clean finding is attributable
   and the reverse does not hold, which a test pins in both directions -- a
@@ -2615,30 +2619,41 @@ run.
   those are equally recomputed and not shown to be terminal, and admitting
   them changes nothing, since the scan times are the only derived keys any
   probe has moved.
-- **A label can be unresolvable even once both of its mappings are right,
-  and the eja `Measurements` is the case.** Landing
-  `sWipMemBlock.alFree[10]` scoped to the four eja sequences gives that
-  suite a correct `Measurements`, and the general `lRepetitions` one still
-  applies to everything -- so an eja protocol now matches **two** mappings
-  for one printed label, and `resolve` refuses an ambiguous label rather
-  than picking. Four of the corpus's 90 sequences therefore resolve
-  `Measurements` to nothing.
+- **A controlled edit shows that an element *drives* a label, not that it
+  *is* it, and the eja `Measurements` is where that cost a mapping.**
+  `sWipMemBlock.alFree[10]` was landed against `Measurements` on four eja
+  sequences: the probe wrote 1 -> 0 on each and the printed `Measurements`
+  followed, 1 -> 0, alone and with only the derived scan time recomputed.
+  That is as clean as this method gets, and the mapping is **wrong**.
 
-  That is not a regression, which is worth checking rather than assuming:
-  `build.sequence_card_only` was already refusing the general mapping on
-  those scans, since they print `Measurements` on `Sequence - Common` alone.
-  The driver refused before and refuses now; what moves is the reason, and
-  what is gained is the decode -- `display` takes a mapping rather than a
-  label, so `card_view` reads the eja value correctly where it previously
-  could not.
+  `Keto MRS`'s `eja_svs_mpress_ws_rACC` holds `alFree[10] = 1` and prints
+  `Measurements = 9`. The only eja element on that scan holding a 9 is
+  `alFree[46]`. Checking the four donors says why nothing caught it: every
+  one held `alFree[10] = 1` **and** `alFree[46] = 1`, printing 1, so the
+  probe could not separate "this is the value" from "this zeroes the display
+  of something else". Every donor sat on the single value where the two
+  readings agree.
 
-  What would unlock the write is a preference rule: a mapping naming this
-  sequence is a narrower answer than one naming none, which is the same
-  logic `rank()` already applies in the sequence catalog. That is a change
-  to `resolve`'s contract and is not made here. It is the third shape the
-  table's form struggles with, after `1st Signal/Mode` (two keys, one label)
-  and `alFree[62]` (one key, many labels) -- this one is two mappings, one
-  label, both correct.
+  This is the value-coincidence trap already recorded for `alFree[13]` and
+  `alFree[17]`, met from the other side. There the risk was reading a
+  mapping off a number that merely matched; here a *controlled edit*
+  produced the same ambiguity, which is the more dangerous version, because
+  a controlled edit is what this file treats as settling the question. The
+  guard that fits is the one that caught it: **a probe donor whose element
+  and its neighbours all sit at 1 distinguishes nothing**, so prefer a donor
+  where the printed value is not 1, or ask a second value.
+
+  `alFree[46]` is now a strong hypothesis and is deliberately not landed: 9
+  matching 9 on one scan is a value coincidence, which is the evidence this
+  file forbids mapping from. It needs a probe.
+
+  **What found it was the self-drive sweep**, and only once a preference
+  rule made the mapping reachable. While the general `lRepetitions` mapping
+  and this one both matched, `resolve` refused the ambiguous label and the
+  driver wrote nothing, so the defect sat latent -- the decode path was
+  already wrong, since `display` takes a mapping and never sees the
+  ambiguity. A mapping that is unreachable is not thereby harmless, and the
+  thing that makes it reachable will not be the thing that notices.
 - **One sequence's own versions renumber the block, which until now was a
   risk rather than an observation.** `ZPL_RG_EPSI_FID_v1h` reads
   `alFree[30]` as `EPSC. Num: Slic`; `ZPL_RG_EPSI_FID_v2e` reads the same

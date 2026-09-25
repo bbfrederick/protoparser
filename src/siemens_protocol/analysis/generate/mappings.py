@@ -2611,22 +2611,6 @@ MAPPINGS: tuple[Mapping, ...] = (
         ),
     ),
     Mapping(
-        label="Measurements",
-        ascconv_key="sWipMemBlock.alFree[10]",
-        sequences=("eja_svs_slaser", "eja_svs_press", "eja_svs_mpress", "eja_svs_slaser_diff"),
-        absent_choice="0",
-        evidence=(
-            "controlled edit: probe round 4, round 5, round 6. deleted from a "
-            "template holding 1, and the printed 'Measurements' read 0, with "
-            "exactly one printed parameter moving and the console recomputing only "
-            "the derived scan times -- Finding.attributable rather than "
-            "Finding.clean, which forbids any recomputation. A scan time is "
-            "computed from the acquisition and nothing is computed from it, so the "
-            "probe that lengthened the scan caused both. Confirmed independently on "
-            "4 donors."
-        ),
-    ),
-    Mapping(
         label="Mode. Bipolar",
         ascconv_key="sWipMemBlock.alFree[1]",
         sequences=("ZPL_RG_EPSI_SE_v1b",),
