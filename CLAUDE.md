@@ -1472,6 +1472,24 @@ just not the file it used to live in:
   fail", never "will load". Keep the asymmetry, because inverting it is the
   expensive error.
 
+  **Whether an export carries flagged scans at all is an export option.**
+  Per the protocols' owner, the console includes a scan needing conversion
+  only when "Show inconsistent" is checked at export time; unchecked, those
+  scans are left out of the `.exar1` with nothing in the file saying so. The
+  flag itself is per scan -- it lives in each scan's own protocol -- so an
+  archive holding none is not evidence the protocol on the scanner has none,
+  and a scan count lower than the printout's can be this rather than a
+  reader fault.
+
+  **And a console protocol mixes flagged and current scans as a matter of
+  course.** Within `examples/`, the only programs mixing the two are ones
+  this library assembled, which suggested a console export is all one way.
+  It is not: `archive/P1/Investigators20260918.exar1`, a whole-scanner export
+  taken *with* "Show inconsistent", holds 1380 flagged scans of 8443 across
+  245 of its 514 programs, and **240 of those 245 mix** flagged and current
+  scans. The shipped console exports simply were not taken with the option.
+  So judge the flag per scan, never per protocol.
+
   The field beside it says where the protocol came from:
   `sProtConsistencyInfo.tMeasuredBaselineString` on `ZPL_RG_EPSI_FID_v1h` is
   `"N4_VE11C_LATEST_20160120"` -- the Numaris 4 baseline spelling, which is
@@ -1859,7 +1877,7 @@ just not the file it used to live in:
   instruction an operator put between scans -- "Count down with RA to start of
   scan", "Pause for saliva collection", "Do NOT add Raw Filter to 3D MPR" --
   carrying an `EdfMeasurementStepContent` with injector fields and no protocol
-  child. Eleven of `CHR-MDD`'s thirty-four steps are pauses, and the reader
+  child. Ten of `CHR-MDD`'s thirty-three steps are pauses, and the reader
   raised on all three archives that arrived with them. They are named, they are
   in the chain, and the PDF does not print them as scans, so anything walking
   *scans* skips them: `Step.is_pause` reads the instance kind, `runs_a_protocol`

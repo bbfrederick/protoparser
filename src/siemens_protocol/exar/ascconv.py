@@ -552,6 +552,37 @@ def sequence_stamp(protocol: Protocol) -> str:
     return (tail if sep else text).strip()
 
 
+#: ``sProtConsistencyInfo.tBaselineString`` on a protocol saved under an
+#: older baseline and not yet converted. The console greys such a scan out on
+#: import, and it is the only value that field has been seen to hold.
+CONVERSION_NEEDED = "ConversionNeeded"
+
+
+def baseline_string(protocol: Protocol) -> str:
+    """Return ``sProtConsistencyInfo.tBaselineString``, unquoted.
+
+    The field is per protocol, so per scan: one program can hold scans that
+    need conversion beside ones that do not. :data:`CONVERSION_NEEDED` is the
+    value that predicts the console greying a scan out -- on every scan with
+    a scanner verdict that carried it -- though its absence does not promise
+    the scan loads. Whether an export carries such scans at all depends on
+    the console's "Show inconsistent" export option.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to inspect.
+
+    Returns
+    -------
+    str
+        The value without its quotes, or an empty string when the protocol
+        does not store one, which is the case for every current protocol.
+    """
+    raw = read_ascconv(protocol.xprotocol, "sProtConsistencyInfo.tBaselineString")
+    return (raw or "").strip().strip('"')
+
+
 def build_id(stamp: str) -> str:
     """Reduce a build stamp to the part identifying the binary.
 

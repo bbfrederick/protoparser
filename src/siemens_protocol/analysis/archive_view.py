@@ -29,7 +29,7 @@ carrying its own copy of that call.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Any
+from typing import Any, Mapping
 
 from .. import model
 from ..exar import ascconv, inspect
@@ -112,6 +112,12 @@ def header_of(step: Step) -> dict[str, str]:
     time = acquisition_time(protocol)
     if time:
         header["ta"] = time
+    baseline = ascconv.baseline_string(protocol)
+    if baseline:
+        # Verbatim, as sequence_owner is: the file stating that this scan's
+        # protocol awaits conversion, which a printout can never say -- a
+        # protocol needing conversion cannot be printed.
+        header["baseline"] = baseline
     return dict(header)
 
 
@@ -437,7 +443,8 @@ def protocol_from_archive(archive: Archive, program: Program, source: str) -> "m
     Only the steps that run a protocol become scans, because that is what a
     printout prints: a pause step is an instruction an operator put in the
     running order -- "Pause for saliva collection" -- and the PDF does not
-    list it as a scan.
+    list it as a scan. Pauses are kept on the side, each placed by the scan
+    it precedes, so a listing can show them without numbering them.
 
     Parameters
     ----------
@@ -463,11 +470,46 @@ def protocol_from_archive(archive: Archive, program: Program, source: str) -> "m
         scanner=archive.baseline,
         program=program.name,
     )
+    positions: dict[str, int] = {}
     for step in program.steps:
+        if step.is_pause:
+            protocol.pauses.append(model.Pause(before=len(protocol.scans), name=step.name))
         if not step.runs_a_protocol:
             continue
+        positions.setdefault(step.instance.object_id, len(protocol.scans))
         protocol.scans.append(scan_from_step(step, len(protocol.scans), folder, parameters=True))
+    protocol.links = scan_links(program, positions)
     return protocol
+
+
+def scan_links(program: Program, positions: Mapping[str, int]) -> "list[model.ScanLink]":
+    """A program's copy-parameter links, addressed by scan index.
+
+    The archive names a link's ends by step ``ObjectId``; a protocol document
+    names scans by index. Only copy references are kept -- the payload-less
+    relations some programs carry are not links -- and a link whose end is
+    not a scan (a pause step, say) is dropped rather than pointed at the
+    wrong one. No corpus link has such an end.
+
+    Parameters
+    ----------
+    program : Program
+        The program whose links to read.
+    positions : mapping of str to int
+        Each scan-running step's ``ObjectId``, mapped to its scan index.
+
+    Returns
+    -------
+    list of ScanLink
+        The links, in the order the archive stores them.
+    """
+    links: list[model.ScanLink] = []
+    for link in program.copy_references:
+        source, target = positions.get(link.source), positions.get(link.target)
+        if source is None or target is None:
+            continue
+        links.append(model.ScanLink(source=source, target=target, group=link.group or ""))
+    return links
 
 
 def as_protocol(

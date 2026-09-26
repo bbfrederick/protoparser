@@ -30,6 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from .links import LinkSet, link_sets
 from .listing import ScanRow, build_listing, format_duration
 from .sequences import (
     MARKS,
@@ -134,6 +135,11 @@ class Summary:
         The census, ordered by verdict and then by how many scans run each.
     counts : dict of str to int
         Scans per verdict, every verdict present including the ones at zero.
+    link_sets : list of LinkSet
+        The copy-parameter link sets, numbered as :func:`~.links.link_sets`
+        numbers them. Empty for a printout, which does not record links.
+    scan_names : dict of int to str
+        Each scan's name by index, so a link set can be rendered by name.
     """
 
     source_file: str = ""
@@ -147,6 +153,8 @@ class Summary:
     shortest: ScanRow | None = None
     sequences: list[SequenceRow] = field(default_factory=list)
     counts: dict[str, int] = field(default_factory=dict)
+    link_sets: list[LinkSet] = field(default_factory=list)
+    scan_names: dict[int, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the summary.
@@ -154,10 +162,11 @@ class Summary:
         Returns
         -------
         dict
-            Every field above, with the two extremes rendered as scan rows
-            and ``None`` where there are none.
+            Every field above but ``scan_names``, with the two extremes
+            rendered as scan rows and ``None`` where there are none, and
+            ``link_sets`` present only when the protocol has links.
         """
-        return {
+        out = {
             "source_file": self.source_file,
             "software_version": self.software_version,
             "program": self.program,
@@ -170,6 +179,9 @@ class Summary:
             "shortest": None if self.shortest is None else self.shortest.to_dict(),
             "sequences": [row.to_dict() for row in self.sequences],
         }
+        if self.link_sets:
+            out["link_sets"] = [entry.to_dict() for entry in self.link_sets]
+        return out
 
 
 def protocol_name(protocol: Mapping) -> str:
@@ -293,6 +305,8 @@ def build_summary(protocol: Mapping, catalog: Catalog | None = None) -> Summary:
         shortest=min(timed, key=lambda row: row.seconds or 0.0) if timed else None,
         sequences=_census(rows, found),
         counts=summarize(found),
+        link_sets=link_sets(protocol),
+        scan_names={row.index: row.name for row in rows},
     )
 
 
@@ -416,6 +430,45 @@ def _census_lines(summary: Summary) -> list[str]:
     return lines
 
 
+def _link_lines(summary: Summary) -> list[str]:
+    """Render the copy-parameter link sets, one line per scan in each.
+
+    Each set opens with its source, marked ``(X>)``, followed by every scan
+    copying from it, marked ``(>X)`` and followed by what it copies -- the
+    same marks the listing puts beside each scan.
+
+    Parameters
+    ----------
+    summary : Summary
+        The summary being rendered.
+
+    Returns
+    -------
+    list of str
+        A heading and the sets, or nothing when the protocol has no links.
+    """
+    sets = summary.link_sets
+    if not sets:
+        return []
+    entries: list[tuple[str, int, str]] = []
+    for entry in sets:
+        entries.append((f"({entry.number}>)", entry.source, ""))
+        entries.extend(
+            (f"(>{entry.number})", target, group)
+            for target, group in zip(entry.targets, entry.groups)
+        )
+    names = [summary.scan_names.get(index, "?") for _, index, _ in entries]
+    w_mark = max(len(mark) for mark, _, _ in entries)
+    w_index = max(len(str(index)) for _, index, _ in entries)
+    w_name = max(len(name) for name in names)
+    lines = ["", f"  {len(sets)} copy-parameter link set" + ("s" if len(sets) != 1 else "")]
+    for (mark, index, group), name in zip(entries, names):
+        lines.append(
+            f"    {mark:<{w_mark}}  {index:>{w_index}}  {name:<{w_name}}  {group}".rstrip()
+        )
+    return lines
+
+
 def render_summary(summary: Summary) -> str:
     """Render a summary for reading in a terminal.
 
@@ -446,6 +499,7 @@ def render_summary(summary: Summary) -> str:
     )
     lines.append("")
     lines.extend(_census_lines(summary))
+    lines.extend(_link_lines(summary))
 
     flagged = summary.scan_count - summary.counts.get(STOCK, 0)
     if flagged:

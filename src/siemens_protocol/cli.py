@@ -12,6 +12,7 @@ from . import __version__
 from .analysis import address
 from .analysis.diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .analysis.flatten import conflicts
+from .analysis.links import link_sets
 from .analysis.listing import build_listing, render_listing
 from .analysis.policy import PolicyError, PolicyReport, check_protocol, load_policy
 from .analysis.report import name_mismatch_note, render_protocol, render_scan, section_filter_note
@@ -388,6 +389,16 @@ def build_parser() -> argparse.ArgumentParser:
     add_program_option(list_cmd)
     add_scan_option(list_cmd, "listing")
     add_release_option(list_cmd, "force a Siemens release profile for a PDF input (default: auto)")
+    list_cmd.add_argument(
+        "--pauses",
+        action="store_true",
+        help="show the pause steps in running order, unnumbered (archives only)",
+    )
+    list_cmd.add_argument(
+        "--link-options",
+        action="store_true",
+        help="show what each copy-parameter destination copies, beside its (>X) mark",
+    )
     list_cmd.add_argument("--json", action="store_true", help="emit the listing as JSON")
     list_cmd.add_argument("--out", help="write the listing here instead of stdout")
 
@@ -1120,14 +1131,18 @@ def restrict_to_scan(protocol: Mapping[str, Any], wanted: str, source: str) -> d
     Returns
     -------
     dict
-        A shallow copy carrying that scan alone.
+        A shallow copy carrying that scan alone, and no pause steps.
 
     Raises
     ------
     ValueError
         If the address names no scan of this protocol, or names more than one.
     """
-    return {**protocol, "scans": [_select_scan(protocol, wanted, source)]}
+    narrowed = {**protocol, "scans": [_select_scan(protocol, wanted, source)]}
+    # A pause is placed by the scan it precedes, and every other scan is
+    # gone, so there is nothing left to place one against.
+    narrowed.pop("pauses", None)
+    return narrowed
 
 
 def _scan_over_a_directory(args: argparse.Namespace) -> str | None:
@@ -1465,9 +1480,14 @@ def _run_list(args: argparse.Namespace) -> int:
             "total_seconds": round(sum(r.seconds for r in rows if r.seconds is not None), 3),
             "unreadable": sum(1 for r in rows if r.seconds is None),
         }
+        if args.pauses:
+            payload["pauses"] = list(protocol.get("pauses", []))
+        sets = link_sets(protocol)
+        if sets:
+            payload["link_sets"] = [entry.to_dict() for entry in sets]
         text = json.dumps(payload, indent=2, ensure_ascii=False)
     else:
-        text = render_listing(protocol, rows)
+        text = render_listing(protocol, rows, link_options=args.link_options, pauses=args.pauses)
 
     if args.out:
         with open(args.out, "w", encoding="utf-8") as handle:

@@ -644,6 +644,28 @@ def _list_command() -> Command:
             _program_field(),
             _scan_field("listing"),
             Field(
+                name="pauses",
+                kind="flag",
+                label="Pause steps",
+                help=(
+                    "Show the pause steps in running order, unnumbered. Archives "
+                    "only; a printout does not print them."
+                ),
+                flag="--pauses",
+                default=False,
+            ),
+            Field(
+                name="link_options",
+                kind="flag",
+                label="Link options",
+                help=(
+                    "Show what each copy-parameter destination copies, beside its "
+                    "(>X) mark. Archives only; a printout records no links."
+                ),
+                flag="--link-options",
+                default=False,
+            ),
+            Field(
                 name="json",
                 kind="flag",
                 label="JSON output",

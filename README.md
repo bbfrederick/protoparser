@@ -465,6 +465,77 @@ PDF or a JSON file from `parse`, including one written with `--no-flatten`:
 the mark is derived from scan headers and sections, never from the flattened
 view.
 
+### Scans needing conversion
+
+A scan whose protocol was saved under an older software baseline, and not yet
+converted, carries `sProtConsistencyInfo.tBaselineString = "ConversionNeeded"`,
+and the console greys it out on import. `list` marks each such scan `%`, in a
+column left of the `*`/`?` verdict mark; the column appears only when some
+scan needs it, and `--json` gives those rows `"needs_conversion": true`.
+
+```
+$ spt list archive.exar1 --program "Investigators/XChen/Lactate MRS CSO"
+ *  6  fastestmap                         fastestmap             0:30  (>1)
+%*  7  jn_svs_special_ve11c_AP_new        jn_svs_special_ve11c   3:24
+```
+
+The flag is per scan, and one protocol commonly holds both kinds. Only an
+archive can carry it -- a protocol needing conversion cannot be printed -- and
+only one exported with the console's "Show inconsistent" option checked;
+without it those scans are left out of the file, and nothing in the file says
+so.
+
+### Copy-parameter links
+
+A scan can be linked on the console so it copies its slices, centre, table
+position and so on from another scan. The printout does not record this, so
+links appear only when the input is an `.exar1` archive. A *link set* is one
+source scan and every scan copying from it; sets are numbered from 1 in the
+running order of their sources. `list` adds a `links` column marking the
+source of set X as `(X>)` and each scan copying from it as `(>X)`; a scan
+belongs to at most one set:
+
+```
+$ spt list examples/XA60/CHR-MDD.exar1
+   #  scan                            sequence              TA  links
+  --  ------------------------------  -----------------  -----  -----
+...
+*  9  SpinEchoFieldMap_AP             cmrr_mbep2d_se      0:32  (1>)
+* 10  SpinEchoFieldMap_PA             cmrr_mbep2d_se      0:32  (>1)
+...
+* 21  dMRI_dir107_AP                  cmrr_mbep2d_diff    6:05  (2>)
+* 22  dMRI_dir107_PA_FORTOPUP         cmrr_mbep2d_diff    0:19  (>2)
+```
+
+`summary` lists each set with what every target copies
+(`CenterOfSlicesAndSaturationRegions`, `Slices`, ...). `list --link-options`
+prints the same beside each `(>X)` mark, as in `(>1) Slices`. Both commands'
+`--json` carry a `link_sets` array, and each linked `list` row a `links` mark
+and, for a destination, a `link_group`. Numbering is always over the whole
+protocol, so a listing narrowed with `--scan` still says which set a scan
+belongs to.
+
+### Pause steps
+
+An archive's running order can hold pause steps -- operator instructions such
+as "Pause for self-report and saliva collection" -- which a printout does not
+print. `list --pauses` shows them where they fall, with no number, sequence or
+time, so the scans keep the indices every `--scan` address uses and the total
+is unchanged:
+
+```
+$ spt list examples/XA60/CHR-MDD.exar1 --pauses
+...
+* 10  SpinEchoFieldMap_PA                          cmrr_mbep2d_se      0:32  (>1)
+      Pause for self-report and saliva collection  (pause)
+  11  Localizer                                    gre                 0:09
+      Count down with RA to start of scan          (pause)
+* 12  reward1                                      cmrr_mbep2d_bold   13:16  (>1)
+```
+
+With `--json` the pauses come as a `pauses` array, each giving the index of
+the scan it precedes. A listing narrowed with `--scan` shows none.
+
 ## Narrowing to one scan
 
 Every command that reads a protocol takes `--scan`, so any of them can answer

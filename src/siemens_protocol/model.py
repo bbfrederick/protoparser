@@ -172,6 +172,73 @@ class Scan:
 
 
 @dataclass
+class ScanLink:
+    """One copy-parameter link between two scans of a protocol.
+
+    The console can slave a scan's slices, centre, table position and so on
+    to another scan's. The printout does not record this at all, so only an
+    archive-backed protocol carries any; a parsed PDF has none.
+
+    Attributes
+    ----------
+    source : int
+        Index of the scan the parameters are copied *from*.
+    target : int
+        Index of the scan they are copied *to*.
+    group : str
+        What is copied, as the archive names it -- ``Slices``,
+        ``CenterOfSlicesAndSaturationRegions`` and so on. Empty when the link
+        names no group.
+    """
+
+    source: int
+    target: int
+    group: str = ""
+
+    def to_dict(self) -> dict[str, object]:
+        """Serialize the link.
+
+        Returns
+        -------
+        dict
+            ``source``, ``target`` and ``group``.
+        """
+        return {"source": self.source, "target": self.target, "group": self.group}
+
+
+@dataclass
+class Pause:
+    """A pause step: an operator instruction in the running order, not a scan.
+
+    "Pause for saliva collection", "Count down with RA to start of scan" --
+    an archive keeps these in the running order beside the scans, and a
+    printout does not print them at all. They carry no protocol and so no
+    scan index; ``before`` places one among the scans instead.
+
+    Attributes
+    ----------
+    before : int
+        Index of the scan the pause precedes. Equal to the number of scans
+        when the pause comes after the last one.
+    name : str
+        The pause step's displayed text.
+    """
+
+    before: int
+    name: str
+
+    def to_dict(self) -> dict[str, object]:
+        """Serialize the pause.
+
+        Returns
+        -------
+        dict
+            ``before`` and ``name``.
+        """
+        return {"before": self.before, "name": self.name}
+
+
+@dataclass
 class Protocol:
     """A whole parsed protocol export.
 
@@ -191,6 +258,13 @@ class Protocol:
         ``to_dict`` omits the key rather than reporting an empty one.
     scans : list of Scan
         The protocol's scans, in printed order.
+    links : list of ScanLink
+        Copy-parameter links between scans, in the order the archive stores
+        them. Always empty for a PDF-backed protocol, whose printout does not
+        record links; ``to_dict`` omits the key when empty.
+    pauses : list of Pause
+        Pause steps, in running order. Always empty for a PDF-backed
+        protocol; ``to_dict`` omits the key when empty.
     page_count : int
         Number of pages in the PDF.
     front_matter_pages : list of int
@@ -207,6 +281,8 @@ class Protocol:
     scanner: str = ""
     program: str = ""
     scans: list[Scan] = field(default_factory=list)
+    links: list[ScanLink] = field(default_factory=list)
+    pauses: list[Pause] = field(default_factory=list)
     page_count: int = 0
     front_matter_pages: list[int] = field(default_factory=list)
     ocr_pages: list[int] = field(default_factory=list)
@@ -243,6 +319,10 @@ class Protocol:
         if self.warnings:
             out["warnings"] = self.warnings
         out["scans"] = [s.to_dict(include_flat, catalog) for s in self.scans]
+        if self.links:
+            out["links"] = [link.to_dict() for link in self.links]
+        if self.pauses:
+            out["pauses"] = [pause.to_dict() for pause in self.pauses]
         return out
 
     def to_json(self, include_flat: bool = True, indent: int = 2) -> str:

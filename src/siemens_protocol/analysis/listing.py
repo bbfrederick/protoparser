@@ -20,6 +20,8 @@ import re
 from dataclasses import dataclass
 from typing import Mapping
 
+from ..exar.ascconv import CONVERSION_NEEDED
+from .links import link_groups, link_marks, link_sets
 from .sequences import MARKS, STOCK, Catalog, default_catalog, identify
 
 #: ``6:02 min``, ``6:02``, ``1:42:33 h`` -- a colon-separated clock,
@@ -127,6 +129,18 @@ class ScanRow:
     verdict : str
         One of :data:`~..sequences.VERDICTS`, saying whether the scan runs a
         third-party sequence.
+    links : str
+        The scan's copy-parameter marks -- ``(X>)`` as the source of link set
+        ``X``, ``(>X)`` as a scan copying from it -- as
+        :func:`~.links.link_marks` spells them. Empty for a scan in no link,
+        and for every scan of a printout, which does not record links.
+    link_group : str
+        What the scan copies from its link set's source -- ``Slices``,
+        ``TablePosition`` and so on. Empty unless the scan is a destination.
+    needs_conversion : bool
+        Whether the scan's protocol was saved under an older baseline and
+        awaits conversion, which is what makes a console grey it out. Only an
+        archive can say so; a printout of such a protocol cannot be made.
     """
 
     index: int
@@ -135,6 +149,9 @@ class ScanRow:
     acquisition_time: str
     seconds: float | None
     verdict: str = STOCK
+    links: str = ""
+    link_group: str = ""
+    needs_conversion: bool = False
 
     def to_dict(self) -> dict:
         """Serialize the row.
@@ -142,9 +159,12 @@ class ScanRow:
         Returns
         -------
         dict
-            The row's fields, with ``seconds`` rounded to a millisecond.
+            The row's fields, with ``seconds`` rounded to a millisecond,
+            ``links`` present only when the scan is in a link and
+            ``link_group`` only when it copies from one, and
+            ``needs_conversion`` only when it does.
         """
-        return {
+        out = {
             "index": self.index,
             "name": self.name,
             "sequence": self.sequence,
@@ -152,6 +172,13 @@ class ScanRow:
             "seconds": None if self.seconds is None else round(self.seconds, 3),
             "verdict": self.verdict,
         }
+        if self.links:
+            out["links"] = self.links
+        if self.link_group:
+            out["link_group"] = self.link_group
+        if self.needs_conversion:
+            out["needs_conversion"] = True
+        return out
 
 
 def build_listing(protocol: Mapping, catalog: Catalog | None = None) -> list[ScanRow]:
@@ -178,18 +205,24 @@ def build_listing(protocol: Mapping, catalog: Catalog | None = None) -> list[Sca
         The rows, ordered as the scans appear in the document.
     """
     catalog = catalog or default_catalog()
+    sets = link_sets(protocol)
+    marks, groups = link_marks(sets), link_groups(sets)
     rows: list[ScanRow] = []
     for position, scan in enumerate(protocol.get("scans", [])):
         header = scan.get("header", {}) or {}
         printed = header.get("ta", "")
+        index = scan.get("index", position)
         rows.append(
             ScanRow(
-                index=scan.get("index", position),
+                index=index,
                 name=scan.get("name", ""),
                 sequence=header.get("sequence", ""),
                 acquisition_time=printed,
                 seconds=parse_acquisition_time(printed),
                 verdict=identify(scan, catalog).verdict,
+                links=marks.get(index, ""),
+                link_group=groups.get(index, ""),
+                needs_conversion=header.get("baseline") == CONVERSION_NEEDED,
             )
         )
     return rows
@@ -217,7 +250,46 @@ def _column_widths(rows: list[ScanRow]) -> tuple[int, int, int, int]:
     )
 
 
-def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
+#: Printed left of the verdict mark on a scan whose protocol needs
+#: conversion (``sProtConsistencyInfo.tBaselineString = "ConversionNeeded"``).
+CONVERSION_MARK = "%"
+
+#: Printed in the sequence column of a pause step's line, which has no
+#: sequence, number or acquisition time of its own.
+PAUSE = "(pause)"
+
+
+def _pauses_before(protocol: Mapping, rows: list[ScanRow]) -> dict[int, list[str]]:
+    """Group the protocol's pause steps by the row they are printed above.
+
+    Parameters
+    ----------
+    protocol : mapping
+        The serialized protocol. Its ``pauses`` entry, where present, is a
+        list of ``{"before", "name"}``.
+    rows : list of ScanRow
+        The rows being rendered.
+
+    Returns
+    -------
+    dict of int to list of str
+        Pause names keyed by the position in ``rows`` they precede, with
+        ``len(rows)`` for pauses after the last scan.
+    """
+    position = {row.index: at for at, row in enumerate(rows)}
+    grouped: dict[int, list[str]] = {}
+    for pause in protocol.get("pauses", []) or []:
+        at = position.get(int(pause["before"]), len(rows))
+        grouped.setdefault(at, []).append(str(pause.get("name", "")))
+    return grouped
+
+
+def render_listing(
+    protocol: Mapping,
+    rows: list[ScanRow],
+    link_options: bool = False,
+    pauses: bool = False,
+) -> str:
     """Render the inventory as an aligned table with a total.
 
     Parameters
@@ -226,6 +298,14 @@ def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
         The serialized protocol, read for the heading.
     rows : list of ScanRow
         The rows to render, as built by :func:`build_listing`.
+    link_options : bool, optional
+        Whether to print, after each destination's ``(>X)`` mark, what it
+        copies from its source. Default ``False``, leaving that to
+        ``summary``.
+    pauses : bool, optional
+        Whether to print the protocol's pause steps in running order. They
+        are not scans, so they carry no number, sequence or time and are not
+        counted in the total. Default ``False``.
 
     Returns
     -------
@@ -237,24 +317,66 @@ def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
         return f"{heading}\n\nno scans found"
 
     w_index, w_name, w_seq, w_time = _column_widths(rows)
+    # A conversion column, left of the verdict mark, only where some scan
+    # needs conversion -- never on a printout, which cannot hold one. Every
+    # table line gains the same leading character so the columns stay
+    # aligned; ``lead`` is that character on lines that carry no mark.
+    converting = any(row.needs_conversion for row in rows)
+    lead = " " if converting else ""
+    between = _pauses_before(protocol, rows) if pauses else {}
+    if between:
+        w_name = max([w_name] + [len(name) for names in between.values() for name in names])
+        w_seq = max(w_seq, len(PAUSE))
+
+    def pause_lines(at: int) -> list[str]:
+        """Render the pauses printed above row ``at``, unnumbered.
+
+        Parameters
+        ----------
+        at : int
+            Position in ``rows``, or ``len(rows)`` for after the last.
+
+        Returns
+        -------
+        list of str
+            One line per pause.
+        """
+        return [
+            f"{lead}  {'':>{w_index}}  {name:<{w_name}}  {PAUSE:<{w_seq}}".rstrip()
+            for name in between.get(at, [])
+        ]
+
+    # The links column appears only where some scan is linked, which is
+    # never on a printout: an always-empty column would read as links that
+    # failed to load rather than as a format that does not record them.
+    linked = any(row.links for row in rows)
     lines = [
         heading,
         "",
-        f"  {'#':>{w_index}}  {'scan':<{w_name}}  {'sequence':<{w_seq}}  {'TA':>{w_time}}",
-        f"  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}",
+        f"{lead}  {'#':>{w_index}}  {'scan':<{w_name}}  {'sequence':<{w_seq}}  {'TA':>{w_time}}"
+        + ("  links" if linked else ""),
+        f"{lead}  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}"
+        + ("  -----" if linked else ""),
     ]
-    for row in rows:
+    for at, row in enumerate(rows):
+        lines.extend(pause_lines(at))
         time = row.acquisition_time if row.seconds is not None else f"{row.acquisition_time}?"
+        tail = f"  {row.links}" if row.links else ""
+        if link_options and row.link_group:
+            tail += f" {row.link_group}"
+        convert = (CONVERSION_MARK if row.needs_conversion else " ") if converting else ""
         lines.append(
-            f"{MARKS[row.verdict]} {row.index:>{w_index}}  {row.name:<{w_name}}  "
-            f"{row.sequence:<{w_seq}}  {time:>{w_time}}"
+            f"{convert}{MARKS[row.verdict]} {row.index:>{w_index}}  {row.name:<{w_name}}  "
+            f"{row.sequence:<{w_seq}}  {time:>{w_time}}{tail}"
         )
+
+    lines.extend(pause_lines(len(rows)))
 
     known = [r.seconds for r in rows if r.seconds is not None]
     total = format_duration(sum(known))
     label = f"total ({len(rows)} scan{'' if len(rows) == 1 else 's'})"
-    lines.append(f"  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}")
-    lines.append(f"  {'':>{w_index}}  {label:<{w_name}}  {'':<{w_seq}}  {total:>{w_time}}")
+    lines.append(f"{lead}  {'-' * w_index}  {'-' * w_name}  {'-' * w_seq}  {'-' * w_time}")
+    lines.append(f"{lead}  {'':>{w_index}}  {label:<{w_name}}  {'':<{w_seq}}  {total:>{w_time}}")
 
     marked = sum(1 for r in rows if r.verdict != STOCK)
     if marked:
@@ -264,6 +386,23 @@ def render_listing(protocol: Mapping, rows: list[ScanRow]) -> str:
         lines.append(
             f"\n{marked} of {len(rows)} scans do not run a recognized Siemens sequence "
             "(* third-party, ? not accounted for). Run 'sequences' for what they are."
+        )
+
+    if converting:
+        stale = sum(1 for r in rows if r.needs_conversion)
+        lines.append(
+            f"\n{stale} of {len(rows)} scans need conversion ({CONVERSION_MARK}): saved under "
+            "an older baseline, so the console will grey them out on import."
+        )
+
+    if linked:
+        lines.append(
+            "\n(X>) is the source of copy-parameter link set X, (>X) copies from it."
+            + (
+                ""
+                if link_options
+                else " Run 'summary' or add --link-options for what each copies."
+            )
         )
 
     unread = len(rows) - len(known)
