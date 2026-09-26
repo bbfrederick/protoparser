@@ -39,11 +39,11 @@ Three names describe this one project, and they are deliberately different:
 
 | | Name | Where it appears |
 | --- | --- | --- |
-| The command | **`siemens-protocol-tool`** | What you type: `siemens-protocol-tool parse ...` |
+| The command | **`spt`** | What you type: `spt parse ...` |
 | The distribution | `siemens-protocol` | What you install: `pip install siemens-protocol` |
 | The import | `siemens_protocol` | What you import: `import siemens_protocol` |
 
-If a command is not found, check you are typing `siemens-protocol-tool` — the
+If a command is not found, check you are typing `spt` — the
 package name is not the command name.
 
 Installing puts that executable in `.venv/bin/` (`.venv\Scripts\` on Windows),
@@ -51,7 +51,7 @@ which is only on `PATH` while the environment is activated. Activating is what
 the examples below assume. To skip activation, call it by its full path instead:
 
 ```sh
-.venv/bin/siemens-protocol-tool parse protocol.pdf
+.venv/bin/spt parse protocol.pdf
 ```
 
 To have the command everywhere without activating anything, install it as a
@@ -91,7 +91,7 @@ since its installer writes to `C:\Program Files\Tesseract-OCR` and adds nothing
 to `PATH`. If yours is somewhere else, name it:
 
 ```sh
-siemens-protocol-tool parse protocol.pdf --ocr always --tesseract /opt/local/bin/tesseract
+spt parse protocol.pdf --ocr always --tesseract /opt/local/bin/tesseract
 ```
 
 or set `SIEMENS_PROTOCOL_TESSERACT` to the same path once and leave it set.
@@ -125,7 +125,7 @@ The image sets no `ENTRYPOINT`, and its default command is `python3`, so
 prompt. Name the command you want:
 
 ```sh
-docker run --rm fredericklab/protoparser:latest siemens-protocol-tool versions
+docker run --rm fredericklab/protoparser:latest spt versions
 ```
 
 The container starts out with none of your files. Mount the directory you are
@@ -134,7 +134,7 @@ same ones you would type outside:
 
 ```sh
 docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
-    siemens-protocol-tool list examples/XA60/R01StressDyn.pdf
+    spt list examples/XA60/R01StressDyn.pdf
 ```
 
 Every subcommand works that way; only the mount is new:
@@ -142,15 +142,15 @@ Every subcommand works that way; only the mount is new:
 ```sh
 # parse one protocol, writing the JSON back out to the host
 docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
-    siemens-protocol-tool parse examples/XA60/R01StressDyn.pdf --out R01StressDyn.json
+    spt parse examples/XA60/R01StressDyn.pdf --out R01StressDyn.json
 
 # parse a whole tree; the output mirrors it, here as json/XA60/..., json/VE11C/...
 docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
-    siemens-protocol-tool parse examples --out json
+    spt parse examples --out json
 
 # compare one protocol across two scanner software versions
 docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
-    siemens-protocol-tool diff examples/VE11C/R01StressDyn.pdf examples/XA60/R01StressDyn.pdf
+    spt diff examples/VE11C/R01StressDyn.pdf examples/XA60/R01StressDyn.pdf
 ```
 
 Anything outside the mount is invisible to the tool, which is worth remembering
@@ -168,7 +168,7 @@ Python binding and then a native tesseract — is already done in the image, so
 
 ```sh
 docker run --rm -v "$PWD":/data -w /data fredericklab/protoparser:latest \
-    siemens-protocol-tool parse examples/VB17A/rtNIRS_12ch.pdf --ocr always --stdout
+    spt parse examples/VB17A/rtNIRS_12ch.pdf --ocr always --stdout
 ```
 
 Expect it to be slow — every page is rasterized at 300 DPI and read back —
@@ -184,7 +184,7 @@ the command under `/root/.local/bin`, and `/root` is mode 0700, so a non-root
 user cannot even read it.
 
 ```
-/root/.local/bin/siemens-protocol-tool: [Errno 13] Permission denied
+/root/.local/bin/spt: [Errno 13] Permission denied
 ```
 
 Take ownership afterwards instead:
@@ -207,14 +207,14 @@ advance, so it needs a fixed `--port`:
 ```sh
 docker run --rm -p 127.0.0.1:8080:8080 -v "$PWD":/data \
     fredericklab/protoparser:latest \
-    siemens-protocol-tool gui --host 0.0.0.0 --port 8080 --dir /data
+    spt gui --host 0.0.0.0 --port 8080 --dir /data
 ```
 
 There is no browser in the container for it to open, so it prints the URL and
 waits:
 
 ```
-siemens-protocol-tool GUI serving on http://0.0.0.0:8080/?token=VWgux4jOZB6aZv1hF7tk
+spt GUI serving on http://0.0.0.0:8080/?token=VWgux4jOZB6aZv1hF7tk
 Press Ctrl-C to stop.
 ```
 
@@ -280,8 +280,8 @@ Between tags, `setuptools-scm` derives a development version from the distance
 to the last one, which makes an unreleased build obvious on sight:
 
 ```sh
-$ siemens-protocol-tool --version
-siemens-protocol-tool 0.2.1.dev3+g908a065      # 3 commits past v0.2.0
+$ spt --version
+spt 0.2.1.dev3+g908a065      # 3 commits past v0.2.0
 ```
 
 The same number reaches `siemens_protocol.__version__`, `pip show`, and the
@@ -308,42 +308,42 @@ Everything here has a graphical equivalent — see
 the primary interface and what the rest of this document describes.
 
 ```sh
-siemens-protocol-tool parse examples/XA60/R01StressDyn.pdf
-siemens-protocol-tool parse examples/ --out parsed/          # batch a directory
-siemens-protocol-tool versions                               # list version profiles
+spt parse examples/XA60/R01StressDyn.pdf
+spt parse examples/ --out parsed/          # batch a directory
+spt versions                               # list version profiles
 
 # see what an .exar1 archive holds, and by what path
-siemens-protocol-tool tree backup.exar1
+spt tree backup.exar1
 
 # inventory one protocol, a line per scan
-siemens-protocol-tool list protocol.pdf
+spt list protocol.pdf
 
 # the same protocol rolled up: size, run time, and a census of its sequences
-siemens-protocol-tool summary protocol.pdf
+spt summary protocol.pdf
 
 # any of them, narrowed to one scan
-siemens-protocol-tool sequences backup.exar1 --scan "CMRR spectro scans/eja_svs_slaser"
+spt sequences backup.exar1 --scan "CMRR spectro scans/eja_svs_slaser"
 
 # which scans run a sequence Siemens did not supply
-siemens-protocol-tool sequences protocol.pdf
+spt sequences protocol.pdf
 
 # just the ones a migration has to rebuild, with the evidence
-siemens-protocol-tool sequences protocol.pdf --only flagged --explain
+spt sequences protocol.pdf --only flagged --explain
 
 # check a protocol against preferred values
-siemens-protocol-tool check protocol.pdf
+spt check protocol.pdf
 
 # compare two protocols scan by scan
-siemens-protocol-tool diff old.pdf new.pdf
+spt diff old.pdf new.pdf
 
 # compare one scan across two protocols
-siemens-protocol-tool diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
+spt diff old.pdf new.pdf --scan T1_MEMPRAGE_64ch
 
 # compare two scans within one protocol
-siemens-protocol-tool diff protocol.pdf --left-scan SpinEchoFieldMap_AP#1 --right-scan SpinEchoFieldMap_PA#1
+spt diff protocol.pdf --left-scan SpinEchoFieldMap_AP#1 --right-scan SpinEchoFieldMap_PA#1
 
 # narrow a comparison to one section of the scanner's tabs
-siemens-protocol-tool diff old.pdf new.pdf --filter contrast
+spt diff old.pdf new.pdf --filter contrast
 ```
 
 | Option | Meaning |
@@ -363,7 +363,7 @@ Everything below can also be driven from a window, for anyone who would rather
 not type it:
 
 ```sh
-siemens-protocol-gui                 # or: siemens-protocol-tool gui
+spt-gui                 # or: spt gui
 ```
 
 That serves a page on the loopback interface and opens it in your default
@@ -388,8 +388,8 @@ line rather than a substitute for it — set up a run in the window, copy the
 line, and put it in a script.
 
 ```
-$ siemens-protocol-gui
-siemens-protocol-tool GUI serving on http://127.0.0.1:52413/?token=...
+$ spt-gui
+spt GUI serving on http://127.0.0.1:52413/?token=...
 Press Ctrl-C to stop.
 ```
 
@@ -417,7 +417,7 @@ network.
 sequence binary and acquisition time — and totals the scan time:
 
 ```
-$ siemens-protocol-tool list examples/XA60/ELS2_20210802XA60.pdf
+$ spt list examples/XA60/ELS2_20210802XA60.pdf
 examples/XA60/ELS2_20210802XA60.pdf (XA60)
 
    #  scan                                   sequence         TA
@@ -473,10 +473,10 @@ about a single scan rather than the whole of it. The address is the one the
 of the path as it takes to name one, with `#2` for a name a protocol uses twice:
 
 ```sh
-siemens-protocol-tool sequences backup.exar1 --scan "CMRR spectro scans/eja_svs_slaser" --explain
-siemens-protocol-tool list      backup.exar1 --scan "Functional TOF/tof_cs_acc10.3 fast#3"
-siemens-protocol-tool parse     protocol.pdf --scan SpinEchoFieldMap_AP#2 --stdout
-siemens-protocol-tool archive   backup.exar1 --scan localizer_64ch_uncombined
+spt sequences backup.exar1 --scan "CMRR spectro scans/eja_svs_slaser" --explain
+spt list      backup.exar1 --scan "Functional TOF/tof_cs_acc10.3 fast#3"
+spt parse     protocol.pdf --scan SpinEchoFieldMap_AP#2 --stdout
+spt archive   backup.exar1 --scan localizer_64ch_uncombined
 ```
 
 It pays most on `archive`, whose parameter tree runs 514 to 2020 assignments a
@@ -496,7 +496,7 @@ and `--right-scan` are.
 big the protocol is, how long it runs, and what it runs.
 
 ```
-$ siemens-protocol-tool summary examples/XA60/ELS2_20210802XA60.pdf
+$ spt summary examples/XA60/ELS2_20210802XA60.pdf
 ELS2_20210802
 examples/XA60/ELS2_20210802XA60.pdf (XA60)
 
@@ -556,7 +556,7 @@ protocol out of a multi-program archive, and the input may be a PDF, an
 `parse` reads a printout into JSON:
 
 ```
-$ siemens-protocol-tool archive examples/XA60/Potpourri_P1.exar1
+$ spt archive examples/XA60/Potpourri_P1.exar1
 XA60 | 1 protocol | 18 scans -> examples/XA60/Potpourri_P1.exar1.json
 ```
 
@@ -605,7 +605,7 @@ wherever they accept a PDF. On the same protocol the archive leaves nothing
 unaccounted for where the printout leaves four scans marked `?`:
 
 ```
-$ siemens-protocol-tool sequences examples/XA60/Potpourri_P1.exar1
+$ spt sequences examples/XA60/Potpourri_P1.exar1
 16 third-party, 0 unrecognized, 2 stock, of 18 scans
 ```
 
@@ -628,7 +628,7 @@ a directory, which is how to find out what is in an unfamiliar file without
 rendering it:
 
 ```
-$ siemens-protocol-tool tree examples/XA60/Frederick_P2/Frederick_P2.exar1
+$ spt tree examples/XA60/Frederick_P2/Frederick_P2.exar1
 Root
 └── Export
     └── Investigators - validated on FIT
@@ -656,7 +656,7 @@ into each protocol, and there the order is the *running* order, which is
 meaningful and is therefore left alone:
 
 ```
-$ siemens-protocol-tool tree examples/XA60/CHR-MDD.exar1 --scans
+$ spt tree examples/XA60/CHR-MDD.exar1 --scans
 Root
 └── Export
     └── Investigators
@@ -703,7 +703,7 @@ new release either has no equivalent installed or has one whose parameters do
 not line up. `sequences` says which scans those are.
 
 ```
-$ siemens-protocol-tool sequences examples/XA60/ELS2_20210802XA60.pdf
+$ spt sequences examples/XA60/ELS2_20210802XA60.pdf
 examples/XA60/ELS2_20210802XA60.pdf (XA60)
 
 10 third-party, 0 unrecognized, 5 stock, of 15 scans
@@ -965,9 +965,9 @@ lose real readings, so second and later occurrences are suffixed positionally:
 other half of a rebuild: the diff says what moved, this says what is wrong.
 
 ```sh
-siemens-protocol-tool check protocol.pdf
-siemens-protocol-tool check examples/ --quiet          # every PDF beneath a directory
-siemens-protocol-tool check protocol.pdf --json
+spt check protocol.pdf
+spt check examples/ --quiet          # every PDF beneath a directory
+spt check protocol.pdf --json
 ```
 
 ```
@@ -1097,7 +1097,7 @@ the other.
 A scan is named by **as much of its path as it takes to name one, and no more**:
 
 ```sh
-siemens-protocol-tool diff backup.exar1 --left-scan "CMRR spectro scans/eja_svs_slaser" \
+spt diff backup.exar1 --left-scan "CMRR spectro scans/eja_svs_slaser" \
                                         --right-scan "CMRR test scans/eja_svs_slaser"
 ```
 
@@ -1134,10 +1134,10 @@ backup's protocols, without exporting either one first:
 
 ```sh
 # one protocol of a backup against its own single-protocol export
-siemens-protocol-tool diff backup.exar1 Potpourri_P1.exar1 --left-program Potpourri_P1
+spt diff backup.exar1 Potpourri_P1.exar1 --left-program Potpourri_P1
 
 # two protocols of one backup
-siemens-protocol-tool diff backup.exar1 --left-program MEMPRAGE --right-program MEMPRAGE_test
+spt diff backup.exar1 --left-program MEMPRAGE --right-program MEMPRAGE_test
 ```
 
 A protocol is named the same way a scan is: as much of its path as it takes.
@@ -1165,13 +1165,13 @@ one parse rather than two — unless the two sides want different protocols out 
 which is a real request rather than a repetition:
 
 ```
-siemens-protocol-tool diff p.pdf        --left-scan AP --right-scan PA   # identical
-siemens-protocol-tool diff p.pdf p.pdf  --left-scan AP --right-scan PA   # to this
+spt diff p.pdf        --left-scan AP --right-scan PA   # identical
+spt diff p.pdf p.pdf  --left-scan AP --right-scan PA   # to this
 ``` Comparing the two field maps
 of one protocol is a good check that they differ only where they should:
 
 ```
-$ siemens-protocol-tool diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP#1 --right-scan SpinEchoFieldMap_PA#1
+$ spt diff R01StressDyn.pdf --left-scan SpinEchoFieldMap_AP#1 --right-scan SpinEchoFieldMap_PA#1
 SpinEchoFieldMap_AP -> SpinEchoFieldMap_PA
   parameters
     Sequence - Special
@@ -1204,7 +1204,7 @@ comma-separated list, and a name no section matches is an error that lists the
 ones these two files do have.
 
 ```
-$ siemens-protocol-tool diff VE11C/R01_Mindfulness.pdf XA60/R01_Mindfulness.pdf --scan AAHScout_64ch --filter geometry
+$ spt diff VE11C/R01_Mindfulness.pdf XA60/R01_Mindfulness.pdf --scan AAHScout_64ch --filter geometry
 --- VE11C/R01_Mindfulness.pdf: AAHScout_64ch
 +++ XA60/R01_Mindfulness.pdf: AAHScout_64ch
 showing only sections: geometry
@@ -1278,9 +1278,9 @@ The mapping works in both directions — `vocab list --canonical NAME` answers
 what each release calls a standard parameter:
 
 ```sh
-siemens-protocol-tool vocab list --canonical acceleration_mode
-siemens-protocol-tool vocab list VE11C          # every mapping, with its notes
-siemens-protocol-tool vocab check               # validate the dictionaries
+spt vocab list --canonical acceleration_mode
+spt vocab list VE11C          # every mapping, with its notes
+spt vocab check               # validate the dictionaries
 ```
 
 A lookup that misses on the literal label is retried on its normalized form, so
@@ -1488,7 +1488,7 @@ that scores at all is a detection candidate, so match the exact release number.
    ground-truth label the tests use.
 5. Add hand-checked scan counts to `tests/test_scans.py` and generate snapshots
    with `SIEMENS_PROTOCOL_REGEN=1`.
-4. Run `siemens-protocol-tool parse FILE --emit-debug geometry.json` and check the
+4. Run `spt parse FILE --emit-debug geometry.json` and check the
    reported `value_x`, `row_pitch` and column bounds against the file. Adjust
    `LayoutConfig` on the profile only if they are off.
 

@@ -43,13 +43,13 @@ dev = [
 
 # The command, which is deliberately not the distribution name above: the
 # package installs as siemens-protocol and is imported as siemens_protocol,
-# but the thing you type is siemens-protocol-tool.
+# but the thing you type is spt.
 [project.scripts]
-siemens-protocol-tool = "siemens_protocol.cli:main"
+spt = "siemens_protocol.cli:main"
 # The GUI is a page served to the browser by a loopback server, so it needs
 # no toolkit and no extra dependency -- the same reasoning that keeps OCR out
-# of the core requirements. "siemens-protocol-tool gui" launches the same thing.
-siemens-protocol-gui = "siemens_protocol.gui:main"
+# of the core requirements. "spt gui" launches the same thing.
+spt-gui = "siemens_protocol.gui:main"
 
 # The version comes from the git tag, so there is no number to keep in step
 # anywhere: no literal in this file, none in __init__, none in a VERSION file.

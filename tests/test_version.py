@@ -61,14 +61,13 @@ def test_installed_metadata_agrees_with_the_module() -> None:
     """
     from importlib.metadata import version
 
-    # The distribution is still named siemens-protocol; only the command was
-    # renamed to siemens-protocol-tool. Looking up the command name here would
-    # raise PackageNotFoundError.
+    # The distribution is still named siemens-protocol; only the command is
+    # spt. Looking up the command name here would raise PackageNotFoundError.
     assert version("siemens-protocol") == siemens_protocol.__version__
 
 
 def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None:
-    """``siemens-protocol-tool --version`` prints what the package reports.
+    """``spt --version`` prints what the package reports.
 
     Parameters
     ----------
@@ -83,19 +82,19 @@ def test_the_cli_reports_the_same_version(capsys: pytest.CaptureFixture) -> None
         main(["--version"])
     assert exc.value.code == 0
     printed = capsys.readouterr().out.strip()
-    assert printed == f"siemens-protocol-tool {siemens_protocol.__version__}"
+    assert printed == f"spt {siemens_protocol.__version__}"
 
 
 def test_the_command_and_distribution_names_are_distinct() -> None:
-    """The commands share the project's name without colliding with it.
+    """The commands are distinct from the distribution name they install under.
 
     Four identifiers describe one project: you ``pip install
     siemens-protocol``, you ``import siemens_protocol``, and you run
-    ``siemens-protocol-tool`` or ``siemens-protocol-gui``. The commands are
-    deliberately built from the distribution name -- that is the point of the
-    rename away from ``mr-protocol-*`` -- but neither may *be* it, or what
-    ``pip install`` names and what the shell resolves would read as the same
-    thing while behaving differently.
+    ``spt`` or ``spt-gui``. The commands are short because they are typed;
+    the distribution keeps the long name because it is what ``pip`` and
+    ``importlib.metadata`` resolve. Neither command may *be* the distribution
+    name, or what ``pip install`` names and what the shell resolves would read
+    as the same thing while behaving differently.
 
     Pinning the set means a future rename of one cannot quietly half-rename
     the others, and pinning it as a set rather than a single name means adding
@@ -109,9 +108,9 @@ def test_the_command_and_distribution_names_are_distinct() -> None:
 
     scripts = distribution("siemens-protocol").entry_points
     console = {entry.name for entry in scripts if entry.group == "console_scripts"}
-    assert console == {"siemens-protocol-tool", "siemens-protocol-gui"}
+    assert console == {"spt", "spt-gui"}
     assert not console & {"siemens-protocol", "siemens_protocol"}
-    assert all(name.startswith("siemens-protocol-") for name in console)
+    assert all(name == "spt" or name.startswith("spt-") for name in console)
 
 
 def test_every_console_script_points_at_something_callable() -> None:

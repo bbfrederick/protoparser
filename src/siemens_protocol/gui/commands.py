@@ -1279,7 +1279,7 @@ def build_argv(name: str, values: Mapping[str, Any]) -> list[str]:
     Returns
     -------
     list of str
-        Arguments to pass to ``siemens-protocol-tool``, subcommand words first.
+        Arguments to pass to ``spt``, subcommand words first.
 
     Raises
     ------
@@ -1309,7 +1309,7 @@ def display_command(argv: Sequence[str]) -> str:
         The full command line, with any argument containing whitespace or a
         shell metacharacter quoted.
     """
-    parts = ["siemens-protocol-tool"]
+    parts = ["spt"]
     for argument in argv:
         if argument and not any(character in argument for character in " \t'\"\\$`*?()[]{}|&;<>#"):
             parts.append(argument)

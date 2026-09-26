@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`siemens-protocol-tool` (the command; the package installs as `siemens-protocol` and
+`spt` (the command; the package installs as `siemens-protocol` and
 imports as `siemens_protocol`) parses Siemens MR protocol PDF exports into hierarchical JSON
 (one entry per scan, sections of key/value parameters, plus a flattened view that
 flags parameters printed inconsistently across sections). Supports VB17A, VE11C, XA30 and XA60.
@@ -58,7 +58,7 @@ See `Design.md` for the design and `README.md` for usage.
   `+` is illegal in a tag, so `builddocker.sh` swaps it for `_`.
 - `--version` before a subcommand = the tool's version; `--release` after one
   = the Siemens profile. `--version` survives as a hidden alias for the latter.
-- Never find-and-replace across the three names (command `siemens-protocol-tool`,
+- Never find-and-replace across the three names (command `spt`,
   distribution `siemens-protocol`, import `siemens_protocol`). `__version__`,
   the OCR install hint and `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SIEMENS_PROTOCOL`
   all key off the *distribution* name and break silently if it moves.
@@ -1962,7 +1962,7 @@ just not the file it used to live in:
   moved from silently wrong to visibly wrong; the array is now internally
   consistent either way, which is the property that decides whether a scan
   loads.
-- **`siemens-protocol-tool exar <archive> <pdf>` is the driver**, and its
+- **`spt exar <archive> <pdf>` is the driver**, and its
   manifest is as much the point as its output. Roughly a tenth of what a
   protocol prints has a verified mapping, so a built archive is mostly the
   template it started from; the report states that fraction, counts inherited
@@ -2763,7 +2763,7 @@ run.
 
 #### Reading an archive out
 
-`siemens-protocol-tool archive <file.exar1>` is the reading half, where `exar`
+`spt archive <file.exar1>` is the reading half, where `exar`
 is the writing half. `exar/inspect.py` reads the low-level facts -- the
 sequence binary and its owning tree, the `Preview` map, the slice geometry, a
 prescription link, the folder tree -- composing `archive`, `ascconv` and

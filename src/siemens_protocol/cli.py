@@ -186,13 +186,13 @@ def build_parser() -> argparse.ArgumentParser:
         A parser with the ``parse`` and ``versions`` subcommands.
     """
     parser = argparse.ArgumentParser(
-        prog="siemens-protocol-tool",
+        prog="spt",
         description="Parse Siemens MR protocol PDF exports into hierarchical JSON.",
     )
     parser.add_argument(
         "--version",
         action="version",
-        version=f"siemens-protocol-tool {__version__}",
+        version=f"spt {__version__}",
         help="show the tool's version and exit",
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1180,7 +1180,7 @@ def _archive_given_to_parse(path: str) -> str | None:
         return None
     return (
         f"{path} is an .exar1 archive, and 'parse' reads PDF printouts; use "
-        f"'siemens-protocol-tool archive {path}' to read an archive into JSON"
+        f"'spt archive {path}' to read an archive into JSON"
     )
 
 

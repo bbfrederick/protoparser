@@ -1207,7 +1207,7 @@ def test_parse_redirects_an_archive_to_the_archive_command(
 
     assert main(["parse", str(archive)]) == 1
     err = capsys.readouterr().err
-    assert f"siemens-protocol-tool archive {archive}" in err
+    assert f"spt archive {archive}" in err
     assert "Failed to open" not in err
     assert list(tmp_path.iterdir()) == [archive], "::error::parse wrote output anyway"
 
