@@ -628,10 +628,18 @@ just not the file it used to live in:
   (`Investigators/Frederick/Potpourri_P1/localizer_64ch_uncombined`), the two
   differing only at the root, where the archive says `Root/Export` and the
   page prints `\\Research`.
-- **The scanner's tree is Region / Exam / Program, and a *Program* is what we
-  call a protocol.** A Program is a group of scans; at this centre the Exam
-  level groups protocols by investigator and the Region level separates
-  research from clinical acquisitions. That is exactly the tree the archive
+- **The scanner's tree is Region / Exam / Program / scan, and this centre
+  names the same levels folder / investigator / protocol / scan.** The two
+  schemes are synonyms level for level, per the protocols' owner, and any CLI
+  option naming a level accepts both spellings -- `--program`/`--protocol`,
+  `--left-program`/`--left-protocol` -- as argparse aliases of one `dest`, so
+  code reads `args.program` either way. `SiemensProtocols.md` holds the table.
+  In `Root/Export/Investigators/Baker/PCM`, `Investigators` is the
+  region/folder, `Baker` the exam/investigator and `PCM` the
+  program/protocol; `Root/Export` sits above the region in every archive
+  seen, since a region is the highest level the console exports. So a
+  "folder" is a *region*, never any directory: do not call an exam-level
+  directory an "investigator folder". That is exactly the tree the archive
   stores and the PDF prints: an `EdfStructure` root holding `EdfDirectory`
   nodes -- `Investigators`, `Frederick` -- with `EdfProgram` the protocol,
   matching the `\\Research\Investigators\Frederick\Potpourri_P1\<scan>` path

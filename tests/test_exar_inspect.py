@@ -770,6 +770,52 @@ def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None
     assert len(checked) >= 6, f"::error::only {len(checked)} archive-taking subcommands found"
 
 
+def test_every_program_flag_also_answers_to_protocol() -> None:
+    """Siemens' *program* and this centre's *protocol* are one level, so one flag.
+
+    The two naming schemes are synonyms level for level (see
+    ``SiemensProtocols.md``), and a user reaching for either spelling must
+    land on the same option. Checked as one *action* carrying both strings,
+    not as two flags that happen to exist: two separate actions would parse,
+    but into two attributes, and code reading ``args.program`` would silently
+    ignore the one spelled ``--protocol``.
+
+    Walked over every parser in the tree rather than a written-out list, so a
+    new ``--program`` added without its synonym fails here.
+
+    Returns
+    -------
+    None
+    """
+    import argparse as _argparse
+
+    from siemens_protocol.cli import build_parser
+
+    def walk(parser: _argparse.ArgumentParser, label: str) -> list:
+        """Every (label, action) pair of a parser and all its subparsers."""
+        found = []
+        for action in parser._actions:  # noqa: SLF001
+            if isinstance(action, _argparse._SubParsersAction):  # noqa: SLF001
+                for name, child in action.choices.items():
+                    found += walk(child, f"{label} {name}".strip())
+            else:
+                found.append((label, action))
+        return found
+
+    checked = 0
+    for label, action in walk(build_parser(), ""):
+        for option in action.option_strings:
+            if not option.endswith("-program"):
+                continue
+            synonym = option[: -len("program")] + "protocol"
+            assert synonym in action.option_strings, (
+                f"::error::'{label}' offers {option} but not {synonym} on the same "
+                "option, so the local spelling of that level is refused or misparsed"
+            )
+            checked += 1
+    assert checked >= 8, f"::error::only {checked} program flags found; the walk is broken"
+
+
 @requires_exar
 def test_a_scan_read_from_an_archive_flattens_like_a_parsed_printout() -> None:
     """The flattened view is the flattener's shape, not a key-to-value map.

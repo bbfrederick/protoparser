@@ -55,9 +55,13 @@ def add_program_option(parser: argparse.ArgumentParser) -> None:
     """Add the flag that picks one protocol out of a multi-program archive.
 
     Only an archive needs it. A PDF export prints one protocol, and a backup
-    taken at the exam or region level holds several, so a command that accepts
-    both needs a way to say which -- and refusing to guess is why
-    :func:`_select_program` raises rather than taking the first.
+    taken at the exam (investigator) or region (folder) level holds several,
+    so a command that accepts both needs a way to say which -- and refusing to
+    guess is why :func:`_select_program` raises rather than taking the first.
+
+    Spelled both ``--program``, Siemens' word, and ``--protocol``, this
+    centre's: they name one level of the tree, so both are accepted and land
+    in the same ``program`` attribute.
 
     Parameters
     ----------
@@ -70,9 +74,12 @@ def add_program_option(parser: argparse.ArgumentParser) -> None:
     """
     parser.add_argument(
         "--program",
+        "--protocol",
+        dest="program",
         metavar="NAME",
         help=(
-            "which protocol of an .exar1 archive to read, needed only when it "
+            "which protocol (Siemens: program) of an .exar1 archive to read, "
+            "needed only when it "
             "holds more than one. As much of its path as it takes to name one: "
             "a bare name usually, 'Investigators (2)/Frederick/NAME' where two "
             "share a name"
@@ -120,6 +127,9 @@ def add_side_program_options(parser: argparse.ArgumentParser) -> None:
     two backups, or one backup twice, and a lone flag cannot say which
     protocol belongs to which side.
 
+    Each is also spelled ``--left-protocol``/``--right-protocol``, for the
+    reason :func:`add_program_option` gives.
+
     Naming a different protocol on each side of one file is a supported
     request, not an accident -- it is how two protocols of a single backup are
     compared -- so a caller must not reuse one side's parse for the other
@@ -137,6 +147,8 @@ def add_side_program_options(parser: argparse.ArgumentParser) -> None:
     for side in ("left", "right"):
         parser.add_argument(
             f"--{side}-program",
+            f"--{side}-protocol",
+            dest=f"{side}_program",
             metavar="NAME",
             help=(
                 f"which protocol to take from the {side} .exar1 archive, needed "
@@ -570,9 +582,9 @@ def build_parser() -> argparse.ArgumentParser:
             "Draw the folder tree an .exar1 archive carries, the way the unix "
             "'tree' command draws a directory. An archive is not always one "
             "protocol: a backup taken at the exam or region level holds "
-            "several -- the scanner's tree is Region / Exam / Program, and a "
-            "Program is what we call a protocol -- and every other command "
-            "then needs --program to say which. This is how to see what is in "
+            "several -- the scanner's tree is Region / Exam / Program, which "
+            "this centre calls folder / investigator / protocol -- and every "
+            "other command then needs --program (or --protocol) to say which. This is how to see what is in "
             "the file and by what path, and the paths it prints are exactly "
             "the addresses --program and --scan accept."
         ),
@@ -1010,8 +1022,8 @@ def _choices(candidates: list[tuple[tuple[str, ...], Any]]) -> str:
 def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Program":
     """Pick the protocol to read out of an archive.
 
-    An archive may hold several: an export taken at the exam or region level
-    rather than at one protocol, which is what a scanner backup is. Picking
+    An archive may hold several: an export taken at the exam (investigator) or
+    region (folder) level rather than at one protocol, which is what a scanner backup is. Picking
     the first would describe one protocol while looking like a reading of the
     whole file, so this refuses instead and names the choices.
 
@@ -1052,7 +1064,8 @@ def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Progr
     if len(candidates) > 1:
         raise ValueError(
             f"{path} holds {len(candidates)} protocols, so one must be named to say "
-            f"which -- --program here, or --left-program/--right-program on diff and "
+            f"which -- --program (or --protocol) here, or --left-program/--right-program "
+            f"on diff and "
             f"vocab. Give as much of a path as it takes. It holds: "
             f"{_choices(candidates)}"
         )

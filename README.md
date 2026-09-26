@@ -689,7 +689,7 @@ parameter set is the `ascconv` tree, which that shape has no room for.
 An archive may hold more than one protocol: an export taken at the exam or
 region level rather than at a single one, which is what a scanner backup is.
 Every command that reads one refuses to guess in that case and names the
-choices, so `--program` says which to read.
+choices, so `--program` (or `--protocol`) says which to read.
 
 
 ### Seeing what an archive holds
@@ -714,9 +714,22 @@ Root
 4 directories, 31 protocols, 453 scans
 ```
 
-The scanner's tree is Region / Exam / Program, and a *Program* is what this
-tool calls a protocol — so the folders above are the exam and region levels,
-and the leaves are what `--program` names. The paths printed here are exactly
+The hierarchy has two parallel sets of names, Siemens' and this centre's, and
+they are synonyms level for level:
+
+| Siemens | Local | Contains | In the tree above |
+|---|---|---|---|
+| Region | folder | exams / investigators | `Investigators - validated on FIT` |
+| Exam | investigator | programs / protocols | `Frederick` |
+| Program | protocol | scans | `ADMS_CCF`, `Mair test`, ... |
+| scan | scan | one acquisition, one parameter set | shown with `--scans` |
+
+A region is the highest level the console exports, and every archive seen so
+far carries `Root/Export` above it; a printout shows the same path under a
+different root (`\\Research\Investigators\Frederick\...`). Where an option
+names a level, both spellings are accepted: `--program` and `--protocol` are
+the same flag, as are `--left-program`/`--left-protocol` and
+`--right-program`/`--right-protocol`. The paths printed here are exactly
 the addresses `--program` and `--scan` accept, which is deliberate: the tree
 is built from the same child-to-parent map every other command resolves an
 address against.
@@ -755,7 +768,7 @@ a document, `--out` writes it to a file, and `--no-counts` drops the closing
 line.
 
 These get large. A whole-scanner export -- 97 MB, 499 protocols across 61
-investigator folders, 8217 scans -- takes about four minutes and produces
+directories, 8217 scans -- takes about four minutes and produces
 68 MB of JSON with `--no-ascconv`, and several hundred megabytes without it.
 Use `--program` to read one protocol out of such a file rather than rendering
 all of it.
