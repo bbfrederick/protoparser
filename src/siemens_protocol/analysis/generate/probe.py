@@ -839,11 +839,20 @@ def _is_mapped(key: str) -> bool:
     -------
     bool
         True when some mapping claims it, its wildcard form, or its stem.
+
+    Notes
+    -----
+    A mapping with no ``ascconv_key`` claims no assignment at all -- it reads
+    its label out of ``Preview`` -- so it contributes nothing here. Letting the
+    empty key into the claimed set makes the empty *stem* a member too, and a
+    probe target is then compared against it; no ASCCONV key spells itself that
+    way, so nothing is skipped today, which is exactly why it would go
+    unnoticed.
     """
     wild = re.sub(r"\[\d+\]", "[*]", key)
-    claimed = {mapping.ascconv_key for mapping in mappings.MAPPINGS}
+    claimed = {mapping.ascconv_key for mapping in mappings.MAPPINGS if mapping.ascconv_key}
     stems = {name.split("[")[0] for name in claimed}
-    return key in claimed or wild in claimed or key.split("[")[0] in stems
+    return bool(key) and (key in claimed or wild in claimed or key.split("[")[0] in stems)
 
 
 # --------------------------------------------------------------------------
