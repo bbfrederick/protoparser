@@ -20,6 +20,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Collection, Mapping, Sequence
 
+from .. import timing
 from .vocabulary import Vocabulary, load_vocabulary
 
 #: Abbreviations Siemens expanded between releases. Deliberately short: each
@@ -810,6 +811,7 @@ def _header_view(header: Mapping[str, str]) -> dict[str, dict]:
     }
 
 
+@timing.timed_function(timing.DIFF_SCANS)
 def diff_scans(
     left: Mapping,
     right: Mapping,
@@ -869,6 +871,7 @@ def diff_scans(
     )
 
 
+@timing.timed_function(timing.ALIGN_SCANS)
 def align_scans(left: Sequence[str], right: Sequence[str]) -> list[tuple[int | None, int | None]]:
     """Pair up two protocols' scans by sequence.
 
@@ -910,6 +913,7 @@ def align_scans(left: Sequence[str], right: Sequence[str]) -> list[tuple[int | N
     return pairs
 
 
+@timing.timed_function(timing.DIFF_PROTOCOLS)
 def diff_protocols(
     left: Mapping,
     right: Mapping,

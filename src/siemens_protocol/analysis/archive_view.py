@@ -31,7 +31,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Any, Mapping
 
-from .. import model, paths
+from .. import model, paths, timing
 from ..exar import ascconv, inspect
 from ..exar.archive import Archive, Program
 from ..exar.archive import Protocol as ArchiveProtocol
@@ -635,6 +635,7 @@ def scan_links(program: Program, positions: Mapping[str, int]) -> "list[model.Sc
     return links
 
 
+@timing.timed_function(timing.ARCHIVE_VIEW)
 def as_protocol(
     archive: Archive,
     program: Program,

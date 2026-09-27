@@ -2280,3 +2280,99 @@ def test_covered_elsewhere_asks_the_table_and_not_the_prose() -> None:
     assert not build.covered_elsewhere(navigator, "Inline Movie")
     # Case and surrounding space must not decide it.
     assert build.covered_elsewhere(navigator, "  averaging ")
+
+
+def test_a_mapping_may_carry_a_preview_path_and_no_ascconv_key() -> None:
+    """Some parameters are not held by one assignment, and can still be read.
+
+    `1st Signal/Mode` prints ``<signal>/<mode>`` and the protocol composes it
+    from ``sPhysioImaging.lSignal1`` and ``lMethod1``, so no single ASCCONV key
+    carries it -- which is why this file recorded it as unmappable. That is
+    true of the ASCCONV side only: ``Preview`` keeps the whole composite as one
+    code, so the label decodes from there.
+
+    Returns
+    -------
+    None
+    """
+    preview_only = mappings.Mapping(
+        label="X", evidence="stub", preview_path="sub.0.msr.x", choices=(("A", 1),)
+    )
+
+    assert preview_only.ascconv_key == "", "an empty key is what marks it preview-only"
+
+
+@requires_exar
+def test_a_preview_only_mapping_decodes_but_is_never_written(
+    protocol_archive_path: str,
+) -> None:
+    """It must read, and the writer must decline it with a reason.
+
+    Patching the preview alone lists a number the scan will not use -- this
+    format keeps a value in two places -- so a mapping with no ASCCONV key is
+    refused by ``resolve`` rather than left to fail inside ``encode``, where a
+    caller would get a traceback instead of a manifest line.
+
+    Returns
+    -------
+    None
+    """
+    mapping = next(m for m in mappings.MAPPINGS if m.label == "1st Signal/Mode")
+    assert not mapping.ascconv_key and mapping.preview_path
+
+    for step in read(protocol_archive_path).steps:
+        if not step.runs_a_protocol:
+            continue
+        shown = mappings.display(mapping, step.protocol)
+        assert shown is None or shown in {name for name, _ in mapping.choices}
+
+        chosen, reason = mappings.resolve(step.protocol, "1st Signal/Mode")
+        assert chosen is None, "a preview-only mapping must never be handed to the writer"
+        assert "not held by one ASCCONV assignment" in reason
+
+
+@requires_exar
+def test_the_composite_signal_mode_agrees_with_every_printout_that_names_it() -> None:
+    """The decode is checked against the card, not against the code it read.
+
+    This is the pairing the mapping rests on, kept as a sweep so a third code
+    arriving later fails here rather than decoding to nothing in silence. It
+    also guards the composition: the two ASCCONV fields it is built from must
+    agree with the printed string under the enums pinned for them.
+
+    Returns
+    -------
+    None
+    """
+    mapping = next(m for m in mappings.MAPPINGS if m.label == "1st Signal/Mode")
+    compared, names = 0, set()
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        if not os.path.exists(pdf):
+            continue
+        stored: dict[str, list] = {}
+        for step in read(path).steps:
+            if step.runs_a_protocol:
+                stored.setdefault(build.match_name(step.name), []).append(step.protocol)
+        for scan in parse_document(pdf).protocol.scans:
+            entry = scan.to_dict()
+            found = stored.get(build.match_name(entry["name"]))
+            if not found or len(found) != 1:
+                continue
+            for params in entry["sections"].values():
+                printed = params.get("1st Signal/Mode")
+                if printed is None:
+                    continue
+                shown = mappings.display(mapping, found[0])
+                if shown is None:
+                    continue
+                assert shown == str(
+                    printed
+                ), f"{entry['name']}: decoded {shown!r}, card printed {printed!r}"
+                compared += 1
+                names.add(str(printed))
+
+    # Not vacuous: the sweep has to see both mapped codes, or a decode that
+    # only ever meets `None` would pass while saying nothing.
+    assert compared > 300, f"only {compared} comparisons"
+    assert names == {"None", "Ext./Trigger"}, names

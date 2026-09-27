@@ -7,9 +7,9 @@ import json
 import os
 import re
 import sys
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterator, Mapping, Sequence
 
-from . import __version__, paths
+from . import __version__, paths, timing
 from .analysis import address
 from .analysis.diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .analysis.flatten import conflicts
@@ -708,7 +708,67 @@ def build_parser() -> argparse.ArgumentParser:
         help="print the URL instead of opening a browser",
     )
 
+    add_timings_option(parser, top_level=True)
     return parser
+
+
+def _every_subparser(parser: argparse.ArgumentParser) -> Iterator[argparse.ArgumentParser]:
+    """Every parser below ``parser``, at any depth.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The parser to walk.
+
+    Yields
+    ------
+    argparse.ArgumentParser
+        Each subcommand's parser, then its own subcommands', and so on --
+        ``vocab``'s actions are a level below the rest.
+    """
+    for action in parser._actions:  # noqa: SLF001 -- argparse exposes no walker
+        if isinstance(action, argparse._SubParsersAction):  # noqa: SLF001
+            for child in dict.fromkeys(action.choices.values()):
+                yield child
+                yield from _every_subparser(child)
+
+
+def add_timings_option(parser: argparse.ArgumentParser, top_level: bool = False) -> None:
+    """Add ``--debug-timings`` to a parser and, at the top, to every subcommand.
+
+    It is accepted on either side of the subcommand, since a debugging flag is
+    likeliest to be appended to a command line that already exists. That
+    takes care: a subparser writes its own defaults over the namespace the
+    top-level parser filled, so an ordinary ``False`` default there would
+    silently undo ``spt --debug-timings diff ...``. The copies below the top
+    therefore default to ``SUPPRESS``, which leaves the attribute alone
+    unless the flag is actually given.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The parser to add the flag to.
+    top_level : bool, optional
+        Whether ``parser`` is the root, in which case every subcommand below
+        it gets the flag as well. Default ``False``.
+
+    Returns
+    -------
+    None
+    """
+    parser.add_argument(
+        "--debug-timings",
+        action="store_true",
+        default=False if top_level else argparse.SUPPRESS,
+        help=(
+            "time the major operations (reading and parsing PDFs and archives, "
+            "matching names, diffing, writing JSON and archives) and print a "
+            "summary to stderr on exit"
+        ),
+    )
+    if top_level:
+        for child in _every_subparser(parser):
+            add_timings_option(child)
 
 
 def _inputs(target: str) -> list[str]:
@@ -857,14 +917,14 @@ def _write_outputs(
     OSError
         If a destination cannot be written.
     """
-    payload = result.protocol.to_json(include_flat=args.flatten)
+    with timing.timed(timing.SERIALIZE_JSON):
+        payload = result.protocol.to_json(include_flat=args.flatten)
     if args.stdout and not batch:
         print(payload)
         out_path = "<stdout>"
     else:
         out_path = _output_path(pdf, args.out, batch, root)
-        with open(out_path, "w", encoding="utf-8") as handle:
-            handle.write(payload + "\n")
+        _write_text(out_path, payload)
 
     if args.emit_debug:
         debug_path = args.emit_debug
@@ -875,6 +935,47 @@ def _write_outputs(
             os.makedirs(os.path.dirname(debug_path), exist_ok=True)
         write_debug(debug_path, result)
     return out_path
+
+
+def _json_text(payload: Any) -> str:
+    """Serialize a document the way every JSON output here is written.
+
+    Parameters
+    ----------
+    payload : Any
+        A JSON-serializable document.
+
+    Returns
+    -------
+    str
+        Indented JSON, non-ASCII characters kept as themselves.
+    """
+    with timing.timed(timing.SERIALIZE_JSON):
+        return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+def _write_text(path: str, text: str) -> None:
+    """Write a command's output to a file, with a trailing newline.
+
+    Parameters
+    ----------
+    path : str
+        Destination. An existing file there is replaced.
+    text : str
+        The output.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    OSError
+        If the file cannot be written.
+    """
+    with timing.timed(timing.WRITE_FILE):
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text + "\n")
 
 
 def _run_gui(args: argparse.Namespace) -> int:
@@ -1629,13 +1730,12 @@ def _run_list(args: argparse.Namespace) -> int:
         sets = link_sets(protocol)
         if sets:
             payload["link_sets"] = [entry.to_dict() for entry in sets]
-        text = json.dumps(payload, indent=2, ensure_ascii=False)
+        text = _json_text(payload)
     else:
         text = render_listing(protocol, rows, link_options=args.link_options, pauses=args.pauses)
 
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as handle:
-            handle.write(text + "\n")
+        _write_text(args.out, text)
     else:
         print(text)
     return 0
@@ -1669,15 +1769,10 @@ def _run_summary(args: argparse.Namespace) -> int:
         print(f"catalog: {problem}", file=sys.stderr)
 
     summary = build_summary(protocol, catalog)
-    text = (
-        json.dumps(summary.to_dict(), indent=2, ensure_ascii=False)
-        if args.json
-        else render_summary(summary)
-    )
+    text = _json_text(summary.to_dict()) if args.json else render_summary(summary)
 
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as handle:
-            handle.write(text + "\n")
+        _write_text(args.out, text)
     else:
         print(text)
     return 0
@@ -1730,13 +1825,12 @@ def _run_sequences(args: argparse.Namespace) -> int:
                 if i.verdict in SELECTORS.get(args.only, (THIRD_PARTY, UNRECOGNIZED, STOCK))
             ],
         }
-        text = json.dumps(payload, indent=2, ensure_ascii=False)
+        text = _json_text(payload)
     else:
         text = render_sequences(protocol, found, explain=args.explain, only=args.only)
 
     if args.out:
-        with open(args.out, "w", encoding="utf-8") as handle:
-            handle.write(text + "\n")
+        _write_text(args.out, text)
     else:
         print(text)
     return 0
@@ -1942,11 +2036,10 @@ def _run_diff(args: argparse.Namespace) -> int:
         # The counts in the payload describe the filtered view, so the
         # filter travels with them.
         payload["sections"] = sections
-    rendered = json.dumps(payload, indent=2, ensure_ascii=False) if args.json else text
+    rendered = _json_text(payload) if args.json else text
     try:
         if args.out:
-            with open(args.out, "w", encoding="utf-8") as handle:
-                handle.write(rendered + "\n")
+            _write_text(args.out, rendered)
         else:
             print(rendered)
     except OSError as exc:
@@ -2050,14 +2143,13 @@ def _run_check(args: argparse.Namespace) -> int:
         reports.append(report)
 
     if args.json:
-        rendered = json.dumps([r.to_dict() for r in reports], indent=2, ensure_ascii=False)
+        rendered = _json_text([r.to_dict() for r in reports])
     else:
         rendered = "\n\n".join(_render_policy_report(r, args.quiet) for r in reports)
 
     try:
         if args.out:
-            with open(args.out, "w", encoding="utf-8") as handle:
-                handle.write(rendered + "\n")
+            _write_text(args.out, rendered)
         else:
             print(rendered)
     except OSError as exc:
@@ -2356,15 +2448,14 @@ def _run_archive(args: argparse.Namespace) -> int:
             print(f"{exc}", file=sys.stderr)
             return 1
 
-    text = json.dumps(document, indent=2, ensure_ascii=False)
+    text = _json_text(document)
     if args.stdout:
         print(text)
         destination = "<stdout>"
     else:
         destination = args.out or _archive_output_path(args.input)
         try:
-            with open(destination, "w", encoding="utf-8") as handle:
-                handle.write(text + "\n")
+            _write_text(destination, text)
         except OSError as exc:
             print(f"could not write {destination}: {exc}", file=sys.stderr)
             return 1
@@ -2462,14 +2553,13 @@ def _run_tree(args: argparse.Namespace) -> int:
             "roots": [node.to_dict() for node in roots],
             "counts": exar_tree.tally(roots),
         }
-        text = json.dumps(payload, indent=2, ensure_ascii=False)
+        text = _json_text(payload)
     else:
         text = exar_tree.render(roots, counts=args.counts)
 
     if args.out:
         try:
-            with open(args.out, "w", encoding="utf-8") as handle:
-                handle.write(text + "\n")
+            _write_text(args.out, text)
         except OSError as exc:
             print(f"could not write {args.out}: {exc}", file=sys.stderr)
             return 1
@@ -2686,7 +2776,31 @@ def main(argv: list[str] | None = None) -> int:
     """
     use_utf8_output()
     args = build_parser().parse_args(argv)
+    if not args.debug_timings:
+        return _dispatch(args)
+    timing.enable()
+    try:
+        return _dispatch(args)
+    finally:
+        # stderr, so a --stdout JSON stream stays parseable; and in a finally,
+        # since the run that fails is often the one worth timing.
+        print(timing.report(), file=sys.stderr)
+        timing.disable()
 
+
+def _dispatch(args: argparse.Namespace) -> int:
+    """Run the subcommand ``args`` names.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments.
+
+    Returns
+    -------
+    int
+        The subcommand's exit status, as :func:`main` documents.
+    """
     if args.command == "versions":
         return _list_versions()
 

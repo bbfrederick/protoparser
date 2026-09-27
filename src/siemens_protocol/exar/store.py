@@ -23,6 +23,8 @@ import sqlite3
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
+from .. import timing
+
 #: Tables that hold sqlite's own bookkeeping and are rebuilt from the DDL
 #: rather than copied row by row.
 INTERNAL_PREFIX = "sqlite_"
@@ -214,6 +216,7 @@ def _read_only_uri(path: str) -> str:
     return pathlib.Path(path).resolve().as_uri() + "?mode=ro"
 
 
+@timing.timed_function(timing.READ_EXAR)
 def read(path: str) -> Container:
     """Load every table of an ``.exar1`` file.
 

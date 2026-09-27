@@ -19,6 +19,7 @@ import re
 import uuid
 from typing import Any
 
+from .. import timing
 from . import envelope
 from .archive import DIRECTORY, PROGRAM, STEP_KINDS, Archive, Program
 from .generate import NO_GUID, STEP_KEYED_MAPS
@@ -27,6 +28,7 @@ from .generate import NO_GUID, STEP_KEYED_MAPS
 GUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
+@timing.timed_function(timing.VALIDATE_EXAR)
 def problems(archive: Archive) -> list[str]:
     """Return every structural rule the archive breaks.
 

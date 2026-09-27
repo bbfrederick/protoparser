@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from typing import Mapping as MappingType
 
+from ... import timing
 from ...exar import ascconv, geometry
 from ...exar.archive import Archive
 from . import mappings
@@ -296,6 +297,7 @@ def target_steps(
     return named[0].steps if len(named) == 1 else []
 
 
+@timing.timed_function(timing.APPLY_PRINTOUT)
 def apply_protocol(
     archive: Archive, parsed: MappingType[str, Any], program: Any = None
 ) -> BuildReport:
@@ -323,13 +325,13 @@ def apply_protocol(
     # A pause step carries no protocol and the PDF does not print it as a scan,
     # so it can never be the counterpart of one.
     steps: dict[str, list[Any]] = {}
-    for step in target_steps(archive, parsed, program):
-        if step.runs_a_protocol:
-            steps.setdefault(match_name(step.name), []).append(step)
-
     scans: dict[str, list[Any]] = {}
-    for scan in parsed.get("scans", []):
-        scans.setdefault(match_name(scan.get("name", "")), []).append(scan)
+    with timing.timed(timing.PAIR_NAMES):
+        for step in target_steps(archive, parsed, program):
+            if step.runs_a_protocol:
+                steps.setdefault(match_name(step.name), []).append(step)
+        for scan in parsed.get("scans", []):
+            scans.setdefault(match_name(scan.get("name", "")), []).append(scan)
 
     seen: set[str] = set()
     for name, printed in scans.items():
@@ -349,6 +351,7 @@ def apply_protocol(
     return report
 
 
+@timing.timed_function(timing.PAIR_NAMES)
 def pair_scans(steps: list[Any], scans: list[MappingType[str, Any]]) -> list[tuple[Any, Any]]:
     """Pair archive steps with printed scans, repeated names included.
 
@@ -472,6 +475,7 @@ def program_name(parsed: MappingType[str, Any]) -> str | None:
     return found.pop() if len(found) == 1 else None
 
 
+@timing.timed_function(timing.PAIR_NAMES)
 def pair_programs(archive: Archive, exports: MappingType[str, MappingType[str, Any]]) -> Pairing:
     """Pair an archive's programs with the printouts that cover them.
 

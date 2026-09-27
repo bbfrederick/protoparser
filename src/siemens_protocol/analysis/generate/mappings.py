@@ -74,6 +74,12 @@ class Mapping:
     label : str
         The label the console and the PDF print, for example ``TR``.
     ascconv_key : str
+        Empty for a parameter the ASCCONV block does not hold in one place.
+        `1st Signal/Mode` is the case: it is composed from
+        ``sPhysioImaging.lSignal1`` and ``lMethod1``, so no single key carries
+        it -- while ``Preview`` carries the whole composite as one code. Such
+        a mapping decodes and is refused for writing, since patching the
+        preview alone lists a number the scan will not use.
         Assignment in the ASCCONV block. May contain ``[*]``, which stands for
         every index the block actually defines -- the slice arrays are sized
         per protocol, so the set is read from the document rather than assumed.
@@ -155,8 +161,8 @@ class Mapping:
     """
 
     label: str
-    ascconv_key: str
     evidence: str
+    ascconv_key: str = ""
     preview_path: str | None = None
     scale: float = 1.0
     sign_from: str | None = None
@@ -2783,6 +2789,24 @@ MAPPINGS: tuple[Mapping, ...] = (
             "caused both."
         ),
     ),
+    Mapping(
+        label="1st Signal/Mode",
+        preview_path="sub.0.msr.sig_mode1",
+        choices=(("None", 236), ("Ext./Trigger", 243)),
+        evidence=(
+            "paired printout and archive: 308 scans print 'None' against preview "
+            "code 236, and 14 scans of K23EB_20210802 print 'Ext./Trigger' against "
+            "243. No ASCCONV key carries it -- the protocol composes it from "
+            "sPhysioImaging.lSignal1 and lMethod1, which read 1/1 and 8/2 on those "
+            "same two groups, matching the pinned enums (signal 8 = Ext., mode 2 = "
+            "Trigger). So the composite is confirmed twice over, once from the "
+            "console's own code and once from the two fields it is built from. "
+            "A third code, 239, appears on 3 corpus scans and is deliberately not "
+            "listed: its only candidate printout is 'ECG/Retro' in an export with "
+            "no archive beside it, which is a value coincidence rather than a "
+            "pairing."
+        ),
+    ),
 )
 
 
@@ -3166,6 +3190,30 @@ def _first_element(mapping: Mapping, protocol: Protocol) -> str | None:
     return None
 
 
+def _preview_literal(mapping: Mapping, protocol: Protocol) -> str | None:
+    """Read a preview-only mapping's stored code out of ``Preview``.
+
+    Parameters
+    ----------
+    mapping : Mapping
+        A mapping carrying a ``preview_path`` and no ``ascconv_key``.
+    protocol : Protocol
+        The protocol to read from.
+
+    Returns
+    -------
+    str or None
+        The stored value as a literal, or ``None`` when this protocol's
+        preview does not carry the path.
+    """
+    if not mapping.preview_path:
+        return None
+    entry = protocol.preview.get(mapping.preview_path)
+    if entry is None or entry.value is None:
+        return None
+    return str(entry.value)
+
+
 def display(mapping: Mapping, protocol: Protocol) -> str | None:
     """What a protocol stores for a mapped parameter, in the form a card shows.
 
@@ -3199,7 +3247,11 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
     if mapping.basis is not None or mapping.sign_from is not None:
         return None
 
-    if "[*]" in mapping.ascconv_key:
+    if not mapping.ascconv_key:
+        # Preview-only: the ASCCONV block does not hold this parameter in one
+        # place, so the console's own summary is where it is readable at all.
+        literal = _preview_literal(mapping, protocol)
+    elif "[*]" in mapping.ascconv_key:
         literal = _first_element(mapping, protocol)
     else:
         literal = ascconv.read_ascconv(protocol.xprotocol, mapping.ascconv_key)
@@ -3209,7 +3261,11 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
     # interpolation matrix on the scans that have one and a date or a time on
     # the rest, and the value is what tells them apart -- the same test that
     # decides whether a difference there is churn.
-    if literal is not None and ascconv.is_churn(mapping.ascconv_key, literal):
+    if (
+        literal is not None
+        and mapping.ascconv_key
+        and ascconv.is_churn(mapping.ascconv_key, literal)
+    ):
         return None
 
     if mapping.bit is not None:
@@ -3378,7 +3434,15 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
     # lookup the writer uses, and a derived parameter is one the console
     # recomputes from its inputs. `display` consults MAPPINGS directly and
     # so still decodes them.
-    in_scope = [m for m in MAPPINGS if not m.read_only and applies_to(m, protocol)]
+    # A mapping with no ASCCONV key decodes and cannot be written: this
+    # format keeps a value in two places, and patching the preview alone
+    # lists a number the scan will not use. Excluded here rather than left to
+    # fail in `encode`, so the manifest carries a reason instead of a
+    # traceback -- and excluded beside the read-only ones, which are out for
+    # the neighbouring reason.
+    in_scope = [
+        m for m in MAPPINGS if not m.read_only and m.ascconv_key and applies_to(m, protocol)
+    ]
     hits = [m for m in in_scope if m.label.strip().casefold() == wanted]
     if not hits:
         hits = [m for m in in_scope if m.preview_path == name]
@@ -3401,6 +3465,18 @@ def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:
     if len(hits) > 1:
         keys = ", ".join(sorted(m.ascconv_key for m in hits))
         return (None, f"label {name!r} maps to several parameters: {keys}")
+    preview_only = [
+        m
+        for m in MAPPINGS
+        if not m.ascconv_key and m.label.strip().casefold() == wanted and applies_to(m, protocol)
+    ]
+    if preview_only:
+        return (
+            None,
+            f"{name!r} is not held by one ASCCONV assignment, so it can be read from a "
+            "protocol and not written to one; the console composes it from several "
+            "fields and keeps the composite in its own summary",
+        )
     derived = [m for m in MAPPINGS if m.read_only and m.label.strip().casefold() == wanted]
     if derived:
         # Named for what it is, rather than falling through to the build-gate

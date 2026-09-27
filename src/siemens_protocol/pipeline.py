@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 
 import pymupdf
 
+from . import timing
 from .extract import OCRUnavailable, Page, extract_page, is_usable, ocr_page
 from .layout.columns import split_columns
 from .layout.sections import Record, SectionMarker, current_section, parse_column
@@ -131,6 +132,7 @@ def _resolve_profile(
     return detected, info
 
 
+@timing.timed_function(timing.EXTRACT_PDF)
 def acquire_pages(
     doc: pymupdf.Document,
     profile: VersionProfile,
@@ -248,6 +250,7 @@ def _read_page_body(
     return items, section
 
 
+@timing.timed_function(timing.PARSE_PDF)
 def parse_document(path: str, options: ParseOptions | None = None) -> ParseResult:
     """Parse one protocol PDF.
 

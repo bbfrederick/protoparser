@@ -85,6 +85,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Sequence
 
+from .. import timing
 from ..paths import join, split
 
 #: A leaf carrying an occurrence: ``SpinEchoFieldMap_AP#2``. Anchored at both
@@ -456,6 +457,7 @@ def _matching(
     return [found[address.occurrence - 1]]
 
 
+@timing.timed_function(timing.MATCH_NAME)
 def select(
     address: Address,
     candidates: Sequence[tuple[Sequence[str], Any]],
@@ -521,6 +523,7 @@ def select(
     )
 
 
+@timing.timed_function(timing.MATCH_NAME)
 def select_all(
     address: Address,
     candidates: Sequence[tuple[Sequence[str], Any]],

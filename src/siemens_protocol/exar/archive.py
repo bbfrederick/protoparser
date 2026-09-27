@@ -32,9 +32,11 @@ import hashlib
 import re
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from types import MappingProxyType
+from typing import Any, Iterator, Mapping
 from xml.etree import ElementTree
 
+from .. import timing
 from . import envelope, store
 from .envelope import Envelope
 
@@ -599,28 +601,73 @@ class Archive:
     head: str
     as_read: frozenset[str] = frozenset()
     displaced: set[str] = field(default_factory=set)
+    _indexes: dict[str, tuple[tuple[int, int], Mapping[str, Instance]]] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+
+    def _index(self, attribute: str) -> Mapping[str, Instance]:
+        """Index the live instances by one of their id fields, built once.
+
+        These indexes were rebuilt on every access, and they are consulted
+        once per node -- ``label_of``, ``steps_of``, ``path_of`` -- so choosing
+        one protocol out of the 97 MB whole-scanner export rebuilt a
+        31 000-entry dict 21 849 times and spent 28 s doing it, three
+        quarters of the run.
+
+        Nothing in the package edits ``instances`` after :func:`from_container`
+        builds it: an appended step goes into the ``Instance`` *table* and is
+        seen by reading the archive again. The cache is still keyed on the
+        dict's identity and size, so replacing it or adding to it rebuilds
+        the index rather than serving a stale one. An :class:`Instance`
+        edited in place needs nothing, since the index holds the object
+        itself. What it cannot see is an entry replaced under an existing key
+        at the same size, and nothing does that.
+
+        Parameters
+        ----------
+        attribute : str
+            ``"element_id"`` or ``"object_id"``.
+
+        Returns
+        -------
+        Mapping of str to Instance
+            A read-only view, since every caller shares it: a write through
+            one would otherwise corrupt every later lookup.
+        """
+        key = (id(self.instances), len(self.instances))
+        cached = self._indexes.get(attribute)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+        with timing.timed(timing.INDEX_EXAR):
+            index = MappingProxyType(
+                {getattr(one, attribute): one for one in self.instances.values()}
+            )
+        self._indexes[attribute] = (key, index)
+        return index
 
     @property
-    def by_element(self) -> dict[str, Instance]:
+    def by_element(self) -> Mapping[str, Instance]:
         """Index the live instances by element id.
 
         Returns
         -------
-        dict of str to Instance
+        Mapping of str to Instance
             One entry per element. ``Children`` blobs resolve through this.
+            Built once and shared; see :meth:`_index`.
         """
-        return {one.element_id: one for one in self.instances.values()}
+        return self._index("element_id")
 
     @property
-    def by_object(self) -> dict[str, Instance]:
+    def by_object(self) -> Mapping[str, Instance]:
         """Index the live instances by domain-object id.
 
         Returns
         -------
-        dict of str to Instance
+        Mapping of str to Instance
             One entry per object. The JSON payloads' ids resolve through this.
+            Built once and shared; see :meth:`_index`.
         """
-        return {one.object_id: one for one in self.instances.values()}
+        return self._index("object_id")
 
     @property
     def major_version(self) -> str:
@@ -904,6 +951,7 @@ class Archive:
             return None
         return self.by_object.get(key)
 
+    @timing.timed_function(timing.PATH_EXAR)
     def path_of(self, instance: Instance, parents: dict[str, str] | None = None) -> list[str]:
         """Return the folder path to a node, outermost first.
 
@@ -935,6 +983,7 @@ class Archive:
         return list(reversed(names))
 
     @property
+    @timing.timed_function(timing.LIST_EXAR)
     def programs(self) -> list["Program"]:
         """Return every protocol in the archive, each with its ordered steps.
 
@@ -1154,6 +1203,7 @@ class Archive:
         instance.content_hash = digest
         return digest
 
+    @timing.timed_function(timing.WRITE_EXAR)
     def write(self, path: str) -> None:
         """Write the archive out as a new ``.exar1`` file.
 
@@ -1374,6 +1424,7 @@ def read(path: str) -> Archive:
     return from_container(store.read(path))
 
 
+@timing.timed_function(timing.DECODE_EXAR)
 def from_container(container: store.Container) -> Archive:
     """Decode an archive from tables already in memory.
 

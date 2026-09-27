@@ -9,6 +9,7 @@ mistake in any of them produces plausible output rather than an error.
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import pathlib
 import re
@@ -17,6 +18,7 @@ import sqlite3
 import pytest
 
 from conftest import (  # noqa: F401  (fixtures)
+    EXAMPLES,
     EXAR_PROTOCOL_FILES,
     PARAMCHECK_PAIRS,
     archive_path,
@@ -1531,3 +1533,43 @@ def test_reading_an_archive_does_not_modify_it(archive_path: str) -> None:
     after = os.stat(archive_path)
 
     assert (before.st_size, before.st_mtime_ns) == (after.st_size, after.st_mtime_ns)
+
+
+def test_the_instance_indexes_are_built_once_and_shared() -> None:
+    """Reading ``by_element`` per node must not rebuild it per node.
+
+    Rebuilding on every access is what made choosing one protocol out of a
+    whole-scanner export take half a minute: 21 849 builds of a 31 000-entry
+    dict for one ``diff``. The index is now built once per archive, and is a
+    read-only view, since one shared dict written through by any caller would
+    corrupt every later lookup.
+    """
+    from siemens_protocol import timing
+
+    loaded = exar.read(os.path.join(EXAMPLES, "XA60", "Potpourri_P1.exar1"))
+    timing.enable()
+    try:
+        for program in loaded.programs:
+            loaded.path_of(program.instance)
+        assert loaded.by_element is loaded.by_element
+        assert loaded.by_object is loaded.by_object
+        builds = timing.tallies()[timing.INDEX_EXAR][0]
+    finally:
+        timing.disable()
+    assert builds == 2, "one build per index, however many lookups"
+    with pytest.raises(TypeError):
+        loaded.by_element["x"] = next(iter(loaded.instances.values()))  # type: ignore[index]
+
+
+def test_the_instance_indexes_follow_a_changed_instance_set() -> None:
+    """A cached index must never answer for a set it was not built from."""
+    loaded = exar.read(os.path.join(EXAMPLES, "XA60", "Potpourri_P1.exar1"))
+    first = loaded.by_element
+    extra = dataclasses.replace(
+        next(iter(loaded.instances.values())), id="new-id", element_id="new-element"
+    )
+    loaded.instances["new-id"] = extra
+    assert "new-element" in loaded.by_element and "new-element" not in first
+    loaded.instances = {extra.id: extra}
+    assert set(loaded.by_element) == {"new-element"}
+    assert set(loaded.by_object) == {extra.object_id}

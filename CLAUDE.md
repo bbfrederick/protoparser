@@ -16,8 +16,8 @@ See `Design.md` for the design and `README.md` for usage.
 ### Environment
 
 ```bash
-.venv/bin/python -m pytest          # always use .venv, not system python3
-.venv/bin/pip install -e ".[dev]"   # pymupdf, pytesseract, pillow, pytest, black, isort
+.venv/bin/python -m pytest -n auto  # always use .venv, not system python3; -n auto for the whole suite
+.venv/bin/pip install -e ".[dev]"   # pymupdf, pytesseract, pillow, pytest, pytest-xdist, black, isort
 ```
 
 - `import pymupdf`, not `import fitz` (deprecated alias, emits a warning)
@@ -100,10 +100,27 @@ See `Design.md` for the design and `README.md` for usage.
   auth, so the old `curl` route to a check-run's annotations is no longer needed.
   Still have CI steps emit `::error::<message>`: `--log-failed` hands back the whole
   step, and that one line is what says which of a few hundred assertions went red.
-- The full suite runs ~13 minutes (785, 775, 782 s on this machine), so start
-  it in the background and keep working; a single file is seconds. Still run
-  the whole thing before reporting done -- the corpus sweeps are where a
-  change to one reader surfaces in another.
+- **Run the whole suite in parallel: `.venv/bin/python -m pytest -n auto`.**
+  Serially it takes 13-28 minutes depending on load, which is long enough to
+  hold up work, and a bare `pytest` *is* serial: `-n auto` is deliberately not
+  in `addopts`, because CI's targeted steps grep their own output for
+  `skipped` and xdist workers interleave it. So the flag has to be typed, and
+  forgetting it is how a whole session's worth of runs went serial. Start it
+  in the background and keep working. A single file is seconds and needs no
+  `-n`; worker start-up would cost more than it saves. Still run the whole
+  thing before reporting done -- the corpus sweeps are where a change to one
+  reader surfaces in another.
+
+  Two things still bound it. **Other sessions share this machine**: a second
+  full run -- and a *serial* one from another session is the usual case --
+  pushed the load average past 50 and a parallel run to 13-14 minutes, so
+  check `ps` for a running `pytest` before starting another. And **one test
+  is the floor**: xdist distributes whole tests, and
+  `test_driving_every_console_archive_from_its_own_pdf_writes_nothing` takes
+  ~480 s on one worker, with its sibling `..._self_drive_exceptions_...` at
+  ~200 s. No `-n` gets the suite under that; splitting those sweeps into
+  parametrized cases is what would. `--durations=30` names the current
+  worst offenders.
 
 ### The GUI
 
@@ -2667,15 +2684,46 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   *geometry* key must be mined from the whole corpus rather than from one
   sequence: every vNav scan sits at `dSag = 0`, which the block omits, so the
   sequence-scoped pool could not place the position probes at all.
-- **One label can be composed from two assignments, and `Mapping` cannot
-  express that.** `1st Signal/Mode` prints `<signal>/<mode>`: neither
-  `sPhysioImaging.lSignal1` nor `lMethod1` moves it alone, and together they
-  print `ECG/Trigger`. The enums are pinned -- signal 1 None, 2 ECG, 4 Pulse,
-  8 Ext., 16 Resp., 64 2nd Ext.; mode 2 Trigger, 4 Gating, with `ECG/Gating`
-  additionally printing `Gate On`/`Gate Off` -- and there is still no mapping,
-  because every `Mapping` claims exactly one `ascconv_key`. That is a gap in
-  the table's shape rather than a missing derivation, and it is the first
-  label to need it.
+- **One label can be composed from two assignments -- and the conclusion
+  drawn from that was about the wrong side of the format.** `1st Signal/Mode`
+  prints `<signal>/<mode>`: neither `sPhysioImaging.lSignal1` nor `lMethod1`
+  moves it alone, and together they print `ECG/Trigger`. The enums are pinned
+  -- signal 1 None, 2 ECG, 4 Pulse, 8 Ext., 16 Resp., 64 2nd Ext.; mode 2
+  Trigger, 4 Gating, with `ECG/Gating` additionally printing `Gate On`/`Gate
+  Off`. This entry then said there could be no mapping, because every
+  `Mapping` claims exactly one `ascconv_key`.
+
+  **`Preview` carries the whole composite as one code**, under
+  `sub.0.msr.sig_mode1`, so the two-keys-one-label objection never applied
+  there. It was reached from the ASCCONV side and never re-tested against the
+  preview, which is the same half-of-the-format error as reading `Position`
+  off a flattened scan. The question that surfaced it was someone seeing
+  `~ 1st Signal/Mode: 243 | 236` in an archive diff and asking why a menu
+  parameter was showing an integer: nothing decoded the code, because nothing
+  claimed the label.
+
+  `Mapping.ascconv_key` is optional now, and an empty one marks a mapping
+  that **decodes and is never written**. `resolve` refuses it with a stated
+  reason rather than letting `encode` fail, because patching the preview
+  alone lists a number the scan will not use -- the two-places rule, which is
+  exactly why this cannot be a full mapping even now.
+
+  Two codes are landed and a third deliberately is not. 236 is `None` on 308
+  paired readings and 243 is `Ext./Trigger` on the 14 in `K23EB_20210802`,
+  and those same two groups read `lSignal1/lMethod1` of 1/1 and 8/2 -- which
+  is `Ext.` plus `Trigger` under the pinned enums, so the composite is
+  confirmed twice over, once from the console's own code and once from the
+  fields it is built from. 239 appears on 3 corpus scans and its only
+  candidate printout, `ECG/Retro`, is in an export with **no archive beside
+  it**; the counts line up (3 against 2) and that is a value coincidence, not
+  a pairing. An unlisted code decodes to nothing rather than to a guess, and
+  the sweep asserts it saw both mapped names so a decode that only ever met
+  `None` cannot pass quietly.
+
+  Note which pairing found this. `K23EB_20210802` is the converted export
+  that prints an asterisk after every scan name, so the first join missed all
+  14 of its readings and the correspondence looked unconfirmable; it needs
+  `build.match_name` on both sides, exactly as that entry says.
 - **`clean` refuses a finding whose scan time moved, and that costs twelve
   readings across the two rounds.** The rule requires that the console
   recomputed *nothing*, which is deliberately stricter than the question

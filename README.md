@@ -359,6 +359,7 @@ spt diff old.pdf new.pdf --filter contrast
 | `--no-flatten` | Omit the flattened per-scan view (included by default). |
 | `--emit-debug PATH` | Dump per-span geometry for tuning a new version. |
 | `--stdout` | Write JSON to stdout instead of a file (single file only). |
+| `--debug-timings` | Any subcommand, before or after it. Time the major operations -- reading and decoding archives, parsing PDFs, matching protocol and scan names, diffing, writing JSON and archives -- and print calls, total and mean for each to stderr on exit. Totals are inclusive, so a diff's row also counts the per-scan diffs listed beside it. |
 
 ## The graphical front end
 
