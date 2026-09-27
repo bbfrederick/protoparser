@@ -122,6 +122,23 @@ See `Design.md` for the design and `README.md` for usage.
   parametrized cases is what would. `--durations=30` names the current
   worst offenders.
 
+- **Redirect a suite run to a file; never pipe it.** A shell pipeline reports
+  the *last* command's status, so `pytest -n auto | tail -60` exits 0 on a
+  failing suite and the summary line saying `1 failed` scrolls past inside
+  output the caller reads as a success. `> suite.log 2>&1` keeps pytest's own
+  exit code. `tail` also buffers, so nothing reaches the log until the process
+  ends, which defeats polling the file for progress -- and a wait loop written
+  as `until [ -s log ]` is then satisfied by whatever writes first, which on
+  one occasion was `black` while pytest still had eleven minutes to run. Poll
+  for the summary line itself (`grep -qE "[0-9]+ (passed|failed)"`), not for
+  the file being non-empty.
+
+  Checking that `-n auto` really took effect has the same shape. There are no
+  `popen-gw` process names to grep for on macOS -- an xdist worker is a bare
+  interpreter path with no distinguishing argv -- so a name-based check reports
+  zero workers for a run that has twelve. Ask the process tree instead:
+  `ps ax -o pid,ppid,command | awk '$2=='<pytest pid>.
+
 ### The GUI
 
 - It is a page served to the browser by a stdlib `http.server`, not a toolkit.
@@ -2453,7 +2470,9 @@ drives. Six rounds have run; they took `MAPPINGS` from 115 to 249 and
 settled four questions this file had recorded as open. The last 13 of those
 came from no scanner trip at all -- `Finding.attributable` re-read returns
 already in hand, which is the cheapest round there is and the one to try
-before building another archive. Rounds 4 to 6 are
+before building another archive. The table stands at 250: `1st Signal/Mode`
+is the one entry no probe round produced, so do not reconcile the 249 to a
+count of `MAPPINGS` -- it is a figure about the rounds, not about the table. Rounds 4 to 6 are
 where the method stopped adding mappings one at a time: 553 probes over
 twenty archives, and -- more usefully for planning the next round -- 163
 elements shown to print nothing and 95 the sequence refuses to have
@@ -2724,6 +2743,60 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   that prints an asterisk after every scan name, so the first join missed all
   14 of its readings and the correspondence looked unconfirmable; it needs
   `build.match_name` on both sides, exactly as that entry says.
+- **Making a `Mapping` field optional turns every sweep over the table into a
+  reader of a value it was never written for, and the sweeps are in the test
+  file rather than beside the table.** Giving `ascconv_key` a default of `""`
+  needed three guards in `mappings.py` -- `display` reads the preview
+  instead, `resolve` refuses with a reason, `is_churn` is not asked -- and
+  those are the three a person writing the feature looks at, because they are
+  the ones the feature needs. Four *other* sites read the field generically,
+  and only one of them failed.
+
+  `test_every_enum_choice_agrees_with_the_corpus` selected its enums as
+  `m.choices and m.bit is None`, which is every enum including the
+  preview-only one, and then asked the ASCCONV block for a key that by
+  construction does not exist -- so it reported the mapping as disagreeing
+  with the corpus on **418 readings over 261 scans**, every scan that prints
+  the label. That one is the cheap failure: loud, immediate, and naming the
+  mapping in its message.
+
+  **The two duplicate-key checks are the expensive ones, because they
+  passed.** `test_no_two_mappings_claim_the_same_ascconv_key` keys an entry's
+  identity on `(ascconv_key, sequences, when, bit)` and
+  `test_no_protocol_has_two_mappings_writing_one_key` on `(ascconv_key,
+  bit)`; with one preview-only mapping both tuples stay unique and both tests
+  are green. With a *second* they would pair the two on their shared empty
+  key and report a collision -- between two mappings that write nothing at
+  all, `resolve` refusing both. A check that inverts on the second instance
+  of a thing is worse than one that fails on the first, since the first
+  instance is when someone is looking. The identity of a preview-only mapping
+  is its `preview_path`, and the write-race check simply has no business
+  counting a mapping that never writes.
+
+  The remaining two are the shapes worth recognising because nothing is wrong
+  yet. `probe._is_mapped("")` became `True`: the empty key joined the claimed
+  set, which put the empty *stem* in `stems` too, and no real ASCCONV key
+  splits to an empty stem -- so nothing is skipped today and the reason it is
+  safe is a fact about key spelling rather than anything the function says.
+  And `build.stored_display` was saved by accident: it returns early on
+  `mapping.choices`, so it never reaches the key. A keyless mapping *without*
+  choices would have gone straight through it.
+
+  This is the sibling of the round-5 widening bug -- a scoping rule enforced
+  in the table and not in the thing that edits the table is enforced nowhere
+  -- with the sweeps standing in for the editor. The discipline it argues for
+  is mechanical: after widening a `Mapping` field, grep every reader of that
+  field and ask of each one what it does with the new value, rather than
+  auditing the call sites the feature happens to traverse. `grep -rn
+  ascconv_key src/ tests/` less the table's own definitions is 49 lines, and
+  the four that mattered are not the four a reading of the feature suggests.
+
+  **Only the whole suite finds this, which is the concrete case for the rule
+  that says to run it.** The mapping's own three tests passed, and were
+  falsified three ways -- wrong code, swapped labels, writer stops refusing --
+  all of which exercise the preview side the feature added and none of which
+  touch a generic sweep in another part of the test file. Falsification proves
+  the test you wrote works; it says nothing about the tests you did not run.
 - **`clean` refuses a finding whose scan time moved, and that costs twelve
   readings across the two rounds.** The rule requires that the console
   recomputed *nothing*, which is deliberately stricter than the question

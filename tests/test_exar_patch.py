@@ -1223,11 +1223,18 @@ def test_no_two_mappings_claim_the_same_ascconv_key() -> None:
     different things -- so the identity of an entry is the target together with
     the scope it applies in.
 
+    A preview-only mapping's target is its ``preview_path``: keying it on the
+    empty ``ascconv_key`` instead would let one such entry pass and report the
+    second as a duplicate of the first, which is the opposite of what this
+    check is for.
+
     Returns
     -------
     None
     """
-    identity = [(m.ascconv_key, m.sequences, m.when, m.bit) for m in mappings.MAPPINGS]
+    identity = [
+        (m.ascconv_key or m.preview_path, m.sequences, m.when, m.bit) for m in mappings.MAPPINGS
+    ]
     assert len(identity) == len(set(identity))
 
 
@@ -1239,6 +1246,10 @@ def test_no_protocol_has_two_mappings_writing_one_key(protocol_archive_path: str
     checkboxes packed into one word -- fourteen CMRR options live in
     ``alFree[0]`` and touch a bit each. What would race is two mappings in
     scope for one protocol writing the same *whole* assignment.
+
+    A mapping with no ``ascconv_key`` writes nothing -- ``resolve`` refuses it
+    -- so it cannot race with anything and is left out. Counting it would pair
+    two such mappings on their shared empty key and call it a collision.
 
     Parameters
     ----------
@@ -1255,7 +1266,9 @@ def test_no_protocol_has_two_mappings_writing_one_key(protocol_archive_path: str
             continue
         protocol = step.protocol
         keys = [
-            (m.ascconv_key, m.bit) for m in mappings.MAPPINGS if mappings.applies_to(m, protocol)
+            (m.ascconv_key, m.bit)
+            for m in mappings.MAPPINGS
+            if m.ascconv_key and mappings.applies_to(m, protocol)
         ]
         assert len(keys) == len(set(keys)), (
             f"{step.name} ({ascconv.sequence_of(protocol)}) has two mappings "
@@ -1703,11 +1716,18 @@ def test_every_enum_choice_agrees_with_the_corpus() -> None:
     choice ``Mapping.absent_choice`` names -- ``Protocol filename`` shows
     ``Generic`` that way, which is stored as ``1`` whenever it is stored.
 
+    A mapping with no ``ascconv_key`` is outside this sweep entirely, not an
+    absent assignment: it reads its code from ``Preview`` because no single
+    assignment holds the label, so asking the ASCCONV block for one finds
+    nothing on every scan and reports the whole mapping as disagreeing.
+    ``test_the_composite_signal_mode_agrees_with_every_printout_that_names_it``
+    is the same check on the side those mappings do carry.
+
     Returns
     -------
     None
     """
-    enums = [m for m in mappings.MAPPINGS if m.choices and m.bit is None]
+    enums = [m for m in mappings.MAPPINGS if m.choices and m.bit is None and m.ascconv_key]
     checked, wrong = 0, []
     for path, _version in EXAR_PROTOCOL_FILES + [(a, "XA60") for a, _p in PARAMCHECK_PAIRS]:
         pdf = os.path.splitext(path)[0] + ".pdf"
