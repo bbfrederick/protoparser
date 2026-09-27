@@ -618,6 +618,37 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", metavar="FILE", help="write the tree here rather than to standard output"
     )
 
+    extract_cmd = sub.add_parser(
+        "extract",
+        help="copy chosen protocols out of an .exar1 archive into a new one",
+        description=(
+            "Build a new .exar1 archive holding only the protocols named, copied "
+            "from the source with their scans, links and pauses, under the same "
+            "folder path. The source is only read and is never modified. This is "
+            "how to take a few protocols out of a backup taken at the exam "
+            "(investigator) or region (folder) level; 'tree' shows what is there "
+            "and by what name."
+        ),
+    )
+    extract_cmd.add_argument("input", help="the .exar1 archive to copy from")
+    extract_cmd.add_argument(
+        "--program",
+        "--protocol",
+        dest="programs",
+        action="append",
+        required=True,
+        metavar="NAME",
+        help=(
+            "a protocol (Siemens: program) to copy; repeat for several. As much of "
+            "its path as it takes to name one, or 're:' for a regular expression "
+            "keeping every protocol it matches: 're:^CMRR'"
+        ),
+    )
+    extract_cmd.add_argument("--out", required=True, help="write the new archive here")
+    extract_cmd.add_argument(
+        "--force", action="store_true", help="replace --out if it already exists"
+    )
+
     exar_cmd = sub.add_parser(
         "exar",
         help="write a protocol PDF's parameters into an XA .exar1 archive",
@@ -2497,6 +2528,148 @@ def _run_exar(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_extract(args: argparse.Namespace) -> int:
+    """Copy chosen protocols out of an archive into a new one.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments carrying ``input``, ``programs``, ``out`` and
+        ``force``.
+
+    Returns
+    -------
+    int
+        ``0`` when the new archive was written, ``1`` when the source could not
+        be read, a protocol could not be resolved, the destination is the
+        source or already exists without ``--force``, or the result failed
+        validation.
+    """
+    from .exar import extract as exar_extract
+    from .exar import validate as exar_validate
+
+    refusal = _extract_destination_refusal(args.input, args.out, args.force)
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 1
+    try:
+        source = _read_archive(args.input)
+        chosen: dict[str, "Program"] = {}
+        for wanted in args.programs:
+            for program in _select_programs(source, wanted, args.input):
+                chosen.setdefault(program.instance.element_id, program)
+        result = exar_extract.extract(source, [p.instance for p in chosen.values()])
+    except (OSError, ValueError) as exc:
+        print(f"{exc}", file=sys.stderr)
+        return 1
+
+    problems = exar_validate.problems(result)
+    if problems:
+        print("the extracted archive is not structurally sound:", file=sys.stderr)
+        for line in problems:
+            print(f"  {line}", file=sys.stderr)
+        return 1
+    try:
+        _write_archive_atomically(result, args.out)
+    except OSError as exc:
+        print(f"could not write {args.out}: {exc}", file=sys.stderr)
+        return 1
+    print(_extract_summary(result, args.out))
+    return 0
+
+
+def _extract_destination_refusal(source: str, out: str, force: bool) -> str | None:
+    """Say why ``extract`` must not write to ``out``, if it must not.
+
+    Parameters
+    ----------
+    source : str
+        The archive being copied from.
+    out : str
+        The requested destination.
+    force : bool
+        Whether replacing an existing file was asked for.
+
+    Returns
+    -------
+    str or None
+        The refusal, or ``None`` when writing there is fine.
+    """
+    if os.path.exists(out) and os.path.exists(source) and os.path.samefile(source, out):
+        return f"--out names the source archive {source}, which extract never modifies"
+    if os.path.isdir(out):
+        return f"--out {out} is a directory; name the archive file to write"
+    if os.path.exists(out) and not force:
+        return f"{out} already exists; pass --force to replace it"
+    return None
+
+
+def _write_archive_atomically(archive: "Archive", path: str) -> None:
+    """Write an archive to a temporary file beside ``path``, then move it there.
+
+    ``store.write`` opens whatever database is already at its path and drops
+    only the tables it is about to create, so writing over an unrelated
+    SQLite file would leave that file's other tables inside the result. A
+    fresh file renamed into place cannot inherit anything, and a failed write
+    leaves the destination as it was.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to write.
+    path : str
+        Destination path.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    OSError
+        If the temporary file cannot be created, written or moved.
+    """
+    import tempfile
+
+    directory = os.path.dirname(os.path.abspath(path))
+    handle, temporary = tempfile.mkstemp(suffix=EXAR_SUFFIX, dir=directory)
+    os.close(handle)
+    try:
+        os.remove(temporary)
+        archive.write(temporary)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.remove(temporary)
+
+
+def _extract_summary(archive: "Archive", out: str) -> str:
+    """Describe what ``extract`` wrote.
+
+    Parameters
+    ----------
+    archive : Archive
+        The extracted archive.
+    out : str
+        Where it was written.
+
+    Returns
+    -------
+    str
+        One line naming the file and the counts, then each protocol's path
+        and scan count.
+    """
+    programs = archive.programs
+    scans = sum(1 for p in programs for step in p.steps if step.runs_a_protocol)
+    lines = [f"wrote {out}: {len(programs)} protocol(s), {scans} scan(s)"]
+    parents = archive.directory_parents
+    for program in programs:
+        count = sum(1 for step in program.steps if step.runs_a_protocol)
+        where = paths.join(archive.path_of(program.instance, parents))
+        lines.append(f"  {where} ({count} scan(s))")
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the command line interface.
 
@@ -2540,6 +2713,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "exar":
         return _run_exar(args)
+
+    if args.command == "extract":
+        return _run_extract(args)
 
     if args.command == "sequences":
         return _run_sequences(args)

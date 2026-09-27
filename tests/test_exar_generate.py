@@ -632,7 +632,39 @@ def _second_program(archive: object, keep: int) -> str:
     )
     keeping = [s.instance.element_id for s in archive.steps[:keep]]
     rows.set(rows.find("Id", original.id)[0], "Children", pack_guids(keeping))
+    _file_beside(archive, original.element_id, fresh[1])
     return fresh[2]
+
+
+def _file_beside(archive: object, sibling: str, program: str) -> None:
+    """Register a new program in the folder tree, in its sibling's directory.
+
+    A real backup lists every program in the root structure's tree -- under
+    its directory in ``ParentDirectoryId`` and ``SubprogramElementIds``, and
+    in the flat ``ProgramElementIds`` -- and ``validate`` checks the list is
+    exactly the live programs. A staged program the tree does not name is
+    a shape no console has written.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive being edited.
+    sibling : str
+        Element id of a program already in the tree.
+    program : str
+        Element id of the program to register beside it.
+
+    Returns
+    -------
+    None
+    """
+    root = archive.tree_root
+    document = archive.document(root)
+    parent = document["ParentDirectoryId"][sibling]
+    document["ParentDirectoryId"][program] = parent
+    document["SubprogramElementIds"][parent]["$values"].append(program)
+    document["ProgramElementIds"]["$values"].append(program)
+    archive.replace_content(root, generate.renumber_references(document))
 
 
 def _rewrite_program(archive: object, node: object, document: dict, ids: list) -> None:

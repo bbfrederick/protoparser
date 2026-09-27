@@ -1086,6 +1086,69 @@ def _tree_command() -> Command:
     )
 
 
+def _extract_command() -> Command:
+    """Describe the command copying protocols out of an archive.
+
+    Returns
+    -------
+    Command
+        The form and argument list for writing a new archive holding only
+        the protocols named.
+    """
+    return Command(
+        name="extract",
+        group="Archive",
+        title="Extract protocols",
+        summary=(
+            "Build a new .exar1 archive holding only the protocols named, copied from "
+            "the source with their scans, links and pauses, under the same folder path. "
+            "The source is only read and is never modified."
+        ),
+        argv=("extract",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Archive",
+                help="The .exar1 archive to copy from. It is not modified.",
+                picker="file",
+                accept=(".exar1",),
+                required=True,
+            ),
+            Field(
+                name="programs",
+                kind="list",
+                label="Protocols",
+                help=(
+                    "The protocols to copy, comma-separated. Each is as much of its "
+                    "path as it takes to name one, or 're:' and a regular expression "
+                    "keeping every protocol it matches: 're:^CMRR'."
+                ),
+                flag="--protocol",
+                required=True,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write archive to",
+                help="Where to write the new archive.",
+                flag="--out",
+                picker="save",
+                accept=(".exar1",),
+                required=True,
+            ),
+            Field(
+                name="force",
+                kind="flag",
+                label="Replace an existing file",
+                help="Overwrite the destination if it already exists.",
+                flag="--force",
+                default=False,
+            ),
+        ),
+    )
+
+
 def _exar_command() -> Command:
     """Describe the archive-writing command.
 
@@ -1191,6 +1254,7 @@ def command_specs() -> tuple[Command, ...]:
         _summary_command(),
         _archive_command(),
         _tree_command(),
+        _extract_command(),
         _exar_command(),
         _sequences_command(),
         *_vocab_commands(),

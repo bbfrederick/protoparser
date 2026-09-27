@@ -20,7 +20,7 @@ import uuid
 from typing import Any
 
 from . import envelope
-from .archive import STEP_KINDS, Archive, Program
+from .archive import DIRECTORY, PROGRAM, STEP_KINDS, Archive, Program
 from .generate import NO_GUID, STEP_KEYED_MAPS
 
 #: Matches a GUID as these payloads spell one.
@@ -58,6 +58,8 @@ def problems(archive: Archive) -> list[str]:
     found += _identity(archive)
     found += _content_hygiene(archive)
     found += _directory_tree(archive)
+    found += _tree_nodes_exist(archive)
+    found += _store_references(archive)
     return found
 
 
@@ -437,4 +439,95 @@ def _directory_tree(archive: Archive) -> list[str]:
         found.append(
             f"RootDirectoryId is {root[:8]} but the tree tops out at {[t[:8] for t in tops]}"
         )
+    return found
+
+
+def _tree_nodes_exist(archive: Archive) -> list[str]:
+    """Every node the folder tree names is one the archive holds.
+
+    :func:`_directory_tree` compares the tree's two directions with each
+    other, and a tree still naming a protocol that is no longer in the file
+    agrees with itself perfectly -- which is exactly what an extraction that
+    forgot to prune the structure document produces. So this asks the other
+    question: that each id in ``ParentDirectoryId``, ``SubdirectoryIds``,
+    ``SubprogramElementIds`` and the structure's ``Children`` is a live
+    directory (by ``ObjectId``) or program (by ``Element_id``), and that
+    ``ProgramElementIds`` lists exactly the live programs. Both hold on every
+    corpus archive.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive under test.
+
+    Returns
+    -------
+    list of str
+        Broken rules.
+    """
+    root = archive.tree_root
+    if root is None or not root.content_hash:
+        return []
+    live = archive.instances.values()
+    directories = {one.object_id for one in live if one.kind == DIRECTORY}
+    programs = {one.element_id for one in live if one.kind == PROGRAM}
+    named = set(archive.directory_parents) | set(archive.directory_parents.values())
+    for parent, kids in archive.directory_children.items():
+        named.add(parent)
+        named.update(kids)
+    named.discard(NO_GUID)
+    found = []
+    missing = sorted(named - directories - programs)
+    if missing:
+        found.append(
+            f"the folder tree names {len(missing)} node(s) the archive does not hold: "
+            f"{[one[:8] for one in missing[:3]]}"
+        )
+    by_element = archive.by_element
+    stray = [one for one in root.children if one not in by_element]
+    if stray:
+        found.append(f"the tree root lists {len(stray)} child element(s) that do not exist")
+    listed = archive.document(root).get("ProgramElementIds")
+    if isinstance(listed, dict) and set(listed.get("$values", [])) != programs:
+        found.append("ProgramElementIds does not list exactly the archive's programs")
+    return found
+
+
+def _store_references(archive: Archive) -> list[str]:
+    """Every element-map record and change record names rows that exist.
+
+    ``ElementToInstanceMap`` and ``InstanceChangeSet`` both pair an element
+    with an instance. A record naming a missing row is skipped by the reader,
+    so it costs nothing visible here -- and is the shape a copy leaves when it
+    drops nodes but not their records. It holds on every corpus archive.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive under test.
+
+    Returns
+    -------
+    list of str
+        Broken rules.
+    """
+    elements = {str(row["Id"]) for row in archive.container.rows("Element")}
+    instances = {str(row["Id"]) for row in archive.container.rows("Instance")}
+    dangling = 0
+    for row in archive.container.rows("ElementToInstanceMap"):
+        raw = bytes(row["Data"])
+        for offset in range(0, len(raw) - 31, 32):
+            element = str(uuid.UUID(bytes_le=raw[offset : offset + 16]))
+            instance = str(uuid.UUID(bytes_le=raw[offset + 16 : offset + 32]))
+            dangling += element not in elements or instance not in instances
+    changes = sum(
+        1
+        for row in archive.container.rows("InstanceChangeSet")
+        if str(row["InstanceId"]) not in instances or str(row["ElementId"]) not in elements
+    )
+    found = []
+    if dangling:
+        found.append(f"{dangling} element-map record(s) name a missing element or instance")
+    if changes:
+        found.append(f"{changes} change record(s) name a missing element or instance")
     return found

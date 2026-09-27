@@ -163,14 +163,127 @@ def card_view(
         order the mapping table first reaches them.
     """
     cards: "OrderedDict[str, OrderedDict[str, str]]" = OrderedDict()
-    preview = printed or {}
-    for mapping in mappings.MAPPINGS:
-        shown = preview.get(mapping.label, mappings.display(mapping, protocol))
-        if shown is None:
-            continue
+    for mapping, shown in _readings(protocol, printed):
         for card in mappings.cards_for(mapping.label) or (UNCARDED_SECTION,):
             cards.setdefault(card, OrderedDict())[mapping.label] = shown
     return cards
+
+
+def legible_preview(protocol: ArchiveProtocol) -> "OrderedDict[str, str]":
+    """The ``Preview`` rendering, with each coded choice spelled as printed.
+
+    ``Preview`` is keyed by the label a printout uses, but for a choice it
+    often stores the console's internal code rather than the text:
+    ``Gradient Mode`` holds ``107`` where the card prints ``Fast``,
+    ``AutoAlign`` ``6148`` where it prints ``Head > Brain``. Nobody at a
+    console sees or picks the number. Where a mapping decodes the choice or
+    the checkbox, its text replaces the code; a plain number keeps the
+    console's own spelling, unit included.
+
+    Doing it here rather than in :func:`card_view` keeps the ``Preview``
+    section and the cards agreeing: the flattened view folds a label from
+    both, and two spellings of one value there read as a conflict.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to read.
+
+    Returns
+    -------
+    OrderedDict
+        Label to displayed value, in :func:`~.exar.inspect.printed_view`'s
+        order.
+    """
+    shown = inspect.printed_view(protocol)
+    for mapping in mappings.MAPPINGS:
+        if mapping.label not in shown or (not mapping.choices and mapping.bit is None):
+            continue
+        decoded = mappings.display(mapping, protocol)
+        if decoded is not None:
+            shown[mapping.label] = decoded
+    return shown
+
+
+def _readings(
+    protocol: ArchiveProtocol, printed: "OrderedDict[str, str] | None"
+) -> "list[tuple[mappings.Mapping, str]]":
+    """Every mapping a card can show for this protocol, with what it shows.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to read.
+    printed : OrderedDict or None
+        The console's ``Preview`` rendering, which wins where it carries the
+        label -- see :func:`card_view`.
+
+    Returns
+    -------
+    list of tuple
+        ``(mapping, displayed value)`` in table order. A label several
+        mappings share appears once per mapping; the card keeps the last.
+    """
+    preview = printed or {}
+    found = []
+    for mapping in mappings.MAPPINGS:
+        shown = preview.get(mapping.label, mappings.display(mapping, protocol))
+        if shown is not None:
+            found.append((mapping, shown))
+    return found
+
+
+def unlabelled_ascconv(
+    protocol: ArchiveProtocol, printed: "OrderedDict[str, str] | None" = None
+) -> "OrderedDict[str, str]":
+    """The ASCCONV assignments no printed label on the cards already says.
+
+    ASCCONV is the protocol's ground truth, and the printout is the version
+    an operator acts on: its labels are the quantities that can be changed on
+    the console. So where a mapping gives an assignment a label, the card
+    shows it and this leaves it out -- otherwise one edit to ``TE`` reads as
+    two differences, and the second, ``alTE[0]: 1690 | 1790``, is in terms
+    nobody at the scanner can use.
+
+    What remains is everything the table has not pinned, which is most of the
+    block and is what keeps a comparison complete. A packed flags word stays
+    as the bits no label claims, under ``<key> (unlabelled bits)``: the
+    driver's answer-key run differed from the console in exactly such a bit,
+    and dropping the whole word would have hidden it.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol to read.
+    printed : OrderedDict or None, optional
+        The console's ``Preview`` rendering, as :func:`card_view` takes it.
+
+    Returns
+    -------
+    OrderedDict
+        Key to literal, in file order, as :func:`~.exar.inspect.ascconv_table`
+        spells them.
+    """
+    winners: dict[str, mappings.Mapping] = {}
+    for mapping, _shown in _readings(protocol, printed):
+        # Only a mapping that applies here may claim: the Preview can show a
+        # label for a sequence whose mapping it is not, and a sWipMemBlock
+        # index then means some other parameter. Among those that do, the
+        # last wins, as it does on the card.
+        if mappings.applies_to(mapping, protocol):
+            winners[mapping.label] = mapping
+    whole, bits = mappings.accounted_for(protocol, list(winners.values()))
+    out: "OrderedDict[str, str]" = OrderedDict()
+    for key, literal in inspect.ascconv_table(protocol.xprotocol).items():
+        if key in whole:
+            continue
+        rest = mappings.unlabelled_bits(literal, bits[key]) if key in bits else None
+        if key in bits and rest is not None:
+            if rest:
+                out[f"{key} (unlabelled bits)"] = ", ".join(str(bit) for bit in rest)
+            continue
+        out[key] = literal
+    return out
 
 
 def scan_from_step(
@@ -200,8 +313,10 @@ def scan_from_step(
         :meth:`~siemens_protocol.exar.archive.Archive.path_of` builds it.
         Default empty, which leaves ``path`` empty rather than inventing one.
     parameters : bool, optional
-        Whether to carry the whole ASCCONV block as a second section.
-        Default ``False``, which is what the ``archive`` document wants --
+        Whether to carry the mapped parameters under their cards, followed
+        by the ASCCONV assignments no card label already says -- see
+        :func:`unlabelled_ascconv`. Default ``False``, which is what the
+        ``archive`` document wants --
         it emits the parameter tree nested under ``ascconv`` instead, and
         carrying it twice would double a document that is already the bulk
         of the file.
@@ -216,7 +331,7 @@ def scan_from_step(
     header = header_of(step)
     sections: "OrderedDict[str, OrderedDict[str, str]]" = OrderedDict()
     if step.runs_a_protocol:
-        preview = inspect.printed_view(step.protocol)
+        preview = legible_preview(step.protocol)
         sections["Preview"] = preview
         if parameters:
             # The console's Preview is a ~40-parameter summary, so a reader
@@ -230,11 +345,11 @@ def scan_from_step(
             # anything matching on section titles.
             # The cards first, because they speak in the labels a console
             # shows and are what someone changing a protocol reads. The raw
-            # block still follows: the table covers a fraction of what a
-            # protocol holds, and the remainder is where the differences a
-            # Preview-only view was missing actually live.
+            # block still follows, less what the cards already say: the table
+            # covers a fraction of what a protocol holds, and the remainder
+            # is where the differences a Preview-only view was missing live.
             sections.update(card_view(step.protocol, preview))
-            sections[inspect.ASCCONV_SECTION] = inspect.ascconv_table(step.protocol.xprotocol)
+            sections[inspect.ASCCONV_SECTION] = unlabelled_ascconv(step.protocol, preview)
     return model.Scan(
         index=index,
         name=step.name,
@@ -276,7 +391,9 @@ def step_document(
     Returns
     -------
     dict
-        The step's identity, what it runs, and what it stores.
+        The step's identity, what it runs, and what it stores: the Preview
+        summary, the mapped parameters under their printed cards, the slice
+        geometry, and the ASCCONV tree.
     """
     out: dict[str, Any] = {
         "index": index,
@@ -295,6 +412,12 @@ def step_document(
         include_flat=False, catalog=catalog
     )["provenance"]
     out["preview"] = inspect.preview_of(protocol)
+    # The printed labels an operator can act on, ahead of the raw tree that
+    # is their ground truth. The tree stays whole: it is the document's
+    # record of the file, and a query against it must find every assignment.
+    cards = card_view(protocol, legible_preview(protocol))
+    if cards:
+        out["cards"] = cards
     geometry = inspect.geometry_of(protocol)
     if geometry is not None:
         out["geometry"] = geometry

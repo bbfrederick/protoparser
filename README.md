@@ -315,6 +315,9 @@ spt versions                               # list version profiles
 # see what an .exar1 archive holds, and by what path
 spt tree backup.exar1
 
+# copy some of its protocols into a new archive; the backup is not modified
+spt extract backup.exar1 --protocol MEMPRAGE --protocol "re:^CMRR" --out some.exar1
+
 # inventory one protocol, a line per scan
 spt list protocol.pdf
 
@@ -807,6 +810,32 @@ directories, 8217 scans -- takes about four minutes and produces
 68 MB of JSON with `--no-ascconv`, and several hundred megabytes without it.
 Use `--program` to read one protocol out of such a file rather than rendering
 all of it.
+
+### Taking protocols out of an archive
+
+`extract` builds a new archive holding only the protocols named, which is how
+to take a few protocols out of a backup taken at the exam or region level:
+
+```
+$ spt extract examples/XA60/Frederick_P2/Frederick_P2.exar1 \
+      --protocol MEMPRAGE --protocol "re:^CMRR" --out some.exar1
+wrote some.exar1: 3 protocol(s), 33 scan(s)
+  Root/Export/Investigators - validated on FIT/Frederick/CMRR test scans (17 scan(s))
+  Root/Export/Investigators - validated on FIT/Frederick/CMRR spectro scans (15 scan(s))
+  Root/Export/Investigators - validated on FIT/Frederick/MEMPRAGE (1 scan(s))
+```
+
+`--protocol` (or `--program`) repeats, and takes the same addresses `tree`
+prints, including `re:` patterns that keep every protocol they match. Each
+protocol is copied whole -- its scans in running order, pauses, prescription
+links, and every protocol byte for byte -- under the same folder path, and the
+folders that would then hold nothing are left out. The source is only read.
+An existing `--out` is refused unless `--force` is given, and `--out` naming
+the source is refused outright.
+
+The protocols themselves are copied unchanged, but an archive assembled this
+way has not yet been imported on a scanner, so only an import can confirm it
+loads.
 
 Writing parameters *into* an archive is the `exar` subcommand, which is a
 different job with a much narrower guarantee — see `CLAUDE.md`.

@@ -1371,7 +1371,28 @@ def read(path: str) -> Archive:
         The decoded archive, retaining every raw table so it can be written
         back unchanged.
     """
-    container = store.read(path)
+    return from_container(store.read(path))
+
+
+def from_container(container: store.Container) -> Archive:
+    """Decode an archive from tables already in memory.
+
+    :func:`read` is this plus opening a file. It is separate so a new archive
+    can be assembled table by table -- :func:`.extract.extract` copies rows out
+    of a source into a fresh container -- and then read back through exactly
+    the code every file goes through, rather than a second path that would
+    have to agree with it.
+
+    Parameters
+    ----------
+    container : store.Container
+        The tables to decode.
+
+    Returns
+    -------
+    Archive
+        The decoded archive, holding ``container`` itself rather than a copy.
+    """
     baseline, head = _head_branch(container)
     contents = {str(row["Hash"]): envelope.parse(row["Data"]) for row in container.rows("Content")}
     return Archive(

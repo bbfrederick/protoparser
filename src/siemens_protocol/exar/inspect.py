@@ -45,7 +45,9 @@ from . import ascconv
 from .archive import DIRECTORY, Archive, Protocol
 from .geometry import agrees, read_group
 
-#: Section title carrying an archive scan's whole ASCCONV block. Not a card:
+#: Section title carrying an archive scan's ASCCONV assignments -- those no
+#: printed label already says, when a caller has the mapping table to tell.
+#: Not a card:
 #: the archive has none, and no release prints a section by this name, so it
 #: cannot be confused with one by anything reading section titles.
 ASCCONV_SECTION = "ASCCONV"
@@ -257,7 +259,8 @@ def preview_of(protocol: Protocol) -> dict[str, Any]:
 
     A label used more than once -- ``Distance Factor``, once per slice group
     -- is suffixed ``#2``, ``#3`` in path order, the same way the PDF parser
-    spells a repeated key.
+    spells a repeated key. An entry with a blank label is one the console
+    does not print, and is keyed by its path instead.
 
     Parameters
     ----------
@@ -273,7 +276,11 @@ def preview_of(protocol: Protocol) -> dict[str, Any]:
     out: dict[str, Any] = {}
     seen: dict[str, int] = {}
     for path, entry in sorted(protocol.preview.items()):
-        label = entry.label or path
+        # Some entries carry a single space for a label -- field strength,
+        # the sequence path, the scan time -- which the console never
+        # prints. With no label to show, the path is the only honest name;
+        # keyed by the space they folded into one nameless row.
+        label = (entry.label or "").strip() or path
         seen[label] = seen.get(label, 0) + 1
         key = label if seen[label] == 1 else f"{label} #{seen[label]}"
         out[key] = {"path": path, "unit": entry.unit, "value": entry.value}

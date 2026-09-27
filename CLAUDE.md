@@ -2365,6 +2365,37 @@ just not the file it used to live in:
   exactly_one_program` is written archive-wide so a readable backup tightens
   it rather than needing a new test.
 
+- **`extract` copies a subgraph into a new container; it never edits the
+  source.** `exar/extract.py` takes the chosen programs' closure in *element*
+  space -- `Children`, `LabelElement_id`, `DescriptionElement_id`,
+  `Element.CommentElement_id`, never the upward `ParentElementId` -- plus the
+  directories above them and the root `EdfStructure`, and copies those rows
+  (every *version* of each kept element, so each changeset still resolves)
+  into a fresh `store.Container`. It keeps "everything live except what only
+  a dropped program or directory owns" rather than "only what the kept side
+  reaches", so a node belonging to no program is not lost for being unnamed.
+  The one rewritten document is the structure's, which states the tree four
+  ways -- `ParentDirectoryId`, `SubdirectoryIds`, `SubprogramElementIds` and
+  a flat `ProgramElementIds` not described anywhere above -- plus its
+  `Children` blob listing the directories; all five are filtered alike. The
+  identity check is extracting *every* program, which must reproduce the
+  source row for row on every corpus archive.
+
+  **Two `validate` rules were missing, and the first extractor passed without
+  them.** `_directory_tree` compares the tree's two directions with each other,
+  and a structure document still naming protocols that are no longer in the
+  file agrees with itself perfectly; nothing asked whether the named nodes
+  exist. Likewise nothing asked whether an element-map or `InstanceChangeSet`
+  record names real rows, and the reader silently skips one that does not.
+  Both found by mutating the extractor, and both hold on every corpus archive,
+  so they are properties of a well-formed file rather than of an extraction:
+  `_tree_nodes_exist` and `_store_references`. A third leak -- a dropped
+  protocol's label surviving -- no structural rule can see, since an unowned
+  `EdfString` is well-formed; the test for it is that single-program extracts
+  partition the source's non-tree nodes exactly.
+
+  An extracted archive has not been imported on a scanner yet.
+
 #### Probing a sequence with a generated archive
 
 `siemens_protocol.analysis.generate.probe` builds archives that ask a
@@ -2787,6 +2818,42 @@ run.
   re-points at the archive beside it when the recorded path no longer
   resolves.
 
+**Queued for the next probe round.** Two leads the printed-label-first
+views surfaced (2026-09-26), both things the archive stores and no label
+yet explains. The owner has a separate effort mapping these sequences'
+parameters; put both into its next round rather than resolving them here,
+and delete each entry when it lands.
+
+- **Bit 15 of CMRR's `alFree[0]`.** Set on exactly one scan in the corpus:
+  `rfMRI_REST_MULTIECHO_MAGPHASE_PA` (`cmrr_mbep2d_bold`, build
+  `R017 nxva60a/main r/91b106c1e`, word `37633` = bits 0, 8, 9, 12, 15),
+  in `Frederick_P2`'s `multiecho_bids_test` and
+  `multiecho_bids_test_small_fixed` programs. Neither program has a PDF,
+  so no printout can name it yet, and no other R017 scan sets it. The
+  scan name suggests magnitude/phase output; that is a hint to ask about,
+  not a label. The probe is one toggle of bit 15 on a `cmrr_mbep2d_bold`
+  donor, reading which Special-card row moves -- or print either program
+  from the console. `archive_view.unlabelled_ascconv` shows it as
+  `sWipMemBlock.alFree[0] (unlabelled bits): 15`, and
+  `test_a_flags_word_keeps_the_bits_no_label_claims` pins it, so mapping
+  the bit will turn that test red on purpose: update it then.
+- **`Preview` codes with no decoding.** `AutoAlign Reference`
+  (`sub.0.msr.aa_ref_matrix`: 6146 on 513 scans, 6137 on 437, 6136 on 4)
+  and `AutoAlign Region` (`sub.0.msr.aa_region`: 6145 on 513, 6133 on 441)
+  print as bare numbers in every archive view, because no mapping names
+  their ASCCONV side or their choices. And `AutoAlign` itself stays a code
+  (6146 on 487, 6125 on 30, 6145 on 14) exactly where `ucAARefMode` and
+  `ucAARegionMode` are both `1` -- the `---` state, which is refused
+  because it moves a coupled pair (see "Coupled parameters must move
+  together"). Note that **no export prints `AutoAlign Reference` or
+  `AutoAlign Region`** -- neither label appears in any golden snapshot --
+  so they are console-summary labels with no printed form, and the first
+  question is whether they are independent settings or restatements of
+  `AutoAlign`. The printouts do print `AutoAlign: Head` 66 times, a
+  choice the mapping lacks (it has eight `Head > ...` entries and no bare
+  `Head`); pairing those scans with their archives may settle that one
+  without scanner time.
+
 #### Reading an archive out
 
 `spt archive <file.exar1>` is the reading half, where `exar`
@@ -2809,6 +2876,36 @@ used to be one module, independently re-deriving the `sequences.identify`/
 `tests/test_layering.py`, which fails if anything under `exar/`, `extract/`,
 `layout/` or `profiles/` imports `analysis` again.
 
+- **Where a stored field has a printed label, show the label.** ASCCONV is
+  the protocol's ground truth; the printout is the version an operator acts
+  on, and its labels are what the console lets someone change. Per the
+  protocols' owner, a view meant for a person therefore names `TE 2`, not
+  `alTE[1]`, and does not repeat the assignment beside it -- before this an
+  archive `diff` reported every edit twice, `Remeasure: 20 | 19` and then
+  `sWipMemBlock.alFree[9]: 20 | 19`. `archive_view.unlabelled_ascconv` is
+  the raw section less what the cards say; a probe report writes
+  `TE 2 (alTE[1])`, key second. The `archive` document's `ascconv` tree stays
+  whole, because it is the record of the file, with `cards` beside it.
+
+  Hiding a field is where a difference can be lost, so three things stay
+  raw. A field whose mapping does not *apply* here: the Preview prints
+  `Grad. rev. fat suppr.` on the 2016-17 HCP builds as well, and
+  `alFree[25]` is verified only on CMRR R017. An `[*]` array whose elements
+  disagree, since the label shows the first. And a flags word's unclaimed
+  bits, as `<key> (unlabelled bits)` -- `Frederick_P2`'s multi-echo
+  mag/phase scan sets bit 15 of CMRR's `alFree[0]` and no mapping names it.
+  `display` carries twelve significant figures for the same reason: a label
+  that stands in for an assignment must not be the lossier of the two.
+
+  The same rule applies to *values*. `Preview` is keyed by the printed label
+  but often stores a choice as a console code -- `Gradient Mode` `107` for
+  `Fast`, `AutoAlign` `6148` for `Head > Brain`, about 2500 readings over the
+  corpus -- so `archive_view.legible_preview` substitutes the decoded choice
+  wherever a mapping has one, in the Preview section and the cards alike
+  (they must agree, or the flattened view reports a conflict). It took an
+  archive's diff against its own printout from 21141 to 19088 differences.
+  Codes no mapping decodes remain: `AutoAlign Reference`/`Region`, and
+  `AutoAlign` at `---`, which is deliberately unmapped.
 - **`tree` is the command that answers "what is in this file", and its output
   has to be paste-able into the next one.** `exar/tree.py` draws the folder
   tree the way unix `tree` draws a directory. It is built by inverting

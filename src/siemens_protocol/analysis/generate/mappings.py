@@ -45,6 +45,7 @@ top of that one, never the reverse.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 from typing import Mapping as MappingType
@@ -3239,7 +3240,120 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
         number = float(literal) / mapping.scale - mapping.offset
     except (TypeError, ValueError, ZeroDivisionError):
         return None
-    return f"{number:g}"
+    # Twelve significant figures, which is what an ASCCONV double carries.
+    # A card reading stands in for the assignment it decodes, so it must not
+    # be the lossier of the two: ``:g`` kept six, which hid a seventh-digit
+    # change and spelled 1500000 us as ``1.5e+06``.
+    return f"{number:.12g}"
+
+
+def accounted_for(
+    protocol: Protocol, shown: "list[Mapping] | tuple[Mapping, ...]"
+) -> tuple[set[str], dict[str, int]]:
+    """The ASCCONV assignments that printed labels already say.
+
+    The ASCCONV block is the protocol's ground truth, but the printed label is
+    what an operator can change, so where a label is shown its assignment
+    need not be shown again beside it. This names what may be left out.
+
+    Each mapping must already have been chosen as the one a card shows for
+    this protocol; this only works out which assignments that covers. Three
+    things are held back even then. A mapping that does not apply to this
+    protocol claims nothing, since a ``sWipMemBlock`` index means another
+    parameter on another sequence. An assignment currently holding a save
+    stamp is not the parameter, whatever its name. And an ``[*]`` array is
+    claimed only when its elements agree, since the label shows the first
+    and a disagreement would otherwise vanish.
+
+    Parameters
+    ----------
+    protocol : Protocol
+        The protocol the labels were read from.
+    shown : list or tuple of Mapping
+        The mappings whose labels a card shows for it.
+
+    Returns
+    -------
+    tuple
+        The assignments a label covers outright, and for a packed flags word
+        the mask of bits labels cover -- the word's other bits are still
+        information no label carries.
+    """
+    whole: set[str] = set()
+    bits: dict[str, int] = {}
+    text = protocol.xprotocol
+    for mapping in shown:
+        if not applies_to(mapping, protocol):
+            continue
+        keys = [key for key, _index in ascconv.expand(mapping.ascconv_key, text)]
+        literals = [ascconv.read_ascconv(text, key) for key in keys]
+        if any(one is not None and ascconv.is_churn(k, one) for k, one in zip(keys, literals)):
+            continue
+        if mapping.bit is not None:
+            bits[mapping.ascconv_key] = bits.get(mapping.ascconv_key, 0) | 1 << mapping.bit
+        elif len(set(literals)) <= 1:
+            whole.update(keys)
+    return whole, bits
+
+
+def label_for(key: str, sequence: str, build: str = "") -> str | None:
+    """The printed label an ASCCONV assignment has on a given sequence.
+
+    For naming a field to a person when no protocol is to hand -- a probe
+    report knows the sequence and build it was run on and nothing else. A
+    mapping gated on another field's value (``when``) cannot be tested that
+    way and is passed over, as is a flag bit: the word holds many labels and
+    naming one would misdescribe the rest.
+
+    Parameters
+    ----------
+    key : str
+        A concrete assignment, ``sSliceArray.asSlice[3].dThickness``.
+    sequence : str
+        The sequence the protocol runs, as
+        :func:`~siemens_protocol.exar.ascconv.sequence_of` reads it.
+    build : str, optional
+        Its :func:`~siemens_protocol.exar.ascconv.build_id`. Default empty,
+        which no build-gated mapping accepts.
+
+    Returns
+    -------
+    str or None
+        The label, or ``None`` when no mapping names this assignment here.
+    """
+    for mapping in MAPPINGS:
+        if mapping.bit is not None or mapping.when is not None:
+            continue
+        if mapping.sequences and sequence not in mapping.sequences:
+            continue
+        if mapping.builds and build not in mapping.builds:
+            continue
+        pattern = re.escape(mapping.ascconv_key).replace(r"\[\*\]", r"\[\d+\]")
+        if re.fullmatch(pattern, key):
+            return mapping.label
+    return None
+
+
+def unlabelled_bits(literal: str, mask: int) -> list[int] | None:
+    """The set bits of a flags word that no shown label accounts for.
+
+    Parameters
+    ----------
+    literal : str
+        The word as ASCCONV stores it, ``0x...`` or decimal.
+    mask : int
+        The bits labels account for, from :func:`accounted_for`.
+
+    Returns
+    -------
+    list of int or None
+        Bit positions, lowest first, or ``None`` when the literal is not a
+        number and so cannot be split.
+    """
+    word = _stored_int(literal)
+    if word is None or word < 0:
+        return None
+    return [bit for bit in range(word.bit_length()) if word >> bit & 1 and not mask >> bit & 1]
 
 
 def resolve(protocol: Protocol, name: str) -> tuple[Mapping | None, str]:

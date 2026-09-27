@@ -1357,8 +1357,14 @@ def _read_one(
     )
 
 
-def report(findings: Sequence[Finding], limit: int = 6) -> str:
+def report(
+    findings: Sequence[Finding], limit: int = 6, sequence: str = "", build_id: str = ""
+) -> str:
     """Render a probe run's answers for a person to read.
+
+    A field with a printed label on this sequence is named by that label,
+    with its assignment beside it: the label is what an operator can change,
+    and ``alTE[1]`` alone says nothing at the console.
 
     Parameters
     ----------
@@ -1366,12 +1372,24 @@ def report(findings: Sequence[Finding], limit: int = 6) -> str:
         What :func:`decode` produced.
     limit : int, optional
         How many printed differences to name per probe.
+    sequence : str, optional
+        The probed sequence, bare or as :attr:`ProbeManifest.sequence` spells
+        it with its tree prefix. Default empty, which names only fields whose
+        mapping holds on every sequence.
+    build_id : str, optional
+        Its build, as :attr:`ProbeManifest.build_id` records it.
 
     Returns
     -------
     str
         The report.
     """
+    binary = sequence.rsplit("\\", 1)[-1]
+
+    def named(key: str) -> str:
+        label = mappings.label_for(key, binary, build_id)
+        return f"{label} ({key})" if label else key
+
     tally = collections.Counter(found.verdict for found in findings)
     shaken = [found.name for found in findings if found.reconciled]
     lines = [
@@ -1388,7 +1406,7 @@ def report(findings: Sequence[Finding], limit: int = 6) -> str:
         mark = "  !!" if found.reconciled else "  ok" if found.clean else "    "
         if found.confounded:
             mark = "  ??"
-        lines.append(f"{mark}  {found.name}  {found.probe.key} = {found.probe.literal!r}")
+        lines.append(f"{mark}  {found.name}  {named(found.probe.key)} = {found.probe.literal!r}")
         lines.append(
             f"        {found.verdict}" + (f", stored {found.stored!r}" if found.stored else "")
         )
@@ -1409,7 +1427,7 @@ def report(findings: Sequence[Finding], limit: int = 6) -> str:
                 "  -- this probe's switch, not its field"
             )
         for key, (was, now) in list(found.recomputed.items())[:limit]:
-            lines.append(f"        console moved  {key}: {was!r} -> {now!r}")
+            lines.append(f"        console moved  {named(key)}: {was!r} -> {now!r}")
         if len(found.recomputed) > limit:
             lines.append(f"        ... and {len(found.recomputed) - limit} more recomputed")
     return "\n".join(lines)
