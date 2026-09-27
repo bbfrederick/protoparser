@@ -1592,3 +1592,237 @@ def test_a_name_matching_nothing_suggests_a_near_miss() -> None:
     """
     with pytest.raises(ValueError, match="did you mean 'eja_svs_slaser'"):
         address.resolve("eja_svs_slase", _candidates(), what="scan", source="f")
+
+
+# -- patterns ------------------------------------------------------------------
+
+
+def test_only_a_prefixed_address_is_a_pattern() -> None:
+    """Real names carry metacharacters, so a bare address stays a literal.
+
+    ``Investigators (2)`` read as a regex is a group, and would stop matching
+    itself; a pattern is therefore opt-in, and the literal keeps working.
+
+    Returns
+    -------
+    None
+    """
+    path = ("Root", "Investigators (2)", "Frederick", "NAV (2)")
+    assert address.matches(address.parse("Investigators (2)/Frederick/NAV (2)"), path)
+    assert not address.parse("Investigators (2)").pattern
+    assert not address.matches(address.parse("re:Investigators (2)/Frederick/NAV (2)"), path)
+    assert address.matches(address.parse(r"re:Investigators \(2\)/Frederick/NAV"), path)
+
+
+def test_a_pattern_is_the_unbroken_tail_of_a_path_like_a_literal() -> None:
+    """Each component is searched for at its own level, and none is skipped.
+
+    Returns
+    -------
+    None
+    """
+    path = ("Root", "Inv", "Frederick", "CMRR spectro scans", "eja_svs_slaser")
+    assert address.matches(address.parse("re:slaser"), path)
+    assert address.matches(address.parse("re:spectro/slaser$"), path)
+    # Each component is its own regex, so an inline flag covers only its own.
+    assert address.matches(address.parse("re:(?i)^cmrr/(?i)EJA"), path)
+    assert not address.matches(address.parse("re:(?i)^cmrr/EJA"), path)
+    # Skipping the protocol level fails, as it would for a literal.
+    assert not address.matches(address.parse("re:Frederick/slaser"), path)
+    # Anchors hold within the component, not across the path.
+    assert not address.matches(address.parse("re:^slaser"), path)
+
+
+def test_a_pattern_keeps_every_match_where_several_are_wanted() -> None:
+    """``select_all`` returns every match in document order.
+
+    Returns
+    -------
+    None
+    """
+    got = address.resolve_all("re:slaser|tof", _candidates(), what="scan", source="f")
+    assert got == ["test/slaser", "spectro/slaser", "tof#1", "tof#2"]
+    assert address.resolve_all("re:tof#2", _candidates(), what="scan", source="f") == ["tof#2"]
+
+
+def test_a_pattern_matching_several_is_refused_where_one_is_needed() -> None:
+    """``select`` lists what a pattern matched and how to narrow it.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match=r"matches 2 scans and one is needed") as caught:
+        address.resolve("re:slaser", _candidates(), what="scan", source="f")
+    assert "CMRR test scans/eja_svs_slaser" in str(caught.value)
+    assert "#1 .. #2" in str(caught.value)
+    got = address.resolve("re:slaser#2", _candidates(), what="scan", source="f")
+    assert got == "spectro/slaser"
+
+
+def test_a_literal_still_names_one_where_several_are_wanted() -> None:
+    """``select_all`` does not widen a repeated literal into all its repeats.
+
+    A literal address that names several is a request for one of them, so
+    it is refused as it always was rather than quietly changing meaning.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match="Add an occurrence"):
+        address.resolve_all("tof fast", _candidates(), what="scan", source="f")
+    assert address.resolve_all("localizer", _candidates(), what="scan", source="f") == [
+        "mair/localizer"
+    ]
+
+
+def test_a_pattern_is_parsed_and_rendered_faithfully() -> None:
+    """A number is a pattern rather than an index, and the prefix round-trips.
+
+    Returns
+    -------
+    None
+    """
+    parsed = address.parse("re:a.c/3#2")
+    assert parsed.pattern and parsed.components == ("a.c", "3") and parsed.occurrence == 2
+    assert parsed.index is None
+    assert str(parsed) == "re:a.c/3#2"
+    assert address.parse("3").index == 3
+
+
+def test_a_malformed_pattern_is_refused_by_name() -> None:
+    """An invalid regex is a message naming the bad component, not a traceback.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match=r"'eja\(' is not a valid pattern"):
+        address.parse("re:CMRR/eja(")
+
+
+def test_a_pattern_matching_nothing_says_so() -> None:
+    """No near-miss spelling is offered: a pattern is its own search.
+
+    Returns
+    -------
+    None
+    """
+    with pytest.raises(ValueError, match=r"no scan matches re:zzz$"):
+        address.resolve("re:zzz", _candidates(), what="scan", source="f")
+    with pytest.raises(ValueError, match="append one of these"):
+        address.resolve("re:^Mair", _candidates(), what="scan", source="f")
+
+
+# -- a "/" inside a name -------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "parts",
+    [
+        ("Root", "Investigators", "Yuksel", "SSIP_NOEXPIRATION 6/2022"),
+        ("Jaymin", "TIB/FIB ROUTINE METAL SUPRESSION", "localizer"),
+        ("a//b", "/lead", "trail/"),
+        ("plain",),
+    ],
+)
+def test_a_joined_path_splits_back_into_its_components(parts: tuple[str, ...]) -> None:
+    """``paths.split`` is the exact inverse of ``paths.join``.
+
+    Real names contain ``/`` -- a whole-scanner export holds
+    ``SSIP_NOEXPIRATION 6/2022`` -- so a naive join adds a level that a split
+    then cannot remove.
+
+    Parameters
+    ----------
+    parts : tuple of str
+        Path components, some containing ``/``.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol import paths
+
+    assert tuple(paths.split(paths.join(parts))) == parts
+
+
+def test_an_escaped_slash_is_part_of_a_name() -> None:
+    """``\\/`` in an address names a ``/`` inside one component.
+
+    Returns
+    -------
+    None
+    """
+    path = ("Root", "Yuksel", "SSIP_NOEXPIRATION 6/2022")
+    parsed = address.parse(r"Yuksel/SSIP_NOEXPIRATION 6\/2022")
+    assert parsed.components == ("Yuksel", "SSIP_NOEXPIRATION 6/2022")
+    assert address.matches(parsed, path)
+    assert str(parsed) == r"Yuksel/SSIP_NOEXPIRATION 6\/2022"
+    assert address.parse(str(parsed)) == parsed
+    # Unescaped, it is two levels and names nothing.
+    assert not address.matches(address.parse("SSIP_NOEXPIRATION 6/2022"), path)
+
+
+def test_a_pattern_reaches_a_slash_through_its_escape() -> None:
+    """In a ``re:`` address ``\\/`` stays the regex escape for ``/``.
+
+    Returns
+    -------
+    None
+    """
+    path = ("Jaymin", "TIB/FIB ROUTINE METAL SUPRESSION")
+    parsed = address.parse(r"re:^TIB\/FIB")
+    assert parsed.components == (r"^TIB\/FIB",)
+    assert address.matches(parsed, path)
+    assert str(parsed) == r"re:^TIB\/FIB"
+
+
+def test_a_refusal_lists_paths_that_parse_back() -> None:
+    """Every path a refusal prints can be pasted back as an address.
+
+    Returns
+    -------
+    None
+    """
+    candidates = [
+        (("Inv", "Yuksel", "SSIP"), "ssip"),
+        (("Inv", "Yuksel", "SSIP 6/2022"), "dated"),
+    ]
+    with pytest.raises(ValueError) as caught:
+        address.resolve("re:SSIP", candidates, what="protocol", source="f")
+    listed = [line.strip() for line in str(caught.value).splitlines()[1:]]
+    assert listed == ["Inv/Yuksel/SSIP", r"Inv/Yuksel/SSIP 6\/2022"]
+    for line, (_path, payload) in zip(listed, candidates):
+        assert address.resolve(line, candidates, what="protocol", source="f") == payload
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [
+        r"\\Research\Investigators\Yuksel\SSIP 6/2022\localizer",
+        r"Root/Investigators/Yuksel/SSIP 6\/2022/localizer",
+    ],
+)
+def test_a_scan_path_keeps_a_slash_inside_a_name(stored: str) -> None:
+    """A printout's backslash path and an archive's escaped one read alike.
+
+    A printout separates with backslashes, so a ``/`` there is part of a
+    name; an archive path's only backslashes are the escapes. Replacing
+    every backslash with ``/`` first, as the reader once did, splits the
+    protocol in two either way.
+
+    Parameters
+    ----------
+    stored : str
+        The path as a document carries it.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import _path_components
+
+    got = _path_components("localizer", stored)
+    assert got[-3:] == ("Yuksel", "SSIP 6/2022", "localizer")

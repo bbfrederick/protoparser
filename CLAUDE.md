@@ -2831,6 +2831,23 @@ used to be one module, independently re-deriving the `sequences.identify`/
   connector says no sibling follows, a trunk at some depth says an ancestor
   there still has one. Checking that against the *tree* instead would just
   mirror the code being checked.
+- **Names contain `/`, and `examples/` never showed it.** The address
+  grammar was built on "no scan or protocol name contains `/`", true of every
+  shipped file and false of the whole-scanner export
+  `archive/P1/Investigators20260918.exar1`, which holds `TIB/FIB ROUTINE`,
+  `TIB/FIB ROUTINE METAL SUPRESSION` and `SSIP_NOEXPIRATION 6/2022`. Joined
+  naively each reads as one level deeper, so the protocol was listed in
+  refusals and could never be named -- found by a user's `re:` pattern
+  printing it, not by any test. `paths.join` writes an in-name `/` as `\/`
+  and `paths.split` inverts it exactly; **every** path string built from
+  components must go through `join`, since `archive_view` stores scan paths as
+  strings that `cli._path_components` splits back, and one naive join
+  anywhere reintroduces the extra level. A printout's header path is the
+  other spelling -- backslash-separated, so a `/` there is already part of a
+  name -- and is recognized by a backslash that is not part of a `\/`
+  escape. `paths.py` sits at the top of the package because `exar/` builds
+  paths and may not import `analysis`. The `tree` drawing escapes too, which
+  is what keeps its promise that what it prints is what `--program` accepts.
 - **Reading an archive raises `sqlite3.DatabaseError`, which no caller was
   catching.** An `.exar1` is a SQLite database and a PDF is not, and several
   corpus directories hold both under one stem, so pointing a command at the

@@ -40,6 +40,7 @@ import re
 from collections import OrderedDict
 from typing import Any
 
+from .. import paths
 from . import ascconv
 from .archive import DIRECTORY, Archive, Protocol
 from .geometry import agrees, read_group
@@ -417,5 +418,5 @@ def directories(archive: Archive, parents: dict[str, str]) -> list[dict[str, str
             continue
         label = archive.label_of(instance)
         if label:
-            found.append({"name": label, "path": "/".join(archive.path_of(instance, parents))})
+            found.append({"name": label, "path": paths.join(archive.path_of(instance, parents))})
     return sorted(found, key=lambda entry: entry["path"])

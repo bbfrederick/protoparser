@@ -31,7 +31,7 @@ from __future__ import annotations
 from collections import OrderedDict
 from typing import Any, Mapping
 
-from .. import model
+from .. import model, paths
 from ..exar import ascconv, inspect
 from ..exar.archive import Archive, Program
 from ..exar.archive import Protocol as ArchiveProtocol
@@ -352,7 +352,7 @@ def program_document(
         names = inspect.step_names(archive)
     # The steps sit *under* the program, so their folder is its whole path --
     # the printout agrees, ending \...\Frederick\Potpourri_P1\localizer.
-    folder = "/".join(archive.path_of(program.instance, parents))
+    folder = paths.join(archive.path_of(program.instance, parents))
     steps = [
         step_document(step, position, catalog, ascconv=ascconv, folder=folder)
         for position, step in enumerate(program.steps)
@@ -462,7 +462,7 @@ def protocol_from_archive(archive: Archive, program: Program, source: str) -> "m
         for the document the listing, the sequence report, the policy
         checker and the comparison all accept.
     """
-    folder = "/".join(archive.path_of(program.instance))
+    folder = paths.join(archive.path_of(program.instance))
     protocol = model.Protocol(
         source_file=source,
         software_version=inspect.RELEASES.get(archive.major_version[:4]),

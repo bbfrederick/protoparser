@@ -1355,3 +1355,227 @@ def test_archive_keeps_one_of_two_protocols_that_share_a_name(tmp_path: Path) ->
 
     assert document["program_count"] == 1
     assert document["programs"][0]["path"].endswith(wanted)
+
+
+def _listed(capsys: pytest.CaptureFixture, *argv: str) -> list[tuple[int, str]]:
+    """Run ``list --json`` and return its scans as ``(index, name)`` pairs.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+    *argv : str
+        Arguments after ``list``.
+
+    Returns
+    -------
+    list of tuple
+        The listed scans, in the order listed.
+    """
+    from siemens_protocol.cli import main
+
+    assert main(["list", *argv, "--json"]) == 0, capsys.readouterr().err
+    return [(row["index"], row["name"]) for row in json.loads(capsys.readouterr().out)["scans"]]
+
+
+@requires_exar
+def test_a_scan_pattern_keeps_every_scan_it_matches(capsys: pytest.CaptureFixture) -> None:
+    """``re:`` narrows a one-file command to every match, in running order.
+
+    The expectation is the protocol's own unfiltered listing, filtered here,
+    so the test holds whatever that protocol runs. It also checks the match
+    is not vacuous: several scans kept and several dropped.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    import re
+
+    backup = find_exar("Frederick_P2.exar1")
+    whole = _listed(capsys, backup, "--program", "CMRR spectro scans")
+    expected = [row for row in whole if re.search("slaser|press", row[1])]
+    assert 1 < len(expected) < len(whole), "::error::the pattern no longer separates anything"
+
+    got = _listed(capsys, backup, "--program", "CMRR spectro scans", "--scan", "re:slaser|press")
+    assert got == expected
+    # The protocol can be named inside the pattern instead of by --program.
+    assert _listed(capsys, backup, "--scan", "re:^CMRR spectro/slaser|press") == expected
+
+
+@requires_exar
+def test_a_scan_pattern_spanning_protocols_asks_for_one(capsys: pytest.CaptureFixture) -> None:
+    """A command reads one protocol, so a pattern matching in two is refused.
+
+    ``eja_svs_slaser`` is in both CMRR protocols of the backup; the refusal
+    names both so either can be put in the pattern or given to --program.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    assert main(["list", backup, "--scan", "re:^eja_svs_slaser$"]) == 1
+    refused = capsys.readouterr().err
+    assert "matches scans in 2 protocols" in refused
+    assert "CMRR test scans" in refused and "CMRR spectro scans" in refused
+
+
+@requires_exar
+def test_archive_keeps_a_scan_pattern_across_protocols(capsys: pytest.CaptureFixture) -> None:
+    """``archive`` shows several protocols, so a pattern may span them.
+
+    Each protocol kept carries only its matching steps, with counts
+    recomputed for them rather than left describing the whole protocol.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    argv = ["archive", backup, "--stdout", "--quiet", "--scan", "re:^eja_svs_slaser$"]
+    assert main(argv) == 0
+    document = json.loads(capsys.readouterr().out)
+    kept = {p["path"].rsplit("/", 1)[-1]: p for p in document["programs"]}
+    assert set(kept) == {"CMRR test scans", "CMRR spectro scans"}
+    assert document["program_count"] == 2
+    for program in kept.values():
+        assert [step["name"] for step in program["steps"]] == ["eja_svs_slaser"]
+        assert (program["step_count"], program["scan_count"], program["pause_count"]) == (1, 1, 0)
+
+
+@requires_exar
+def test_tree_keeps_every_protocol_a_pattern_matches(capsys: pytest.CaptureFixture) -> None:
+    """``tree --program re:...`` draws exactly the protocols that match.
+
+    Compared against the protocols of the unrestricted tree, filtered here,
+    and required to keep several and drop several so it cannot pass vacuously.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    import re
+
+    from siemens_protocol.cli import main
+
+    def protocols(*argv: str) -> list[str]:
+        """The protocol names a ``tree --json`` run draws."""
+        assert main(["tree", backup, *argv, "--json"]) == 0
+        found: list[str] = []
+
+        def walk(node: dict) -> None:
+            """Collect every protocol node beneath ``node``."""
+            if node["kind"] == "directory":
+                for child in node["children"]:
+                    walk(child)
+            else:
+                found.append(node["name"])
+
+        for root in json.loads(capsys.readouterr().out)["roots"]:
+            walk(root)
+        return sorted(found)
+
+    backup = find_exar("Frederick_P2.exar1")
+    whole = protocols()
+    expected = [name for name in whole if re.search("(?i)cmrr|test", name)]
+    assert 1 < len(expected) < len(whole), "::error::the pattern no longer separates anything"
+    assert protocols("--program", "re:(?i)cmrr|test") == expected
+
+
+@requires_exar
+def test_diff_refuses_a_pattern_matching_several_scans(capsys: pytest.CaptureFixture) -> None:
+    """A side of a comparison is one scan, so a wide pattern is listed back.
+
+    Parameters
+    ----------
+    capsys : pytest.CaptureFixture
+        Capture fixture for the report.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+
+    backup = find_exar("Frederick_P2.exar1")
+    sides = ["--left-program", "CMRR spectro scans", "--right-program", "CMRR test scans"]
+    assert main(["diff", backup, *sides, "--scan", "re:slaser"]) == 1
+    assert "one is needed here" in capsys.readouterr().err
+    main(["diff", backup, *sides, "--scan", "re:^eja_svs_slaser$"])
+    captured = capsys.readouterr()
+    assert "one is needed" not in captured.err
+    assert "eja_svs_slaser" in captured.out
+
+
+@requires_exar
+def test_a_protocol_with_a_slash_in_its_name_is_addressable(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    """A ``/`` inside a protocol name is written ``\\/`` and reached that way.
+
+    The whole-scanner export ``Investigators20260918`` holds
+    ``TIB/FIB ROUTINE METAL SUPRESSION`` and ``SSIP_NOEXPIRATION 6/2022``,
+    and neither could be named before: the separator split each into two
+    levels. That export is not shipped, so the case is staged by renaming a
+    shipped protocol. Checked through ``tree`` (the drawing is what a person
+    copies from), ``--program`` as a literal and as a pattern, and a scan
+    address running through the protocol, which exercises the scan paths the
+    archive view stores.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Where the renamed archive is written.
+    capsys : pytest.CaptureFixture
+        Capture fixture for the reports.
+
+    Returns
+    -------
+    None
+    """
+    from siemens_protocol.cli import main
+    from siemens_protocol.exar import generate
+
+    archive = exar.read(find_exar("Potpourri_P1.exar1"))
+    generate.rename(archive, archive.program_nodes[0], "TIB/FIB ROUTINE")
+    staged = str(tmp_path / "slashed.exar1")
+    archive.write(staged)
+    first = next(step.name for step in archive.steps if step.runs_a_protocol)
+
+    assert main(["tree", staged]) == 0
+    assert r"TIB\/FIB ROUTINE" in capsys.readouterr().out
+
+    whole = _listed(capsys, staged)
+    assert _listed(capsys, staged, "--program", r"TIB\/FIB ROUTINE") == whole
+    assert _listed(capsys, staged, "--program", r"re:^TIB\/FIB") == whole
+    kept = _listed(capsys, staged, "--scan", rf"TIB\/FIB ROUTINE/{first}")
+    assert [name for _index, name in kept] == [first]
+
+    # Unescaped, the name is two levels, and the refusal shows the spelling.
+    assert main(["list", staged, "--scan", f"TIB/FIB ROUTINE/{first}"]) == 1
+    assert r"TIB\/FIB ROUTINE" in capsys.readouterr().err

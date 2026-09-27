@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Sequence
 
+from .. import paths
 from .archive import DIRECTORY, Archive, Instance, Program, Step
 
 #: A folder in the archive's tree, an ``EdfDirectory``.
@@ -246,7 +247,13 @@ def _leading_somewhere(node: Node) -> Node | None:
     return Node(name=node.name, kind=node.kind, children=kept)
 
 
-def build(archive: Archive, *, program: Program | None = None, scans: bool = False) -> list[Node]:
+def build(
+    archive: Archive,
+    *,
+    program: Program | None = None,
+    programs: Sequence[Program] | None = None,
+    scans: bool = False,
+) -> list[Node]:
     """Read an archive's folder tree.
 
     Parameters
@@ -258,6 +265,10 @@ def build(archive: Archive, *, program: Program | None = None, scans: bool = Fal
         it so the path it is addressed by still reads, and dropping the ones
         that no longer lead anywhere. ``None``, the default, shows every
         protocol and every directory, empty ones included.
+    programs : sequence of Program or None, optional
+        Several protocols to restrict the tree to, the way ``program``
+        restricts it to one; the two are combined when both are given.
+        Default ``None``.
     scans : bool, optional
         Whether each protocol carries its running order. Default ``False``,
         which stops the tree at the protocols.
@@ -271,12 +282,15 @@ def build(archive: Archive, *, program: Program | None = None, scans: bool = Fal
         otherwise be lost.
     """
     parents = archive.directory_parents
-    programs = archive.programs
-    if program is not None:
-        programs = [one for one in programs if one.instance.id == program.instance.id]
-    by_id = {one.instance.id: one for one in programs}
+    wanted = [*([program] if program is not None else []), *(programs or [])]
+    shown = archive.programs
+    restricted = program is not None or programs is not None
+    if restricted:
+        ids = {one.instance.id for one in wanted}
+        shown = [one for one in shown if one.instance.id in ids]
+    by_id = {one.instance.id: one for one in shown}
     directories = [one for one in archive.instances.values() if one.kind == DIRECTORY]
-    instances = directories + [one.instance for one in programs]
+    instances = directories + [one.instance for one in shown]
     children, roots = _by_parent(archive, instances, parents)
 
     def node_of(instance: Instance) -> Node:
@@ -292,7 +306,7 @@ def build(archive: Archive, *, program: Program | None = None, scans: bool = Fal
         )
 
     drawn = [node_of(one) for one in sorted(roots, key=lambda one: archive.label_of(one))]
-    if program is None:
+    if not restricted:
         return drawn
     return [one for one in map(_leading_somewhere, drawn) if one is not None]
 
@@ -343,13 +357,16 @@ def label(node: Node) -> str:
     -------
     str
         The name, with a protocol's scan count or a non-acquiring step's kind
-        after it.
+        after it. A ``/`` inside the name is drawn ``\\/``, the spelling an
+        address needs, so the drawn names compose into a path that parses
+        back to this node rather than to one level deeper.
     """
+    name = paths.escape(node.name)
     if node.kind == PROTOCOL_NODE and node.scans is not None:
-        return f"{node.name} ({node.scans} scan{'' if node.scans == 1 else 's'})"
+        return f"{name} ({node.scans} scan{'' if node.scans == 1 else 's'})"
     if node.kind == STEP_NODE and node.step_kind:
-        return f"{node.name} [{node.step_kind}]"
-    return node.name
+        return f"{name} [{node.step_kind}]"
+    return name
 
 
 def _draw(node: Node, prefix: str, connector: str, out: list[str]) -> None:

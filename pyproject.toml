@@ -101,4 +101,7 @@ skip = "./examples,./tests/golden,./loadtest,./paramcheck,./copyparamexamples,./
 # does not cover that -- codespell reads the bare "te" as the/be/we/to.
 # NOE is the Nuclear Overhauser Effect, which names one of the spectroscopy
 # examples and so appears in the scan-count and sequence tests.
-ignore-words-list = "TE,TR,te,tr,ADDIN,NOE"
+# SUPRESSION is quoted from real protocol names ("TIB/FIB ROUTINE METAL
+# SUPRESSION"), which the tests and notes must spell as the console stores
+# them.
+ignore-words-list = "TE,TR,te,tr,ADDIN,NOE,SUPRESSION"

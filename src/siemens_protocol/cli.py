@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
-from . import __version__
+from . import __version__, paths
 from .analysis import address
 from .analysis.diff import diff_protocols, diff_scans, normalize_section, section_groups
 from .analysis.flatten import conflicts
@@ -43,6 +44,10 @@ if TYPE_CHECKING:  # imported for annotations only -- reading an archive is
 
 #: Suffixes treated as PDFs when walking a directory.
 PDF_SUFFIXES = (".pdf", ".PDF")
+
+#: A backslash that is a printout's path separator rather than the escape
+#: :func:`.paths.join` writes before a ``/`` inside a name.
+_PRINTED_SEPARATOR = re.compile(r"\\(?!/)")
 
 #: Suffix identifying an XA protocol archive.
 #:
@@ -82,7 +87,9 @@ def add_program_option(parser: argparse.ArgumentParser) -> None:
             "needed only when it "
             "holds more than one. As much of its path as it takes to name one: "
             "a bare name usually, 'Investigators (2)/Frederick/NAME' where two "
-            "share a name"
+            "share a name. Prefix with 're:' for a regular expression, each "
+            "/-separated part searched for in the name at its level: "
+            "'re:^CMRR' ('archive' and 'tree' keep every protocol it matches)"
         ),
     )
 
@@ -113,7 +120,9 @@ def add_scan_option(parser: argparse.ArgumentParser, what: str) -> None:
         help=(
             f"restrict the {what} to one scan: its name, a zero-based index, "
             "or as much of its path as it takes to name one. Add '#2' for a "
-            "name the protocol uses twice"
+            "name the protocol uses twice. Prefix with 're:' for a regular "
+            "expression, each /-separated part searched for in the name at its "
+            "level, to keep every scan it matches: 're:MPRAGE', 're:^T1w_'"
         ),
     )
 
@@ -153,7 +162,8 @@ def add_side_program_options(parser: argparse.ArgumentParser) -> None:
             help=(
                 f"which protocol to take from the {side} .exar1 archive, needed "
                 "only when it holds more than one and no scan address says "
-                "which. As much of its path as it takes to name one"
+                "which. As much of its path as it takes to name one, or 're:' "
+                "and a regular expression matching exactly one"
             ),
         )
 
@@ -288,7 +298,8 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "scan to take from LEFT: its name, a zero-based index, or as much "
             "of its path as it takes to name one -- 'CMRR spectro scans/"
-            "eja_svs_slaser'. Add '#2' for a name the protocol uses twice"
+            "eja_svs_slaser'. Add '#2' for a name the protocol uses twice, or "
+            "prefix with 're:' for a regular expression matching exactly one"
         ),
     )
     diff_cmd.add_argument(
@@ -1016,7 +1027,7 @@ def _choices(candidates: list[tuple[tuple[str, ...], Any]]) -> str:
     names = [path[-1] for path, _payload in candidates]
     if len(set(names)) == len(names):
         return ", ".join(repr(name) for name in names)
-    return ", ".join(repr("/".join(path)) for path, _payload in candidates)
+    return ", ".join(repr(paths.join(path)) for path, _payload in candidates)
 
 
 def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Program":
@@ -1072,6 +1083,40 @@ def _select_program(archive: "Archive", wanted: str | None, path: str) -> "Progr
     return candidates[0][1]
 
 
+def _select_programs(archive: "Archive", wanted: str, path: str) -> list["Program"]:
+    """Pick the protocols an address names, for a command that shows several.
+
+    ``archive`` and ``tree`` already show every protocol when none is named,
+    so a ``re:`` pattern naming several narrows them rather than being
+    refused. A literal address still names exactly one, as in
+    :func:`_select_program`.
+
+    Parameters
+    ----------
+    archive : Archive
+        The archive to choose from.
+    wanted : str
+        The protocol's address, or a ``re:`` pattern.
+    path : str
+        The archive's path, for the message.
+
+    Returns
+    -------
+    list of Program
+        The chosen protocols in the archive's order. Never empty.
+
+    Raises
+    ------
+    ValueError
+        If the archive holds no protocol, or ``wanted`` names none of them,
+        or a literal ``wanted`` names several.
+    """
+    if not address.parse(wanted).pattern:
+        return [_select_program(archive, wanted, path)]
+    candidates = _program_paths(archive)
+    return address.resolve_all(wanted, candidates, what="protocol", source=path)
+
+
 def _path_components(name: str, printed: str) -> tuple[str, ...]:
     """Split a printed or stored path into address components.
 
@@ -1080,9 +1125,10 @@ def _path_components(name: str, printed: str) -> tuple[str, ...]:
     name : str
         The scan's own name, which the path must end in to be usable as one.
     printed : str
-        The path the document carries -- the archive's own tree, or the one a
-        printout puts in each scan's header box, whose separators are
-        backslashes.
+        The path the document carries -- the archive's own tree, written by
+        :func:`..paths.join` with ``/`` between components and ``\\/`` for
+        a ``/`` inside a name, or the one a printout puts in each scan's
+        header box, whose separators are backslashes.
 
     Returns
     -------
@@ -1093,10 +1139,16 @@ def _path_components(name: str, printed: str) -> tuple[str, ...]:
         export needs, and is better than addressing it by something the
         printout meant for its protocol.
     """
-    # Every separator becomes "/" and empty components are dropped, which
+    text = str(printed or "")
+    # A printout separates with backslashes and a name may hold a "/", so
+    # only a backslash splits one; an archive path's only backslashes are
+    # the escapes paths.join writes. Empty components are dropped, which
     # absorbs both the UNC-style root a printout leads with and the doubled
     # separator one export spells.
-    parts = [part for part in str(printed or "").replace("\\", "/").split("/") if part]
+    if _PRINTED_SEPARATOR.search(text):
+        parts = [part for part in text.split("\\") if part]
+    else:
+        parts = paths.split(text)
     if not parts or parts[-1] != name:
         return (name,)
     return tuple(parts)
@@ -1122,14 +1174,15 @@ def _scan_paths(protocol: Mapping[str, Any]) -> list[tuple[tuple[str, ...], dict
 
 
 def restrict_to_scan(protocol: Mapping[str, Any], wanted: str, source: str) -> dict:
-    """Narrow a loaded protocol to the one scan an address names.
+    """Narrow a loaded protocol to the scans an address names.
 
     Every command that reads a protocol accepts a scan address, so each one
     can answer about a single scan rather than the whole of it -- which
     matters most where the whole of it is large: an archive's parameter tree
-    runs 514 to 2020 assignments a scan.
+    runs 514 to 2020 assignments a scan. A literal address names one scan; a
+    ``re:`` pattern keeps every scan it matches, in acquisition order.
 
-    The scan keeps its own ``index``, so a listing of one scan still says
+    Each scan keeps its own ``index``, so a listing of one scan still says
     where in the protocol it sits rather than renumbering it to zero.
 
     Parameters
@@ -1144,16 +1197,17 @@ def restrict_to_scan(protocol: Mapping[str, Any], wanted: str, source: str) -> d
     Returns
     -------
     dict
-        A shallow copy carrying that scan alone, and no pause steps.
+        A shallow copy carrying those scans alone, and no pause steps.
 
     Raises
     ------
     ValueError
-        If the address names no scan of this protocol, or names more than one.
+        If the address names no scan of this protocol, or a literal address
+        names more than one.
     """
-    narrowed = {**protocol, "scans": [_select_scan(protocol, wanted, source)]}
-    # A pause is placed by the scan it precedes, and every other scan is
-    # gone, so there is nothing left to place one against.
+    narrowed = {**protocol, "scans": _select_scans(protocol, wanted, source)}
+    # A pause is placed by the index of the scan it precedes, which the
+    # scans left no longer number contiguously, so none can be placed.
     narrowed.pop("pauses", None)
     return narrowed
 
@@ -1213,7 +1267,9 @@ def _archive_given_to_parse(path: str) -> str | None:
 
 
 def _restrict_parsed(protocol: "Protocol", wanted: str, source: str) -> None:
-    """Narrow a freshly parsed protocol to the one scan an address names.
+    """Narrow a freshly parsed protocol to the scans an address names.
+
+    One scan for a literal address, every match for a ``re:`` pattern.
 
     Operates on the model rather than the serialized form, because ``parse``
     writes its JSON from the model and filtering afterwards would mean
@@ -1235,10 +1291,10 @@ def _restrict_parsed(protocol: "Protocol", wanted: str, source: str) -> None:
     Raises
     ------
     ValueError
-        If the address names no scan, or names more than one.
+        If the address names no scan, or a literal address names more than one.
     """
     candidates = [(_path_components(scan.name, scan.path), scan) for scan in protocol.scans]
-    protocol.scans = [address.resolve(wanted, candidates, what="scan", source=source)]
+    protocol.scans = address.resolve_all(wanted, candidates, what="scan", source=source)
 
 
 def _load_one(
@@ -1248,7 +1304,7 @@ def _load_one(
     scan: str | None,
     need_flat: bool = False,
 ) -> dict:
-    """Load a protocol and narrow it to one scan when an address names one.
+    """Load a protocol and narrow it to the scans an address names, if any.
 
     The scan address is resolved before loading as well as after: it can name
     the protocol holding it, so a backup does not need its protocol named
@@ -1270,7 +1326,8 @@ def _load_one(
     Returns
     -------
     dict
-        The protocol, carrying one scan when ``scan`` was given.
+        The protocol, carrying only the addressed scans when ``scan`` was
+        given.
 
     Raises
     ------
@@ -1321,6 +1378,38 @@ def _select_scan(protocol: Mapping[str, Any], wanted: str, label: str) -> dict:
             f"{label}: no scan at index {parsed.index}; the protocol has {len(scans)}"
         )
     return address.select(parsed, _scan_paths(protocol), what="scan", source=label)
+
+
+def _select_scans(protocol: Mapping[str, Any], wanted: str, label: str) -> list[dict]:
+    """Find the scans of a protocol an address or index names.
+
+    :func:`_select_scan` for a caller that can report on several: a ``re:``
+    pattern keeps every scan it matches, where a literal address or an index
+    still names exactly one.
+
+    Parameters
+    ----------
+    protocol : mapping
+        A serialized protocol.
+    wanted : str
+        A scan address, a ``re:`` pattern, or a zero-based index.
+    label : str
+        The file, for the error message.
+
+    Returns
+    -------
+    list of dict
+        The serialized scans in acquisition order. Never empty.
+
+    Raises
+    ------
+    ValueError
+        If the address names no scan, or a literal address names more than one.
+    """
+    parsed = address.parse(wanted)
+    if not parsed.pattern:
+        return [_select_scan(protocol, wanted, label)]
+    return address.select_all(parsed, _scan_paths(protocol), what="scan", source=label)
 
 
 def _archive_program(path: str, scan: str | None, program: str | None) -> str | None:
@@ -1384,7 +1473,9 @@ def _program_for_scan(path: str, wanted: str, program: str | None) -> str | None
     ------
     ValueError
         If the scan address names scans in more than one protocol, listing
-        them, since that is the same refusal wherever it is raised.
+        them, since that is the same refusal wherever it is raised. A
+        ``re:`` pattern may match any number of scans, but all in one
+        protocol: a command reads one protocol at a time.
     """
     if program is not None:
         return program
@@ -1394,15 +1485,24 @@ def _program_for_scan(path: str, wanted: str, program: str | None) -> str | None
         return None
     parsed = address.parse(wanted)
     if parsed.index is not None:
-        return "/".join(parsed.parents) or None
+        return paths.join(parsed.parents) or None
 
     candidates: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
     for program_path, node in programs:
         for step in node.steps:
             if step.runs_a_protocol:
                 candidates.append((program_path + (step.name,), program_path))
-    holder = address.select(parsed, candidates, what="scan", source=path)
-    return "/".join(holder)
+    if not parsed.pattern:
+        return paths.join(address.select(parsed, candidates, what="scan", source=path))
+    holders = list(dict.fromkeys(address.select_all(parsed, candidates, what="scan", source=path)))
+    if len(holders) > 1:
+        listed = "\n  ".join(paths.join(holder) for holder in holders)
+        raise ValueError(
+            f"{path}: {parsed!s} matches scans in {len(holders)} protocols, and one is "
+            f"read at a time. Name it with --program, or put its path in the pattern:"
+            f"\n  {listed}"
+        )
+    return paths.join(holders[0])
 
 
 def _same_file(left: str, right: str) -> bool:
@@ -2115,16 +2215,18 @@ def _archive_output_path(source: str) -> str:
 
 
 def _restrict_document(document: dict, wanted: str, source: str) -> None:
-    """Narrow an archive document to the one scan an address names.
+    """Narrow an archive document to the scans an address names.
 
     This is where a scan address earns the most: the parameter tree is 514 to
     2020 assignments a scan, so a whole-archive document is mostly the scans
     nobody asked about.
 
-    The program holding the scan is kept and the rest dropped, and its counts
-    are recomputed rather than left describing what was removed -- a stale
-    ``scan_count`` beside one step would be the kind of plausible-looking
-    wrong number nothing catches.
+    A literal address names one scan; a ``re:`` pattern keeps every step it
+    matches, across as many programs as hold one. The programs holding a
+    match are kept and the rest dropped, and their counts are recomputed
+    rather than left describing what was removed -- a stale ``scan_count``
+    beside one step would be the kind of plausible-looking wrong number
+    nothing catches.
 
     Parameters
     ----------
@@ -2142,20 +2244,42 @@ def _restrict_document(document: dict, wanted: str, source: str) -> None:
     Raises
     ------
     ValueError
-        If the address names no scan of the archive, or names more than one.
+        If the address names no scan of the archive, or a literal address
+        names more than one.
     """
     candidates = [
-        (_path_components(step.get("name", ""), step.get("path", "")), (program, step))
-        for program in document.get("programs", [])
+        (_path_components(step.get("name", ""), step.get("path", "")), (index, step))
+        for index, program in enumerate(document.get("programs", []))
         for step in program.get("steps", [])
     ]
-    program, step = address.resolve(wanted, candidates, what="scan", source=source)
-    program["steps"] = [step]
-    program["step_count"] = 1
-    program["scan_count"] = 1 if step.get("runs_a_protocol") else 0
-    program["pause_count"] = 1 - program["scan_count"]
-    document["programs"] = [program]
-    document["program_count"] = 1
+    kept: dict[int, list[dict]] = {}
+    for index, step in address.resolve_all(wanted, candidates, what="scan", source=source):
+        kept.setdefault(index, []).append(step)
+    programs = document.get("programs", [])
+    document["programs"] = [_with_steps(programs[index], steps) for index, steps in kept.items()]
+    document["program_count"] = len(document["programs"])
+
+
+def _with_steps(program: dict, steps: list[dict]) -> dict:
+    """Cut a program of an archive document down to some of its steps.
+
+    Parameters
+    ----------
+    program : dict
+        One entry of the document's ``programs``, modified in place.
+    steps : list of dict
+        The steps to keep, in running order.
+
+    Returns
+    -------
+    dict
+        ``program``, carrying those steps and counts recomputed for them.
+    """
+    program["steps"] = steps
+    program["step_count"] = len(steps)
+    program["scan_count"] = sum(1 for step in steps if step.get("runs_a_protocol"))
+    program["pause_count"] = len(steps) - program["scan_count"]
+    return program
 
 
 def _run_archive(args: argparse.Namespace) -> int:
@@ -2183,15 +2307,15 @@ def _run_archive(args: argparse.Namespace) -> int:
     document = archive_view.describe(archive, args.input, ascconv=args.ascconv)
     if args.program is not None:
         try:
-            wanted = _select_program(archive, args.program, args.input)
+            wanted = _select_programs(archive, args.program, args.input)
         except ValueError as exc:
             print(f"{exc}", file=sys.stderr)
             return 1
         # Compared by path rather than by name: two protocols of one archive
         # can share a name, and filtering on it would keep both -- which is
         # the same collision --program exists to resolve.
-        chosen = "/".join(archive.path_of(wanted.instance))
-        document["programs"] = [p for p in document["programs"] if p["path"] == chosen]
+        chosen = {paths.join(archive.path_of(one.instance)) for one in wanted}
+        document["programs"] = [p for p in document["programs"] if p["path"] in chosen]
         document["program_count"] = len(document["programs"])
 
     if args.scan is not None:
@@ -2290,7 +2414,7 @@ def _run_tree(args: argparse.Namespace) -> int:
     try:
         archive = _read_archive(args.input)
         wanted = (
-            _select_program(archive, args.program, args.input)
+            _select_programs(archive, args.program, args.input)
             if args.program is not None
             else None
         )
@@ -2298,7 +2422,7 @@ def _run_tree(args: argparse.Namespace) -> int:
         print(f"{exc}", file=sys.stderr)
         return 1
 
-    roots = exar_tree.build(archive, program=wanted, scans=args.scans)
+    roots = exar_tree.build(archive, programs=wanted, scans=args.scans)
     if args.json:
         payload = {
             "source_file": args.input,

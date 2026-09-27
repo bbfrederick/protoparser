@@ -561,6 +561,41 @@ inputs, since an address names one scan of one protocol. And `diff` is the
 exception: two inputs need a scan named per side, which is what `--left-scan`
 and `--right-scan` are.
 
+### Matching with a regular expression
+
+Prefix any scan or protocol address with `re:` to make it a regular expression.
+Each `/`-separated part is searched for in the name at its level, so it
+matches anywhere in the name unless you anchor it with `^`/`$`. `(?i)` makes
+that one part case-insensitive. The parts must still be the unbroken tail of the
+path, exactly as for a plain address:
+
+```sh
+spt list      backup.exar1 --program "CMRR spectro scans" --scan "re:slaser|press"
+spt sequences backup.exar1 --scan "re:^CMRR spectro/(?i)mpress"
+spt archive   backup.exar1 --scan "re:^eja_svs_slaser$" --stdout
+spt tree      backup.exar1 --program "re:^CMRR"
+```
+
+A pattern keeps **every** scan it matches wherever a command can report on
+several: `list`, `summary`, `sequences`, `check`, `parse` and `archive`.
+`archive` and `tree` also keep every protocol a `--program` pattern matches, and
+`archive` keeps a scan pattern's matches across protocols. The other commands
+read one protocol at a time, so a scan pattern matching in two protocols is
+refused, and the refusal lists both. Where exactly one is needed, as on each
+side of a `diff` or for `exar --program`, a pattern matching several is refused
+with the list. Add `#n` to take the nth match.
+
+A name can contain `/` (one backup holds `SSIP_NOEXPIRATION 6/2022`). Inside a
+name, write it `\/`, in a plain address and in a pattern alike:
+`--program 'SSIP_NOEXPIRATION 6\/2022'`, `--program 're:^TIB\/FIB'`. Every path
+the tool prints, including `tree`'s drawing and the lists in its refusals, is
+spelled that way, so it can be pasted back.
+
+Only a prefixed address is a pattern. Real names contain metacharacters, as in
+`Investigators (2)` and `tof_cs_acc10.3 fast`, and they keep matching literally
+without escaping. A misspelled plain name is refused rather than silently
+retried as a search.
+
 ## Summarizing a protocol
 
 `summary` answers the same questions as `list` without a line per scan: how
