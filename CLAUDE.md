@@ -998,6 +998,34 @@ just not the file it used to live in:
   refusal is conservative rather than protective, and the cost of a
   half-written pair is a blanked display, not an uninspectable scan. Keep the
   refusal; do not keep the reason.
+
+  **`AutoAlign: Head` and `AutoAlign: ---` are stored identically, so no
+  amount of pairing separates them.** A suggestion reached this session that
+  the 71 printed `Head` readings could be paired against their archives to
+  recover a bare `Head` code, the mapping carrying only eight `Head > ...`
+  choices. Checking it is what showed there is nothing to recover: **all 71
+  store `ucAARefMode = 1` and `ucAARegionMode = 1`**, which is byte for byte
+  the `---` state that 326 readings share. The printed difference is carried
+  by a third field, and this is the flattening trap in a new place -- two
+  printed strings over one stored pair.
+
+  `ucAAMode` is the candidate and the corpus cannot confirm it: it is 2 on
+  every `Head` scan and 1 on every `---` one, and **all 30 mode-2 scans are
+  the AutoAlign scout itself** (`AALScout`), so the field and the sequence are
+  perfectly confounded. A differential over the two groups finds fifteen other
+  keys that separate them and every one is a scout-versus-everything-else
+  difference of the same kind -- base resolution, dwell time, the protocol
+  name. Writing `ucAAMode` on a non-scout is the only thing that tells them
+  apart, which is `PROBE_AAMODE` in round 7. A lone `ucAAMode = 8` also sits
+  on one scan with no readable sequence name and nothing has looked at what
+  it prints.
+
+  Note what this does to the reading above. The `---` state is left unmapped
+  because writing half the coupled pair blanks the display -- that still
+  holds, and now there is a second reason not to map it from the printout: a
+  protocol printing `Head` and one printing `---` are indistinguishable in
+  those two fields, so a mapping keyed on either string would be wrong about
+  the other.
 - **`paramcheck/XA60/` extends the option-scan method to the common cards.**
   Six archives, one CMRR BOLD scan repeated with a single console option
   varied per copy, split by printed card. They take `MAPPINGS` from 41 to 67.
@@ -2420,9 +2448,22 @@ largest untouched cards cannot be probed at all: `svs_slaser_dkd` (32
 elements), `hcp_mbep2d_{bold,se,diff}` (26-27 each), `tgse_multipcasl_current`
 (18) and `pulseq_v151` (16) have **no current copy anywhere** -- every corpus
 copy carries `ConversionNeeded`, so the donor would be greyed out and deleted
-before the question was asked. Those need a fresh console save before a probe
-can reach them, which is a request to make of a person rather than a build to
-run.
+before the question was asked.
+
+**A fresh console save is the fix for only some of those, and reading the
+survey as if it were the fix for all of them was wrong.** The protocols'
+owner reports `tgse_multipcasl_current` and `pulseq_v151` as VE11C-era
+sequences with **no XA60 equivalent at all**, so there is nothing to save and
+nothing to probe -- they carry the largest unprobed element sets of anything
+current and are worth zero. `hcp_mbep2d_*` is separately closed: it is on
+record as refusing to import whatever we write. That leaves
+`dkd_svs_sLASER` as the one sequence where a save would still buy something,
+which is a request to make of a person rather than a build to run.
+
+The general shape is worth keeping: a survey ranks by *how much is unknown*,
+and "unknown" and "knowable" are different questions. Round 7 dropped the two
+obsolete sequences on the owner's word, having no way to tell from the corpus
+that a `ConversionNeeded` protocol is stale rather than orphaned.
 
 - **The inversion is worth having because the two directions cost differently.**
   An option scan costs a console session per option; a probe costs a
