@@ -9,16 +9,68 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 
 import pymupdf
 import pytest
 
 from conftest import EXAMPLE_FILES, EXAMPLE_IDS, ParseFixture, find_example, requires_examples
 from siemens_protocol.extract.spans import Page, Span
-from siemens_protocol.pipeline import parse_document
+from siemens_protocol.pipeline import ParseOptions, parse_document
 from siemens_protocol.profiles import REGISTRY
 from siemens_protocol.profiles.base import SIZE_FIELDS
 from siemens_protocol.split import HeaderBox, in_contents_listing
+
+
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        (r"\\Research\Study\gre_AP/PA", "gre_AP/PA"),
+        (r"\\Research\Study\localizer", "localizer"),
+        ("Research/Study/localizer", "localizer"),
+        ("", ""),
+    ],
+)
+def test_header_names_respect_the_path_separator(path: str, expected: str) -> None:
+    """Backslash paths allow a literal slash within the final name.
+
+    Parameters
+    ----------
+    path : str
+        Printed header path.
+    expected : str
+        Complete scan name.
+
+    Returns
+    -------
+    None
+    """
+    assert HeaderBox(path=path, summary="TA: 0:19", bottom_y=100).name == expected
+
+
+def test_parsing_a_pdf_preserves_a_slash_in_the_scan_name(tmp_path: Path) -> None:
+    """Exercise slash-containing names through native PDF extraction.
+
+    Parameters
+    ----------
+    tmp_path : pathlib.Path
+        Temporary directory for the synthetic printout.
+
+    Returns
+    -------
+    None
+    """
+    path = tmp_path / "slash.pdf"
+    printed = r"\\Research\Study\gre_AP/PA"
+    with pymupdf.open() as document:
+        page = document.new_page()
+        page.insert_text((40, 30), "SIEMENS MAGNETOM Prisma", fontsize=10)
+        page.insert_text((40, 65), printed, fontsize=10)
+        page.insert_text((40, 82), "TA: 0:19 PM: REF", fontsize=9)
+        document.save(path)
+    result = parse_document(str(path), ParseOptions(version="VE11C", ocr="never"))
+    assert [(scan.name, scan.path) for scan in result.protocol.scans] == [("gre_AP/PA", printed)]
+
 
 #: The one kernel that may print no spatial extent. An unlocalized FID has
 #: neither a slice nor a voxel; the CSI sequences built on the same kernel do

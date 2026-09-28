@@ -50,12 +50,16 @@ class HeaderBox:
     def name(self) -> str:
         """Protocol name: the last component of the path.
 
+        A backslash-delimited printout may have a slash inside a name. Use
+        slash separators only when the path contains no backslashes.
+
         Returns
         -------
         str
             The final path component, or an empty string for an empty path.
         """
-        parts = [p for p in re.split(r"[\\/]+", self.path) if p.strip()]
+        separator = "\\" if "\\" in self.path else "/"
+        parts = [p for p in self.path.split(separator) if p.strip()]
         return parts[-1].strip() if parts else ""
 
     def to_dict(self) -> dict:

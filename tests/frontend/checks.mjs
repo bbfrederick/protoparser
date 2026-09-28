@@ -446,6 +446,47 @@ async function main() {
   await check('run', 'Clear empties the output pane',
     () => el('log').textContent === '', () => el('log').textContent.slice(0, 100));
 
+  /* Reproduce another tab replacing our job. Like /api/job, the fixture
+   * returns the current job from its beginning when the requested id is old.
+   * Explicit polls keep the test independent of subprocess timing. */
+  const liveFetch = sandbox.fetch;
+  const polls = [];
+  const replacementLines = ['replacement output'];
+  sandbox.fetch = async (path, options) => {
+    if (!path.startsWith('/api/job?')) return liveFetch(path, options);
+    const query = new URL(path, base).searchParams;
+    const id = Number(query.get('id'));
+    const since = Number(query.get('since'));
+    polls.push({ id, since });
+    return { ok: true, json: async () => ({
+      id: 9001, display: 'spt replacement', dropped: 2, next: 3,
+      lines: replacementLines.slice(id === 9001 ? Math.max(0, since - 2) : 0),
+      done: false, returncode: null,
+    }) };
+  };
+  try {
+    peek('state.job = 9000; state.since = 100; state.dropped = 10');
+    await peek('poll()');
+    peek('clearTimeout(state.timer)');
+    await peek('poll()');
+    peek('clearTimeout(state.timer)');
+    record('supersession', 'polls adopt the replacement job id',
+      polls.length === 2 && polls[1].id === 9001, polls);
+    record('supersession', 'polls continue at the replacement output position',
+      polls.length === 2 && polls[1].since === 3, polls);
+    record('supersession', 'replacement output appears exactly once',
+      el('log').textContent.split('replacement output').length === 2,
+      el('log').textContent);
+    record('supersession', 'replacement command and dropped lines are reported',
+      el('log').textContent.includes('$ spt replacement')
+        && el('log').textContent.includes('(2 earlier lines dropped:'),
+      el('log').textContent);
+  } finally {
+    peek('clearTimeout(state.timer); finish(0, null, false)');
+    sandbox.fetch = liveFetch;
+    el('clear').click();
+  }
+
   /* -- the remaining controls --------------------------------------------- */
 
   el('copy').click();

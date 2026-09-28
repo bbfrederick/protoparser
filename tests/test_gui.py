@@ -656,6 +656,100 @@ def test_starting_a_run_supersedes_the_previous_one(server: Any) -> None:
     assert second.done
 
 
+def test_overlapping_starts_do_not_leave_an_untracked_child(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A second request cannot supersede a job before its child is launched.
+
+    Parameters
+    ----------
+    monkeypatch : pytest.MonkeyPatch
+        Wrap the first launch to hold open the race window.
+
+    Returns
+    -------
+    None
+    """
+    runner = Runner(REPO_ROOT)
+    entering_first = threading.Event()
+    release_first = threading.Event()
+    requesting_second = threading.Event()
+    started_second = threading.Event()
+    jobs: list[Job] = []
+    errors: list[BaseException] = []
+    original_start = Job.start
+
+    def delayed_start(job: Job, argv: list[str]) -> None:
+        """Launch real children after the first request's controlled pause.
+
+        Parameters
+        ----------
+        job : Job
+            Job being launched.
+        argv : list of str
+            Unused CLI command; a sleeping child keeps the race observable.
+
+        Returns
+        -------
+        None
+        """
+        jobs.append(job)
+        if job.id == 1:
+            entering_first.set()
+            assert release_first.wait(10)
+        original_start(job, [sys.executable, "-c", "import time; time.sleep(30)"])
+        if job.id == 2:
+            started_second.set()
+
+    def start(second: bool) -> None:
+        """Issue one competing request, retaining thread errors for the test.
+
+        Parameters
+        ----------
+        second : bool
+            Whether this is the competing request.
+
+        Returns
+        -------
+        None
+        """
+        if second:
+            requesting_second.set()
+        try:
+            runner.start([], "test child")
+        except BaseException as error:
+            errors.append(error)
+
+    monkeypatch.setattr(Job, "start", delayed_start)
+    first = threading.Thread(target=start, args=(False,))
+    second = threading.Thread(target=start, args=(True,))
+    first.start()
+    try:
+        assert entering_first.wait(5)
+        second.start()
+        assert requesting_second.wait(5)
+        # Before the fix, the second request launches while the first has no
+        # process to stop. Afterwards it must wait for the first launch.
+        overlapped = started_second.wait(1)
+        release_first.set()
+        first.join(10)
+        second.join(10)
+        assert not first.is_alive() and not second.is_alive()
+        assert not errors
+        assert runner.stop()
+        assert all(job._done.wait(5) for job in jobs)
+        assert not overlapped
+        assert all(job._process is not None and job._process.poll() is not None for job in jobs)
+    finally:
+        release_first.set()
+        first.join(10)
+        if second.ident is not None:
+            second.join(10)
+        for job in jobs:
+            job.stop()
+            job._done.wait(5)
+
+
 def test_a_run_can_be_stopped(server: Any) -> None:
     """A long run stops when asked, and says that it was stopped.
 

@@ -168,6 +168,23 @@ def test_the_page_starts_itself_up(frontend: dict[str, list[dict]]) -> None:
     must_pass(frontend, "startup", 5)
 
 
+def test_replacing_a_job_from_another_tab_does_not_repeat_output(
+    frontend: dict[str, list[dict]],
+) -> None:
+    """A replacement job supplies both the next id and its output position.
+
+    Parameters
+    ----------
+    frontend : dict of str to list of dict
+        Results of the browser harness.
+
+    Returns
+    -------
+    None
+    """
+    must_pass(frontend, "supersession", 4)
+
+
 def test_the_tabs_are_generated_from_the_specification(frontend: dict[str, list[dict]]) -> None:
     """Tabs, their order and their selection follow the spec the server sent.
 

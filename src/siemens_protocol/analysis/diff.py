@@ -249,7 +249,8 @@ class ParameterDiff:
         The readings on each side. More than one when the key repeats within
         a scan, in which case the group is compared and reported whole --
         pairing repeats positionally would invent misleading matches when the
-        two releases print them in a different order.
+        two releases print them in a different order. A conflicting reading
+        names the sections alongside their individual values.
     status : str
         One of :data:`CHANGED`, :data:`ONLY_LEFT`, :data:`ONLY_RIGHT`,
         :data:`RENAMED`, :data:`REFORMATTED` or :data:`RECASED`.
@@ -558,7 +559,11 @@ class _Group:
     Attributes
     ----------
     values : list of str
-        The readings, in printed order, one per repeat of the key.
+        The readings, in printed order, one per repeat of the key. Conflicts
+        summarize their distinct values for comparison across moved cards.
+    conflicting_values : dict of int to dict
+        Section-to-value assignments for each conflicting reading, keyed by
+        its position in ``values``. These retain changes a value set loses.
     conflict : bool
         Whether any reading disagreed across the sections that printed it.
     sections : list of str
@@ -570,16 +575,38 @@ class _Group:
     """
 
     values: list[str] = field(default_factory=list)
+    conflicting_values: dict[int, dict[str, str]] = field(default_factory=dict)
     conflict: bool = False
     sections: list[str] = field(default_factory=list)
     rank: int = 0
+
+    @property
+    def display_values(self) -> list[str]:
+        """Show which section holds each conflicting value in a report.
+
+        Returns
+        -------
+        list of str
+            Readings in printed order, with section names inside conflicts.
+        """
+        values = list(self.values)
+        for index, assignments in self.conflicting_values.items():
+            values[index] = (
+                "<conflict: "
+                + " / ".join(
+                    f"{section}: {value}" for section, value in sorted(assignments.items())
+                )
+                + ">"
+            )
+        return values
 
 
 def _flat_groups(flat: Mapping[str, dict]) -> dict[str, _Group]:
     """Group a scan's flattened view by base key.
 
     Repeats of one key (``Slice Group``, ``Slice Group #2``) collapse into an
-    ordered list, so the group is compared as a whole.
+    ordered list, so the group is compared as a whole. Conflicts retain their
+    section assignments as well as their distinct-value summary.
 
     Parameters
     ----------
@@ -598,6 +625,7 @@ def _flat_groups(flat: Mapping[str, dict]) -> dict[str, _Group]:
         if group is None:
             group = groups[name] = _Group(rank=rank)
         if entry.get("conflict"):
+            group.conflicting_values[len(group.values)] = dict(entry.get("values", {}))
             distinct = sorted(set(entry.get("values", {}).values()))
             group.values.append("<conflict: " + " / ".join(distinct) + ">")
             group.conflict = True
@@ -640,13 +668,17 @@ def _is_churn(key: str, values: Sequence[str] = ()) -> bool:
     return all(is_churn(key, value) for value in values) if values else is_churn(key)
 
 
-def _pair_status(values_left: Sequence[str], values_right: Sequence[str]) -> str:
+def _pair_status(left: _Group, right: _Group) -> str:
     """Classify a matched group of readings.
+
+    Conflicts compare both their distinct readings and the assignments in
+    sections present on both sides. Thus a moved card alone is not a change,
+    but changing Routine from one already-conflicting value to another is.
 
     Parameters
     ----------
-    values_left, values_right : sequence of str
-        The readings on each side, in printed order.
+    left, right : _Group
+        Readings and conflicting section assignments on each side.
 
     Returns
     -------
@@ -654,9 +686,16 @@ def _pair_status(values_left: Sequence[str], values_right: Sequence[str]) -> str
         ``"equal"``, or the weakest classification that covers every reading:
         a group is only cosmetic if every reading in it is.
     """
-    if len(values_left) != len(values_right):
+    if len(left.values) != len(right.values):
         return CHANGED
-    verdicts = [compare_values(a, b) for a, b in zip(values_left, values_right)]
+    verdicts = [compare_values(a, b) for a, b in zip(left.values, right.values)]
+    for index in left.conflicting_values.keys() & right.conflicting_values.keys():
+        assignments_left = left.conflicting_values[index]
+        assignments_right = right.conflicting_values[index]
+        verdicts.extend(
+            compare_values(assignments_left[section], assignments_right[section])
+            for section in assignments_left.keys() & assignments_right.keys()
+        )
     if all(v == "equal" for v in verdicts):
         return "equal"
     if CHANGED in verdicts:
@@ -745,7 +784,7 @@ def diff_parameters(
         elif key_right is None:
             status = ONLY_LEFT
         else:
-            status = _pair_status(group_left.values, group_right.values)
+            status = _pair_status(group_left, group_right)
             # Reported rather than dropped, and cosmetic rather than
             # substantive: two archives differing only in their save stamps
             # are the same protocol, and counting those would make every
@@ -758,8 +797,8 @@ def diff_parameters(
         diff = ParameterDiff(
             key_left,
             key_right,
-            list(group_left.values),
-            list(group_right.values),
+            group_left.display_values,
+            group_right.display_values,
             RENAMED if status == "equal" else status,
             renamed=renamed,
             conflict_left=group_left.conflict,

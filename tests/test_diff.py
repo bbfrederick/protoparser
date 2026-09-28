@@ -31,6 +31,7 @@ from siemens_protocol.analysis.diff import (
     diff_scans,
     normalize_key,
 )
+from siemens_protocol.analysis.flatten import flatten_sections
 from siemens_protocol.analysis.report import name_mismatch_note, render_protocol, render_scan
 from siemens_protocol.cli import main
 
@@ -317,6 +318,61 @@ def test_a_conflicting_reading_is_carried_through() -> None:
     diffs, _ = diff_parameters(left, right)
     assert diffs[0].conflict_left
     assert "conflict" in diffs[0].values_left[0]
+
+
+@pytest.mark.parametrize("geometry", ["Sagittal", "Transversal"])
+def test_a_conflicting_parameter_keeps_its_section_assignments(geometry: str) -> None:
+    """Changing a section must not disappear behind an unchanged set of values.
+
+    Parameters
+    ----------
+    geometry : str
+        Whether the edit swaps the two readings or changes their multiplicity.
+
+    Returns
+    -------
+    None
+    """
+    left = flatten_sections(
+        {
+            "Routine": {"Orientation": "Sagittal"},
+            "Geometry": {"Orientation": geometry},
+            "System": {"Orientation": "Transversal"},
+        }
+    )
+    right = flatten_sections(
+        {
+            "Routine": {"Orientation": "Transversal"},
+            "Geometry": {"Orientation": "Sagittal"},
+            "System": {"Orientation": "Transversal"},
+        }
+    )
+    result = diff_protocols(
+        {"scans": [{"name": "scan", "flat": left}]}, {"scans": [{"name": "scan", "flat": right}]}
+    )
+    assert result.differs
+    assert result.substantive_count == 1
+    changed = result.scans[0].parameters[0]
+    assert changed.status == CHANGED
+    assert "Routine: Sagittal" in changed.values_left[0]
+    assert "Routine: Transversal" in changed.values_right[0]
+
+
+def test_conflict_section_order_and_section_renames_do_not_invent_changes() -> None:
+    """A reordered or relocated conflict with the same readings still agrees.
+
+    Returns
+    -------
+    None
+    """
+    left = flatten_sections({"Routine": {"TR": "10 ms"}, "System": {"TR": "20 ms"}})
+    for sections in [
+        {"System": {"TR": "20 ms"}, "Routine": {"TR": "10 ms"}},
+        {"Contrast": {"TR": "10 ms"}, "System": {"TR": "20 ms"}},
+    ]:
+        differences, unchanged = diff_parameters(left, flatten_sections(sections))
+        assert differences == []
+        assert unchanged == 1
 
 
 # -- scan alignment ---------------------------------------------------------

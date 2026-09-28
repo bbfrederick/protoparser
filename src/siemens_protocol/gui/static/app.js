@@ -344,6 +344,15 @@ async function poll() {
     return;
   }
 
+  /* Another tab can replace this run. The server then sends the new job
+   * from its beginning; adopt its id so later polls request only new lines. */
+  if (snapshot.id !== state.job) {
+    state.job = snapshot.id;
+    state.since = 0;
+    state.dropped = 0;
+    if (snapshot.display) appendLine(`$ ${snapshot.display}`, 'meta');
+  }
+
   /* Report a drop the first time one is seen. Keying this off the poll
    * position would miss it, because a run long enough to overflow has
    * always been polled well before it does. */

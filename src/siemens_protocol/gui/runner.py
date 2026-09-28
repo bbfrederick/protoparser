@@ -270,6 +270,9 @@ class Runner:
     def start(self, argv: Sequence[str], display: str) -> Job:
         """Stop whatever is running and start this instead.
 
+        Selection and child launch share the lock so another request cannot
+        supersede a job while it has no process for ``stop`` to terminate.
+
         Parameters
         ----------
         argv : Sequence of str
@@ -287,7 +290,7 @@ class Runner:
                 self._current.stop()
             job = Job(id=next(self._ids), argv=list(argv), display=display, cwd=self.cwd)
             self._current = job
-        job.start(self.command_line(argv))
+            job.start(self.command_line(argv))
         return job
 
     def current(self) -> Job | None:
