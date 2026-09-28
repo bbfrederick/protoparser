@@ -139,6 +139,36 @@ See `Design.md` for the design and `README.md` for usage.
   zero workers for a run that has twelve. Ask the process tree instead:
   `ps ax -o pid,ppid,command | awk '$2=='<pytest pid>.
 
+### Run timings (`--debug-timings`)
+
+Any subcommand takes `--debug-timings`, before or after the subcommand, and
+prints calls, total and mean per operation to stderr on exit -- including
+when the run fails. `timing.py` holds the labels and the report.
+
+- **Time the primitive, not the CLI call site.** The labels sit on
+  `store.read`, `archive.from_container`, `Archive.programs`/`path_of`/the
+  instance index, `parse_document`, `address.select`, `diff_scans` and so
+  on, so every subcommand, including one added later, is covered without
+  touching it. `timing.py` is top-level for the same reason `paths.py` is:
+  `exar/` may not import `analysis`, and both need it.
+- **Totals are inclusive, and the report says so.** A protocol diff's row
+  also contains each scan diff's; the rows do not sum to the wall clock. A
+  label nested inside *itself* counts once, by the outermost call
+  (`select_all` calling `select`). Timing is aggregated rather than printed
+  per call because name matching runs thousands of times in one diff.
+- **The check that matters is whether the rows account for the wall
+  clock.** The first version timed the name match (0.4 ms) and not the
+  program listing that has to happen before it (33 s), so a whole-scanner
+  diff showed 10% of its time itemized. When a run's rows fall well short of
+  the wall clock, profile it (`python -m cProfile -o out.prof -m
+  siemens_protocol.cli ...`) and give the missing operation a label rather
+  than guessing. That is how the instance-index rebuild below was found.
+- **A subcommand's copy of the flag must default to `argparse.SUPPRESS`.**
+  A subparser writes its defaults over the namespace the top-level parser
+  filled, so a `False` there silently undoes `spt --debug-timings diff ...`.
+  `test_the_flag_is_accepted_on_either_side_of_the_subcommand` fails if it
+  is changed, and was confirmed to by making the change.
+
 ### The GUI
 
 - It is a page served to the browser by a stdlib `http.server`, not a toolkit.
@@ -3209,6 +3239,32 @@ used to be one module, independently re-deriving the `sequences.identify`/
   `test_every_subcommand_that_takes_an_archive_can_choose_its_program` reads
   the invariant off each subcommand's own help, so it also keeps that help
   honest: both were claiming "a PDF or JSON" while accepting archives.
+- **`by_element` and `by_object` are built once per archive, and that rests
+  on `instances` never being edited.** They were properties that rebuilt a
+  dict over every live instance on each access, and `label_of`, `steps_of`
+  and `path_of` read them once per node. On the corpus that costs nothing;
+  on the 97 MB whole-scanner export it rebuilt a 31 000-entry dict 21 849
+  times to choose one protocol, and a `diff` of one scan took 38 s, 28 of
+  them in that loop. `Archive._index` now caches each index, which took the
+  same `diff` to 8 s.
+
+  It is safe because nothing edits `instances` after `from_container`:
+  `duplicate_step` writes the `Instance` *table* and callers read the
+  archive again, and `replace_content` edits an `Instance` in place, which
+  the index sees because it holds the objects themselves. The cache is keyed
+  on the dict's identity and size anyway, so replacing or growing it
+  rebuilds rather than serving stale entries -- but **replacing an entry
+  under an existing key would not be noticed**, so code that starts editing
+  `instances` must clear `_indexes`. The index is a `MappingProxyType`
+  because every caller now shares one: a write through it raises instead of
+  corrupting every later lookup.
+
+  Two hotspots of the same shape remain, measured on that same `diff`:
+  `Archive.document` JSON-decodes a node's content on every call (34 535
+  decodes, 2.4 s), and `read_ascconv` re-parses a protocol's ASCCONV block
+  about 440 times per scan through `archive_view` (2.7 s of regex). Content
+  documents *are* replaced on edit (`replace_content`), so a cache there
+  must be keyed on the content hash, not on the node.
 
 ### Code Formatting
 
