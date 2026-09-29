@@ -265,6 +265,9 @@ def render_protocol(
     right = f"{result.right_file} ({result.right_version})"
     note = section_filter_note(sections)
     lines = [f"--- {left}", f"+++ {right}", *([note] if note is not None else []), ""]
+    lines.extend(f"! {warning}" for warning in result.warnings)
+    if result.warnings:
+        lines.append("")
 
     shown = 0
     for scan in result.scans:
@@ -281,6 +284,25 @@ def render_protocol(
     if result.only_left or result.only_right:
         lines.append("")
 
+    if result.execution_differences:
+        lines.append("protocol execution (scan indices are zero-based)")
+        for difference in result.execution_differences:
+            value = difference["value"]
+            side = "left" if difference["status"] == ONLY_LEFT else "right"
+            if difference["kind"] == "links":
+                detail = f"copy link scan {value['source']} -> scan {value['target']}: {value.get('group', '')}"
+                options = [
+                    f"{key}={setting}"
+                    for key, setting in value.items()
+                    if key not in ("source", "target", "group") and setting
+                ]
+                if options:
+                    detail += " (" + ", ".join(options) + ")"
+            else:
+                detail = f"pause at scan boundary {value['before']}: {value['name']}"
+            lines.append(f"  {_MARK[difference['status']]} {detail} ({side})")
+        lines.append("")
+
     identical = sum(1 for s in result.scans if s.identical)
     tally = (
         f"{len(result.scans)} scans compared, {identical} identical, "
@@ -293,7 +315,11 @@ def render_protocol(
         # a difference the exit status counts as one and the summary does not.
         one = result.unmatched_count == 1
         tally += f", {result.unmatched_count} scan{'' if one else 's'} on one side only"
+    if result.execution_count:
+        tally += f", {result.execution_count} execution changes"
     lines.append(tally)
-    if not shown and not (result.only_left or result.only_right):
-        lines.append("no substantive differences found")
+    if not shown and not result.differs:
+        lines.append(
+            "no substantive differences found" + (" in comparable data" if result.warnings else "")
+        )
     return "\n".join(lines)

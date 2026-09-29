@@ -1027,11 +1027,9 @@ def _load_protocol(
 
     An archive is rendered into the same shape a parsed PDF has, so the
     listing, the sequence report and the policy checker read it unchanged.
-    What it carries there is the console's own ``Preview`` summary -- roughly
-    forty parameters a scan -- rather than the several hundred a page prints,
-    so a policy written against a printout will find most of its keys missing.
-    The whole parameter set is in the archive's ASCCONV block, which the
-    ``archive`` subcommand emits and this shape has no room for.
+    It carries Preview, mapped card parameters and the remaining ASCCONV
+    assignments. JSON input must be a parsed protocol document; the richer
+    ``archive`` JSON schema is not interchangeable with that document.
 
     Parameters
     ----------
@@ -1063,6 +1061,18 @@ def _load_protocol(
     if path.lower().endswith(".json"):
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
+        if isinstance(payload, dict) and (
+            "programs" in payload or payload.get("format") == "exar1"
+        ):
+            raise ValueError(
+                f"{path}: archive JSON is not a parsed protocol document. "
+                "Use the original .exar1 file instead, with --program to select "
+                "a protocol (--left-program/--right-program for diff)."
+            )
+        if not isinstance(payload, dict) or not isinstance(payload.get("scans"), list):
+            raise ValueError(f"{path}: expected a parsed protocol JSON object with a scans list")
+        if any(not isinstance(scan, dict) for scan in payload["scans"]):
+            raise ValueError(f"{path}: every entry in scans must be a scan object")
         if need_flat:
             for scan in payload.get("scans", []):
                 if "flat" not in scan:

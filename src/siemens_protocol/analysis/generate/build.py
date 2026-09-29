@@ -761,44 +761,12 @@ def _apply_scan(
     report.applied.extend(changed)
     report.skipped.extend(skipped)
     if changed:
-        document["Data"] = recentre(step.protocol.xprotocol, document["Data"])
         archive.replace_content(step.protocol.instance, document)
 
 
 def recentre(before: str, after: str) -> str:
-    """Replace the slice array when a write has invalidated it.
+    """Compatibility wrapper for :func:`exar.geometry.recentre`.
 
-    ``Slice Thickness`` and ``Distance Factor`` both set the *spacing* between
-    slices, and every ``sSliceArray.asSlice[]`` position is a function of it,
-    so writing either one alone leaves every position describing the geometry
-    that was replaced. The console recomputes; a patcher does not, and the
-    result is an array that still loads -- a scanner returned one 3.15 mm out
-    without complaint -- while describing no coherent slice group.
-
-    Only an array this write broke is rebuilt. One that arrived disagreeing
-    with its own inputs is left exactly as it was, because repairing it would
-    be a change nothing asked for, and a multi-group array is skipped outright
-    since :func:`geometry.read_group` refuses to describe one.
-
-    Parameters
-    ----------
-    before : str
-        The XProtocol text as the template held it.
-    after : str
-        The same text after this scan's values were written.
-
-    Returns
-    -------
-    str
-        ``after``, with the slice positions recomputed when they need to be.
+    Parameter patching now performs this repair for every caller.
     """
-    was = geometry.agrees(before)
-    if was is None or was >= geometry.TOLERANCE:
-        return after
-    group = geometry.read_group(after)
-    if group is None:
-        return after
-    now = geometry.agrees(after, group)
-    if now is None or now < geometry.TOLERANCE:
-        return after
-    return geometry.rebuild(after, group)
+    return geometry.recentre(before, after)

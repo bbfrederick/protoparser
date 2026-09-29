@@ -16,6 +16,7 @@ and a normalizer that manufactures agreement would defeat it.
 from __future__ import annotations
 
 import difflib
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Collection, Mapping, Sequence
@@ -465,6 +466,11 @@ class ProtocolDiff:
         One entry per aligned pair of scans.
     only_left, only_right : list of str
         Scans present on one side only.
+    execution_differences : list of dict
+        Added or removed links and pauses. Option changes and pause moves
+        are reported as removal of the old entry and addition of the new.
+    warnings : list of str
+        Comparison limitations, including execution metadata absent from PDFs.
     """
 
     left_file: str
@@ -474,6 +480,13 @@ class ProtocolDiff:
     scans: list[ScanDiff] = field(default_factory=list)
     only_left: list[str] = field(default_factory=list)
     only_right: list[str] = field(default_factory=list)
+    execution_differences: list[dict] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def execution_count(self) -> int:
+        """Number of added or removed copy links and pause instructions."""
+        return len(self.execution_differences)
 
     @property
     def substantive_count(self) -> int:
@@ -525,10 +538,10 @@ class ProtocolDiff:
         Returns
         -------
         bool
-            ``True`` when any parameter differs substantively or any scan is
-            unmatched.
+            ``True`` when any parameter differs substantively, any scan is
+            unmatched, or a copy link or pause differs.
         """
-        return bool(self.substantive_count or self.unmatched_count)
+        return bool(self.substantive_count or self.unmatched_count or self.execution_count)
 
     def to_dict(self) -> dict:
         """Serialize the protocol comparison.
@@ -548,6 +561,9 @@ class ProtocolDiff:
             "scans_only_right": self.only_right,
             "substantive_count": self.substantive_count,
             "unmatched_count": self.unmatched_count,
+            "execution_count": self.execution_count,
+            "execution_differences": self.execution_differences,
+            "warnings": self.warnings,
             "scans": [s.to_dict() for s in self.scans],
         }
 
@@ -984,6 +1000,13 @@ def diff_protocols(
     ProtocolDiff
         The comparison, including scans present on only one side.
     """
+    for side, document in (("left", left), ("right", right)):
+        if "programs" in document or document.get("format") == "exar1":
+            raise ValueError(
+                f"{side}: archive JSON is not a protocol document; "
+                "read the original .exar1 and use archive_view.as_protocol "
+                "to select and adapt one program before comparing"
+            )
     left_scans = list(left.get("scans", []))
     right_scans = list(right.get("scans", []))
     result = ProtocolDiff(
@@ -999,9 +1022,11 @@ def diff_protocols(
             right.get("software_version") or "", extra_vocabulary_dir
         )
 
-    for i, j in align_scans(
+    pairs = align_scans(
         [s.get("name", "") for s in left_scans], [s.get("name", "") for s in right_scans]
-    ):
+    )
+    _compare_execution(left, right, pairs, result)
+    for i, j in pairs:
         if i is None:
             result.only_right.append(right_scans[j].get("name", ""))
         elif j is None:
@@ -1018,3 +1043,109 @@ def diff_protocols(
                 )
             )
     return result
+
+
+def _compare_execution(
+    left: Mapping,
+    right: Mapping,
+    pairs: Sequence[tuple[int | None, int | None]],
+    result: ProtocolDiff,
+) -> None:
+    """Compare relations and ordered pauses using aligned scan identities.
+
+    Link endpoints use the serialized scan index, not list position. Pause
+    anchors use the following scan (or the end of the protocol). Empty lists
+    mean known absence; missing metadata in a PDF means unknown, not absent.
+    Older archive-backed documents can be recognized by baseline detection.
+    Execution changes remain visible under a parameter-section filter, just
+    as unmatched scans do.
+    """
+    identities: list[dict[int, int]] = [{}, {}]
+    for identity, pair in enumerate(pairs):
+        for side, position in enumerate(pair):
+            if position is not None:
+                document = (left, right)[side]
+                index = document["scans"][position].get("index", position)
+                identities[side][index] = identity
+
+    def endpoint(index: int, side: int) -> tuple:
+        if index not in identities[side]:
+            raise ValueError(
+                f"{'left' if side == 0 else 'right'}: execution metadata references unknown scan index {index}"
+            )
+        return ("scan", identities[side][index])
+
+    def available(document: Mapping, kind: str) -> bool:
+        return kind in document or document.get("detection", {}).get("method") == "baseline"
+
+    option_names = {
+        "copies_phase_encoding_direction",
+        "copies_steps",
+        "ignores_last_step",
+        "ignores_measurements",
+        "extra",
+    }
+    compare_options = True
+
+    def link_key(link: Mapping, side: int) -> tuple:
+        options = {
+            "group": "",
+            "copies_phase_encoding_direction": False,
+            "copies_steps": False,
+            "ignores_last_step": False,
+            "ignores_measurements": False,
+            "extra": {},
+            **{k: v for k, v in link.items() if k not in ("source", "target")},
+        }
+        if not compare_options:
+            options = {"group": link.get("group", "")}
+        return (
+            endpoint(link["source"], side),
+            endpoint(link["target"], side),
+            json.dumps(options, sort_keys=True),
+        )
+
+    def pause_key(pause: Mapping, side: int) -> tuple:
+        before = pause["before"]
+        anchor = (
+            ("end",) if before == len((left, right)[side]["scans"]) else endpoint(before, side)
+        )
+        return (anchor, pause["name"])
+
+    for kind, key in (("links", link_key), ("pauses", pause_key)):
+        missing = [
+            name for name, doc in (("left", left), ("right", right)) if not available(doc, kind)
+        ]
+        if missing:
+            result.warnings.append(
+                f"{kind} not compared: metadata unavailable in {' and '.join(missing)} input (PDF exports do not record it)"
+            )
+            continue
+        entries = [list(doc.get(kind, [])) for doc in (left, right)]
+        if kind == "links":
+            compare_options = all(option_names <= item.keys() for side in entries for item in side)
+            if not compare_options:
+                result.warnings.append(
+                    "copy-link options not compared: legacy link metadata omits options; "
+                    "compare the original .exar1 files to include them"
+                )
+        keys = [[key(item, side) for item in entries[side]] for side in (0, 1)]
+        if kind == "links":
+            # Relation storage order has no execution meaning; multiplicity does.
+            for side in (0, 1):
+                ordered = sorted(zip(keys[side], entries[side]), key=lambda item: item[0])
+                keys[side] = [item[0] for item in ordered]
+                entries[side] = [item[1] for item in ordered]
+        matcher = difflib.SequenceMatcher(None, keys[0], keys[1], autojunk=False)
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                continue
+            for side, start, stop in ((0, i1, i2), (1, j1, j2)):
+                for item in entries[side][start:stop]:
+                    result.execution_differences.append(
+                        {
+                            "kind": kind,
+                            "status": ONLY_LEFT if side == 0 else ONLY_RIGHT,
+                            "value": dict(item),
+                        }
+                    )

@@ -253,3 +253,44 @@ def rebuild(text: str, group: SliceGroup) -> str:
                     text, key, ascconv.format_like(value, existing), existing, False
                 )
     return text
+
+
+def recentre(before: str, after: str) -> str:
+    """Replace the slice array when a write has invalidated it.
+
+    ``Slice Thickness`` and ``Distance Factor`` both set the *spacing* between
+    slices, and every ``sSliceArray.asSlice[]`` position is a function of it,
+    so writing either one alone leaves every position describing the geometry
+    that was replaced. The console recomputes; a patcher does not, and the
+    result is an array that still loads -- a scanner returned one 3.15 mm out
+    without complaint -- while describing no coherent slice group.
+
+    Only an array this write broke is rebuilt. One that arrived disagreeing
+    with its own inputs is left exactly as it was, because repairing it would
+    be a change nothing asked for, and a multi-group array is skipped outright
+    since :func:`geometry.read_group` refuses to describe one.
+
+    Parameters
+    ----------
+    before : str
+        The XProtocol text as the template held it.
+    after : str
+        The same text after this scan's values were written.
+
+    Returns
+    -------
+    str
+        ``after``, with the slice positions recomputed when they need to be.
+    """
+    if before == after:
+        return after
+    was = agrees(before)
+    if was is None or was >= TOLERANCE:
+        return after
+    group = read_group(after)
+    if group is None:
+        return after
+    now = agrees(after, group)
+    if now is None or now < TOLERANCE:
+        return after
+    return rebuild(after, group)

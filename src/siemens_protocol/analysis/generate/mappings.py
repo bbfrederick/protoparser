@@ -30,8 +30,9 @@ so an index has no global meaning: ``alFree[0]`` is MT Flip Angle on
 multiband sequences. A table that treated it as one parameter would write a
 flip angle into CMRR's flags.
 
-What this module deliberately does *not* do is recompute derived values. The
-console does: changing TR moved ``lScanTimeSec`` and ``lTotalScanTimeSec`` in
+Slice positions invalidated by a spacing edit are rebuilt for supported
+single-group geometry. Other derived values still need the console:
+changing TR moved ``lScanTimeSec`` and ``lTotalScanTimeSec`` in
 the reference pairs. A patched archive carries the old scan time, and
 :class:`Manifest` says so rather than leaving it to be discovered later.
 
@@ -50,7 +51,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from typing import Mapping as MappingType
 
-from ...exar import ascconv
+from ...exar import ascconv, geometry
 from ...exar.archive import Archive, Protocol, Step
 
 #: How a record spells an assignment that is not present. A sparse array omits
@@ -3640,6 +3641,11 @@ def patch_document(
     the caller's ``protocol`` is left as it was and nothing is written until
     :func:`apply` re-addresses the content.
 
+    After applying the batch, rebuild supported single-group slice positions
+    if this edit invalidated them. Multi-group geometry and arrays already
+    inconsistent before the edit retain the existing repair limitations;
+    this is not a general scanner-validity check.
+
     Parameters
     ----------
     protocol : Protocol
@@ -3669,7 +3675,7 @@ def patch_document(
         record, text = _apply_one(found, preview, text, value, step)
         (applied if isinstance(record, Applied) else skipped).append(record)
     document["Preview"] = preview
-    document["Data"] = text
+    document["Data"] = geometry.recentre(protocol.xprotocol, text) if applied else text
     return (document, applied, skipped)
 
 

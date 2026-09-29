@@ -592,6 +592,7 @@ def protocol_from_archive(archive: Archive, program: Program, source: str) -> "m
         detection={"method": "baseline", "confidence": "high"},
         scanner=archive.baseline,
         program=program.name,
+        execution_metadata_available=True,
     )
     positions: dict[str, int] = {}
     for step in program.steps:
@@ -631,7 +632,18 @@ def scan_links(program: Program, positions: Mapping[str, int]) -> "list[model.Sc
         source, target = positions.get(link.source), positions.get(link.target)
         if source is None or target is None:
             continue
-        links.append(model.ScanLink(source=source, target=target, group=link.group or ""))
+        links.append(
+            model.ScanLink(
+                source=source,
+                target=target,
+                group=link.group or "",
+                copies_phase_encoding_direction=link.copies_phase_encoding_direction,
+                copies_steps=link.copies_steps,
+                ignores_last_step=link.ignores_last_step,
+                ignores_measurements=link.ignores_measurements,
+                extra=dict(link.extra),
+            )
+        )
     return links
 
 

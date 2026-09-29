@@ -677,6 +677,13 @@ it would let a reading of one silently overwrite a parse of the other.
 drops the parameter tree, which is the bulk of the document at 514 to 2020
 assignments a scan.
 
+This archive JSON uses a `programs`/`steps` schema, unlike the `scans` schema
+written by `parse`. Commands that accept parsed protocol JSON reject archive
+JSON explicitly. Give `list`, `summary`, `check`, `diff`, or `exar` the original
+`.exar1` where supported, selecting a protocol with `--program` (or
+`--left-program` / `--right-program` for `diff`). The input supplying printed
+parameters to `exar` must remain a PDF or its parsed JSON.
+
 The document is not a parsed printout and does not pretend to be one. Three
 things in it have no counterpart on the PDF side:
 
@@ -1236,6 +1243,20 @@ opposed to what Siemens merely renamed. It has two modes.
 protocol can print the same name twice (two field maps), and a release can
 rename one scan while leaving its position alone. An inserted or deleted scan is
 reported as such instead of shifting everything after it out of step.
+
+Whole-protocol comparisons also compare copy-reference links (including their
+options) and pause instructions when both inputs carry that metadata. Link
+storage order is ignored; pause order and placement matter. Endpoints follow
+aligned scans, so inserting an earlier scan does not itself change a link.
+Changed options and moved pauses appear as removal of the old entry and
+addition of the new one. These changes set a nonzero exit status and are
+reported separately as `execution_count` and `execution_differences` in JSON.
+They remain visible under a parameter-section filter, like unmatched scans.
+PDF exports do not record links or pauses: the report warns when those cannot
+be compared, rather than treating missing metadata as an empty execution plan.
+Legacy protocol JSON that omitted copy-link options is compared by endpoints
+and group, with a warning that options were not compared; use the original
+archives to include those options.
 
 **Scan against scan.** Name a scan per side with `--left-scan` and `--right-scan`.
 With two files that compares one scan of each; with one file it compares two scans

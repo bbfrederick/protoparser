@@ -189,11 +189,20 @@ class ScanLink:
         What is copied, as the archive names it -- ``Slices``,
         ``CenterOfSlicesAndSaturationRegions`` and so on. Empty when the link
         names no group.
+    copies_phase_encoding_direction, copies_steps, ignores_last_step, ignores_measurements : bool
+        Copy-reference options retained for execution comparisons.
+    extra : dict of str to str
+        Unrecognized copy-reference attributes, preserved for comparison.
     """
 
     source: int
     target: int
     group: str = ""
+    copies_phase_encoding_direction: bool = False
+    copies_steps: bool = False
+    ignores_last_step: bool = False
+    ignores_measurements: bool = False
+    extra: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         """Serialize the link.
@@ -201,9 +210,18 @@ class ScanLink:
         Returns
         -------
         dict
-            ``source``, ``target`` and ``group``.
+            ``source``, ``target``, ``group`` and copy-reference options.
         """
-        return {"source": self.source, "target": self.target, "group": self.group}
+        return {
+            "source": self.source,
+            "target": self.target,
+            "group": self.group,
+            "copies_phase_encoding_direction": self.copies_phase_encoding_direction,
+            "copies_steps": self.copies_steps,
+            "ignores_last_step": self.ignores_last_step,
+            "ignores_measurements": self.ignores_measurements,
+            "extra": dict(self.extra),
+        }
 
 
 @dataclass
@@ -261,10 +279,10 @@ class Protocol:
     links : list of ScanLink
         Copy-parameter links between scans, in the order the archive stores
         them. Always empty for a PDF-backed protocol, whose printout does not
-        record links; ``to_dict`` omits the key when empty.
+        record links; ``to_dict`` omits the key when that metadata is unavailable.
     pauses : list of Pause
         Pause steps, in running order. Always empty for a PDF-backed
-        protocol; ``to_dict`` omits the key when empty.
+        protocol; ``to_dict`` omits the key when that metadata is unavailable.
     page_count : int
         Number of pages in the PDF.
     front_matter_pages : list of int
@@ -273,6 +291,9 @@ class Protocol:
         Pages whose text came from OCR; treat their values as approximate.
     warnings : list of str
         Anything the caller should know before trusting the result.
+    execution_metadata_available : bool
+        True for archives. Serialize empty links and pauses to distinguish
+        known absence from metadata unavailable in PDF exports.
     """
 
     source_file: str
@@ -287,6 +308,7 @@ class Protocol:
     front_matter_pages: list[int] = field(default_factory=list)
     ocr_pages: list[int] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    execution_metadata_available: bool = False
 
     def to_dict(self, include_flat: bool = True, catalog: Catalog | None = None) -> dict:
         """Serialize the protocol.
@@ -319,9 +341,9 @@ class Protocol:
         if self.warnings:
             out["warnings"] = self.warnings
         out["scans"] = [s.to_dict(include_flat, catalog) for s in self.scans]
-        if self.links:
+        if self.links or self.execution_metadata_available:
             out["links"] = [link.to_dict() for link in self.links]
-        if self.pauses:
+        if self.pauses or self.execution_metadata_available:
             out["pauses"] = [pause.to_dict() for pause in self.pauses]
         return out
 
