@@ -2380,13 +2380,45 @@ MAPPINGS: tuple[Mapping, ...] = (
     Mapping(
         label="VERSE Factor",
         ascconv_key="sWipMemBlock.adFree[4]",
-        sequences=("ep2d_bold_mgh", "ep2d_se_sms_mgh", "ep2d_diff_mgh"),
+        sequences=("ep2d_bold_mgh", "ep2d_se_sms_mgh", "ep2d_diff_mgh", "ep2d_bold_MGH"),
         evidence=(
             "controlled edit: probe round 5 (2026-09-23), PROBE_MGHBOLD. written "
             "2.0 into a template holding 1.0, and the printed 'VERSE Factor' "
             "followed, alone and with nothing else printed or recomputed. That "
             "archive's TR probe held and printed, so the write path is confirmed "
-            "for this sequence before any unmapped element is read."
+            "for this sequence before any unmapped element is read. "
+            "The upper-case spelling is a fourth scope on its own controlled "
+            "edit: round 7 (2026-09-27), PROBE_MGHCASE, wrote 2.0 over 1.0 into "
+            "an ep2d_bold_MGH donor and the same label followed, clean. It is "
+            "listed rather than folded because applies_to compares the binary "
+            "exactly, and that is deliberate -- ep2d_diff_MGH holds a disjoint "
+            "sWipMemBlock index set from ep2d_diff_mgh, so case folding here "
+            "would decode one sequence's card with another's table."
+        ),
+    ),
+    Mapping(
+        label="Measurements",
+        ascconv_key="sWipMemBlock.alFree[46]",
+        sequences=("eja_svs_mpress",),
+        when=("sWipMemBlock.alFree[4]", "6"),
+        evidence=(
+            "controlled edit: probe round 7 (2026-09-27), PROBE_MEAS. written 8 "
+            "into a donor holding 9, and the printed 'Measurements' followed "
+            "9 -> 8 on Sequence - Common and Sequence - Special together, with "
+            "only the derived scan times recomputed. The same archive wrote "
+            "alFree[10] 1 -> 2 and nothing printed at all, which is what "
+            "separates the two: round 6 landed alFree[10] for this label off "
+            "four donors that all held 1 in both elements, and it was wrong. "
+            "This donor holds alFree[10] = 1 beside alFree[46] = 9, so each "
+            "answer stands alone. "
+            "The gate is the row's own visibility rather than a guess. This "
+            "Measurements is printed on the Sequence card only while the "
+            "sequence is running its water-suppression flip-angle loop: over "
+            "38 corpus eja scans the row is present on exactly the 2 printing "
+            "'Debug loop type: WS FA' (alFree[4] = 6) and absent on all 36 "
+            "printing 'None' (alFree[4] = 1), including 6 that hold "
+            "alFree[46] = 9 and print no such row. Without the gate those 6 "
+            "would decode a stale 9 against a card that shows nothing."
         ),
     ),
     Mapping(

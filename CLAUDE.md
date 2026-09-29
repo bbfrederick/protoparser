@@ -1084,6 +1084,23 @@ just not the file it used to live in:
   on one scan with no readable sequence name and nothing has looked at what
   it prints.
 
+  **That probe ran and `ucAAMode` is refuted.** Written `1 -> 2` into a
+  `can_neuromelanin` donor -- a non-scout, which is the whole point -- the
+  value held and **not one printed row moved**. The donor prints `AutoAlign`
+  on both `Routine` and `Geometry - AutoAlign`, and both still read `---`
+  after the write, so this is a visible probe answering no rather than the
+  invisible-under-a-switch case: the row was there to change and did not.
+
+  What that licenses is narrow and worth stating exactly. `ucAAMode = 2` is
+  **not sufficient** to print `Head` with `ucAARefMode` and `ucAARegionMode`
+  at the `---` state; it does not show the field is irrelevant, only that it
+  is not the switch on its own. Since all 71 `Head` readings store that same
+  pair, and the corpus's whole case for `ucAAMode` was a correlation
+  perfectly confounded with `AALScout`, the field is now the *weaker*
+  hypothesis rather than the leading one, and what prints `Head` is open
+  again. The next thing to try is the pair and the mode written together,
+  which no round has done.
+
   Note what this does to the reading above. The `---` state is left unmapped
   because writing half the coupled pair blanks the display -- that still
   holds, and now there is a second reason not to map it from the printout: a
@@ -1755,6 +1772,31 @@ just not the file it used to live in:
   sequences", because a build may renumber the card -- which is exactly what
   `Mapping.builds` exists to refuse. It does settle that the lower-case
   mapping must never decode the upper-case protocol.
+
+  **For the BOLD pair that is now answered by a controlled edit, and the
+  answer is that they share a card.** `ep2d_bold_MGH` is current, so unlike
+  the diffusion pair its card can be printed: round 7's `PROBE_MGHCASE`
+  wrote `adFree[4]` 1.0 -> 2.0 into an `ep2d_bold_MGH` donor and the card
+  printed `VERSE Factor: 1.00 -> 2.00` -- the same label the lower-case
+  family already maps at the same index, clean and attributable. That is
+  labels agreeing rather than indices agreeing, which is the only evidence
+  that counts here, and it is one label: the other ten probes were 8
+  refusals and a blind element, so nothing else on that card was compared.
+
+  **The widening had to be written out, and that is deliberate.**
+  `applies_to` compares the binary *exactly* -- `VERSE Factor` returned
+  `False` on the upper-case donor and decoded nothing -- so case folding is
+  in the catalog's `names_binary` and **not** in the mapping table. Do not
+  add it there. The diffusion pair holds *disjoint* `sWipMemBlock` index
+  sets, so a fold would hand `ep2d_diff_MGH` a table derived from a card it
+  demonstrably does not share, which is the one thing the paragraph above
+  says must never happen. Case folding is safe for deciding *which sequence
+  this is* and unsafe for deciding *what its card means*: the first is a
+  filesystem's spelling, the second is a property of the build. So
+  `ep2d_bold_MGH` is a fourth name on one mapping, on its own evidence, and
+  the other lower-case mappings stay where they are -- `Imaging Dummy TRs`
+  at `alFree[20]` was not probed on the upper-case spelling and was not
+  widened.
 
   **And the evidence that would settle it cannot be obtained.** Comparing the
   printed Special *labels* would say whether these are one card renumbered or
@@ -2496,13 +2538,25 @@ console varies a
 *printed option* and we diff the archives: the label is known and the stored
 field is discovered. A probe archive inverts that -- we vary a stored field,
 the scanner prints a card, and the printout says which label that field
-drives. Six rounds have run; they took `MAPPINGS` from 115 to 249 and
-settled four questions this file had recorded as open. The last 13 of those
-came from no scanner trip at all -- `Finding.attributable` re-read returns
-already in hand, which is the cheapest round there is and the one to try
-before building another archive. The table stands at 250: `1st Signal/Mode`
-is the one entry no probe round produced, so do not reconcile the 249 to a
-count of `MAPPINGS` -- it is a figure about the rounds, not about the table. Rounds 4 to 6 are
+drives. Seven rounds have run; they took `MAPPINGS` from 115 to 250 and
+settled six questions this file had recorded as open. 13 of those came from
+no scanner trip at all -- `Finding.attributable` re-read returns already in
+hand, which is the cheapest round there is and the one to try before
+building another archive. The table stands at 251: `1st Signal/Mode` is the
+one entry no probe round produced, so do not reconcile the 250 to a count of
+`MAPPINGS` -- it is a figure about the rounds, not about the table.
+
+**Round 7 is the shape to copy when a sweep has stopped paying.** Five
+archives, 21 probes, 41 scans, all returned with nothing greyed out. It was
+built so that *every* outcome was worth having, which is what a round has to
+be once the cheap surface is gone: rounds 4 to 6 spent 553 probes and could
+afford a majority of blind ones, where this round spent 21 and needed each
+to decide something. Three of its five questions
+existed because an earlier round got something wrong or could not separate
+two readings, and a sweep cannot fix either: the donor has to be chosen for
+the question. It returned **one new mapping, one widening, three closed
+hypotheses and eight refusals**, and the two closed hypotheses in the
+"queued" list below were deleted on the strength of it. Rounds 4 to 6 are
 where the method stopped adding mappings one at a time: 553 probes over
 twenty archives, and -- more usefully for planning the next round -- 163
 elements shown to print nothing and 95 the sequence refuses to have
@@ -2661,6 +2715,15 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   and 3 refused, `resolve` 3 blind, and neither yielded a single mapping.
   Those are cheap archives to have sent and expensive ones to send twice,
   which is the whole argument for writing a blind element down.
+
+  Round 7 adds 4, and they are the round's most valuable results rather
+  than its leftovers: `sWipMemBlock.alFree[10]` on `eja_svs_mpress` (which
+  is what withdrew a wrong mapping), bit 15 of `alFree[0]` on
+  `cmrr_mbep2d_bold`, `ucAAMode` on `can_neuromelanin`, and
+  `sWipMemBlock.adFree[5]` on `ep2d_bold_MGH`. Three of the four were asked
+  *as* hypotheses someone had proposed, so "prints nothing" is what closed
+  them -- a blind element is not only a gap in coverage, it is how a wrong
+  idea gets retired.
 - **A negative result is scoped to a sequence exactly as a mapping is, and
   the eja suite proves it rather than merely suggesting it.** Four donors
   probed the shared card -- `eja_svs_slaser`, `eja_svs_press`,
@@ -2719,7 +2782,12 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   is one where probing is nearly exhausted after a single archive, and the
   next archive is better spent elsewhere. Round 6 adds 37, including
   **14 of 39** on `cmrr_mbep2d_se` and 6 each on the two MGH SMS
-  variants.
+  variants. Round 7 adds **8 of 11** on `ep2d_bold_MGH` -- `alFree[2]`,
+  `alFree[3]`, `alFree[6]`, `alFree[11]`, `alFree[21]`, `alFree[60]`,
+  `alFree[61]`, `alFree[63]`, every one returning the template's own value
+  rather than a third, so refusals and not quantisation. That is the same
+  8-of-11 the lower-case `ep2d_bold_mgh` returned in round 5, which is a
+  second and quieter reason to read the two spellings as one card.
 - **A mined ASCCONV anchor becomes evidence once a scanner accepts it.**
   `probe.mine_anchor` reads a key's predecessor out of every corpus protocol
   that carries it, which is the same fact `SPARSE_ANCHORS` records by hand,
@@ -2896,6 +2964,50 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   matching 9 on one scan is a value coincidence, which is the evidence this
   file forbids mapping from. It needs a probe.
 
+  **Round 7 ran that probe and both halves came back.** `PROBE_MEAS` put the
+  two elements into one archive on a donor where they *differ* --
+  `alFree[10] = 1` beside `alFree[46] = 9`, printing 9 -- so neither answer
+  depends on the other. Writing `alFree[46]` 9 -> 8 moved the printed
+  `Measurements` 9 -> 8 with only the derived scan times recomputed; writing
+  `alFree[10]` 1 -> 2 printed **nothing at all**. So `alFree[46]` is the
+  value, `alFree[10]` is blind on this sequence, and round 6's withdrawal was
+  right for a better reason than the one it was made on.
+
+  **The mapping still needed a gate, and the corpus is what said so.** Landed
+  bare it would have been wrong on more scans than it was right on: six eja
+  scans hold `alFree[46] = 9` and print `Measurements = 1`. The explanation is
+  not a second element but the row's own *visibility* -- this `Measurements`
+  is printed on the Sequence card only while the sequence runs its
+  water-suppression flip-angle loop. Over 38 corpus eja scans the row is
+  present on exactly the 2 printing `Debug loop type: WS FA` and absent on all
+  36 printing `None`, six of which hold a stale 9. `Mapping.when` carries the
+  gate as `sWipMemBlock.alFree[4] = 6`.
+
+  `alFree[4]` is `Debug loop type` itself -- 1 is `None` on 36 scans and 6 is
+  `WS FA` on 2, with nothing against. It is used as a gate and still **not
+  mapped**, for the reason the entry below already gives: deleting it prints
+  blank and nothing says what the blank means. A `when` clause needs the
+  field to be readable, not to be a mapping.
+
+  The general lesson is the sharper half. The first corpus check of this
+  mapping read `Measurements` from whichever section came first and reported
+  `alFree[10]` agreeing on 33 of 34 scans against `alFree[46]`'s 31 -- which
+  would have re-landed the withdrawn mapping on the strength of a bug. The
+  two rows are different parameters, exactly as the `Sequence` card entry
+  says, and the disagreement vanishes when they are read per section. **A
+  label that prints on two cards must be read from the card that owns it,
+  and a corpus tally that outvotes a controlled edit is the tally to
+  distrust.**
+
+  One decoder consequence is worth knowing. `Finding.attributable` requires a
+  single entry in `own_printed`, which is keyed by *(section, label)* -- so
+  this finding, whose one label printed on `Sequence - Common` and
+  `Sequence - Special` together, scores two and is not attributable. Every
+  TR control in every round scores three to five the same way. The property
+  is counting printed *rows* where it means printed *parameters*, so it
+  under-admits any label a scan prints on more than one card; it has never
+  over-admitted, which is why this has cost nothing so far.
+
   **What found it was the self-drive sweep**, and only once a preference
   rule made the mapping reachable. While the general `lRepetitions` mapping
   and this one both matched, `resolve` refused the ambiguous label and the
@@ -2928,6 +3040,23 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   two elements moving `11 -> 9` and printing the same words looks exactly
   like one probe being attributed twice, and the donor really does hold 11
   in both. Check the donor before concluding a decoder is misattributing.
+
+  **Round 7 asked the third value and killed the threshold.** `PROBE_NSM2`
+  wrote both elements `11 -> 13`, on the far side of the template from round
+  6's 9, and **both printed `Off` -> `On` again** -- clean and attributable
+  on each. A monotone threshold cannot do that: 9 and 13 sit on opposite
+  sides of 11, so no cut-off admits both and excludes 11. What is left is
+  that **11 is a sentinel meaning `Off`** and the two other values are simply
+  not it.
+
+  That is a real narrowing and it is still not a mapping, which is the point
+  worth keeping. `choices` is a value-to-name table, and the evidence names
+  one value for `Off` against an open set for `On` -- writing it as
+  `(("Off", 11), ("On", 9), ("On", 13))` would invent a vocabulary, since
+  nothing says 12 or 0 is either. The corpus cannot help: `alFree[5]` and
+  `alFree[7]` are `11` on both corpus scans and nothing else, so every value
+  that prints `On` is one a probe put there. Two elements, two rounds, four
+  probes, and the honest answer is a sentinel and an unknown alphabet.
 - **A lander that dedupes on (key, label) silently narrows a scope.**
   Round 6 confirmed `alFree[20]` -> `Imaging Dummy TRs` independently on
   `ep2d_se_sms_mgh` and `ep2d_diff_mgh`, each with its own TR control --
@@ -3010,42 +3139,37 @@ that a `ConversionNeeded` protocol is stale rather than orphaned.
   re-points at the archive beside it when the recorded path no longer
   resolves.
 
-**Queued for the next probe round.** Two leads the printed-label-first
-views surfaced (2026-09-26), both things the archive stores and no label
-yet explains. The owner has a separate effort mapping these sequences'
-parameters; put both into its next round rather than resolving them here,
-and delete each entry when it lands.
+**Both queued leads are answered, and both are negatives.** They were
+recorded here on 2026-09-26 as things the archive stores that no label
+explained, and round 7 asked each one directly.
 
-- **Bit 15 of CMRR's `alFree[0]`.** Set on exactly one scan in the corpus:
-  `rfMRI_REST_MULTIECHO_MAGPHASE_PA` (`cmrr_mbep2d_bold`, build
-  `R017 nxva60a/main r/91b106c1e`, word `37633` = bits 0, 8, 9, 12, 15),
-  in `Frederick_P2`'s `multiecho_bids_test` and
-  `multiecho_bids_test_small_fixed` programs. Neither program has a PDF,
-  so no printout can name it yet, and no other R017 scan sets it. The
-  scan name suggests magnitude/phase output; that is a hint to ask about,
-  not a label. The probe is one toggle of bit 15 on a `cmrr_mbep2d_bold`
-  donor, reading which Special-card row moves -- or print either program
-  from the console. `archive_view.unlabelled_ascconv` shows it as
-  `sWipMemBlock.alFree[0] (unlabelled bits): 15`, and
-  `test_a_flags_word_keeps_the_bits_no_label_claims` pins it, so mapping
-  the bit will turn that test red on purpose: update it then.
-- **`Preview` codes with no decoding.** `AutoAlign Reference`
-  (`sub.0.msr.aa_ref_matrix`: 6146 on 513 scans, 6137 on 437, 6136 on 4)
-  and `AutoAlign Region` (`sub.0.msr.aa_region`: 6145 on 513, 6133 on 441)
-  print as bare numbers in every archive view, because no mapping names
-  their ASCCONV side or their choices. And `AutoAlign` itself stays a code
-  (6146 on 487, 6125 on 30, 6145 on 14) exactly where `ucAARefMode` and
-  `ucAARegionMode` are both `1` -- the `---` state, which is refused
-  because it moves a coupled pair (see "Coupled parameters must move
-  together"). Note that **no export prints `AutoAlign Reference` or
-  `AutoAlign Region`** -- neither label appears in any golden snapshot --
-  so they are console-summary labels with no printed form, and the first
-  question is whether they are independent settings or restatements of
-  `AutoAlign`. The printouts do print `AutoAlign: Head` 66 times, a
-  choice the mapping lacks (it has eight `Head > ...` entries and no bare
-  `Head`); pairing those scans with their archives may settle that one
-  without scanner time.
+- **Bit 15 of CMRR's `alFree[0]` prints nothing.** It is set on exactly one
+  corpus scan (`rfMRI_REST_MULTIECHO_MAGPHASE_PA`, `cmrr_mbep2d_bold`, build
+  `R017 nxva60a/main r/91b106c1e`), in two `Frederick_P2` programs that have
+  no PDF -- so nothing could name it from the corpus. `PROBE_BIT15` set the
+  bit on a `cmrr_mbep2d_bold` donor (`4609 -> 37377`), the word held, and
+  **no printed row moved**. The scan name suggests magnitude/phase output and
+  that remains a hint rather than a label: what is established is that the
+  Special card does not show this bit. It therefore stays unclaimed, and
+  `test_a_flags_word_keeps_the_bits_no_label_claims` stays as it is --
+  the note that mapping the bit would turn that test red on purpose is now
+  moot.
+- **`AutoAlign Reference` and `AutoAlign Region` are untouched**, and the
+  half of that entry which *could* be checked without scanner time was, with
+  the result recorded under "Coupled parameters must move together": the 71
+  printed `Head` readings store the same `ucAARefMode`/`ucAARegionMode` pair
+  as `---`, so there is no bare `Head` code to recover by pairing. The
+  follow-up that hypothesis produced -- `ucAAMode` -- was probed in round 7
+  and refuted. No export prints either `Preview` label, so both remain
+  console-summary codes with no printed form.
 
+The shape worth keeping from this pair: **a queued lead is a question, and a
+question's answer is as often "nothing" as it is a mapping.** Both of these
+were written as leads because a stored value had no explanation, and in both
+cases the explanation is that the console does not print it. That is a
+result the console direction cannot produce at all, and it costs an archive
+to get -- which is the argument for writing it down here rather than
+re-deriving it next round.
 #### Reading an archive out
 
 `spt archive <file.exar1>` is the reading half, where `exar`
