@@ -9,7 +9,7 @@ dist/
 examples/**/*.json
 *.swp
 *.swo
-ocr.log
+results.xml
 src/siemens_protocol/_version.py
 private_examples
 

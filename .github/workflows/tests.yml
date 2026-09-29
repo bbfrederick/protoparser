@@ -62,11 +62,12 @@ jobs:
       # The OCR tests skip themselves when tesseract is unusable, and a skip
       # reads like a pass in the summary -- so a broken install would go
       # unnoticed on the platform it broke on. Assert both halves instead:
-      # the binary must be discoverable, and those tests must actually run.
+      # the binary must be discoverable here, and the report check after the
+      # suite proves those tests actually ran rather than skipping.
       # Windows is the case this exists for: choco writes tesseract to
       # Program Files without putting it on PATH, so a PATH-only lookup fails
       # on a runner that has it installed.
-      - name: Tesseract must be discoverable and exercised
+      - name: Tesseract must be discoverable
         shell: bash
         run: |
           python -c "
@@ -78,28 +79,19 @@ jobs:
               print('::error::tesseract was installed but discovery did not find it')
               sys.exit(1)
           "
-          python -m pytest tests/test_pipeline.py -k test_ocr_ -q | tee ocr.log
-          if grep -q skipped ocr.log; then
-            echo "::error::the OCR tests skipped, so tesseract was not usable"
-            exit 1
-          fi
 
       # app.js is executed under node:vm against a live server, so node is
       # what makes those tests real -- and they skip themselves without it,
       # which reads like a pass in the summary. Every GitHub-hosted runner
       # ships node (actions/checkout is itself a node action), so a skip here
-      # means something else broke and should be loud. This is also the only
-      # place the front end is exercised on Windows, where the path separator
+      # means something else broke and should be loud -- which the report
+      # check after the suite asserts, node being no use if the tests that
+      # need it skipped anyway. Windows matters most here: the path separator
       # the picker renders differs from the one it was written on.
-      - name: The browser front end must actually be exercised
+      - name: Node must be present for the front end
         shell: bash
         run: |
           node --version
-          python -m pytest tests/test_frontend.py -q | tee frontend.log
-          if grep -q skipped frontend.log; then
-            echo "::error::the front-end tests skipped, so app.js was never executed"
-            exit 1
-          fi
 
       # The .exar1 tests skip wholesale when no archive is discoverable, and
       # a skip reads like a pass -- the same trap the two guards above exist
@@ -109,8 +101,9 @@ jobs:
       # stop testing the reader, the patcher and the hashing all at once.
       # Discovery is asked of conftest rather than reimplemented as a glob,
       # because a guard that asks a different question than the code does is
-      # how the tesseract skip went unnoticed on Windows.
-      - name: The .exar1 archives must be present and exercised
+      # how the tesseract skip went unnoticed on Windows. The other half --
+      # that they then ran -- is the report check after the suite.
+      - name: The .exar1 archives must be present
         shell: bash
         env:
           PYTHONPATH: tests
@@ -124,17 +117,59 @@ jobs:
               print('::error::no .exar1 archive was discovered, so those tests would skip')
               sys.exit(1)
           "
-          python -m pytest tests/test_exar.py tests/test_exar_patch.py -q | tee exar.log
-          if grep -q skipped exar.log; then
-            echo "::error::the .exar1 tests skipped, so the archives were not usable"
-            exit 1
-          fi
 
       # Across cores: the suite is twelve minutes serially and five at -n 8.
-      # Only this step, because the targeted ones above tee their output and
-      # grep it for skips, which parallel workers interleave.
+      # This is the only place the tests run. The three guards above used to
+      # each run their own files serially and grep the output for `skipped`,
+      # because xdist workers interleave stdout -- which meant the .exar1
+      # files, carrying the two corpus sweeps, ran twice per job: 835 s
+      # serially in the guard and again here. That was 46% of the job.
       - name: Test
-        run: python -m pytest -q -n auto
+        run: python -m pytest -q -n auto --junit-xml=results.xml
+
+      # The other half of each guard above: a skip reads like a pass, so the
+      # suites that skip themselves when something is missing must be shown
+      # to have actually run. The report is written by the xdist *controller*
+      # and aggregates the workers, so it carries per-test skip status that
+      # interleaved stdout cannot -- which is what lets the runs above go.
+      # It is also stricter than the greps it replaces: those asked whether
+      # a file's output held the word "skipped" anywhere, this names the
+      # tests that must have run and counts them.
+      - name: The guarded suites must have run, not skipped
+        shell: bash
+        run: |
+          python -c "
+          import sys
+          import xml.etree.ElementTree as ET
+
+          GUARDS = {
+              'OCR': (lambda c, n: c == 'tests.test_pipeline' and n.startswith('test_ocr_'),
+                      'tesseract was not usable'),
+              'front end': (lambda c, n: c == 'tests.test_frontend',
+                            'app.js was never executed'),
+              '.exar1': (lambda c, n: c in ('tests.test_exar', 'tests.test_exar_patch'),
+                         'the archives were not usable'),
+          }
+          root = ET.parse('results.xml').getroot()
+          suite = root.find('testsuite') if root.tag == 'testsuites' else root
+          cases = [(tc.get('classname') or '', tc.get('name') or '',
+                    tc.find('skipped') is not None)
+                   for tc in suite.iter('testcase')]
+
+          bad = False
+          for label, (match, why) in GUARDS.items():
+              mine = [(n, sk) for c, n, sk in cases if match(c, n)]
+              ran = [n for n, sk in mine if not sk]
+              skipped = [n for n, sk in mine if sk]
+              print(f'{label}: {len(ran)} ran, {len(skipped)} skipped')
+              if not mine:
+                  print(f'::error::no {label} tests were collected at all')
+                  bad = True
+              elif skipped:
+                  print(f'::error::{len(skipped)} {label} tests skipped, so {why}: {skipped[:5]}')
+                  bad = True
+          sys.exit(1 if bad else 0)
+          "
 
       # Proves the human-readable report survives a redirected stream, which
       # on Windows is where the legacy code page bites and a console does not.
