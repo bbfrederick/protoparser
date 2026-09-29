@@ -361,6 +361,182 @@ spt diff old.pdf new.pdf --filter contrast
 | `--stdout` | Write JSON to stdout instead of a file (single file only). |
 | `--debug-timings` | Any subcommand, before or after it. Time the major operations -- reading and decoding archives, parsing PDFs, matching protocol and scan names, diffing, writing JSON and archives -- and print calls, total and mean for each to stderr on exit. Totals are inclusive, so a diff's row also counts the per-scan diffs listed beside it. |
 
+## Searching across protocol files
+
+`query` searches every protocol in each archive, or scans in PDF exports and
+parsed protocol JSON. Give multiple inputs, or a directory to search recursively:
+
+```sh
+spt query examples/XA60 --vendor 're:CMRR' --family 're:EPI' \
+  --where 'Suppress 16-bit DICOM = Off'
+spt query first.exar1 second.pdf --region Investigators --exam Frederick \
+  --protocol 're:CMRR' --where 'TR >= 2 s' --json
+```
+
+Names match exactly, ignoring case. Prefix a selector with `re:` for a regular
+expression. Selectors are `--region`, `--exam`, `--protocol` (`--program`),
+`--scan`, `--path`, `--sequence`, `--family`, and `--vendor`. Region and exam
+come from the trailing Region / Exam / Protocol / Scan path components; missing
+levels remain empty. Results keep the source file, full escaped path, zero-based
+scan index, software release, sequence identity, and queried parameter readings.
+
+Repeat `--where` for AND; add `--any` for OR. Conditions support `=`, `==`, `!=`,
+`>`, `>=`, `<`, `<=`, and `~` (regular-expression search on the value). Examples:
+
+```sh
+spt query backup.exar1 --where 'TR >= 2 s' --where 'TE < 40 ms'
+spt query backup.exar1 --where 'TR is conflicting' --where 'TE is missing' --any
+spt query backup.exar1 --where 'raw:alTE[1] > 30000'
+```
+
+Numeric comparisons convert time (`s`, `sec`, `ms`, `us`, `µs`, `min`), length
+(`m`, `cm`, `mm`), and frequency (`Hz`, `kHz`) units. Other units must agree.
+Include units for displayed numeric parameters: unitless `2` cannot be compared
+to `2 s`. `raw:` reads an exact ASCCONV key from an archive, preserving array
+indices and using its stored units. The complete raw table is available when
+reading `.exar1`; a PDF contains only displayed parameters.
+
+Parameter names use the existing release vocabularies and abbreviation rules.
+Use canonical names such as `acceleration_mode` to search renamed parameters
+across releases. Unverified synonyms are not inferred: this corpus calls the
+CMRR control `Suppress 16-bit DICOM`. A query file can supply aliases you have
+verified, mapping your shorthand to the recorded label.
+
+Readings have four states: `known`, `missing` (not recorded in this input),
+`unknown` (recorded without a usable value), and `conflicting`. A comparison
+against missing/conflicting values, uninterpretable numbers or incompatible units
+is undecidable. Negating it remains undecidable. `PARAM is STATE` and
+`PARAM exists` test the recorded state explicitly. `--include-unknown` displays
+undecidable candidates with `matched: null`; they are counted separately from
+true matches. Every occurrence of a known repeated parameter must satisfy its
+comparison. Missing does not establish that a setting is absent from the scanner.
+
+For nested Boolean expressions, use `--query query.json`:
+
+```json
+{
+  "vendor": "re:CMRR",
+  "family": "re:EPI",
+  "where": {
+    "all": [
+      {"parameter": "Suppress 16-bit DICOM", "value": "Off"},
+      {"any": [
+        {"parameter": "TR", "op": ">=", "value": "2 s"},
+        {"not": {"parameter": "TE", "op": "exists"}}
+      ]}
+    ]
+  }
+}
+```
+
+CLI selectors override the query file's selectors; extra `--where` conditions
+are ANDed with its expression. `--vocabulary DIR` overlays parameter mappings.
+`--json` emits results, counts, warnings and input errors; `--out FILE` saves
+them. A completed search, including one with no matches, exits 0. Failed inputs
+are retained in the report and cause exit 1; invalid query syntax causes exit 2.
+Directory discovery reads PDFs and `.exar1` files. Name parsed JSON explicitly
+to avoid reading unrelated reports or cached duplicates beside the originals.
+Archive JSON emitted by `archive` requires the original `.exar1` as input.
+
+Python callers use the same API:
+
+```python
+from siemens_protocol.analysis.query import All, Predicate, Query, search_files
+
+query = Query(
+    vendor="re:CMRR",
+    family="re:EPI",
+    where=All((
+        Predicate("Suppress 16-bit DICOM", "=", "Off"),
+        Predicate("TR", ">=", "2 s"),
+    )),
+)
+report = search_files(["backup.exar1", "protocol.pdf"], query)
+for match in report.matches:
+    print(match["source_file"], match["path"], match["scan_index"])
+```
+
+`search(documents, query)` evaluates normalized protocol dictionaries directly;
+`load_protocols(path)` reads all programs from one archive or a PDF/parsed JSON.
+`Query.from_dict` accepts the JSON form. `All`, `AnyOf`, and `Not` combine
+`Predicate` objects; `parameter_reading` exposes values and their state.
+Queries read files without modifying them. The GUI's Query tab offers the same
+selectors, conditions, query file and output options for a file or directory.
+
+## Parameter glossary
+
+Look up a sequence's known variables from the information packaged with `spt`.
+No protocol file is required:
+
+```sh
+spt glossary --sequence cmrr_mbep2d_bold
+spt glossary --sequence cmrr_mbep2d_bold --release VE11C --json
+spt glossary --scan 'rfMRI REST ME PA XA60'
+spt glossary                       # list known XA60 sequences
+```
+
+The catalog includes parameter names and printed sections learned from the PDF
+corpus, joined to the characterized write mappings. XA60 is the default release;
+`--release` selects another. A known scan name can act as an alias for its sequence.
+`mapped_conditional` identifies a characterized mapping and lists its stored key,
+encoding, sequence/build/mode conditions and evidence. Unmapped variables remain
+searchable and are not offered for editing. The catalog lists known controls;
+it is not an exhaustive specification for every possible sequence build.
+
+An input file or directory is optional. Supply one to inspect the variables,
+values and mapping applicability of particular scans:
+
+```sh
+spt glossary backup.exar1 --sequence cmrr_mbep2d_bold
+spt glossary protocol.pdf --scan 'rfMRI REST ME PA XA60'
+spt glossary examples/XA60 --vendor re:CMRR --family re:EPI --json --out glossary.json
+spt glossary backup.exar1 --scan 're:REST' --raw
+```
+
+File-backed lookups also use the query command's hierarchy selectors. They
+list parameters observed in the selected files, grouped by release and
+sequence; it does not claim to enumerate controls absent from those files.
+Each entry includes recorded labels, a canonical `query_name`, sections,
+observed values and states, occurrence counts, and source scan examples.
+`--raw` adds exact ASCCONV keys, including array indices, for searches.
+Archive Preview entries with blank displayed labels are internal metadata and
+are excluded from the glossary's displayed-variable list.
+
+User editing requires a verified mapping between a displayed PDF parameter and
+ASCCONV. A searchable name alone does not establish modification support:
+
+* `mapped`: the existing writer resolves the displayed label for this concrete
+  archive scan, applying its sequence, build and acquisition-mode gates. The
+  glossary records its write name, raw key, choices, scale, offset, reference
+  field, packed bit, supported builds and mapping evidence. New parameter
+  values still undergo the writer's validation and scanner checks.
+* `unsupported`: the writer refuses the displayed label. The reason explains
+  whether it is unmapped, derived, ambiguous or outside the verified build.
+* `unverified`: a PDF or parsed JSON supplies the displayed name, but an
+  original archive is required to check the concrete scan's writer support.
+* `raw_only`: an exact stored key is searchable, but is not offered for user
+  editing without a verified displayed-parameter mapping.
+
+The JSON output marks these cases with `modifiable`, counts supported scan
+occurrences separately, and sets `characterization_needed` for missing or
+out-of-scope mappings. Derived read-only parameters are excluded from that
+mapping backlog. Characterization requires establishing the displayed label's
+stored assignment, encoding and sequence/build scope; the glossary never
+infers a write mapping from a similar-looking raw key.
+
+Python callers use `sequence_glossary(Query(sequence=...))` for package knowledge,
+or `glossary_files(inputs, Query(scan=...))` to inspect files, from
+`siemens_protocol.analysis.glossary`. Both return `GlossaryReport` with `to_dict()`.
+File lookups accept `include_raw=True`; both accept release and vocabulary options.
+The GUI exposes both under Query → Parameter glossary; leave its input empty
+for a catalog lookup. Exact raw indices and hierarchy selectors require files.
+Input errors and exit codes follow `query`.
+
+The packaged parameter index is reproducible from the PDF golden snapshots:
+`.venv/bin/python -m siemens_protocol.analysis.glossary_catalog tests/golden --out
+src/siemens_protocol/analysis/glossary_catalog.json`. It stores names and coverage
+evidence, not parameter values or scanner defaults.
+
 ## The graphical front end
 
 Everything below can also be driven from a window, for anyone who would rather

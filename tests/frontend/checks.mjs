@@ -326,6 +326,35 @@ async function main() {
     () => controlFor('parse', pathField.name).value === BROWSE_AT,
     () => controlFor('parse', pathField.name).value);
 
+  await show(spec, 'query');
+  const conditions = controlFor('query', 'where');
+  await check('query', 'parameter conditions use a multiline control',
+    () => conditions.tagName === 'TEXTAREA');
+  controlFor('query', 'input').value = BROWSE_AT;
+  controlFor('query', 'input').fire('input');
+  conditions.value = 'Mode = A, B\nTR >= 2 s';
+  conditions.fire('input');
+  const queryValues = peekJson('state.values.get(state.command)');
+  const queryPreview = await post('/api/preview', { command: 'query', values: queryValues });
+  await check('query', 'conditions keep commas and split only at newlines',
+    () => JSON.stringify(queryPreview.argv.filter((_, i, args) => args[i - 1] === '--where'))
+      === JSON.stringify(['Mode = A, B', 'TR >= 2 s']),
+    () => queryPreview.argv);
+  await check('query', 'multiline conditions reach the page command preview',
+    () => el('command').textContent === queryPreview.display,
+    () => ({ shown: el('command').textContent, expected: queryPreview.display }));
+  await show(spec, 'glossary');
+  await check('query', 'glossary offers sequence selection and raw-variable discovery',
+    () => Boolean(controlFor('glossary', 'sequence') && controlFor('glossary', 'raw')));
+  controlFor('glossary', 'sequence').value = 'cmrr_mbep2d_bold';
+  controlFor('glossary', 'sequence').fire('input');
+  const glossaryValues = peekJson('state.values.get(state.command)');
+  const glossaryPreview = await post('/api/preview', { command: 'glossary', values: glossaryValues });
+  await check('query', 'a sequence glossary previews without an input file',
+    () => JSON.stringify(glossaryPreview.argv) === JSON.stringify(['glossary', '--sequence', 'cmrr_mbep2d_bold']),
+    () => glossaryPreview.argv);
+  await show(spec, 'parse');
+
   /* -- the file picker ---------------------------------------------------- */
 
   const browse = controlFor('parse', pathField.name).parentNode.children.find(

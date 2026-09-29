@@ -220,6 +220,65 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    query_cmd = sub.add_parser("query", help="search scans across protocol files or directories")
+    query_cmd.add_argument(
+        "inputs", nargs="+", help="PDFs, exar1 archives, parsed JSON files, or directories"
+    )
+    for name in ("region", "exam", "protocol", "scan", "path", "sequence", "family", "vendor"):
+        query_cmd.add_argument(
+            *(("--protocol", "--program") if name == "protocol" else (f"--{name}",)),
+            help=f"match {name} literally ignoring case, or use re:REGEX",
+        )
+    query_cmd.add_argument(
+        "--where",
+        action="append",
+        default=[],
+        metavar="CONDITION",
+        help="parameter condition, e.g. 'TR >= 2 s' or 'TE is missing'; repeat for AND",
+    )
+    query_cmd.add_argument(
+        "--any", action="store_true", help="combine repeated --where conditions with OR"
+    )
+    query_cmd.add_argument(
+        "--query",
+        metavar="FILE",
+        help="JSON query with selectors, aliases and nested all/any/not expressions",
+    )
+    query_cmd.add_argument(
+        "--include-unknown",
+        action="store_true",
+        help="include undecidable candidates, marked with matched=null",
+    )
+    query_cmd.add_argument(
+        "--vocabulary", metavar="DIR", help="overlay directory for release parameter vocabularies"
+    )
+    add_release_option(query_cmd, "force a release profile for PDF inputs (default: auto)")
+    query_cmd.add_argument(
+        "--json", action="store_true", help="emit results, counts and input errors as JSON"
+    )
+    query_cmd.add_argument("--out", help="write results here instead of stdout")
+
+    glossary_cmd = sub.add_parser(
+        "glossary", help="list searchable variables and writer mappings for selected scans"
+    )
+    glossary_cmd.add_argument(
+        "inputs", nargs="*", help="optional files or directories; omitted uses package knowledge"
+    )
+    for name in ("region", "exam", "protocol", "scan", "path", "sequence", "family", "vendor"):
+        glossary_cmd.add_argument(
+            *(("--protocol", "--program") if name == "protocol" else (f"--{name}",)),
+            help=f"match {name} literally ignoring case, or use re:REGEX",
+        )
+    glossary_cmd.add_argument(
+        "--raw", action="store_true", help="also list exact raw ASCCONV variable names"
+    )
+    glossary_cmd.add_argument("--vocabulary", metavar="DIR", help="release vocabulary overlays")
+    add_release_option(
+        glossary_cmd, "PDF profile, or catalog release (default: XA60 without files)"
+    )
+    glossary_cmd.add_argument("--json", action="store_true", help="emit the glossary as JSON")
+    glossary_cmd.add_argument("--out", help="write results here instead of stdout")
+
     parse_cmd = sub.add_parser("parse", help="parse a protocol PDF, or every PDF in a directory")
     parse_cmd.add_argument("input", help="a PDF file, or a directory of PDFs")
     parse_cmd.add_argument("--out", help="write JSON here (default: alongside the input, .json)")
@@ -976,6 +1035,125 @@ def _write_text(path: str, text: str) -> None:
     with timing.timed(timing.WRITE_FILE):
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(text + "\n")
+
+
+def _run_query(args: argparse.Namespace) -> int:
+    """Run the same collection query API available to Python callers.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed query selectors, predicates, input and output options.
+
+    Returns
+    -------
+    int
+        Zero for a completed search, one for failed inputs, two for invalid queries.
+    """
+    from dataclasses import replace
+
+    from .analysis.query import All, AnyOf, Query, parse_predicate, render, search_files
+
+    try:
+        if args.query:
+            with open(args.query, encoding="utf-8") as handle:
+                query = Query.from_dict(json.load(handle))
+        else:
+            query = Query()
+        changes = {
+            name: getattr(args, name)
+            for name in (
+                "region",
+                "exam",
+                "protocol",
+                "scan",
+                "path",
+                "sequence",
+                "family",
+                "vendor",
+            )
+            if getattr(args, name) is not None
+        }
+        conditions = tuple(parse_predicate(text) for text in args.where)
+        if conditions:
+            extra = AnyOf(conditions) if args.any else All(conditions)
+            changes["where"] = All((query.where, extra))
+        query = replace(query, **changes)
+        report = search_files(
+            args.inputs,
+            query,
+            release=args.version,
+            include_unknown=args.include_unknown,
+            vocabulary_dir=args.vocabulary,
+        )
+        output = _json_text(report.to_dict()) if args.json else render(report)
+        if args.out:
+            _write_text(args.out, output)
+        else:
+            print(output)
+        return 1 if report.errors else 0
+    except (OSError, ValueError, re.error) as exc:
+        print(f"query: {exc}", file=sys.stderr)
+        return 2
+
+
+def _run_glossary(args: argparse.Namespace) -> int:
+    """Look up known variables or inspect scan-specific writer mappings.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed inputs, selectors, and glossary output options.
+
+    Returns
+    -------
+    int
+        Zero for a completed inventory, one for input failures, two for invalid options.
+    """
+    from .analysis.glossary import glossary_files, render, sequence_glossary
+    from .analysis.query import Query
+
+    try:
+        query = Query(
+            **{
+                name: getattr(args, name) or ""
+                for name in (
+                    "region",
+                    "exam",
+                    "protocol",
+                    "scan",
+                    "path",
+                    "sequence",
+                    "family",
+                    "vendor",
+                )
+            }
+        )
+        if args.inputs:
+            report = glossary_files(
+                args.inputs,
+                query,
+                include_raw=args.raw,
+                release=args.version,
+                vocabulary_dir=args.vocabulary,
+            )
+        else:
+            if args.raw:
+                raise ValueError("exact raw variable names and indices require an input file")
+            report = sequence_glossary(
+                query,
+                release=args.version,
+                vocabulary_dir=args.vocabulary,
+            )
+        output = _json_text(report.to_dict()) if args.json else render(report)
+        if args.out:
+            _write_text(args.out, output)
+        else:
+            print(output)
+        return 1 if report.errors else 0
+    except (OSError, ValueError, re.error) as exc:
+        print(f"glossary: {exc}", file=sys.stderr)
+        return 2
 
 
 def _run_gui(args: argparse.Namespace) -> int:
@@ -2813,6 +2991,12 @@ def _dispatch(args: argparse.Namespace) -> int:
     """
     if args.command == "versions":
         return _list_versions()
+
+    if args.command == "query":
+        return _run_query(args)
+
+    if args.command == "glossary":
+        return _run_glossary(args)
 
     if args.command == "gui":
         return _run_gui(args)

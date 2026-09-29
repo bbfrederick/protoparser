@@ -195,6 +195,21 @@ def test_the_tabs_are_generated_from_the_specification(frontend: dict[str, list[
     must_pass(frontend, "tabs", 3)
 
 
+def test_query_conditions_and_glossary_controls(frontend: dict[str, list[dict]]) -> None:
+    """Multiline predicates and glossary selectors survive the browser form.
+
+    Parameters
+    ----------
+    frontend : dict
+        Results from the browser harness.
+
+    Returns
+    -------
+    None
+    """
+    must_pass(frontend, "query", 5)
+
+
 def test_every_command_renders_its_whole_form(frontend: dict[str, list[dict]]) -> None:
     """Each command's fields, choices, help and summary all reach the page.
 

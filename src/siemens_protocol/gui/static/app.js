@@ -236,7 +236,12 @@ function buildControl(command, field, values) {
     return nodes;
   }
 
-  const box = textBox(id, values[field.name] ?? '');
+  const box = field.kind === 'lines' ? document.createElement('textarea') : textBox(id, values[field.name] ?? '');
+  if (field.kind === 'lines') {
+    box.id = id;
+    box.value = values[field.name] ?? '';
+    box.rows = 3;
+  }
   if (field.kind === 'int') {
     box.type = 'number';
     box.step = '1';

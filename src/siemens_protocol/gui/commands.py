@@ -16,7 +16,7 @@ GUI without any change to it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Mapping, Sequence
 
 from ..analysis.policy import available as policy_available
@@ -33,8 +33,9 @@ from ..profiles import REGISTRY
 #: ``choice`` a drop-down over ``choices``
 #: ``flag``   a checkbox, contributing the bare flag when ticked
 #: ``list``   a text box whose comma-separated entries repeat the flag
+#: ``lines``  a multiline box whose newline-separated entries repeat the flag
 #: ``pair``   two path boxes, contributing the flag and both values
-KINDS = ("path", "text", "int", "choice", "flag", "list", "pair")
+KINDS = ("path", "text", "int", "choice", "flag", "list", "lines", "pair")
 
 #: What a ``path`` field is asking for, which selects the browser's dialog.
 #:
@@ -1234,6 +1235,145 @@ def _versions_command() -> Command:
     )
 
 
+def _query_command() -> Command:
+    """Expose collection search through the common command form.
+
+    Returns
+    -------
+    Command
+        Query fields and their corresponding command-line options.
+    """
+    return Command(
+        name="query",
+        group="Query",
+        title="Search protocols",
+        summary="Find scans by hierarchy, sequence identity and parameter conditions.",
+        argv=("query",),
+        fields=(
+            Field(
+                "input",
+                "path",
+                "Input file or directory",
+                "Search a PDF, archive, parsed JSON file or directory recursively.",
+                picker="any",
+                required=True,
+            ),
+            *(
+                Field(
+                    name,
+                    "text",
+                    name.capitalize(),
+                    "Exact name ignoring case, or re:REGEX.",
+                    flag=f"--{name}",
+                )
+                for name in (
+                    "region",
+                    "exam",
+                    "protocol",
+                    "scan",
+                    "path",
+                    "sequence",
+                    "family",
+                    "vendor",
+                )
+            ),
+            Field(
+                "where",
+                "lines",
+                "Parameter conditions",
+                "One condition per line: TR >= 2 s, or Suppress 16-bit DICOM = Off.",
+                flag="--where",
+            ),
+            Field(
+                "any",
+                "flag",
+                "Any condition",
+                "Combine the conditions with OR instead of AND.",
+                flag="--any",
+            ),
+            Field(
+                "query",
+                "path",
+                "JSON query",
+                "A query file for nested all/any/not expressions and parameter aliases.",
+                flag="--query",
+                accept=(".json",),
+            ),
+            Field(
+                "include_unknown",
+                "flag",
+                "Include unknown results",
+                "Show candidates whose parameter conditions cannot be decided.",
+                flag="--include-unknown",
+            ),
+            _release_field("Force a release profile for PDF inputs."),
+            Field(
+                "vocabulary",
+                "path",
+                "Vocabulary directory",
+                "Overlay parameter vocabularies.",
+                flag="--vocabulary",
+                picker="dir",
+            ),
+            Field(
+                "json",
+                "flag",
+                "JSON output",
+                "Return results with counts and input errors.",
+                flag="--json",
+            ),
+            Field(
+                "out",
+                "path",
+                "Output file",
+                "Write results here instead of showing them.",
+                flag="--out",
+                picker="save",
+            ),
+        ),
+    )
+
+
+def _glossary_command() -> Command:
+    """Reuse query selectors for the observed-variable inventory form.
+
+    Returns
+    -------
+    Command
+        Glossary input, selectors, raw-variable and output options.
+    """
+    query = _query_command()
+    return Command(
+        name="glossary",
+        group="Query",
+        title="Parameter glossary",
+        summary="Look up known sequence variables, or inspect an optional protocol file.",
+        argv=("glossary",),
+        fields=tuple(
+            (
+                replace(
+                    f,
+                    required=False,
+                    help="Optional: leave empty to use the packaged sequence catalog.",
+                )
+                if f.name == "input"
+                else f
+            )
+            for f in query.fields
+            if f.name not in ("where", "any", "query", "include_unknown")
+        )
+        + (
+            Field(
+                "raw",
+                "flag",
+                "Include raw variables",
+                "Also list exact ASCCONV keys, including array indices.",
+                flag="--raw",
+            ),
+        ),
+    )
+
+
 def command_specs() -> tuple[Command, ...]:
     """Build the full specification of what the GUI can run.
 
@@ -1247,6 +1387,8 @@ def command_specs() -> tuple[Command, ...]:
         Every command, in the order their tabs are shown.
     """
     return (
+        _query_command(),
+        _glossary_command(),
         _parse_command(),
         _diff_command(),
         _check_command(),
@@ -1330,8 +1472,12 @@ def _field_argv(spec: Field, value: Any) -> list[str]:
 
     text = "" if value is None else str(value).strip()
 
-    if spec.kind == "list":
-        entries = _split_list(text)
+    if spec.kind in ("list", "lines"):
+        entries = (
+            _split_list(text)
+            if spec.kind == "list"
+            else [line.strip() for line in text.splitlines() if line.strip()]
+        )
         if not entries or not spec.flag:
             return []
         return [argument for entry in entries for argument in (spec.flag, entry)]

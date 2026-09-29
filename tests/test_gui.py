@@ -23,6 +23,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any, Iterator
 
 import pytest
@@ -613,6 +614,70 @@ def test_listing_a_protocol_works_through_the_gui(server: Any) -> None:
     snapshot, lines = run_command(server, "list", {"input": EXAMPLE_FILES[0][0]})
     assert snapshot["returncode"] == 0
     assert len(lines) > 2
+
+
+@pytest.mark.parametrize("command", ["query", "glossary"])
+def test_query_and_glossary_execute_through_the_gui(
+    server: Any,
+    tmp_path: Path,
+    command: str,
+) -> None:
+    """Both forms run the installed package and return their JSON report.
+
+    Parameters
+    ----------
+    server : Any
+        Running local GUI server.
+    tmp_path : Path
+        Protocol fixture directory.
+    command : str
+        Collection operation to execute.
+
+    Returns
+    -------
+    None
+    """
+    source = tmp_path / "query.json"
+    source.write_text(
+        json.dumps(
+            {
+                "scans": [
+                    {
+                        "name": "rest",
+                        "sections": {"Routine": {"Mode": "A, B", "TR": "2 s"}},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    values = {"input": str(source), "scan": "rest", "json": True}
+    if command == "query":
+        values["where"] = "Mode = A, B\nTR >= 2 s"
+    snapshot, lines = run_command(server, command, values)
+    assert snapshot["returncode"] == 0
+    report = json.loads("\n".join(lines))
+    assert report["match_count" if command == "query" else "selected"] == 1
+
+
+def test_fileless_sequence_glossary_executes_through_the_gui(server: Any) -> None:
+    """The GUI can look up sequence knowledge without choosing a protocol file.
+
+    Parameters
+    ----------
+    server : Any
+        Running GUI server.
+
+    Returns
+    -------
+    None
+    """
+    snapshot, lines = run_command(
+        server, "glossary", {"sequence": "cmrr_mbep2d_bold", "json": True}
+    )
+    assert snapshot["returncode"] == 0
+    report = json.loads("\n".join(lines))
+    assert report["mode"] == "catalog" and report["parameter_count"] > 100
 
 
 @requires_examples

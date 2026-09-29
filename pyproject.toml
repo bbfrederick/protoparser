@@ -65,6 +65,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 siemens_protocol = [
+    "analysis/glossary_catalog.json",
     "analysis/vocabulary/*.json",
     "analysis/policy/*.json",
     "analysis/sequences/*.json",
