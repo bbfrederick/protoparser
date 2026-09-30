@@ -16,14 +16,15 @@ A wrong entry here is worse than a missing one, because it hides a real
 difference instead of merely failing to explain one. ``suggest_aliases``
 exists to propose candidates *with their evidence*, for a person to accept.
 
-Canonical names are snake_case, which keeps them distinguishable at a glance
-from the space-separated forms that ordinary key normalization produces.
+Canonical names use lowercase words joined with underscores, the same format
+as ordinary key normalization. Dictionary keys retain the original PDF labels.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
@@ -239,7 +240,7 @@ def check(versions: list[str], extra_dir: str | os.PathLike | None = None) -> li
     for version, vocabulary in loaded.items():
         for label, canonical in vocabulary.aliases.items():
             by_canonical.setdefault(canonical, set()).add(version)
-            if canonical != canonical.lower() or " " in canonical:
+            if re.fullmatch(r"[a-z0-9]+(?:_[a-z0-9]+)*", canonical) is None:
                 problems.append(
                     f"{version}: canonical name {canonical!r} for {label!r} should be "
                     "lower-case snake_case"

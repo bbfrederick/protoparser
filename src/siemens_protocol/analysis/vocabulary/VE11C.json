@@ -2,6 +2,7 @@
   "version": "VE11C",
   "description": "VE11C parameter labels that later releases renamed. Only one-to-one renames belong here. A parameter that a later release split into two, or merged with another, is not a rename and is better left visible as an add plus a remove.",
   "aliases": {
+    "Accel. mode": "acceleration_mode",
     "B0 Shim mode": "b0_shim",
     "B1 Shim mode": "b1_shim",
     "Coil Combine Mode": "coil_combination",
@@ -13,11 +14,12 @@
     "Special sat.": "special_saturation"
   },
   "notes": {
+    "Accel. mode": "Sequence-specific label for the same acceleration control as PAT mode and XA60's Acceleration Mode, confirmed by the protocols' owner. Observed values include None and Slice accel.; value spellings remain unchanged.",
     "B0 Shim mode": "Values agree exactly (Standard, Tune up). Not to be confused with XA60's separate Adjustment Strategy.",
     "Coil Select Mode": "Same setting, but the value vocabulary was recoded (Off - All -> Auto Coil Select / Manual), so values still report as changed.",
     "Confirm freq. adjustment": "Value vocabulary recoded (Off -> Never).",
     "Load images to viewer": "The viewer itself was renamed to MR View&GO.",
-    "PAT mode": "XA60 renames parallel acceleration to Acc/Acceleration. Values agree exactly (GRAPPA, None)."
+    "PAT mode": "Same acceleration control as Accel. mode and XA60's Acceleration Mode, confirmed by the protocols' owner. The corpus prints GRAPPA and None here; other labels and releases offer additional acceleration methods."
   },
   "rejected": {
     "Reference scan mode -> Reference Scans": "Not a rename: XA60 keeps 'Reference scan mode' for Single-shot and adds 'Reference Scans' for the rest. Mapping it steals the exact match that already works for the larger group.",

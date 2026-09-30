@@ -712,6 +712,8 @@ def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None
     accepting archives has to say so, and saying so obliges it to offer the
     option. One flag suffices for a one-input command; a two-input one needs
     a side each, since a lone name cannot say which input it belongs to.
+    Assembly selects protocols per operation in its required plan instead;
+    the multi-program CLI test in test_edit exercises that interface.
 
     Returns
     -------
@@ -722,7 +724,18 @@ def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None
     from siemens_protocol.cli import build_parser
 
     def subparsers(parser: _argparse.ArgumentParser) -> dict:
-        """Every registered subcommand of a parser, by name, or none."""
+        """Find a parser's registered subcommands.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser
+            Parser to inspect.
+
+        Returns
+        -------
+        dict
+            Registered subcommands by name.
+        """
         group = getattr(parser, "_subparsers", None)  # noqa: SLF001
         for action in getattr(group, "_group_actions", []):  # noqa: SLF001
             if isinstance(action, _argparse._SubParsersAction):  # noqa: SLF001
@@ -730,13 +743,35 @@ def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None
         return {}
 
     def flags(parser: _argparse.ArgumentParser) -> set[str]:
-        """Every option string the parser accepts."""
+        """Find every accepted option string.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser
+            Parser to inspect.
+
+        Returns
+        -------
+        set of str
+            Accepted options.
+        """
         return {
             option for action in parser._actions for option in action.option_strings
         }  # noqa: SLF001
 
     def positional_inputs(parser: _argparse.ArgumentParser) -> list[str]:
-        """The help of every positional, plus any that names files by flag."""
+        """Read positional input help and flagged comparison input help.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser
+            Parser to inspect.
+
+        Returns
+        -------
+        list of str
+            Input help strings.
+        """
         return [
             action.help or ""
             for action in parser._actions  # noqa: SLF001
@@ -754,6 +789,16 @@ def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None
         for label, target in candidates:
             takes = [help_text for help_text in positional_inputs(target) if ".exar1" in help_text]
             if not takes:
+                continue
+            if label == "assemble":
+                positionals = {
+                    action.dest for action in target._actions if not action.option_strings
+                }
+                assert {
+                    "input",
+                    "plan",
+                } <= positionals, "assembly must accept a per-operation selection plan"
+                checked.append(label)
                 continue
             offered = flags(target)
             per_side = {"--left-program", "--right-program"} <= offered

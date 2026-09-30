@@ -73,6 +73,39 @@ def as_flat(mapping: dict[str, str]) -> dict[str, dict]:
 
 
 @pytest.mark.parametrize(
+    "label,expected",
+    [
+        ("Dist. factor", "distance_factor"),
+        ("Distance Factor", "distance_factor"),
+        ("distance_factor", "distance_factor"),
+        ("  Suppress DICOM file output  ", "suppress_dicom_file_output"),
+        ("Phase enc. dir.", "phase_encoding_dir"),
+        ("Slice group #2", "slice_group"),
+        ("Flow comp. 1", "flow_compensation_1"),
+        ("TE", "te"),
+        ("", ""),
+        ("---", ""),
+    ],
+)
+def test_normalized_names_use_underscores(label: str, expected: str) -> None:
+    """Printed labels and existing identifiers normalize to underscore names.
+
+    Parameters
+    ----------
+    label : str
+        Printed parameter label or query identifier.
+    expected : str
+        Its canonical normalized spelling.
+
+    Returns
+    -------
+    None
+    """
+    assert normalize_key(label) == expected
+    assert normalize_key(expected) == expected
+
+
+@pytest.mark.parametrize(
     "left,right",
     [
         ("Dist. factor", "Distance Factor"),

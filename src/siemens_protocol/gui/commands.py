@@ -1374,6 +1374,111 @@ def _glossary_command() -> Command:
     )
 
 
+def _edit_commands() -> tuple[Command, ...]:
+    """Expose strict patches and assembly plans through the common forms.
+
+    Returns
+    -------
+    tuple of Command
+        Editing forms using the CLI's selectors and output protection.
+    """
+    outputs = (
+        Field(
+            "out",
+            "path",
+            "Write archive to",
+            "Leave empty to review without writing an archive.",
+            flag="--out",
+            picker="save",
+            accept=(".exar1",),
+        ),
+        Field(
+            "manifest",
+            "path",
+            "JSON manifest",
+            "Detailed before/after values and graph changes.",
+            flag="--manifest",
+            picker="save",
+            accept=(".json",),
+        ),
+        Field("json", "flag", "JSON result", "Print the detailed manifest.", flag="--json"),
+        Field(
+            "force",
+            "flag",
+            "Replace output",
+            "Replace unrelated outputs; source and donor files stay protected.",
+            flag="--force",
+        ),
+    )
+    source = Field(
+        "input",
+        "path",
+        "Base XA60 archive",
+        "Base .exar1 archive; never overwritten.",
+        accept=(".exar1",),
+        required=True,
+    )
+    selectors = tuple(
+        f
+        for f in _query_command().fields
+        if f.name
+        in {
+            "region",
+            "exam",
+            "protocol",
+            "scan",
+            "path",
+            "sequence",
+            "family",
+            "vendor",
+            "where",
+            "any",
+            "query",
+        }
+    )
+    return (
+        Command(
+            "patch",
+            "Edit",
+            "Patch parameters",
+            "Apply verified mapped edits to query-selected scans.",
+            ("patch",),
+            (
+                source,
+                *selectors,
+                Field(
+                    "changes",
+                    "lines",
+                    "Parameter changes",
+                    "One NAME=VALUE per line, e.g. tr=2 s. No selector edits every scan.",
+                    flag="--set",
+                    required=True,
+                ),
+                *outputs,
+            ),
+        ),
+        Command(
+            "assemble",
+            "Edit",
+            "Assemble protocols",
+            "Review or write an ordered JSON assembly/edit plan.",
+            ("assemble",),
+            (
+                source,
+                Field(
+                    "plan",
+                    "path",
+                    "JSON plan",
+                    "Donor paths resolve relative to this plan.",
+                    accept=(".json",),
+                    required=True,
+                ),
+                *outputs,
+            ),
+        ),
+    )
+
+
 def command_specs() -> tuple[Command, ...]:
     """Build the full specification of what the GUI can run.
 
@@ -1389,6 +1494,7 @@ def command_specs() -> tuple[Command, ...]:
     return (
         _query_command(),
         _glossary_command(),
+        *_edit_commands(),
         _parse_command(),
         _diff_command(),
         _check_command(),

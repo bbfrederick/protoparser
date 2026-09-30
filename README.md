@@ -361,6 +361,143 @@ spt diff old.pdf new.pdf --filter contrast
 | `--stdout` | Write JSON to stdout instead of a file (single file only). |
 | `--debug-timings` | Any subcommand, before or after it. Time the major operations -- reading and decoding archives, parsing PDFs, matching protocol and scan names, diffing, writing JSON and archives -- and print calls, total and mean for each to stderr on exit. Totals are inclusive, so a diff's row also counts the per-scan diffs listed beside it. |
 
+## Editing and assembling XA60 archives
+
+`patch` applies verified PDF-to-ASCCONV mappings to query-selected scans. Printed
+labels and canonical glossary names work, including names with underscores. Values
+use the displayed units; compatible unit strings are converted before writing.
+Both Preview and the stored scan parameter are updated where the mapping requires
+both. Unmapped variables and raw ASCCONV keys cannot be modified.
+
+```sh
+# Review a change first; no archive is written without --out.
+spt patch backup.exar1 --sequence cmrr_mbep2d_bold \
+  --where 'tr = 650 ms' --set 'tr=2 s' --manifest review.json
+
+# Write a new archive after applying the same selectors and changes.
+spt patch backup.exar1 --protocol Rest --scan 're:^Minn_CMRR' \
+  --set 'tr=2000' --set 'Suppress 16-bit DICOM=Off' --out edited.exar1
+```
+
+The hierarchy, sequence, vendor, family, `--where`, `--any`, and `--query` selectors
+have the same meaning as in `query`. With no selector, `patch` selects every scan
+in the archive. An empty or undecidable selection refuses the edit. Every requested
+parameter must be writable for every selected scan: one failure aborts the whole
+batch, with no partially patched output.
+
+`assemble` executes an ordered JSON plan. It can copy whole protocols, assemble
+new protocols from donor scans, insert/move/delete steps, create and rename plain
+instruction pauses, rename scans or protocols, update/remove copy links, and apply
+query-selected mapped edits. The base archive's existing protocols are retained;
+use `extract` afterwards if the deliverable should contain only selected protocols.
+
+```sh
+spt assemble base.exar1 plan.json --json                 # review only
+spt assemble base.exar1 plan.json --out assembled.exar1 --manifest changes.json
+```
+
+For example, this plan creates a protocol with an ordered scout and resting-state
+scan, adds an instruction, patches the new scan, and links its slices to the scout:
+
+```json
+{
+  "sources": {"donor": "Potpourri_P1.exar1"},
+  "operations": [
+    {
+      "op": "assemble",
+      "source": "donor",
+      "protocol": "Potpourri_P1",
+      "parent": ["Research", "New study"],
+      "name": "New rest protocol",
+      "external_links": "drop",
+      "donors": [
+        {"source": "donor", "program": "Potpourri_P1",
+         "scans": ["Localizer", "Minn_CMRR_2.3mm_S8_rest_6min"]}
+      ]
+    },
+    {"op": "pause", "program": "New rest protocol", "name": "Check positioning", "position": 1},
+    {"op": "patch", "query": {"protocol": "New rest protocol", "scan": "Minn_CMRR_2.3mm_S8_rest_6min"},
+     "changes": {"tr": "2 s"}},
+    {"op": "link", "program": "New rest protocol", "source": "Localizer",
+     "target": "Minn_CMRR_2.3mm_S8_rest_6min", "group": "Slices"}
+  ]
+}
+```
+
+Donor paths resolve relative to the plan. `base` selects the original archive;
+`session` selects the current working copy, including earlier plan operations.
+Program and step addresses accept the same unambiguous paths and occurrence
+selectors as the existing archive commands. Stable element ids reported in the
+manifest also work. Positions are **zero-based and count pauses**, including
+insertion before position zero and append at the current length. A move's position
+is its index in the resulting order.
+
+| Operation | Fields besides `op` |
+| --- | --- |
+| `copy_protocol` | `source` (default `base`), `protocol` (needed for multi-program donors), `parent`, `name` |
+| `assemble` | Same template fields, plus ordered `donors`, optional `external_links` |
+| `insert` | `program`, ordered `donors`, optional `position` (default append), `external_links` |
+| `move` | `program`, `step`, `position` |
+| `delete` | `program`, `steps` list, optional `external_links` |
+| `pause` | `program`, instruction `name`, `position`; creates a plain pause without injector actions |
+| `rename` | `program`, optional `step` (omitted renames the program), `name` |
+| `patch` | Shared `query` object, `changes` object of displayed/canonical names to values |
+| `link` | `program`, `source` and `target` step addresses, `group` (default `Slices`), optional boolean `copy_phase_encoding`, `copy_steps`, `ignore_last_step`, `ignore_measurements` |
+| `unlink` | `program`, `source`, `target`, optional `group` (omitted removes every group for that pair) |
+
+Each donor group specifies `source`, optional `program`, and an ordered `scans`
+list. Alternatively, it can specify `source` and a shared `query` object, taking
+matching acquisitions in donor running order. The scan-list form also copies
+pauses. Internal links between selected donors are preserved with remapped
+identities. Links crossing the selection boundary are rejected by default;
+`"external_links": "drop"` explicitly permits their omission and records each in
+the manifest. The same rule applies to deleting steps. Reordering refuses backwards
+copy dependencies. `link` replaces an existing relation for the same pair/group;
+other groups and unrelated relations are retained.
+
+Whole-program copies preserve conditional execution metadata, links, pauses,
+add-ins, and opaque scan content. Linear assembly and running-order changes refuse
+programs with conditions, groups, selections, or branching edges. Empty resulting
+protocols are refused. Unknown plan fields are errors rather than ignored typos.
+
+The Python API uses the same operations and can edit fresh copies without a
+write/read cycle:
+
+```python
+from siemens_protocol.analysis.edit import EditSession
+from siemens_protocol.analysis.query import Query
+
+session = EditSession("backup.exar1")
+session.patch(Query(protocol="Rest", scan="bold"), {"tr": "2 s"})
+session.apply_plan({"operations": [
+    {"op": "pause", "program": "Rest", "name": "Wait for operator", "position": 0}
+]})
+review = session.manifest()
+session.write("edited.exar1")
+```
+
+Each API call is transactional, and an entire plan rolls back if any operation
+fails. An independent child changeset preserves the original head and instance
+versions. A shared step is copied before a program-scoped parameter edit or rename,
+so unselected programs keep their original values; deleting a shared step retains
+the other programs' dependencies. The manifest includes selected identities,
+parameter values before and
+after editing, running orders, full relation payloads, and intentionally dropped
+links. New archives are serialized to a temporary file, read back, and structurally
+validated before atomic publication. Sources and donors cannot be overwritten,
+including through symbolic/hard links. Existing unrelated outputs require
+`--force` (API `force=True`). Both commands are available under the GUI's Edit tab.
+
+For an already loaded base `Archive`, pass `source_path="backup.exar1"` to register
+its file for overwrite protection. Donors supplied as archive objects are
+in-memory inputs without file provenance; register donors by path for automatic
+file protection. The manifest lists the paths the session protects.
+
+Editing currently supports XA60 archives and the characterized writable mappings.
+Structural validation and existing geometry repair do not establish that every
+combination of parameters is acceptable to the scanner; broader semantic and
+scanner round-trip coverage is the next validation step.
+
 ## Searching across protocol files
 
 `query` searches every protocol in each archive, or scans in PDF exports and
@@ -1612,8 +1749,10 @@ in the spelling connects those.
 
 So each release carries a JSON dictionary in
 `src/siemens_protocol/analysis/vocabulary/` mapping its own labels onto shared
-**canonical names**, which are snake_case so they stay distinguishable from the
-space-separated forms ordinary normalization produces:
+**canonical names**, which use lowercase words joined with underscores.
+Ordinary normalization uses the same format: `Dist. factor` becomes
+`distance_factor`, and `Suppress DICOM file output` becomes
+`suppress_dicom_file_output`. Vocabulary keys retain the original PDF labels:
 
 ```json
 { "aliases": { "PAT mode": "acceleration_mode" } }     // VE11C.json
@@ -1632,6 +1771,9 @@ spt vocab check               # validate the dictionaries
 A lookup that misses on the literal label is retried on its normalized form, so
 one entry covers a release's own spelling variants — XA60 prints both
 `Acceleration Mode` and `Accel. Mode`, and a single mapping catches each.
+Query parameters accept spaces or underscores between words; the glossary's
+bracketed query names use underscores. Canonical names emitted by the API now
+use underscores for ordinary labels as well as vocabulary aliases.
 
 Point `--vocabulary DIR` at a directory of JSON files to overlay the shipped
 ones without editing the installed package; `--no-vocabulary` on `diff` turns

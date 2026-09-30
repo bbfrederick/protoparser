@@ -214,18 +214,56 @@ def test_missing_exists_and_negative_tests_are_distinct() -> None:
 
 
 def test_canonical_parameter_names_work_across_releases() -> None:
-    """Confirm canonical parameter names work across releases.
+    """All observed acceleration labels share an identity and preserve values.
+
     Returns
     -------
     None
-        Test result or fixture data.
     """
     docs = [
+        protocol({"PAT mode": "GRAPPA"}, version="VB17A"),
         protocol({"PAT mode": "GRAPPA"}, version="VE11C"),
+        protocol({"Accel. mode": "GRAPPA"}, version="VE11C"),
+        protocol({"Acceleration mode": "GRAPPA"}, version="XA30"),
+        protocol({"Accel. Mode": "GRAPPA"}, version="XA30"),
         protocol({"Acceleration Mode": "GRAPPA"}, version="XA60"),
+        protocol({"Accel. Mode": "GRAPPA"}, version="XA60"),
+        protocol({"Accel. mode": "Slice accel."}, version="VE11C"),
+        protocol({"Acceleration Mode": "SMS"}, version="XA60"),
     ]
     report = search(docs, Query(where=Predicate("acceleration_mode", "=", "GRAPPA")))
-    assert len(report.matches) == 2
+    assert len(report.matches) == 7
+    for doc in docs[:7]:
+        label = next(iter(doc["scans"][0]["sections"]["Routine"]))
+        assert search([doc], Query(where=Predicate(label, "=", "GRAPPA"))).matches
+    for value in ("Slice accel.", "SMS"):
+        report = search(docs, Query(where=Predicate("acceleration_mode", "=", value)))
+        assert len(report.matches) == 1
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["Suppress DICOM file output", "suppress dicom file output", "suppress_dicom_file_output"],
+)
+def test_spaced_and_underscore_query_names_are_equivalent(label: str) -> None:
+    """Legacy spaced names still find parameters with underscore identifiers.
+
+    Parameters
+    ----------
+    label : str
+        A displayed label, old normalized name, or underscore query name.
+
+    Returns
+    -------
+    None
+    """
+    report = search(
+        [protocol({"Suppress DICOM file output": "Off"})],
+        Query(where=Predicate(label, "=", "Off")),
+    )
+    assert len(report.matches) == 1
+    reading = report.matches[0]["parameters"][label]
+    assert reading["labels"] == ["Suppress DICOM file output"]
 
 
 def test_aliases_are_explicit_and_raw_indices_are_preserved() -> None:

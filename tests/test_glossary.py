@@ -84,6 +84,7 @@ def test_real_archive_glossary_names_round_trip_through_search() -> None:
     assert "sub.0.msr.seq_path" not in entries
     assert "sub.0.HEADER.SubProtocolCount" not in entries
     entry = entries["Suppress 16-bit DICOM"]
+    assert entry["query_name"] == "suppress_16_bit_dicom"
     assert entry["modifiable_occurrences"] == entry["occurrences"] == report.selected
     assert entry["examples"][0]["modification"]["raw_key"] == "sWipMemBlock.alFree[0]"
     assert not any(e["query_name"].startswith("raw:") for e in report.parameters)
@@ -142,6 +143,7 @@ def test_parsed_pdf_glossary_preserves_conflicts_and_does_not_assert_write_suppo
     assert entries["TR"]["modifiable_occurrences"] == 0
     assert entries["TR"]["modification_counts"] == {"unverified": 1}
     assert entries["Unmapped control"]["characterization_needed"]
+    assert entries["Unmapped control"]["query_name"] == "unmapped_control"
     assert entries["alTE[1]"]["query_name"] == "raw:alTE[1]"
     assert source.read_bytes() == before
 

@@ -176,10 +176,12 @@ def normalize_key(key: str) -> str:
     Returns
     -------
     str
-        The normalized form, used only for matching, never for display.
+        Lowercase words joined with underscores, with confirmed abbreviations
+        expanded and repeat suffixes removed. Original labels are preserved
+        separately for reports; the glossary exposes this form for queries.
     """
     words = re.split(r"[^a-z0-9]+", base_key(key).lower())
-    return " ".join(ABBREVIATIONS.get(w, w) for w in words if w)
+    return "_".join(ABBREVIATIONS.get(w, w) for w in words if w)
 
 
 def canonical_key(key: str, vocabulary: Vocabulary | None = None) -> str:
@@ -200,8 +202,8 @@ def canonical_key(key: str, vocabulary: Vocabulary | None = None) -> str:
     Returns
     -------
     str
-        The canonical name. Vocabulary hits come back snake_case, so they are
-        distinguishable from the space-separated normalized forms.
+        The canonical name, using lowercase words joined with underscores for
+        both vocabulary aliases and ordinary normalization.
     """
     if vocabulary is not None:
         mapped = vocabulary.canonical(base_key(key), normalize_key)

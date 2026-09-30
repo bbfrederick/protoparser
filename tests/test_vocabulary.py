@@ -102,7 +102,7 @@ def test_vocabulary_files_are_well_formed(version: str) -> None:
 
 
 def test_canonical_names_are_snake_case() -> None:
-    """Canonical names stay visually distinct from normalized labels.
+    """Release vocabulary names follow the shared underscore normalization.
 
     Returns
     -------
@@ -110,8 +110,29 @@ def test_canonical_names_are_snake_case() -> None:
     """
     for version in SHIPPED:
         for canonical in load_vocabulary(version).aliases.values():
-            assert canonical == canonical.lower()
-            assert " " not in canonical
+            assert canonical == normalize_key(canonical)
+
+
+@pytest.mark.parametrize("canonical", ["Bad_Name", "bad name", "bad-name", "bad__name"])
+def test_vocabulary_check_rejects_noncanonical_separators(tmp_path: Path, canonical: str) -> None:
+    """Overlay vocabularies must use the same underscore identifier format.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Directory for the overlay vocabulary.
+    canonical : str
+        An invalid canonical identifier supplied by an overlay.
+
+    Returns
+    -------
+    None
+    """
+    (tmp_path / "VE11C.json").write_text(
+        json.dumps({"aliases": {"Example control": canonical}}), encoding="utf-8"
+    )
+    problems = check(["VE11C"], str(tmp_path))
+    assert any(repr(canonical) in p and "lower-case snake_case" in p for p in problems)
 
 
 def test_shipped_vocabularies_agree_on_canonical_names() -> None:
@@ -154,6 +175,7 @@ def test_forward_mapping() -> None:
     None
     """
     assert load_vocabulary("VE11C").canonical("PAT mode") == "acceleration_mode"
+    assert load_vocabulary("VE11C").canonical("Accel. mode") == "acceleration_mode"
     assert load_vocabulary("XA60").canonical("Acceleration Mode") == "acceleration_mode"
     assert load_vocabulary("XA30").canonical("Acceleration mode") == "acceleration_mode"
 
@@ -165,7 +187,7 @@ def test_reverse_mapping() -> None:
     -------
     None
     """
-    assert load_vocabulary("VE11C").labels("acceleration_mode") == ["PAT mode"]
+    assert load_vocabulary("VE11C").labels("acceleration_mode") == ["Accel. mode", "PAT mode"]
     assert load_vocabulary("XA60").labels("acceleration_mode") == ["Acceleration Mode"]
     assert load_vocabulary("XA30").labels("acceleration_mode") == ["Acceleration mode"]
 
@@ -200,6 +222,7 @@ def test_the_repeat_suffix_survives_vocabulary_lookup() -> None:
     None
     """
     assert canonical_key("PAT mode #2", load_vocabulary("VE11C")) == "acceleration_mode"
+    assert canonical_key("Accel. mode #2", load_vocabulary("VE11C")) == "acceleration_mode"
 
 
 def test_an_unknown_release_loads_an_empty_vocabulary() -> None:
@@ -268,7 +291,7 @@ def test_check_flags_a_one_sided_canonical_name() -> None:
 
 @requires_examples
 def test_shipped_vocabularies_hold_up_against_the_examples(parsed: ParseFixture) -> None:
-    """Every shipped mapping is used, paired, and steals no existing match.
+    """Verify shipped aliases against paired exports covering every label.
 
     Parameters
     ----------
@@ -281,6 +304,9 @@ def test_shipped_vocabularies_hold_up_against_the_examples(parsed: ParseFixture)
     """
     left = parsed(find_example("R01StressDyn.pdf", "VE11C")).protocol.to_dict()
     right = parsed(find_example("R01StressDyn.pdf", "XA60")).protocol.to_dict()
+    for document, version in ((left, "VE11C"), (right, "XA60")):
+        extra = parsed(find_example("Aging_SZ_SPICE_08192025.pdf", version)).protocol.to_dict()
+        document["scans"] = document["scans"] + extra["scans"]
     assert verify_aliases(left, right) == []
 
 
@@ -531,23 +557,29 @@ def test_cli_vocab_check_passes() -> None:
 
 
 @requires_examples
-def test_cli_vocab_check_against_examples() -> None:
-    """The shipped vocabularies validate against real exports too.
+def test_cli_vocab_check_against_examples(parsed: ParseFixture, tmp_path: Path) -> None:
+    """The CLI verifies aliases against exports covering both VE11C spellings.
+
+    Parameters
+    ----------
+    parsed : ParseFixture
+        The session-scoped parse fixture.
+    tmp_path : Path
+        Directory for combined parsed exports.
 
     Returns
     -------
     None
     """
-    code = main(
-        [
-            "vocab",
-            "check",
-            "--against",
-            find_example("R01StressDyn.pdf", "VE11C"),
-            find_example("R01StressDyn.pdf", "XA60"),
-        ]
-    )
-    assert code == 0
+    paths = []
+    for version in ("VE11C", "XA60"):
+        document = parsed(find_example("R01StressDyn.pdf", version)).protocol.to_dict()
+        extra = parsed(find_example("Aging_SZ_SPICE_08192025.pdf", version)).protocol.to_dict()
+        document["scans"] = document["scans"] + extra["scans"]
+        path = tmp_path / f"{version}.json"
+        path.write_text(json.dumps(document), encoding="utf-8")
+        paths.append(str(path))
+    assert main(["vocab", "check", "--against", *paths]) == 0
 
 
 @requires_examples

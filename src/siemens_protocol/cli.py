@@ -206,7 +206,7 @@ def build_parser() -> argparse.ArgumentParser:
     Returns
     -------
     argparse.ArgumentParser
-        A parser with the ``parse`` and ``versions`` subcommands.
+        A parser for reading, querying, comparing, and editing protocol files.
     """
     parser = argparse.ArgumentParser(
         prog="spt",
@@ -219,6 +219,61 @@ def build_parser() -> argparse.ArgumentParser:
         help="show the tool's version and exit",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    for command, help_text in (
+        ("patch", "strictly edit mapped parameters in an XA60 archive"),
+        ("assemble", "apply an ordered XA60 assembly/edit plan"),
+    ):
+        edit_cmd = sub.add_parser(command, help=help_text)
+        edit_cmd.add_argument("input", help="base XA60 .exar1 archive; never overwritten")
+        if command == "assemble":
+            edit_cmd.add_argument(
+                "plan", help="JSON plan; donor paths resolve relative to this file"
+            )
+        else:
+            for name in (
+                "region",
+                "exam",
+                "protocol",
+                "scan",
+                "path",
+                "sequence",
+                "family",
+                "vendor",
+            ):
+                edit_cmd.add_argument(
+                    *(("--protocol", "--program") if name == "protocol" else (f"--{name}",)),
+                    help=f"select {name} literally ignoring case, or use re:REGEX",
+                )
+            edit_cmd.add_argument(
+                "--where", action="append", default=[], help="parameter predicate; repeat for AND"
+            )
+            edit_cmd.add_argument(
+                "--any", action="store_true", help="combine --where conditions with OR"
+            )
+            edit_cmd.add_argument(
+                "--query", help="shared JSON query, including aliases and Boolean expressions"
+            )
+            edit_cmd.add_argument(
+                "--set",
+                dest="changes",
+                action="append",
+                required=True,
+                metavar="NAME=VALUE",
+                help="mapped PDF or canonical name and displayed value; repeat",
+            )
+        edit_cmd.add_argument(
+            "--out", help="write a new .exar1; omitted reviews changes without writing an archive"
+        )
+        edit_cmd.add_argument("--manifest", help="write the detailed change manifest as JSON")
+        edit_cmd.add_argument(
+            "--json", action="store_true", help="print the detailed manifest as JSON"
+        )
+        edit_cmd.add_argument(
+            "--force",
+            action="store_true",
+            help="replace unrelated outputs; sources remain protected",
+        )
 
     query_cmd = sub.add_parser("query", help="search scans across protocol files or directories")
     query_cmd.add_argument(
@@ -1035,6 +1090,150 @@ def _write_text(path: str, text: str) -> None:
     with timing.timed(timing.WRITE_FILE):
         with open(path, "w", encoding="utf-8") as handle:
             handle.write(text + "\n")
+
+
+def _write_edit_manifest(path: str, text: str, force: bool) -> None:
+    """Publish a completed edit manifest without following destination symlinks.
+
+    Parameters
+    ----------
+    path : str
+        Already checked report destination.
+    text : str
+        Serialized manifest.
+    force : bool
+        Replace an unrelated output; otherwise create exclusively.
+
+    Returns
+    -------
+    None
+    """
+    import tempfile
+    from pathlib import Path
+
+    destination = Path(path)
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{destination.name}.", dir=destination.parent
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(text + "\n")
+        if force:
+            os.replace(temporary, destination)
+        else:
+            os.link(temporary, destination)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def _run_edit(args: argparse.Namespace) -> int:
+    """Run strict mapped patches or an atomic assembly plan.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Input, selectors or plan, and publication options.
+
+    Returns
+    -------
+    int
+        Zero on success, two on a refused or failed edit.
+    """
+    from dataclasses import replace
+    from pathlib import Path
+
+    from .analysis.edit import EditSession, load_plan
+    from .analysis.query import All, AnyOf, Query, parse_predicate
+
+    try:
+        session = EditSession(args.input)
+        if args.command == "assemble":
+            plan_path = Path(args.plan)
+            session.protected.add(plan_path.resolve())
+            session.apply_plan(load_plan(plan_path), base_dir=plan_path.parent)
+        else:
+            query = Query()
+            if args.query:
+                session.protected.add(Path(args.query).resolve())
+                query = Query.from_dict(load_plan(args.query))
+            filters = {
+                name: getattr(args, name)
+                for name in (
+                    "region",
+                    "exam",
+                    "protocol",
+                    "scan",
+                    "path",
+                    "sequence",
+                    "family",
+                    "vendor",
+                )
+                if getattr(args, name) is not None
+            }
+            if args.where:
+                conditions = tuple(parse_predicate(text) for text in args.where)
+                filters["where"] = All(
+                    (query.where, AnyOf(conditions) if args.any else All(conditions))
+                )
+            query = replace(query, **filters)
+            changes = {}
+            for text in args.changes:
+                if "=" not in text:
+                    raise ValueError("--set requires NAME=VALUE")
+                name, value = (part.strip() for part in text.split("=", 1))
+                if not name or not value or name in changes:
+                    raise ValueError("--set needs unique nonempty names and values")
+                try:
+                    changes[name] = json.loads(value)
+                except ValueError:
+                    changes[name] = value
+            session.patch(query, changes)
+        # Check the report destination before publishing either output.
+        if args.manifest:
+            manifest_path = Path(args.manifest)
+            protected = session.protected | ({Path(args.out).resolve()} if args.out else set())
+            if manifest_path.resolve() in protected or any(
+                manifest_path.exists() and p.exists() and os.path.samefile(manifest_path, p)
+                for p in protected
+            ):
+                raise ValueError(
+                    "manifest would overwrite a source, donor, plan, or archive output"
+                )
+            if manifest_path.is_dir() or (manifest_path.exists() and not args.force):
+                raise ValueError(
+                    "manifest already exists; use --force to replace an unrelated file"
+                )
+            if not manifest_path.parent.is_dir():
+                raise ValueError("manifest parent directory does not exist")
+        result = session.write(args.out, force=args.force) if args.out else session.manifest()
+        result["dry_run"] = not bool(args.out)
+        if args.manifest:
+            _write_edit_manifest(args.manifest, _json_text(result), args.force)
+        if args.json:
+            print(_json_text(result))
+        else:
+            print(
+                f"{'Wrote ' + args.out if args.out else 'Dry run'}: {len(result['operations'])} operation(s); archive validation passed"
+            )
+            for event in result["operations"]:
+                print(f"  {event['op']}: {event.get('path') or event.get('program') or ''}")
+                for scan in event.get("scans", []):
+                    print(f"    {scan['program']}/{scan['step']}")
+                    for parameter in scan["parameters"]:
+                        print(
+                            f"      {parameter['label']}: {parameter['previous']} -> {parameter['value']}"
+                        )
+                if event.get("dropped_relations"):
+                    print(
+                        f"    explicitly dropped {len(event['dropped_relations'])} boundary relation(s)"
+                    )
+            if args.manifest:
+                print(f"  Manifest: {args.manifest}")
+        return 0
+    except (OSError, ValueError, KeyError, TypeError, re.error) as exc:
+        print(f"{args.command}: {exc}", file=sys.stderr)
+        return 2
 
 
 def _run_query(args: argparse.Namespace) -> int:
@@ -2994,6 +3193,9 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.command == "query":
         return _run_query(args)
+
+    if args.command in {"patch", "assemble"}:
+        return _run_edit(args)
 
     if args.command == "glossary":
         return _run_glossary(args)
