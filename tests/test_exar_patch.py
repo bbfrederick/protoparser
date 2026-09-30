@@ -2089,8 +2089,61 @@ def _is_voi_dimension(step: object, label: str) -> bool:
     return kernel in VOI_KERNELS
 
 
+def _self_drive_pairs() -> list[tuple[str, str]]:
+    """Every archive/PDF pair the self-drive invariant applies to.
+
+    A pair is in when the archive carries protocols, its printout sits beside
+    it, and it is not one of the wholly excluded names -- an empty entry in
+    ``SELF_DRIVE_EXCEPTIONS`` means the pair legitimately disagrees about
+    everything and nothing can be asserted of it.
+
+    Computed at import so the sweep can be one test case per pair rather than
+    one test over every pair: xdist distributes whole tests, so a loop here
+    pins the whole corpus to a single worker.
+
+    Returns
+    -------
+    list of tuple of str
+        ``(archive path, printout path)``, in corpus order.
+    """
+    pairs = []
+    for path, _version in EXAR_PROTOCOL_FILES:
+        pdf = os.path.splitext(path)[0] + ".pdf"
+        allowed = SELF_DRIVE_EXCEPTIONS.get(os.path.basename(path))
+        if os.path.exists(pdf) and not (allowed is not None and not allowed):
+            pairs.append((path, pdf))
+    return pairs
+
+
+SELF_DRIVE_PAIRS = _self_drive_pairs()
+SELF_DRIVE_IDS = [os.path.basename(one) for one, _pdf in SELF_DRIVE_PAIRS]
+
+
 @requires_exar
-def test_driving_every_console_archive_from_its_own_pdf_writes_nothing() -> None:
+def test_the_self_drive_sweep_still_covers_the_corpus() -> None:
+    """The non-vacuity half of the sweep, which parametrizing moved out here.
+
+    The sweep used to count the pairs it drove and assert it had driven at
+    least ten, which is what stopped it passing on a corpus that had quietly
+    stopped being discoverable. One test case per pair cannot make that claim
+    -- an empty parameter set is reported as a skip, and zero cases passing
+    reads exactly like every case passing -- so the count is asserted here
+    instead, against the same list the cases are generated from.
+
+    Returns
+    -------
+    None
+    """
+    assert (
+        len(SELF_DRIVE_PAIRS) >= 10
+    ), f"only {len(SELF_DRIVE_PAIRS)} self-drivable pairs discovered; this proves little"
+
+
+@requires_exar
+@pytest.mark.parametrize(("archive_file", "pdf_file"), SELF_DRIVE_PAIRS, ids=SELF_DRIVE_IDS)
+def test_driving_a_console_archive_from_its_own_pdf_writes_nothing(
+    archive_file: str, pdf_file: str
+) -> None:
     """A self-drive must be a no-op on every console-authored pair.
 
     The single-archive version of this check has been here for a while and it
@@ -2108,67 +2161,108 @@ def test_driving_every_console_archive_from_its_own_pdf_writes_nothing() -> None
     holds there too, and it is the one pair that exercises it on a protocol
     we wrote rather than one we only read.
 
+    One case per pair, because this is the slowest test in the suite and
+    xdist distributes whole tests: as one loop it held a single worker for
+    ~400 s while the others idled, and no ``-n`` could help. Pairing is
+    asserted rather than skipped past -- the loop this replaces moved on
+    silently when a printout stopped matching its archive, which is the one
+    way a pair could leave the sweep without saying so.
+
+    Parameters
+    ----------
+    archive_file : str
+        One archive holding protocols, with a printout beside it.
+    pdf_file : str
+        That archive's own printed export.
+
     Returns
     -------
     None
     """
-    checked, offenders = 0, []
+    name = os.path.basename(archive_file)
+    allowed = SELF_DRIVE_EXCEPTIONS.get(name) or set()
+    archive = read(archive_file)
+    report = build.apply_protocol(archive, parse_document(pdf_file).protocol.to_dict())
+    assert report.matched, f"{name} no longer pairs with its own printout"
+    steps = {one.name: one for one in archive.steps}
+    written = [
+        one
+        for one in report.applied
+        if build._moved(one)
+        and f"{one.step}: {one.label}" not in allowed
+        and not _is_voi_dimension(steps.get(one.step), one.label)
+    ]
+    assert not written, (
+        f"driving {name} from its own PDF wrote values: "
+        f"{[f'{o.step}: {o.label}' for o in written[:3]]}"
+    )
+
+
+def _self_drive_exception_pairs() -> list[tuple[str, str]]:
+    """The named self-drive exceptions that are actually present.
+
+    Returns
+    -------
+    list of tuple of str
+        ``(archive path, printout path)`` for each exception with a printout.
+    """
+    pairs = []
     for path, _version in EXAR_PROTOCOL_FILES:
         pdf = os.path.splitext(path)[0] + ".pdf"
-        name = os.path.basename(path)
-        allowed = SELF_DRIVE_EXCEPTIONS.get(name)
-        if not os.path.exists(pdf) or (allowed is not None and not allowed):
-            continue
-        archive = read(path)
-        report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict())
-        if not report.matched:
-            continue
-        checked += 1
-        steps = {one.name: one for one in archive.steps}
-        written = [
-            one
-            for one in report.applied
-            if build._moved(one)
-            and f"{one.step}: {one.label}" not in (allowed or set())
-            and not _is_voi_dimension(steps.get(one.step), one.label)
-        ]
-        if written:
-            offenders.append((name, [f"{o.step}: {o.label}" for o in written[:3]]))
-    assert checked >= 10, f"only {checked} pairs self-driven; this proves little"
-    assert not offenders, f"driving an archive from its own PDF wrote values: {offenders}"
+        if os.path.basename(path) in SELF_DRIVE_EXCEPTIONS and os.path.exists(pdf):
+            pairs.append((path, pdf))
+    return pairs
+
+
+EXCEPTION_PAIRS = _self_drive_exception_pairs()
+EXCEPTION_IDS = [os.path.basename(one) for one, _pdf in EXCEPTION_PAIRS]
 
 
 @requires_exar
-def test_the_self_drive_exceptions_are_all_still_exceptions() -> None:
+def test_the_named_exceptions_are_present_to_be_checked() -> None:
+    """The non-vacuity half of the check below, for the reason given there.
+
+    Returns
+    -------
+    None
+    """
+    assert (
+        len(EXCEPTION_PAIRS) >= 4
+    ), f"only {len(EXCEPTION_PAIRS)} of the named exceptions are present"
+
+
+@requires_exar
+@pytest.mark.parametrize(("archive_file", "pdf_file"), EXCEPTION_PAIRS, ids=EXCEPTION_IDS)
+def test_a_self_drive_exception_is_still_an_exception(archive_file: str, pdf_file: str) -> None:
     """Each named exception must still write something.
 
     An exception that has stopped being one is a mapping that improved, and
     leaving it listed would hide the next real offender behind it.
 
+    Parameters
+    ----------
+    archive_file : str
+        One archive named in ``SELF_DRIVE_EXCEPTIONS``.
+    pdf_file : str
+        That archive's own printed export.
+
     Returns
     -------
     None
     """
-    available, quiet = 0, []
-    for path, _version in EXAR_PROTOCOL_FILES:
-        name = os.path.basename(path)
-        pdf = os.path.splitext(path)[0] + ".pdf"
-        if name not in SELF_DRIVE_EXCEPTIONS or not os.path.exists(pdf):
-            continue
-        available += 1
-        parsed = parse_document(pdf).protocol.to_dict()
-        # Driven per program: a printout covers one protocol, and an archive
-        # holding the same one twice would otherwise double every scan name
-        # and be refused wholesale by the repeated-name guard.
-        moved = 0
-        for index, _program in enumerate(read(path).programs):
-            archive = read(path)
-            report = build.apply_protocol(archive, parsed, archive.programs[index])
-            moved += len([one for one in report.applied if build._moved(one)])
-        if not moved:
-            quiet.append(name)
-    assert available >= 4, f"only {available} of the named exceptions are present"
-    assert not quiet, f"these no longer write anything; drop them from the list: {quiet}"
+    parsed = parse_document(pdf_file).protocol.to_dict()
+    # Driven per program: a printout covers one protocol, and an archive
+    # holding the same one twice would otherwise double every scan name
+    # and be refused wholesale by the repeated-name guard.
+    moved = 0
+    for index, _program in enumerate(read(archive_file).programs):
+        archive = read(archive_file)
+        report = build.apply_protocol(archive, parsed, archive.programs[index])
+        moved += len([one for one in report.applied if build._moved(one)])
+    assert moved, (
+        f"{os.path.basename(archive_file)} no longer writes anything; "
+        "drop it from SELF_DRIVE_EXCEPTIONS"
+    )
 
 
 @requires_exar

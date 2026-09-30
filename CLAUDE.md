@@ -111,16 +111,36 @@ See `Design.md` for the design and `README.md` for usage.
   thing before reporting done -- the corpus sweeps are where a change to one
   reader surfaces in another.
 
-  Two things still bound it. **Other sessions share this machine**: a second
+  One thing still bounds it. **Other sessions share this machine**: a second
   full run -- and a *serial* one from another session is the usual case --
   pushed the load average past 50 and a parallel run to 13-14 minutes, so
-  check `ps` for a running `pytest` before starting another. And **one test
-  is the floor**: xdist distributes whole tests, and
-  `test_driving_every_console_archive_from_its_own_pdf_writes_nothing` takes
-  ~480 s on one worker, with its sibling `..._self_drive_exceptions_...` at
-  ~200 s. No `-n` gets the suite under that; splitting those sweeps into
-  parametrized cases is what would. `--durations=30` names the current
-  worst offenders.
+  check `ps` for a running `pytest` before starting another.
+
+  **The single-test floor is gone, and removing it is worth reading as a
+  pattern.** xdist distributes whole tests, so the two self-drive sweeps --
+  one loop each over the whole corpus -- held one worker for ~400 s and
+  ~200 s while the rest idled, and no `-n` could reach inside a test. They
+  are now one case per archive/PDF pair, 21 and 6 of them, and the two
+  together run in **133 s** against ~600 s. `--durations=30` names the
+  current worst offenders; when the slowest is a *loop*, the fix is
+  parametrizing it rather than a bigger `-n`.
+
+  What that cost, and it is the part to copy: **a loop can assert things a
+  parametrized case cannot.** Both sweeps counted what they had driven and
+  asserted a floor -- `checked >= 10`, `available >= 4` -- which is what
+  stopped them passing on a corpus that had quietly stopped being
+  discoverable. One case per pair cannot say that: an empty parameter set is
+  reported as a *skip*, and zero cases passing reads exactly like every case
+  passing. So each sweep keeps a companion test asserting the length of the
+  list its cases are generated from, and splitting a sweep without one
+  reintroduces the skip-reads-like-a-pass failure the whole guard structure
+  exists to prevent.
+
+  It also *gained* something, by accident of having to be explicit. The old
+  loop moved on silently when a printout stopped pairing with its archive
+  (`if not report.matched: continue`), so a pair could leave the sweep
+  without saying so. A case has to decide, so it asserts the pairing --
+  and all 21 pass, which means that branch had never once been taken.
 
 - **Redirect a suite run to a file; never pipe it.** A shell pipeline reports
   the *last* command's status, so `pytest -n auto | tail -60` exits 0 on a
