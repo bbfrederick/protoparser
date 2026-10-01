@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Iterator
 
 import pytest
@@ -114,19 +115,31 @@ def test_diffing_an_archive_against_a_printout_reports_every_stage(
 
 
 def test_driving_an_archive_reports_the_write(
-    tmp_path: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The exar driver's name pairing, application, validation and write."""
+    """Time the edit and validation of both the candidate and serialized archive.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Destination for the generated archive.
+    capsys : pytest.CaptureFixture of str
+        Captured timing rows and command output.
+
+    Returns
+    -------
+    None
+    """
     out = os.path.join(str(tmp_path), "built.exar1")
     assert main(["exar", ARCHIVE, PDF, "--out", out, "--debug-timings"]) == 0
     rows = _operations(capsys.readouterr().err)
     for operation in (
         timing.PAIR_NAMES,
         timing.APPLY_PRINTOUT,
-        timing.VALIDATE_EXAR,
         timing.WRITE_EXAR,
     ):
         assert rows[operation] == 1, operation
+    assert rows[timing.VALIDATE_EXAR] == 2
 
 
 def test_a_failing_run_still_reports(capsys: pytest.CaptureFixture[str]) -> None:

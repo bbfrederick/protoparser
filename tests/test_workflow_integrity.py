@@ -192,7 +192,18 @@ def test_archive_adapter_keeps_every_copy_option():
 
 
 @requires_exar
-def test_direct_and_pdf_driven_geometry_edits_agree_and_survive_writing(tmp_path: Path):
+def test_direct_and_pdf_driven_geometry_edits_refuse_calculated_positions(tmp_path: Path) -> None:
+    """All supported edit routes preserve a scan needing calculated position writes.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Destination for checking serialization of the unchanged scan.
+
+    Returns
+    -------
+    None
+    """
     source = find_exar("Potpourri_P1_loadtest.exar1")
     name = "CTRL05_unchanged_cmrr_mbep2d_bold"
     archive = read(source)
@@ -201,21 +212,19 @@ def test_direct_and_pdf_driven_geometry_edits_agree_and_survive_writing(tmp_path
     group = geometry.read_group(before)
     assert group is not None and geometry.agrees(before) < geometry.TOLERANCE
     value = group.thickness + 0.2
-    requested = {"Slice Thickness": value}
+    requested = {"Slice Thickness": value, "TR": 777.0}
     patched, applied, skipped = mappings.patch_document(step.protocol, requested)
-    assert applied and not skipped
+    assert not applied and {s.label for s in skipped} == set(requested)
     assert step.protocol.xprotocol == before  # The document API is non-mutating.
-    after = patched["Data"]
-    assert after != before
-    assert geometry.agrees(after) < geometry.TOLERANCE
-    assert geometry.read_group(after).centre == pytest.approx(group.centre)
+    assert patched == step.protocol.document
 
     manifest = mappings.apply(archive, {name: requested})
-    assert manifest.applied and not manifest.skipped
+    assert not manifest.applied and {s.label for s in manifest.skipped} == set(requested)
     destination = tmp_path / "patched.exar1"
     archive.write(str(destination))
     reloaded = next(s for s in read(str(destination)).steps if s.name == name)
-    assert reloaded.protocol.xprotocol == after
+    assert reloaded.protocol.xprotocol == before
+    assert geometry.agrees(reloaded.protocol.xprotocol) < geometry.TOLERANCE
 
     driven = read(source)
     report = build.apply_protocol(
@@ -225,11 +234,14 @@ def test_direct_and_pdf_driven_geometry_edits_agree_and_survive_writing(tmp_path
                 {
                     "name": name,
                     "flat": flatten_sections(
-                        {"Geometry - Common": {"Slice Thickness": str(value)}}
+                        {
+                            "Geometry - Common": {"Slice Thickness": str(value)},
+                            "Contrast - Common": {"TR": "777.0 ms"},
+                        }
                     ),
                 }
             ]
         },
     )
-    assert report.applied and not report.skipped
-    assert next(s for s in driven.steps if s.name == name).protocol.xprotocol == after
+    assert not report.applied and {s.label for s in report.skipped} == set(requested)
+    assert next(s for s in driven.steps if s.name == name).protocol.xprotocol == before

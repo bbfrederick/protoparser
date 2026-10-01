@@ -801,7 +801,10 @@ def test_every_subcommand_that_takes_an_archive_can_choose_its_program() -> None
                 checked.append(label)
                 continue
             offered = flags(target)
-            per_side = {"--left-program", "--right-program"} <= offered
+            per_side = {"--left-program", "--right-program"} <= offered or {
+                "--sent-program",
+                "--returned-program",
+            } <= offered
             assert "--program" in offered or per_side, (
                 f"::error::'{label}' accepts an .exar1 archive but offers no way to "
                 "pick a protocol out of one, so a multi-program backup cannot be used"

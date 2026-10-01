@@ -30,8 +30,9 @@ so an index has no global meaning: ``alFree[0]`` is MT Flip Angle on
 multiband sequences. A table that treated it as one parameter would write a
 flip angle into CMRR's flags.
 
-Slice positions invalidated by a spacing edit are rebuilt for supported
-single-group geometry. Other derived values still need the console:
+Spacing edits requiring calculated slice-position writes are refused; the
+writer changes only characterized representations of UI controls. Other
+derived values still need the console:
 changing TR moved ``lScanTimeSec`` and ``lTotalScanTimeSec`` in
 the reference pairs. A patched archive carries the old scan time, and
 :class:`Manifest` says so rather than leaving it to be discovered later.
@@ -46,6 +47,7 @@ top of that one, never the reverse.
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -3187,12 +3189,15 @@ def _stored_int(literal: str) -> int | None:
     Returns
     -------
     int or None
-        The value, or ``None`` when it is not a number.
+        The value, or ``None`` when it is not a finite, integral number.
     """
     text = literal.strip()
     try:
-        return int(text, 0) if text.lower().startswith(("0x", "-0x")) else int(float(text))
-    except (TypeError, ValueError):
+        if text.lower().startswith(("0x", "-0x")):
+            return int(text, 0)
+        number = float(text)
+        return int(number) if math.isfinite(number) and number.is_integer() else None
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -3256,8 +3261,8 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
     ``Adjust with Body Coil: On`` on the System card, and that is the form
     someone changing a protocol on the console needs.
 
-    Declines rather than guesses. A derived value (``basis``) and a signed
-    coordinate (``sign_from``) are left to the raw parameter section, as is
+    Declines rather than guesses. A signed coordinate (``sign_from``) is left
+    to the raw parameter section, as is
     any mapping whose gates say it does not apply to this scan -- a flag bit
     belonging to another sequence, or to a build this one was not derived
     from.
@@ -3277,7 +3282,7 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
     """
     if not applies_to(mapping, protocol):
         return None
-    if mapping.basis is not None or mapping.sign_from is not None:
+    if mapping.sign_from is not None:
         return None
 
     if not mapping.ascconv_key:
@@ -3304,7 +3309,9 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
     if mapping.bit is not None:
         # A word holding zero is not written at all, so an absent assignment
         # is every flag off rather than an unknown.
-        word = 0 if literal is None else (_stored_int(literal) or 0)
+        word = 0 if literal is None else _stored_int(literal)
+        if word is None:
+            return None
         return "On" if word >> mapping.bit & 1 else "Off"
 
     # An omitted assignment is not an unknown: this format does not write a
@@ -3326,7 +3333,16 @@ def display(mapping: Mapping, protocol: Protocol) -> str | None:
     if literal is None:
         return None
     try:
-        number = float(literal) / mapping.scale - mapping.offset
+        basis = 1.0
+        if mapping.basis:
+            key = mapping.basis.replace("[*]", "[0]")
+            stored_basis = ascconv.read_ascconv(protocol.xprotocol, key)
+            if stored_basis is None:
+                return None
+            basis = float(stored_basis)
+        number = float(literal) / (mapping.scale * basis) - mapping.offset
+        if not math.isfinite(number):
+            return None
     except (TypeError, ValueError, ZeroDivisionError):
         return None
     # Twelve significant figures, which is what an ASCCONV double carries.
@@ -3608,7 +3624,10 @@ def encode(mapping: Mapping, value: Any) -> tuple[float | None, str]:
         offered = ", ".join(text for text, _ in mapping.choices)
         return (None, f"{value!r} is not a {mapping.label}; expected one of: {offered}")
     try:
-        return (float(value), "")
+        number = float(value)
+        if not math.isfinite(number):
+            return (None, f"{mapping.label} expects a finite number")
+        return (number, "")
     except (TypeError, ValueError):
         return (None, f"{mapping.label} expects a number, got {value!r}")
 
@@ -3628,7 +3647,7 @@ def _as_bool(value: Any) -> bool | None:
     """
     if isinstance(value, bool):
         return value
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float)) and value in (0, 1):
         return bool(value)
     if isinstance(value, str):
         text = value.strip().casefold()
@@ -3673,10 +3692,11 @@ def patch_document(
     the caller's ``protocol`` is left as it was and nothing is written until
     :func:`apply` re-addresses the content.
 
-    After applying the batch, rebuild supported single-group slice positions
-    if this edit invalidated them. Multi-group geometry and arrays already
-    inconsistent before the edit retain the existing repair limitations;
-    this is not a general scanner-validity check.
+    Apply basis parameters before dependent parameters and preserve the phase
+    FOV percentage when only read FOV changes. Never recalculate per-slice
+    positions: a spacing change requiring calculated-field writes refuses this
+    entire scan's batch rather than leaving a partial geometry edit.
+    This is not a general scanner-validity check.
 
     Parameters
     ----------
@@ -3692,6 +3712,13 @@ def patch_document(
     tuple
         The new document, the values applied, and the values skipped.
     """
+    if ascconv.baseline_string(protocol) == ascconv.CONVERSION_NEEDED:
+        reason = "scanner marks this protocol ConversionNeeded; UI patching cannot perform sequence conversion"
+        return (
+            dict(protocol.document),
+            [],
+            [Skipped(step, name, value, reason) for name, value in requests.items()],
+        )
     document = dict(protocol.document)
     preview = {
         k: dict(v) if isinstance(v, dict) else v for k, v in document.get("Preview", {}).items()
@@ -3699,16 +3726,66 @@ def patch_document(
     text = document.get("Data", "")
     applied: list[Applied] = []
     skipped: list[Skipped] = []
-    for name, value in requests.items():
-        found, reason = resolve(protocol, name)
+    ordered = [(resolve(protocol, name), name, value) for name, value in requests.items()]
+    ordered.sort(key=lambda item: item[0][0] is not None and item[0][0].basis is not None)
+    for (found, reason), name, value in ordered:
         if found is None:
             skipped.append(Skipped(step=step, label=name, value=value, reason=reason))
             continue
         record, text = _apply_one(found, preview, text, value, step)
         (applied if isinstance(record, Applied) else skipped).append(record)
+    if applied:
+        text = _preserve_phase_fov(protocol.xprotocol, text, applied)
+        spacing_changed = any(
+            a.label in {"Slice Thickness", "Distance Factor"}
+            and a.ascconv_previous != a.ascconv_value
+            for a in applied
+        )
+        if spacing_changed:
+            if ascconv.read_ascconv(
+                protocol.xprotocol, "sGroupArray.asGroup[1].nSize"
+            ) is not None or geometry.problems(protocol.xprotocol):
+                reason = "spacing edit requires consistent, characterized single-group geometry"
+                skipped.extend(Skipped(step, a.label, a.value, reason) for a in applied)
+                return dict(protocol.document), [], skipped
+        errors = geometry.problems(text)
+        if errors and not geometry.problems(protocol.xprotocol):
+            reason = "; ".join(errors)
+            skipped.extend(Skipped(step, a.label, a.value, reason) for a in applied)
+            return dict(protocol.document), [], skipped
     document["Preview"] = preview
-    document["Data"] = geometry.recentre(protocol.xprotocol, text) if applied else text
+    document["Data"] = text
     return (document, applied, skipped)
+
+
+def _preserve_phase_fov(before: str, after: str, applied: list[Applied]) -> str:
+    """Keep the per-slice phase/read ratio when only the read FOV is edited.
+
+    Parameters
+    ----------
+    before, after : str
+        Original and edited XProtocol text.
+    applied : list of Applied
+        Explicit controls written in this scan's batch.
+
+    Returns
+    -------
+    str
+        Edited text with the original ratio retained on each slice.
+    """
+    labels = {a.label for a in applied}
+    if "FOV Read" not in labels or "FOV Phase" in labels:
+        return after
+    for key, index in ascconv.expand("sSliceArray.asSlice[*].dReadoutFOV", before):
+        phase = f"sSliceArray.asSlice[{index}].dPhaseFOV"
+        old_read = ascconv.read_ascconv(before, key)
+        old_phase = ascconv.read_ascconv(before, phase)
+        new_read = ascconv.read_ascconv(after, key)
+        if old_read is None or old_phase is None or new_read is None or float(old_read) == 0:
+            continue
+        value = float(old_phase) * float(new_read) / float(old_read)
+        after = ascconv.write_ascconv(after, phase, ascconv.format_like(value, old_phase))
+    return after
 
 
 def _apply_one(
@@ -3740,8 +3817,22 @@ def _apply_one(
         The record describing what happened, and the resulting text.
     """
 
+    original_text = text
+
     def refused(why: str) -> tuple[Skipped, str]:
-        return (Skipped(step=step, label=mapping.label, value=value, reason=why), text)
+        """Refuse one control without retaining writes to earlier array elements.
+
+        Parameters
+        ----------
+        why : str
+            Reason this control cannot be applied.
+
+        Returns
+        -------
+        tuple
+            Skipped record and text as it stood before this control.
+        """
+        return (Skipped(step=step, label=mapping.label, value=value, reason=why), original_text)
 
     targets = ascconv.expand(mapping.ascconv_key, text)
     if not targets:
@@ -3792,6 +3883,13 @@ def _apply_one(
             if basis is None:
                 return refused(f"ASCCONV block has no {basis_key} to scale against")
             written *= float(basis)
+        if not math.isfinite(written):
+            return refused("encoded value is not finite")
+        exemplar = existing if existing is not None else ascconv.default_literal(key)
+        if re.fullmatch(r"(?:[-+]?\d+|0x[0-9a-fA-F]+)", exemplar.strip()) and not math.isclose(
+            written, round(written), rel_tol=0, abs_tol=1e-7
+        ):
+            return refused(f"{key} requires an integral stored value; got {written:.12g}")
         literal = ascconv.format_like(
             written, existing if existing is not None else ascconv.default_literal(key)
         )
@@ -3850,7 +3948,14 @@ def apply(archive: Archive, changes: MappingType[str, MappingType[str, Any]]) ->
     -------
     Manifest
         What was written, what was refused, and how much was inherited.
+
+    Raises
+    ------
+    ValueError
+        If the archive release is outside the characterized XA60 writer.
     """
+    if archive.major_version != "VA60A":
+        raise ValueError("mapped archive writing currently supports XA60 (VA60A) only")
     manifest = Manifest()
     steps: dict[str, list[Step]] = {}
     for step in archive.steps:

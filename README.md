@@ -494,9 +494,101 @@ in-memory inputs without file provenance; register donors by path for automatic
 file protection. The manifest lists the paths the session protects.
 
 Editing currently supports XA60 archives and the characterized writable mappings.
-Structural validation and existing geometry repair do not establish that every
-combination of parameters is acceptable to the scanner; broader semantic and
-scanner round-trip coverage is the next validation step.
+ASCCONV is authoritative; Preview is a regenerable summary used to characterize
+UI mappings. The supported writer changes only characterized representations of
+UI controls. It refuses thickness/gap edits that would require recalculating
+per-slice positions, including unsupported multi-group geometry. A refused scan
+batch remains unchanged. Derived sequence variables, scan times, and unmapped
+fields are preserved. Read FOV and phase-FOV percentage are both mapped UI
+controls: the writer preserves their existing ratio when only read FOV changes,
+and applies an explicitly requested percentage against the new read FOV.
+
+## Offline validation and scanner returns
+
+```bash
+spt validate candidate.exar1
+spt validate candidate.exar1 --json
+spt validate candidate.exar1 --program 'Region/Exam/Protocol' --checklist --json > observations.json
+```
+
+`validate` exposes structural checks plus characterized XA60 checks for finite
+mapped data, slice-array coverage, positive thickness/FOV, unit normals,
+single-group spacing, replicated parameters, copy-reference endpoints, and the
+scanner's explicit `ConversionNeeded` marker. Such a marker is preserved and
+UI patching is refused; changing parameters cannot perform sequence conversion.
+Findings include protocol path, scan name, and step position including pauses.
+Preview/ASCCONV disagreements are warnings: they never cause ASCCONV repair.
+Archive queries use ASCCONV for mapped quantities when Preview is stale. Unknown
+enum codes and multi-group positioning remain explicitly uncharacterized.
+`--program` restricts semantic checks; structural checks cover the whole archive.
+Other releases currently receive structural checks with a semantic-support warning.
+
+Edit sessions validate candidates before committing a plan and validate serialized
+archives before publication. The PDF-template writer also checks semantics and
+serialized output; it protects its template and requires `--force` for existing
+unrelated outputs. Its exploratory partial-mapping manifest remains available;
+use `patch` or `assemble` for strict all-or-nothing requests. Low-level
+`Archive.write()` remains a container serializer, not a scanner-validity guarantee.
+
+To verify a scanner return, compare the **file actually submitted**, rather than
+its pre-edit donor:
+
+```bash
+spt roundtrip candidate.exar1 scanner-return.exar1 --json > return-report.json
+spt roundtrip candidate.exar1 scanner-return.exar1 \
+  --sent-program 'Region/Exam/Protocol' \
+  --returned-program 'Imported/Exam/Protocol (2)' --json
+```
+
+This compares complete ASCCONV assignments, sequence build stamps, ordered steps
+and pauses, execution settings, full copy-link payloads, and owned add-in/label/
+description/comment content. Graph identities are matched by program scope,
+running order, and ownership, so regenerated GUIDs do not hide dropped scans or
+changed links. Unknown content changes remain substantive. Characterized GUID/
+save-stamp churn is reported separately; the sequence-build tail of `tFree`
+always participates. Preview regeneration is reported separately and does not
+override ASCCONV. Two derived scan-time fields are also reported separately;
+`--allow-derived` accepts only those differences without recomputing them.
+The non-ASCCONV XProtocol tree and acquisition/image quality are explicitly outside
+this comparison's current coverage.
+
+A faithful re-export does **not** prove the scans are runnable. The checklist
+records step positions, names, sequence names, and submitted protocol hashes.
+After observing the console, change each record's `status` from `not_tested` to
+`runnable` or `greyed_out`, then supply the saved JSON:
+
+```bash
+spt roundtrip candidate.exar1 scanner-return.exar1 \
+  --observations observations.json --require-runnable --json
+```
+
+Incomplete, mismatched, or greyed-out observations cannot establish
+`scanner_confirmed`. Without `--require-runnable`, the exit status describes
+preservation of supported offline semantics. With it, every acquisition must also
+have an explicit runnable observation. Missing scans, changed calculated fields,
+geometry errors, and add-in/link changes remain failures. Both commands are also
+available in the GUI's Check tab.
+
+```python
+from siemens_protocol.analysis.validation import validate
+from siemens_protocol.analysis.roundtrip import checklist, compare
+
+report = validate("candidate.exar1")
+observations = checklist("candidate.exar1", program="Region/Exam/Protocol")
+result = compare("candidate.exar1", "scanner-return.exar1",
+                 sent_program="Region/Exam/Protocol",
+                 returned_program="Imported/Exam/Protocol (2)",
+                 observations=observations)
+```
+
+The regression corpus includes a scanner-returned array 3.15 mm out of agreement
+with its own thickness. It intentionally fails semantic validation even though
+the scanner preserved it. The tests also cover fresh-identity copying of linked
+scans with scout add-ins, changed link flags, pauses, missing scans, stale Preview,
+and explicit console-observation requirements. See
+[the step 4 scanner trial](docs/scanner_trial/README.md) for a control/edit pair using
+the new assembly workflow. New hardware observations must be recorded separately;
+offline tests do not establish compatibility with an installed sequence binary.
 
 ## Searching across protocol files
 

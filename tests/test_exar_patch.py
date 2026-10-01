@@ -126,8 +126,9 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     """The P1 pair is an answer key for every mapping at once.
 
     Potpourri_P1_changed is the same export re-saved after changing many
-    parameters across five scans, Special card included. Asking the patcher for
-    exactly those values and comparing every mapped assignment -- at every
+    parameters across five scans, Special card included. Spacing edits requiring
+    calculated slice positions are explicitly refused; asking for the remaining
+    UI values and comparing every mapped assignment -- at every
     array index -- exercises scope, arrays, units, the derived basis, re-hashing
     and the container rewiring together.
 
@@ -181,6 +182,20 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
             wanted[one.name] = asked
     assert wanted, "the reference pair records no mapped change to reproduce"
 
+    # These requests require writes to calculated positions, which the supported
+    # writer now refuses. Test that refusal first, then retain the answer-key
+    # check for all other UI controls rather than relaxing their equality.
+    unsafe = {
+        "localizer_64ch_uncombined": "Slice Thickness",
+        "Minn_CMRR_2.3mm_S8_rest_6min": "Slice Thickness",
+    }
+    for name, label in unsafe.items():
+        step = next(s for s in before.steps if s.name == name)
+        document, applied, skipped = mappings.patch_document(step.protocol, wanted[name], name)
+        assert not applied and skipped and document == step.protocol.document
+        assert label in wanted[name]
+        del wanted[name][label]
+
     archive = read(source)
     manifest = mappings.apply(archive, wanted)
     assert manifest.complete, manifest.report()
@@ -191,6 +206,8 @@ def test_patching_reproduces_the_multi_parameter_console_edit(tmp_path: pathlib.
     exact = approximate = 0
     for one, other in zip(ours.steps, after.steps):
         for mapping in mappings.MAPPINGS:
+            if mapping.label == unsafe.get(one.name):
+                continue
             if mapping.read_only:
                 # Derived by the console from other parameters, so a patched
                 # protocol differs here by design: it recomputed
@@ -776,17 +793,17 @@ PREDATES_MAPPINGS = frozenset(
 
 
 @requires_exar
-def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
-    """Every value the driver wrote came back from the scanner unchanged.
+def test_current_driver_retains_historical_values_and_refuses_geometry_batches() -> None:
+    """Compare the remaining writes with a historical return without claiming runnability.
 
     ``driver_loadtest`` is ``Potpourri_P1`` driven by the
     ``Potpourri_P1_changed`` printout and then loaded and re-exported by a
     scanner. The answer-key comparison shows the driver agrees with the
-    console's own edit of the same protocol; what it cannot show is that the
-    *hybrid* it produces -- mapped values from the printout beside inherited
-    ones from the template -- is a parameter set some sequence accepts. Only a
-    loader answers that, and a scan it refused would be missing here, since an
-    inconsistent scan has to be deleted before the protocol can be saved.
+    console's own edit of the same protocol. Today's writer refuses the two
+    batches requiring calculated slice positions, so it no longer reproduces
+    the historical submission. This comparison checks only the remaining
+    written values, not acceptance of the newly built archive. Presence in
+    an export alone does not establish that a scan was runnable.
 
     The written values are recomputed rather than pinned, so a mapping that
     changes fails against the scanner instead of against a stale literal.
@@ -818,6 +835,11 @@ def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
             built, parse_document(pdf).protocol.to_dict(include_flat=True)
         )
     assert report.applied, "the driver wrote nothing, so there is nothing to check"
+    unsafe = {"localizer_64ch_uncombined", "Minn_CMRR_2.3mm_S8_rest_6min"}
+    for name in unsafe:
+        assert any(s.step == name and s.label == "Slice Thickness" for s in report.skipped)
+        assert not any(a.step == name for a in report.applied)
+        assert next(s for s in built.steps if s.name == name).protocol.xprotocol == before[name]
 
     assert [step.name for step in returned.steps] == list(before), "the loader dropped a scan"
 
@@ -843,68 +865,47 @@ def test_the_driver_built_archive_survives_a_real_scanner_load() -> None:
     ]
     assert not inert, f"these writes left the template alone, so agreement is vacuous: {inert[:4]}"
     assert not lost, f"the scanner did not keep what the driver wrote: {lost[:4]}"
-    assert len(written) > 200, f"only {len(written)} fields compared; this proves little"
+    expected = {
+        "T1_MEMPRAGE_1.0mm_p4_vNav": {
+            *(f"alTE[{i}]" for i in range(4)),
+            *(f"sWipMemBlock.alFree[{i}]" for i in (1, 6, 7, 8, 9, 10, 15)),
+            "sWipMemBlock.adFree[2]",
+            "sWipMemBlock.adFree[3]",
+        },
+        "rfMRI REST ME PA XA60": {*(f"alTE[{i}]" for i in range(4)), "sWipMemBlock.alFree[0]"},
+        "can_neuromelanin": {"sWipMemBlock.alFree[0]", "sWipMemBlock.alFree[1]"},
+    }
+    assert written == {(scan, key) for scan, keys in expected.items() for key in keys}
 
 
 @requires_exar
 def test_the_scanner_only_moved_fields_the_driver_left_to_the_template() -> None:
-    """What came back differs from a fresh drive only in churn and the slices.
+    """Compare the actual historical submission, not a reconstruction by today's writer.
 
-    The complement of the check above: that one asks whether our writes
-    survived, this one asks whether the scanner made changes of its own. Every
-    difference must be on the churn list -- the GUIDs and stamps a save
-    regenerates, and the derived scan time :class:`mappings.Manifest` already
-    names -- because anything else would be the loader disagreeing with a value
-    it accepted.
-
-    The one exception is the slice positions of the scan pinned in
-    ``test_exar_geometry.KNOWN_INCONSISTENT_ARRAYS``. This archive was built
-    before :func:`build.recentre` existed, so it went to the scanner with a
-    64-slice array still describing the thickness it no longer had; a drive
-    today rebuilds those positions and the shipped return therefore cannot
-    match them. The difference is ours, not the scanner's -- it returned that
-    array exactly as we wrote it -- which is the whole point of keeping the
-    file.
+    Today's writer refuses edits needing calculated slice positions. The saved
+    submission predates that rule, and the scanner faithfully returned its
+    inconsistent array. Keeping both files makes the evidence reproducible
+    without disabling the current safeguards or guessing which mappings existed.
 
     Returns
     -------
     None
     """
-    template = find_exar("Potpourri_P1.exar1")
-    sent = read(template)
-    parsed = parse_document(os.path.join(os.path.dirname(template), "Potpourri_P1_changed.pdf"))
-    # Drive with the table as it stood when this archive was sent. Excluding
-    # the late mappings' *keys* instead would blind the comparison to the
-    # fourteen other flag bits sharing `alFree[0]`; withholding the mappings
-    # themselves leaves every one of those still compared.
-    era = tuple(m for m in mappings.MAPPINGS if m.label not in PREDATES_MAPPINGS)
-    assert len(era) == len(mappings.MAPPINGS) - len(PREDATES_MAPPINGS), (
-        "PREDATES_MAPPINGS names a label the table no longer carries: "
-        f"{sorted(PREDATES_MAPPINGS - {m.label for m in mappings.MAPPINGS})}"
-    )
-    with mock.patch.object(mappings, "MAPPINGS", era):
-        report = build.apply_protocol(sent, parsed.protocol.to_dict(include_flat=True))
-    assert not (PREDATES_MAPPINGS & {one.label for one in report.applied})
-    returned = read(find_exar("driver_loadtest.exar1"))
+    from siemens_protocol.analysis.roundtrip import compare
 
-    came_back = {step.name: step for step in returned.steps}
-    stray, rebuilt, compared = [], 0, 0
-    for step in sent.steps:
-        ours = _ascconv(step.protocol.xprotocol)
-        theirs = _ascconv(came_back[step.name].protocol.xprotocol)
-        compared += 1
-        for key in set(ours) | set(theirs):
-            if ours.get(key) == theirs.get(key) or OPTION_CHURN.search(key):
-                continue
-            if step.name == PREDATES_RECENTRE and ".sPosition." in key:
-                rebuilt += 1
-                continue
-            stray.append((step.name, key))
-    assert compared == len(came_back)
-    assert not stray, f"the scanner changed fields nothing accounts for: {stray[:6]}"
-    # If the rebuild stops firing, the exception above is quietly excusing
-    # nothing and would go on excusing a real difference later.
-    assert rebuilt, f"{PREDATES_RECENTRE}: the slice array was not rebuilt by this drive"
+    submitted = pathlib.Path(__file__).parent / "fixtures" / "driver_submitted.exar1"
+    report = compare(submitted, find_exar("driver_loadtest.exar1"))
+    assert report["coverage"]["protocols"] == 18
+    assert len(report["changes"]) == 17
+    assert len(report["derived"]) == 3
+    assert any(d["path"].endswith("/sequence_stamp") for d in report["changes"])
+    assert not report["preserved"], "scanner import must not excuse the known geometry defect"
+    assert report["comparison_performed"]
+    # The old submission also carried orphan content rows. They remain an
+    # explicit structural failure; they do not prevent comparing live scans.
+    errors = [f for f in report["returned_validation"]["findings"] if f["severity"] == "error"]
+    assert len(errors) == 1 and errors[0]["scan"] == PREDATES_RECENTRE
+    assert "3.15 mm" in errors[0]["message"]
 
 
 @requires_exar

@@ -294,3 +294,98 @@ def recentre(before: str, after: str) -> str:
     if now is None or now < TOLERANCE:
         return after
     return rebuild(after, group)
+
+
+def problems(text: str) -> list[str]:
+    """Check slice-array invariants supported by the XA60 corpus.
+
+    Multi-group positions are deliberately not checked against the single-group
+    formula. Sparse zero coordinates are valid; missing slice thicknesses are not.
+
+    Parameters
+    ----------
+    text : str
+        XProtocol text to inspect without modifying it.
+
+    Returns
+    -------
+    list of str
+        Broken numeric, array-shape, or single-group geometry invariants.
+    """
+    from .inspect import ascconv_table
+
+    table = ascconv_table(text)
+    if "sSliceArray.lSize" not in table:
+        return []
+    numeric = {
+        k: v
+        for k, v in table.items()
+        if k.startswith(("sSliceArray.", "sGroupArray."))
+        and re.search(
+            r"(?:lSize|nSize|dThickness|dDistFact|dInPlaneRot|dReadoutFOV|dPhaseFOV|dSag|dCor|dTra)$",
+            k,
+        )
+    }
+    try:
+        numbers = {k: float(v) for k, v in numeric.items()}
+    except ValueError:
+        return ["slice geometry contains a nonnumeric assignment"]
+    if any(not math.isfinite(v) for v in numbers.values()):
+        return ["slice geometry contains a nonfinite assignment"]
+    count = numbers["sSliceArray.lSize"]
+    if count < 1 or not count.is_integer():
+        return ["sSliceArray.lSize must be a positive integer"]
+    indices = sorted(
+        int(m.group(1))
+        for key in table
+        if (m := re.fullmatch(r"sSliceArray\.asSlice\[(\d+)\]\.dThickness", key))
+    )
+    if len(indices) != int(count) or any(i != n for n, i in enumerate(indices)):
+        return ["slice thickness indices do not cover sSliceArray.lSize"]
+    if any(
+        int(m.group(1)) >= count
+        for key in table
+        if (m := re.match(r"sSliceArray\.asSlice\[(\d+)\]", key))
+    ):
+        return ["slice assignment index is outside sSliceArray.lSize"]
+    found = []
+    for key, value in numbers.items():
+        if key.endswith(("dThickness", "dReadoutFOV", "dPhaseFOV")) and value <= 0:
+            found.append(f"{key} must be positive")
+        if key.endswith("dDistFact") and value <= -1:
+            found.append(f"{key} gives nonpositive slice spacing")
+    for index in indices:
+        normal = tuple(numbers.get(f"sSliceArray.asSlice[{index}].sNormal.{a}", 0) for a in AXES)
+        if not math.isclose(math.sqrt(sum(n * n for n in normal)), 1, abs_tol=1e-6):
+            found.append(f"slice {index} normal is not a unit vector")
+    if found:
+        return found
+    if "sGroupArray.asGroup[1].nSize" not in table and count > 1:
+        stored_positions = [
+            tuple(numbers.get(f"sSliceArray.asSlice[{i}].sPosition.{a}", 0) for a in AXES)
+            for i in indices
+        ]
+        group = SliceGroup(
+            centre=tuple(sum(p[n] for p in stored_positions) / count for n in range(3)),
+            normal=tuple(numbers.get(f"sSliceArray.asSlice[0].sNormal.{a}", 0) for a in AXES),
+            thickness=numbers["sSliceArray.asSlice[0].dThickness"],
+            distance_factor=numbers.get("sGroupArray.asGroup[0].dDistFact", 0),
+            count=int(count),
+            in_plane_rotation=numbers.get("sSliceArray.asSlice[0].dInPlaneRot", 0),
+        )
+        for index in indices:
+            prefix = f"sSliceArray.asSlice[{index}]"
+            if not math.isclose(
+                numbers[prefix + ".dThickness"], group.thickness, abs_tol=TOLERANCE
+            ):
+                found.append(f"slice {index} thickness differs within a single group")
+            normal = tuple(numbers.get(f"{prefix}.sNormal.{a}", 0) for a in AXES)
+            if math.dist(normal, group.normal) > 1e-6:
+                found.append(f"slice {index} normal differs within a single group")
+            rotation = numbers.get(prefix + ".dInPlaneRot", 0)
+            if not math.isclose(rotation, group.in_plane_rotation, abs_tol=1e-6):
+                found.append(f"slice {index} rotation differs within a single group")
+        distance = max(math.dist(group.position(i), p) for i, p in enumerate(stored_positions))
+        if distance >= TOLERANCE:
+            found.append(f"slice positions disagree with spacing by {distance:.6g} mm")
+    return found

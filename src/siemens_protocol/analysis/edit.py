@@ -22,7 +22,7 @@ from ..exar import edit as graph
 from ..exar import generate, read, validate
 from ..exar.archive import COPY_REFERENCE, COPY_REFERENCE_GROUPS, Archive, Instance, Step
 from ..exar.inspect import ascconv_table
-from . import address, archive_view
+from . import address, archive_view, validation
 from .generate import mappings
 from .query import Query, _numeric, canonical_parameter_name, search
 from .vocabulary import load_vocabulary
@@ -345,7 +345,7 @@ class EditSession:
         Returns
         -------
         dict
-            Source, release, edits, and structural-validation results.
+            Source, release, edits, structural and semantic validation results.
         """
         return {
             "source": self.source_path,
@@ -356,6 +356,7 @@ class EditSession:
             "protected_inputs": sorted(str(p) for p in self.protected),
             "operations": copy.deepcopy(self.events),
             "validation": validate.problems(self.archive),
+            "semantic_validation": validation.validate(self.archive).to_dict(),
         }
 
     def patch(self, query: Query, changes: Mapping[str, Any]) -> dict[str, Any]:
@@ -419,6 +420,13 @@ class EditSession:
             )
             if skipped:
                 raise ValueError("; ".join(f"{s.step}: {s.label}: {s.reason}" for s in skipped))
+            before_values = ascconv_table(step.protocol.xprotocol)
+            after_values = ascconv_table(document["Data"])
+            stored_changes = [
+                {"key": key, "before": before_values.get(key), "after": after_values.get(key)}
+                for key in sorted(set(before_values) | set(after_values))
+                if before_values.get(key) != after_values.get(key)
+            ]
             archive.replace_content(step.protocol.instance, document)
             records.append(
                 {
@@ -427,12 +435,13 @@ class EditSession:
                     "element_id": step.instance.element_id,
                     "detached_from": detached_from,
                     "parameters": [asdict(a) for a in applied],
+                    "ascconv_changes": stored_changes,
                 }
             )
         return archive, {"op": "patch", "requested": dict(changes), "scans": records}
 
     def _commit(self, archive: Archive, events: list[dict]) -> None:
-        """Publish a candidate only after structural validation succeeds.
+        """Publish a candidate only after structural and semantic checks pass.
 
         Parameters
         ----------
@@ -452,6 +461,7 @@ class EditSession:
         problems = validate.problems(archive)
         if problems:
             raise ValueError("edited archive failed validation: " + "; ".join(problems))
+        _require_semantic_validation(archive)
         self.archive = archive
         self.events.extend(events)
 
@@ -786,7 +796,7 @@ class EditSession:
         Returns
         -------
         dict
-            Manifest including output path and serialized validation.
+            Manifest including output path and serialized structural/semantic validation.
 
         Raises
         ------
@@ -807,15 +817,18 @@ class EditSession:
         problems = validate.problems(archive)
         if problems:
             raise ValueError("archive failed validation: " + "; ".join(problems))
+        _require_semantic_validation(archive)
         descriptor, temporary = tempfile.mkstemp(
             prefix=f".{target.name}.", suffix=".exar1", dir=target.parent
         )
         os.close(descriptor)
         try:
             archive.write(temporary)
-            problems = validate.problems(read(temporary))
+            serialized = read(temporary)
+            problems = validate.problems(serialized)
             if problems:
                 raise ValueError("serialized archive failed validation: " + "; ".join(problems))
+            semantic = _require_semantic_validation(serialized)
             if force:
                 os.replace(temporary, target)
             else:
@@ -824,7 +837,41 @@ class EditSession:
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
-        return {**self.manifest(), "output": str(target), "serialized_validation": []}
+        return {
+            **self.manifest(),
+            "output": str(target),
+            "serialized_validation": [],
+            "serialized_semantic_validation": semantic,
+        }
+
+
+def _require_semantic_validation(archive: Archive) -> dict[str, Any]:
+    """Refuse publication of an archive that breaks a characterized invariant.
+
+    Parameters
+    ----------
+    archive : Archive
+        Candidate or serialized archive.
+
+    Returns
+    -------
+    dict
+        Successful report retaining warnings and unknown scanner acceptance.
+
+    Raises
+    ------
+    ValueError
+        If any supported semantic check fails.
+    """
+    report = validation.validate(archive)
+    if not report.valid:
+        errors = [
+            f"{f.program}/{f.scan}: {f.parameter}: {f.message}"
+            for f in report.findings
+            if f.severity == "error"
+        ]
+        raise ValueError("archive failed semantic validation: " + "; ".join(errors))
+    return report.to_dict()
 
 
 def load_plan(path: str | Path) -> dict[str, Any]:

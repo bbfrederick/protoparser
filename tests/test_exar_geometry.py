@@ -162,15 +162,11 @@ def test_rebuilding_an_untouched_protocol_changes_nothing() -> None:
 
 @requires_exar
 def test_driving_a_protocol_leaves_every_slice_array_consistent() -> None:
-    """A write that changes the spacing must recompute the positions.
+    """The PDF driver refuses spacing edits needing calculated-position writes.
 
-    ``Slice Thickness`` and ``Distance Factor`` both set the step between
-    slices, and every position is a function of it, so writing either alone
-    leaves the array describing the geometry it replaced. That is not
-    hypothetical: the driver did exactly this to a 64-slice EPI, and the
-    scanner accepted the scan, declined to grey it out, and returned an array
-    3.15 mm out -- which is why the pinned entry above exists and why nothing
-    offline but this check would have caught it.
+    A historical driver produced the scanner-preserved 3.15 mm defect. Current
+    UI-only editing must leave those scan batches unchanged rather than repair
+    sequence-calculated positions; other supported UI edits can still proceed.
 
     Returns
     -------
@@ -183,37 +179,19 @@ def test_driving_a_protocol_leaves_every_slice_array_consistent() -> None:
     pdf = os.path.join(os.path.dirname(template), "Potpourri_P1_changed.pdf")
     if not os.path.exists(pdf):
         pytest.skip("Potpourri_P1_changed.pdf is not beside the template")
-
     archive = read(template)
+    original = {s.name: s.protocol.xprotocol for s in archive.steps if s.runs_a_protocol}
     report = build.apply_protocol(archive, parse_document(pdf).protocol.to_dict(include_flat=True))
-    respaced = {
-        one.step for one in report.applied if one.label in ("Slice Thickness", "Distance Factor")
-    }
-    assert respaced, "this pair no longer changes any spacing, so it proves nothing"
-
-    checked = set()
+    refused = {s.step for s in report.skipped if s.label == "Slice Thickness"}
+    assert refused == {"localizer_64ch_uncombined", "Minn_CMRR_2.3mm_S8_rest_6min"}
+    assert not any(s.step in refused for s in report.applied)
     for step in archive.steps:
         if not step.runs_a_protocol:
             continue
-        text = step.protocol.xprotocol
-        group = geometry.read_group(text)
-        if group is None:
-            continue
-        apart = geometry.agrees(text, group)
-        assert (
-            apart is not None and apart < geometry.TOLERANCE
-        ), f"{step.name}: the driver left the array {apart} mm out"
-        checked.add(step.name)
-    # Counting arrays would pass on the four this drive never touches, so the
-    # claim is about the ones whose spacing moved. Not all of them can be
-    # checked: `localizer_64ch_uncombined` is a three-plane scout, three groups
-    # of one slice each, and a one-slice group puts its slice at the centre
-    # with the step never entering -- so a thickness write leaves nothing to
-    # recompute and `read_group` rightly declines to describe it.
-    assert respaced & checked, (
-        "no scan whose spacing moved has a readable array, so this proves "
-        f"nothing; spacing moved on {sorted(respaced)}"
-    )
+        assert not geometry.problems(step.protocol.xprotocol), step.name
+        if step.name in refused:
+            assert step.protocol.xprotocol == original[step.name]
+    assert report.applied, "other UI edits must still be exercised"
 
 
 def test_a_slice_array_that_arrived_broken_is_left_alone() -> None:

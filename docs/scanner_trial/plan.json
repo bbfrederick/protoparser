@@ -1,0 +1,37 @@
+{
+  "sources": {
+    "links": "../../examples/XA60/copyparametertest.exar1"
+  },
+  "operations": [
+    {
+      "op": "copy_protocol",
+      "source": "links",
+      "protocol": "copyparametertest",
+      "parent": ["Validation"],
+      "name": "STEP4_CONTROL"
+    },
+    {
+      "op": "copy_protocol",
+      "source": "links",
+      "protocol": "copyparametertest",
+      "parent": ["Validation"],
+      "name": "STEP4_EDIT"
+    },
+    {
+      "op": "pause",
+      "program": "Validation/STEP4_EDIT",
+      "name": "Check setup",
+      "position": 1
+    },
+    {
+      "op": "patch",
+      "query": {
+        "protocol": "STEP4_EDIT",
+        "scan": "rfMRI REST ME PA XA60"
+      },
+      "changes": {
+        "TR": 1340
+      }
+    }
+  ]
+}

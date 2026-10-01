@@ -220,6 +220,50 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    validate_cmd = sub.add_parser(
+        "validate", help="check archive structure and characterized XA60 semantics"
+    )
+    validate_cmd.add_argument("input", help=".exar1 archive to inspect without repair")
+    validate_cmd.add_argument(
+        "--json", action="store_true", help="print machine-readable findings and coverage"
+    )
+    validate_cmd.add_argument(
+        "--checklist",
+        action="store_true",
+        help="include console-observation records for scanner testing",
+    )
+    add_program_option(validate_cmd)
+
+    roundtrip_cmd = sub.add_parser(
+        "roundtrip", help="compare a submitted XA60 archive with its scanner re-export"
+    )
+    roundtrip_cmd.add_argument("sent", help="the .exar1 archive actually submitted to the scanner")
+    roundtrip_cmd.add_argument("returned", help="the scanner .exar1 re-export")
+    roundtrip_cmd.add_argument(
+        "--sent-program", "--sent-protocol", help="program address in the submitted archive"
+    )
+    roundtrip_cmd.add_argument(
+        "--returned-program",
+        "--returned-protocol",
+        help="program address in the scanner re-export",
+    )
+    roundtrip_cmd.add_argument(
+        "--observations", help="JSON checklist with recorded runnable/greyed_out statuses"
+    )
+    roundtrip_cmd.add_argument(
+        "--allow-derived",
+        action="store_true",
+        help="permit changes to derived scan times; always report them",
+    )
+    roundtrip_cmd.add_argument(
+        "--require-runnable",
+        action="store_true",
+        help="fail unless every scan has a runnable console observation",
+    )
+    roundtrip_cmd.add_argument(
+        "--json", action="store_true", help="print full comparison and observation evidence"
+    )
+
     for command, help_text in (
         ("patch", "strictly edit mapped parameters in an XA60 archive"),
         ("assemble", "apply an ordered XA60 assembly/edit plan"),
@@ -781,6 +825,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_program_option(exar_cmd)
     add_release_option(exar_cmd, "force a Siemens release profile for a PDF input (default: auto)")
     exar_cmd.add_argument("--out", help="write the resulting archive here")
+    exar_cmd.add_argument(
+        "--force",
+        action="store_true",
+        help="replace an unrelated output; the template remains protected",
+    )
     exar_cmd.add_argument(
         "--show", type=int, default=12, metavar="N", help="how many entries to list (default: 12)"
     )
@@ -2969,7 +3018,7 @@ def _run_exar(args: argparse.Namespace) -> int:
         Process exit status.
     """
     from .analysis.generate import build as exar_build
-    from .exar import validate as exar_validate
+    from .analysis.validation import validate as semantic_validate
 
     try:
         archive = _read_archive(args.archive)
@@ -2987,18 +3036,32 @@ def _run_exar(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"{exc}", file=sys.stderr)
         return 1
-    report = exar_build.apply_protocol(archive, protocol, target)
+    try:
+        report = exar_build.apply_protocol(archive, protocol, target)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     print(report.report(limit=args.show))
 
-    problems = exar_validate.problems(archive)
-    if problems:
-        print("\nthe result is not structurally sound:", file=sys.stderr)
-        for line in problems:
-            print(f"  {line}", file=sys.stderr)
+    semantic = semantic_validate(archive)
+    for finding in semantic.findings:
+        print(
+            f"{finding.severity}: {finding.scan}: {finding.parameter}: {finding.message}",
+            file=sys.stderr,
+        )
+    if not semantic.valid:
         return 1
 
     if args.out:
-        archive.write(args.out)
+        refusal = _extract_destination_refusal(args.archive, args.out, args.force)
+        if refusal:
+            print(refusal, file=sys.stderr)
+            return 1
+        try:
+            _write_archive_atomically(archive, args.out, validate_semantics=True)
+        except (OSError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
         print(f"\nwrote {args.out}")
     else:
         print("\n(no --out given, so nothing was written)")
@@ -3081,7 +3144,9 @@ def _extract_destination_refusal(source: str, out: str, force: bool) -> str | No
     return None
 
 
-def _write_archive_atomically(archive: "Archive", path: str) -> None:
+def _write_archive_atomically(
+    archive: "Archive", path: str, *, validate_semantics: bool = False
+) -> None:
     """Write an archive to a temporary file beside ``path``, then move it there.
 
     ``store.write`` opens whatever database is already at its path and drops
@@ -3096,6 +3161,9 @@ def _write_archive_atomically(archive: "Archive", path: str) -> None:
         The archive to write.
     path : str
         Destination path.
+    validate_semantics : bool, optional
+        Require structural and supported semantic checks after serialization.
+        Used by the parameter-writing route; faithful extraction remains a copy.
 
     Returns
     -------
@@ -3105,6 +3173,8 @@ def _write_archive_atomically(archive: "Archive", path: str) -> None:
     ------
     OSError
         If the temporary file cannot be created, written or moved.
+    ValueError
+        If serialized validation was requested and failed.
     """
     import tempfile
 
@@ -3114,6 +3184,15 @@ def _write_archive_atomically(archive: "Archive", path: str) -> None:
     try:
         os.remove(temporary)
         archive.write(temporary)
+        if validate_semantics:
+            from .analysis.validation import validate
+
+            report = validate(_read_archive(temporary))
+            if not report.valid:
+                raise ValueError(
+                    "serialized archive failed validation: "
+                    + "; ".join(f.message for f in report.findings if f.severity == "error")
+                )
         os.replace(temporary, path)
     finally:
         if os.path.exists(temporary):
@@ -3175,6 +3254,114 @@ def main(argv: list[str] | None = None) -> int:
         timing.disable()
 
 
+def _run_validation(args: argparse.Namespace) -> int:
+    """Report offline archive checks and optional scanner-observation records.
+
+    Parameters
+    ----------
+    args : Namespace
+        Input, JSON, program, and checklist options.
+
+    Returns
+    -------
+    int
+        Zero when supported checks pass, one on errors or failed checks.
+    """
+    from .analysis.roundtrip import checklist
+    from .analysis.validation import validate
+
+    try:
+        archive = _read_archive(args.input)
+        program = _select_program(archive, args.program, args.input) if args.program else None
+        report = validate(archive, program=program)
+        output = report.to_dict()
+        if args.checklist:
+            output["observations"] = checklist(archive, args.program)
+    except (OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(output, indent=2, ensure_ascii=False))
+    else:
+        print(
+            f"{report.protocols_checked} protocols, {report.mappings_checked} mapped-store comparisons, {report.geometries_checked} single-group geometries checked"
+        )
+        for finding in report.findings:
+            print(
+                f"{finding.severity}: {finding.program}/{finding.scan}: {finding.parameter}: {finding.message}"
+            )
+        print("supported checks passed" if report.valid else "validation failed")
+        print("scanner acceptance is not observed; see --json for unchecked scope")
+        if args.checklist:
+            print(json.dumps(output["observations"], indent=2, ensure_ascii=False))
+    return 0 if report.valid else 1
+
+
+def _run_roundtrip(args: argparse.Namespace) -> int:
+    """Compare submitted and re-exported files, retaining all evidence.
+
+    Parameters
+    ----------
+    args : Namespace
+        File paths, program selectors, observations, and acceptance options.
+
+    Returns
+    -------
+    int
+        Zero for preserved supported semantics, or confirmed runnability when
+        required. One for a failed comparison, missing observation, or bad input.
+    """
+    from .analysis.roundtrip import compare
+
+    try:
+        observations = None
+        if args.observations:
+            with open(args.observations, encoding="utf-8") as stream:
+                observations = json.load(stream)
+            if isinstance(observations, dict):
+                observations = observations.get("observations")
+            if not isinstance(observations, list) or any(
+                not isinstance(r, dict) for r in observations
+            ):
+                raise ValueError(
+                    "observations must be a checklist list or an object containing observations"
+                )
+        report = compare(
+            _read_archive(args.sent),
+            _read_archive(args.returned),
+            sent_program=args.sent_program,
+            returned_program=args.returned_program,
+            observations=observations,
+            allow_derived=args.allow_derived,
+        )
+    except (OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        print(
+            f"{len(report['changes'])} substantive changes, {len(report['derived'])} derived-time changes, {len(report['churn'])} save-churn changes, {len(report['preview'])} Preview changes"
+        )
+        for category in ("changes", "derived"):
+            for item in report[category]:
+                print(f"{category}: {item['path']}: {item['before']!r} -> {item['after']!r}")
+        for side in ("sent", "returned"):
+            for finding in report[side + "_validation"]["findings"]:
+                if finding["severity"] == "error":
+                    print(f"{side}: {finding['scan']}: {finding['message']}")
+        print(
+            "supported semantics preserved" if report["preserved"] else "round-trip checks failed"
+        )
+        print(
+            "all scans observed runnable"
+            if report["scanner_confirmed"]
+            else "scanner runnability is not confirmed"
+        )
+    passed = report["scanner_confirmed"] if args.require_runnable else report["preserved"]
+    return 0 if passed else 1
+
+
 def _dispatch(args: argparse.Namespace) -> int:
     """Run the subcommand ``args`` names.
 
@@ -3190,6 +3377,12 @@ def _dispatch(args: argparse.Namespace) -> int:
     """
     if args.command == "versions":
         return _list_versions()
+
+    if args.command == "validate":
+        return _run_validation(args)
+
+    if args.command == "roundtrip":
+        return _run_roundtrip(args)
 
     if args.command == "query":
         return _run_query(args)

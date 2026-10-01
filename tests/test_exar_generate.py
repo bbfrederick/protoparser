@@ -277,11 +277,13 @@ def test_driving_an_archive_from_its_own_pdf_writes_nothing() -> None:
 
 @requires_exar
 def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) -> None:
-    """Given the changed PDF, the driver writes what the console wrote.
+    """Refuse calculated position edits and reproduce the remaining UI controls.
 
     ``Potpourri_P1_changed`` is the same protocol after the console changed
     many parameters across five scans. Driving the unmodified archive from
-    that PDF must land on the same values in every mapped field.
+    that PDF first refuses entire batches needing calculated slice positions.
+    With those thickness requests removed, every remaining mapped UI field
+    must agree with the console's answer key.
 
     Parameters
     ----------
@@ -295,7 +297,21 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
     from siemens_protocol.analysis.generate import build
 
     archive = read(find_exar("Potpourri_P1.exar1"))
-    report = build.apply_protocol(archive, _parse(find_pdf("Potpourri_P1_changed.pdf")))
+    parsed = _parse(find_pdf("Potpourri_P1_changed.pdf"))
+    before = {s.name: s.protocol.document for s in archive.steps}
+    unsafe = {"localizer_64ch_uncombined", "Minn_CMRR_2.3mm_S8_rest_6min"}
+    refused = build.apply_protocol(archive, parsed)
+    for name in unsafe:
+        assert any(s.step == name and s.label == "Slice Thickness" for s in refused.skipped)
+        assert not any(a.step == name for a in refused.applied)
+        assert next(s for s in archive.steps if s.name == name).protocol.document == before[name]
+    safe = copy.deepcopy(parsed)
+    for scan in safe["scans"]:
+        if scan["name"] in unsafe:
+            assert "Slice Thickness" in scan["flat"]
+            del scan["flat"]["Slice Thickness"]
+    archive = read(find_exar("Potpourri_P1.exar1"))
+    report = build.apply_protocol(archive, safe)
     assert report.applied, "the changed PDF should have moved something"
     assert validate.problems(archive) == []
 
@@ -308,6 +324,8 @@ def test_driving_an_archive_reproduces_the_console_edit(tmp_path: pathlib.Path) 
     for step in theirs.steps:
         mine = ours[step.name]
         for mapping in mappings.MAPPINGS:
+            if step.name in unsafe and mapping.label == "Slice Thickness":
+                continue
             if mapping.read_only:
                 # A value the console derives from other parameters, which a
                 # built archive cannot reproduce and is not asked to: the

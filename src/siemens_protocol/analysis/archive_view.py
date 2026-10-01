@@ -28,6 +28,7 @@ carrying its own copy of that call.
 
 from __future__ import annotations
 
+import math
 from collections import OrderedDict
 from typing import Any, Mapping
 
@@ -150,11 +151,9 @@ def card_view(
     protocol : Protocol
         The protocol to read.
     printed : OrderedDict or None, optional
-        The console's own ``Preview`` rendering, which wins where it carries
-        the label. It is the same quantity either way, but the console
-        renders it with its unit -- ``20.0 deg`` against a decoded ``20`` --
-        and two spellings of one value flatten to a *conflict*, which would
-        report the parameter as disagreeing with itself.
+        Unit-bearing rendering from :func:`legible_preview`, which uses
+        authoritative ASCCONV readings where mapped. Cosmetic spelling and
+        characterized percentage rounding are retained when they agree.
 
     Returns
     -------
@@ -177,8 +176,10 @@ def legible_preview(protocol: ArchiveProtocol) -> "OrderedDict[str, str]":
     ``Gradient Mode`` holds ``107`` where the card prints ``Fast``,
     ``AutoAlign`` ``6148`` where it prints ``Head > Brain``. Nobody at a
     console sees or picks the number. Where a mapping decodes the choice or
-    the checkbox, its text replaces the code; a plain number keeps the
-    console's own spelling, unit included.
+    the checkbox, its text replaces the code. Mapped numeric controls use
+    ASCCONV as the source of truth; Preview spelling is retained only when it
+    agrees, allowing the characterized phase-FOV display rounding. Unmapped
+    quantities retain their Preview reading without claiming an ASCCONV mapping.
 
     Doing it here rather than in :func:`card_view` keeps the ``Preview``
     section and the cards agreeing: the flattened view folds a label from
@@ -197,11 +198,27 @@ def legible_preview(protocol: ArchiveProtocol) -> "OrderedDict[str, str]":
     """
     shown = inspect.printed_view(protocol)
     for mapping in mappings.MAPPINGS:
-        if mapping.label not in shown or (not mapping.choices and mapping.bit is None):
+        if mapping.label not in shown:
             continue
         decoded = mappings.display(mapping, protocol)
-        if decoded is not None:
+        if decoded is None:
+            continue
+        if mapping.choices or mapping.bit is not None:
             shown[mapping.label] = decoded
+            continue
+        entry = protocol.preview.get(mapping.preview_path or "")
+        if entry is None:
+            continue
+        try:
+            displayed, stored = float(entry.value), float(decoded)
+            tolerance = 0.050001 if mapping.label == "FOV Phase" else 1e-6
+            if math.isfinite(displayed) and math.isclose(
+                displayed, stored, rel_tol=1e-6, abs_tol=tolerance
+            ):
+                continue
+        except (TypeError, ValueError):
+            pass
+        shown[mapping.label] = f"{decoded} {entry.unit or ''}".strip()
     return shown
 
 
@@ -215,8 +232,7 @@ def _readings(
     protocol : Protocol
         The protocol to read.
     printed : OrderedDict or None
-        The console's ``Preview`` rendering, which wins where it carries the
-        label -- see :func:`card_view`.
+        Unit-bearing authoritative rendering from :func:`legible_preview`.
 
     Returns
     -------

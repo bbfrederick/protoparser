@@ -304,7 +304,9 @@ def apply_protocol(
     """Write every mapped parameter a parsed PDF and a template agree on.
 
     The archive is edited in memory; call :meth:`Archive.write` to save, and
-    :func:`validate.problems` to check the result before trusting it.
+    :func:`siemens_protocol.analysis.validation.validate` to check supported
+    structural and semantic invariants. This exploratory API may report partial
+    mapping coverage; use EditSession for all-or-nothing requested edits.
 
     Parameters
     ----------
@@ -320,7 +322,14 @@ def apply_protocol(
     -------
     BuildReport
         What was written, refused and inherited.
+
+    Raises
+    ------
+    ValueError
+        If the template is not an XA60 archive, or program selection fails.
     """
+    if archive.major_version != "VA60A":
+        raise ValueError("PDF-template writing currently supports XA60 (VA60A) only")
     report = BuildReport()
     # A pause step carries no protocol and the PDF does not print it as a scan,
     # so it can never be the counterpart of one.
@@ -767,6 +776,18 @@ def _apply_scan(
 def recentre(before: str, after: str) -> str:
     """Compatibility wrapper for :func:`exar.geometry.recentre`.
 
-    Parameter patching now performs this repair for every caller.
+    This explicit low-level repair utility is retained for diagnostics and
+    research. Supported UI parameter writers do not invoke it: they refuse
+    edits requiring writes to calculated per-slice positions.
+
+    Parameters
+    ----------
+    before, after : str
+        Original and edited XProtocol text.
+
+    Returns
+    -------
+    str
+        Text with supported geometry repaired by explicit caller request.
     """
     return geometry.recentre(before, after)

@@ -1211,6 +1211,13 @@ def _exar_command() -> Command:
                 flag="--show",
                 default=12,
             ),
+            Field(
+                "force",
+                "flag",
+                "Replace output",
+                "Replace an unrelated existing output; protect the template.",
+                flag="--force",
+            ),
         ),
     )
 
@@ -1479,6 +1486,112 @@ def _edit_commands() -> tuple[Command, ...]:
     )
 
 
+def _validation_commands() -> tuple[Command, ...]:
+    """Expose offline checks and scanner-return comparison through CLI forms.
+
+    Returns
+    -------
+    tuple of Command
+        Read-only validation and round-trip forms.
+    """
+    return (
+        Command(
+            "validate",
+            "Check",
+            "Validate archive",
+            "Check characterized invariants without rewriting parameters.",
+            ("validate",),
+            (
+                Field(
+                    "input",
+                    "path",
+                    "Archive",
+                    "Archive to inspect.",
+                    accept=(".exar1",),
+                    required=True,
+                ),
+                _program_field(),
+                Field(
+                    "checklist",
+                    "flag",
+                    "Console checklist",
+                    "Include scan-bound observation records for scanner testing.",
+                    flag="--checklist",
+                ),
+                Field(
+                    "json",
+                    "flag",
+                    "JSON result",
+                    "Findings, coverage, and unchecked scope.",
+                    flag="--json",
+                ),
+            ),
+        ),
+        Command(
+            "roundtrip",
+            "Check",
+            "Compare scanner return",
+            "Compare the submitted archive with its scanner re-export.",
+            ("roundtrip",),
+            (
+                Field(
+                    "sent",
+                    "path",
+                    "Submitted archive",
+                    "File actually imported into the scanner.",
+                    accept=(".exar1",),
+                    required=True,
+                ),
+                Field(
+                    "returned",
+                    "path",
+                    "Scanner re-export",
+                    "File exported back from the scanner.",
+                    accept=(".exar1",),
+                    required=True,
+                ),
+                Field(
+                    "sent_program",
+                    "text",
+                    "Submitted protocol",
+                    "Required when several programs are present.",
+                    flag="--sent-program",
+                ),
+                Field(
+                    "returned_program",
+                    "text",
+                    "Returned protocol",
+                    "Required when several programs are present.",
+                    flag="--returned-program",
+                ),
+                Field(
+                    "observations",
+                    "path",
+                    "Console observations",
+                    "JSON checklist with recorded statuses.",
+                    flag="--observations",
+                    accept=(".json",),
+                ),
+                Field(
+                    "allow_derived",
+                    "flag",
+                    "Permit derived times",
+                    "Always report changes to derived scan times.",
+                    flag="--allow-derived",
+                ),
+                Field(
+                    "require_runnable",
+                    "flag",
+                    "Require runnable observations",
+                    "Every scan must be explicitly observed runnable.",
+                    flag="--require-runnable",
+                ),
+                Field("json", "flag", "JSON result", "Print full evidence.", flag="--json"),
+            ),
+        ),
+    )
+
+
 def command_specs() -> tuple[Command, ...]:
     """Build the full specification of what the GUI can run.
 
@@ -1495,6 +1608,7 @@ def command_specs() -> tuple[Command, ...]:
         _query_command(),
         _glossary_command(),
         *_edit_commands(),
+        *_validation_commands(),
         _parse_command(),
         _diff_command(),
         _check_command(),

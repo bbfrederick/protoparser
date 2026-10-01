@@ -15,6 +15,20 @@ See `Design.md` for the design and `README.md` for usage.
 
 ### Environment
 
+**Current writing rule (2026-09-30, user clarification):** ASCCONV is the source
+of truth; Preview is mapping evidence and a regenerable summary. Only
+characterized representations of controls exposed in the UI may be written.
+Do not recalculate sequence-derived fields. The supported writer now refuses
+thickness/gap edits needing calculated per-slice positions; it does **not** call
+`geometry.recentre`. Older notes below describing automatic repair are historical.
+Read/phase FOV remain mapped UI controls and their encoded ratio is maintained.
+`analysis.validation` reports stale Preview as a warning and explicit
+`ConversionNeeded` as an error. `roundtrip` reports internal changes, Preview
+regeneration, and characterized save churn separately; runnability requires
+explicit, submitted-protocol-bound console observations. Tests and a control/edit
+scanner trial are documented in `docs/scanner_trial/README.md`; new hardware results
+must not be inferred from offline tests or the historical return files.
+
 ```bash
 .venv/bin/python -m pytest -n auto  # always use .venv, not system python3; -n auto for the whole suite
 .venv/bin/pip install -e ".[dev]"   # pymupdf, pytesseract, pillow, pytest, pytest-xdist, black, isort
