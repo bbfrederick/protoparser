@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, NoReturn
 
 import pytest
@@ -306,6 +307,160 @@ def test_hierarchy_sequence_and_regex_filters_keep_source_and_scan_index() -> No
     assert match["scan_index"] == 2 and match["source_file"] == "source.pdf"
     assert match["path"] == "Research/Brain/Study/Rest/bold"
     assert not search([protocol()], Query(exam="different")).matches
+
+
+@pytest.mark.parametrize(
+    "selector, matched",
+    [
+        ("Rest", True),
+        ("Study/Rest", True),
+        ("brain/study/rest", True),
+        ("Research/Brain/Study/Rest", True),
+        ("Brain/Rest", False),
+        ("Wrong/Study/Rest", False),
+        ("re:^study$/^rest$", True),
+        ("re:^wrong$/^rest$", False),
+        ("re:[x/y]", False),
+        ("re:[r/e]", True),
+    ],
+)
+def test_qualified_protocol_selectors(selector: str, matched: bool) -> None:
+    """Match contiguous protocol path tails without skipping hierarchy levels.
+
+    Parameters
+    ----------
+    selector : str
+        Bare or qualified protocol selector.
+    matched : bool
+        Whether the selector should name the fixture's protocol.
+
+    Returns
+    -------
+    None
+    """
+    assert bool(search([protocol()], Query(protocol=selector)).matches) is matched
+
+
+def test_qualified_protocol_selector_preserves_slashes_inside_names() -> None:
+    """Escaped slashes remain part of a protocol name.
+
+    Returns
+    -------
+    None
+    """
+    data = protocol(path=r"Root/Brain/Study/Rest\/one/bold")
+    assert search([data], Query(protocol=r"Study/Rest\/one")).matches
+    assert search([data], Query(protocol=r"Rest\/one")).matches
+    assert search([data], Query(protocol="Rest/one")).matches
+    assert not search([data], Query(protocol="Study/Rest/one")).matches
+
+
+@pytest.mark.parametrize(
+    "selectors",
+    [
+        {"protocol": "Frederick/UIC tests"},
+        {"protocol": "re:^frederick$/^UIC tests$"},
+        {"exam": "Frederick"},
+        {"region": "Investigators", "protocol": "UIC tests", "exam": "Frederick"},
+        {"path": "Root/Investigators/Frederick/UIC tests/bold"},
+        {"scan": "bold"},
+        {"protocol": "missing"},
+    ],
+)
+def test_archive_hierarchy_filters_skip_unrelated_parameter_decoding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, selectors: dict[str, str]
+) -> None:
+    """Reject protocols before expensive decoding while preserving search counts.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Directory for the explicit archive input.
+    monkeypatch : pytest.MonkeyPatch
+        Replace archive IO and decoding with a guarded fixture.
+    selectors : dict of str to str
+        Hierarchy filters to compare with a fully decoded search.
+
+    Returns
+    -------
+    None
+    """
+    source = tmp_path / "backup.exar1"
+    folders = [
+        ("Root", "Investigators", "Frederick", "UIC tests"),
+        ("Root", "Investigators", "Other", "UIC tests"),
+    ]
+    documents = []
+    programs = []
+    for position, folder in enumerate(folders):
+        name = "bold" if position == 0 else "other"
+        data = protocol({"TR": "2000 ms"}, name=name, index=0, path="/".join((*folder, name)))
+        data["source_file"] = source.as_posix()
+        data["program"] = folder[-1]
+        data["scans"][0]["raw_parameters"] = {}
+        documents.append(data)
+        programs.append(
+            SimpleNamespace(
+                instance=folder,
+                name=folder[-1],
+                steps=[
+                    SimpleNamespace(runs_a_protocol=False, name="pause"),
+                    SimpleNamespace(
+                        runs_a_protocol=True, name=name, protocol=SimpleNamespace(xprotocol="")
+                    ),
+                ],
+            )
+        )
+    query = Query(**selectors, where=Predicate("TR", "=", "2 s"))
+    expected = search(documents, query)
+    decoded = []
+
+    def path_of(node: tuple[str, ...], parents: dict) -> list[str]:
+        """Return the fixture node's existing folder path.
+
+        Parameters
+        ----------
+        node : tuple of str
+            Folder components used as a node identity.
+        parents : dict
+            Shared archive parent index.
+
+        Returns
+        -------
+        list of str
+            Full folder path.
+        """
+        return list(node)
+
+    def as_protocol(archive: Any, program: Any, source: str) -> dict:
+        """Fail if a rejected program reaches parameter decoding.
+
+        Parameters
+        ----------
+        archive : Any
+            Fixture archive.
+        program : Any
+            Program to decode.
+        source : str
+            Input source path.
+
+        Returns
+        -------
+        dict
+            Selected normalized document.
+        """
+        data = documents[folders.index(program.instance)]
+        assert search([data], query).candidates
+        decoded.append(program.instance)
+        return data
+
+    archive = SimpleNamespace(programs=programs, directory_parents={}, path_of=path_of)
+    monkeypatch.setattr("siemens_protocol.analysis.query.read", lambda path: archive)
+    monkeypatch.setattr("siemens_protocol.analysis.query.archive_view.as_protocol", as_protocol)
+    actual = search_files([source], query)
+    assert actual.to_dict() == expected.to_dict()
+    assert actual.scanned == 2
+    assert len(decoded) == expected.candidates
 
 
 def test_missing_hierarchy_and_escaped_slashes_are_retained() -> None:

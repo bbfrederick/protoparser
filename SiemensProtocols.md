@@ -1,4 +1,24 @@
-### Background for processing Siemens protocols
+# Background for processing Siemens protocols
+
+For the project's goals, supported workflows and current limitations, start with
+the [README](README.md#goals-and-current-capabilities).
+
+## Stored parameters and UI controls
+
+ASCCONV is the authoritative stored representation used by the sequence. It
+contains both UI-controlled settings and important variables calculated by the
+sequence. PDF exports and the archive's Preview section describe displayed
+controls and help establish which ASCCONV representations users may edit.
+The scanner may regenerate Preview when it loads a protocol, so changing only
+Preview does not establish a persistent scan-parameter change.
+
+The supported writer changes only characterized UI-to-ASCCONV representations.
+It preserves unmapped and calculated variables and refuses changes requiring
+calculated slice-position updates. Characterizing a mapping does not replace
+the sequence's parameter-range and dependency checks on the scanner.
+
+## Protocol organization
+
 * When a subject is scanned in an MR scanner, they undergo a group of different measurements.
 * Each measurement is optimized to measure one or more aspects of anatomy, physiology, function, or metabolism.
 * A single measurement is referred to as a "scan".

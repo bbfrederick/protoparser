@@ -1,25 +1,73 @@
 ---
 name: siemens-protocol
-description: Parse a Siemens MR protocol PDF export into hierarchical JSON — every scan, every parameter, with cross-section conflicts flagged — and diff two protocols or two scans, separating real parameter changes from cosmetic relabeling. Use whenever the user provides a Siemens MR protocol printout (VB17A, VE11C, XA30, XA60) and wants its parameters read, compared across software versions, or checked before a protocol rebuild.
+description: Inspect, query and compare Siemens MR protocol PDF and exar1 exports, discover sequence parameters, and review characterized XA60 archive edits. Use for protocol inventories, parameter searches, comparisons, assembly and scanner-return checks; preserve internal calculated variables and distinguish offline validation from scanner evidence.
 ---
 
-# Siemens protocol PDF parser
+# Siemens protocol tools
 
-Reads a Siemens MR protocol PDF — the human-readable export of a full exam
-protocol — and returns hierarchical JSON: one entry per scan, each with its
-header metadata, its sections of key/value parameters, and a flattened view
-that flags parameters printed inconsistently across sections.
+The project aims to inspect acquisition order and copy links, search and compare
+scans across PDF and `.exar1` exports, discover parameter names, and write
+scanner-usable archives by copying protocols or combining donor scans with
+characterized UI edits. The CLI is `spt`; Python callers import
+`siemens_protocol`. See the [README](../README.md) for usage and current limits.
+
+PDF profiles support VB17A, VE11C, XA30 and XA60. XA60 is the supported editing
+target; older archive support needs representative fixtures. Mapping coverage,
+sequence bounds and dependencies are incomplete. The new writer's control/edit
+trial has no recorded hardware result yet.
+
+**ASCCONV is authoritative.** PDF and Preview provide UI mapping evidence;
+Preview may be regenerated. Edit only characterized representations of UI
+controls through the supported writer. Preserve calculated and unmapped fields,
+and refuse geometry edits requiring calculated slice-position writes. A glossary
+mapping flag or offline validation pass does not establish scanner acceptance.
 
 ## When to use this
 
 * The user hands over a Siemens protocol PDF and asks what is in it.
+* They provide an `.exar1` archive and need hierarchy, order, copy links,
+  parameter searches, comparisons, or review of an edited archive.
 * They are rebuilding a protocol after a scanner software upgrade and want the
   old and new exports compared.
 * They want a specific parameter (TR, TE, FoV, slice thickness, PAT/Acc) read
   out of a printout, or checked for consistency across a protocol.
 
-Do **not** reach for this for DICOM headers or for other vendors' printouts;
-it targets the Siemens PDF export specifically.
+This targets Siemens protocol exports, rather than DICOM headers or other
+vendors' protocol formats.
+
+## Queries, glossary and archive workflows
+
+```sh
+spt tree backup.exar1
+spt query backup.exar1 protocol.pdf --sequence cmrr_mbep2d_bold \
+    --where 'Suppress 16-bit DICOM = Off'
+spt glossary --sequence cmrr_mbep2d_bold
+spt glossary backup.exar1 --scan 're:REST' --raw
+spt patch backup.exar1 --protocol Rest --scan bold --set 'tr=2 s' --manifest review.json
+spt assemble base.exar1 plan.json --json
+spt validate candidate.exar1 --program Rest --checklist --json > observations.json
+spt roundtrip candidate.exar1 scanner-return.exar1 \
+    --sent-program Rest --returned-program Rest \
+    --observations observations.json --require-runnable --json
+```
+
+The patch and assembly examples review requests without publishing an archive;
+`--out` writes a new file. Use strict `patch`/`assemble` requests for user edits.
+An undecidable selection or unsupported edit refuses the batch. Raw ASCCONV
+keys are searchable, not supported edit names. Copying preserves donor problems.
+
+Glossary names in brackets are canonical query names, using lowercase words
+joined with underscores. File-free lookup describes known sequence controls;
+file-backed lookup checks observed variables and mapping scope. `modifiable`
+does not fully reflect release, conversion or calculated-geometry restrictions;
+the writer must review a concrete request. Older-release annotations can inherit
+XA60 mapping information without enabling older-release writing.
+
+Record observed console statuses as `runnable`, `greyed_out` or `not_tested`,
+preserving the checklist's scan identities and hashes. Compare the exact submitted
+archive with its initial re-export. Keep actual acquisition outcomes separate;
+`scanner_confirmed` does not certify acquisition success or image quality. See
+the [scanner trial guide](../docs/scanner_trial/README.md) for the procedure.
 
 ## Running it
 
@@ -104,8 +152,11 @@ spt diff old.pdf new.pdf \
     --left-scan rfMRI_REST_AP --right-scan rfMRI_REST1_ME_AP        # renamed counterpart
 ```
 
-Either input may be a PDF or JSON produced by `parse`, so parse once and diff
-many times. Add `--json` for a machine-readable comparison. Exit status is `1`
+Either input may be a PDF, JSON produced by `parse`, or an `.exar1` archive.
+Archive-to-archive comparisons include mapped and remaining ASCCONV readings;
+PDF comparisons cannot cover internal fields or copy links. Use `roundtrip` for
+scanner-return execution/link/add-in preservation checks. Add `--json` for a
+machine-readable comparison. Exit status is `1`
 when a substantive difference was found, `0` when none was.
 
 Report markers: `~` changed, `-` only on the left, `+` only on the right, and
@@ -133,7 +184,7 @@ Two things to carry into your summary:
 * The tool never matches on similarity alone: `Fat sat. mode` and `Fast Mode`
   look alike and are unrelated parameters.
 
-Scans align by sequence, not by name, so a renamed scan is flagged
+Scans align using normalized names in acquisition order, so a renamed scan is flagged
 `(scan renamed)` and an inserted or deleted one is listed separately rather
 than knocking the rest out of step.
 
@@ -157,6 +208,6 @@ pairing that already worked.
 * If a page has no usable text layer and tesseract is unavailable, the file
   still parses and the affected pages are listed in `warnings`. Check that
   field before trusting a result.
-* OCR'd pages recover scan and section structure reliably but mis-read
-  individual characters in 8pt text. `ocr_pages` in the output lists any page
-  that took that path — treat values from those pages as approximate.
+* OCR can lose scan names and alter section structure as well as mis-read
+  characters in 8pt text. `ocr_pages` lists pages that took that path; review
+  their readings before relying on them.

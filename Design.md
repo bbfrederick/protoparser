@@ -1,34 +1,61 @@
-# Siemens Protocol PDF Parser — Design
+# Siemens Protocol Tools — Design
 
 ## Purpose
 
-Read a Siemens MR protocol PDF (the human-readable export of a full exam
-protocol) and turn it into a hierarchical JSON description of every scan and
-every parameter. The goal is to make protocol rebuilds after a software
-upgrade faster and less error-prone, and to give a machine-readable record
-that can be diffed across software versions.
+Inspect, search, compare, and assemble Siemens MR protocols from PDF and
+`.exar1` exports, with shared command-line and Python APIs. The project aims to
+preserve acquisition order and copy links, expose searchable UI parameter names,
+and produce scanner-usable archives by copying existing scans and applying
+characterized UI edits. XA60 is the writing target. PDF profiles support VB17A,
+VE11C, XA30 and XA60; representative older-release archive coverage remains work
+to be done.
 
-The tool must handle more than one Siemens software version. The first two
-targets were VE11C and XA60; XA30 has since been added and validated the
-design — it needed a discriminator, a vocabulary file and no core changes at
-all. The design keeps the version-specific logic small and isolated so that
-VE11E, XA31, and later releases can be added without reworking the core.
+The [README](README.md#goals-and-current-capabilities) describes current
+capabilities and limitations, [TODO.md](TODO.md) tracks outstanding work, and the
+[scanner trial guide](docs/scanner_trial/README.md) describes hardware validation.
+The sections below the architecture overview retain the PDF parser design; they
+are not a complete specification of the newer archive workflows.
+
+## Current architecture and boundaries
+
+- `pipeline.py`, `profiles/`, `layout/`, and `model.py` reconstruct displayed
+  protocol data from PDF exports.
+- `exar/` reads archive containers, protocol trees, ASCCONV assignments, graph
+  identities, execution order, copy references, and add-in content.
+- `analysis/archive_view.py` exposes archive scans to analysis using
+  characterized ASCCONV-to-UI mappings. ASCCONV takes precedence over stale
+  Preview; raw internal assignments remain available for inspection.
+- `analysis/query.py` and `analysis/glossary.py` provide shared searches and
+  parameter discovery. The file-free glossary uses a catalog learned from PDF
+  snapshots; mapping coverage and release-specific applicability are incomplete.
+- `analysis/edit.py` provides transactional `EditSession` operations over the
+  archive graph. It copies protocols or donor scans, changes steps and links,
+  and patches only characterized UI representations. Unmapped and calculated
+  variables are preserved. Changes requiring calculated slice positions are
+  refused rather than repaired.
+- `analysis/validation.py` checks structure and characterized XA60 semantics.
+  `analysis/roundtrip.py` compares submitted and returned archives, keeping
+  Preview regeneration and characterized save churn separate from substantive
+  differences. Console observations are required to establish runnability;
+  acquisition success and image quality require separate evidence.
+
+**ASCCONV is authoritative; PDF and Preview are UI mapping evidence.** A known
+mapping is not a complete description of a sequence's allowed parameter ranges
+or dependencies. The supported writer validates before publication, but offline
+validation cannot replace the installed sequence's checks on the scanner.
+Low-level container serialization does not enforce the edit session's guarantees.
 
 ## Why this is not a plain text extraction job
 
-The two target versions behave differently at the PDF level, and any new
-version might behave like either one:
+Protocol printouts use geometric headers, two-column parameter tables, wrapped
+labels and values, and repeated controls. Plain text extraction loses the
+relationships needed to reconstruct them.
 
-- VE11C exports carry a real text layer. PyMuPDF pulls the body out cleanly
-  with exact values. Only the header box (protocol name and the `TA:` line) is
-  in a broken subset font.
-- XA60 exports render the entire page in a scrambled CID font. Native
-  extraction returns garbage, so those pages need OCR.
-
-The parser therefore runs native extraction first and falls back to OCR only
-where native text is missing or unusable. Exact values are preserved wherever
-a real text layer exists, and OCR is used only where the file forces it. The
-header box is OCR'd in both versions because its font is broken in both.
+The original design anticipated scrambled fonts requiring OCR. The shipped
+example PDFs instead have usable native text layers, including their headers,
+across the supported releases. The parser runs native extraction first and falls
+back to OCR only where text is missing or unusable. Exact native values are kept;
+OCR readings can lose characters, spacing, or scan names and need review.
 
 ## Pipeline
 

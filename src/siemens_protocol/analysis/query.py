@@ -383,6 +383,8 @@ class Query:
     Filters match names literally ignoring case, or regexes prefixed ``re:``.
     Region and exam use the conventional trailing Region/Exam/Protocol/Scan
     hierarchy; unavailable levels remain empty rather than guessed from names.
+    Protocol selectors also accept contiguous trailing folder components,
+    such as ``Frederick/UIC tests``.
     """
 
     region: str = ""
@@ -539,6 +541,55 @@ def _context(protocol: Mapping, scan: Mapping) -> dict:
     }
 
 
+def _matches_hierarchy(query: Query, context: Mapping[str, Any]) -> bool:
+    """Match cheap scan metadata, including a qualified protocol path.
+
+    Parameters
+    ----------
+    query : Query
+        Hierarchy selectors, with case-insensitive literals or regexes.
+    context : Mapping of str to Any
+        Scan identity produced by :func:`_context`.
+
+    Returns
+    -------
+    bool
+        Whether every hierarchy selector matches. Protocol selectors may
+        name contiguous trailing components of the protocol's folder path.
+    """
+    for key in ("region", "exam", "protocol", "scan", "path"):
+        selector = getattr(query, key)
+        if not selector or _pattern(selector, str(context[key] or "")):
+            continue
+        if key == "protocol":
+            regex = selector.startswith("re:")
+            wanted = paths.split(selector[3:] if regex else selector, unescape=not regex)
+            if regex:
+                try:
+                    for part in wanted:
+                        re.compile(part, re.I)
+                except re.error:
+                    # A valid whole-name regex can contain a slash inside
+                    # a group or character class without being a path.
+                    return False
+            if len(wanted) == 1 and _pattern(
+                f"re:{wanted[0]}" if regex else wanted[0], str(context["protocol"] or "")
+            ):
+                continue
+            folder = paths.split(context["path"])[:-1]
+            if (
+                len(wanted) > 1
+                and len(folder) >= len(wanted)
+                and all(
+                    _pattern(f"re:{part}" if regex else part, name)
+                    for part, name in zip(wanted, folder[-len(wanted) :])
+                )
+            ):
+                continue
+        return False
+    return True
+
+
 @dataclass
 class QueryReport:
     """Results plus explicit counts for nonmatches, unknowns and failed inputs."""
@@ -610,6 +661,8 @@ def search(
             report.scanned += 1
             context = _context(protocol, scan)
             context["scan_index"] = scan.get("index", position)
+            if not _matches_hierarchy(query, context):
+                continue
             provenance = scan.get("provenance") or identify(scan, default_catalog()).to_dict()
             context.update(
                 sequence=scan.get("header", {}).get("sequence", ""),
@@ -618,16 +671,7 @@ def search(
             )
             if any(
                 getattr(query, key) and not _pattern(getattr(query, key), str(context[key] or ""))
-                for key in (
-                    "region",
-                    "exam",
-                    "protocol",
-                    "scan",
-                    "path",
-                    "sequence",
-                    "family",
-                    "vendor",
-                )
+                for key in ("sequence", "family", "vendor")
             ):
                 continue
             report.candidates += 1
@@ -640,7 +684,9 @@ def search(
     return report
 
 
-def load_protocols(path: str | Path, *, release: str = "auto") -> list[dict]:
+def load_protocols(
+    path: str | Path, *, release: str = "auto", query: Query | None = None
+) -> list[dict]:
     """Read every program in an archive, one PDF, or parsed protocol JSON.
 
     Parameters
@@ -649,6 +695,10 @@ def load_protocols(path: str | Path, *, release: str = "auto") -> list[dict]:
         PDF, exar1 archive, or explicitly named parsed protocol JSON.
     release : str, optional
         PDF release profile; auto detects it from the document.
+    query : Query or None, optional
+        Skip archive parameter decoding for programs rejected by hierarchy
+        selectors. Rejected programs retain scan identities for counting;
+        pass these documents to :func:`search` with the same query.
 
     Returns
     -------
@@ -660,9 +710,30 @@ def load_protocols(path: str | Path, *, release: str = "auto") -> list[dict]:
     if path.suffix.lower() == ".exar1":
         archive = read(str(path))
         documents = []
+        parents = archive.directory_parents if query is not None else None
         for program in archive.programs:
-            document = archive_view.as_protocol(archive, program, source)
             steps = [s for s in program.steps if s.runs_a_protocol]
+            if query is not None:
+                folder = archive.path_of(program.instance, parents)
+                document = {
+                    "source_file": source,
+                    "program": program.name,
+                    "scans": [
+                        {
+                            "index": index,
+                            "name": step.name,
+                            "path": paths.join([*folder, step.name]),
+                        }
+                        for index, step in enumerate(steps)
+                    ],
+                }
+                if not any(
+                    _matches_hierarchy(query, _context(document, scan))
+                    for scan in document["scans"]
+                ):
+                    documents.append(document)
+                    continue
+            document = archive_view.as_protocol(archive, program, source)
             for scan, step in zip(document["scans"], steps):
                 scan["raw_parameters"] = ascconv_table(step.protocol.xprotocol)
             documents.append(document)
@@ -770,7 +841,7 @@ def search_files(
     for path in inputs:
         try:
             partial = search(
-                load_protocols(path, release=release),
+                load_protocols(path, release=release, query=query),
                 query,
                 include_unknown=include_unknown,
                 vocabulary_dir=vocabulary_dir,
