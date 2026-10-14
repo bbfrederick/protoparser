@@ -105,4 +105,4 @@ skip = "./examples,./tests/golden,./loadtest,./paramcheck,./copyparamexamples,./
 # SUPRESSION is quoted from real protocol names ("TIB/FIB ROUTINE METAL
 # SUPRESSION"), which the tests and notes must spell as the console stores
 # them.
-ignore-words-list = "TE,TR,te,tr,ADDIN,NOE,SUPRESSION"
+ignore-words-list = "TE,TR,te,tr,ADDIN,addin,NOE,SUPRESSION"
