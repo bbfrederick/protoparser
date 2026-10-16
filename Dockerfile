@@ -1,5 +1,5 @@
 # Use bookworm as a base
-FROM python:3.14-bookworm
+FROM python:3.15-bookworm
 
 # get build arguments
 ARG BUILD_TIME
