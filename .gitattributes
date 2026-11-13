@@ -7,6 +7,10 @@
 # surface as an unreadable PDF rather than as a line-ending problem.
 *.pdf binary
 
+# Original DVS mapping evidence must retain its supplied bytes and hashes,
+# including CRLF line endings and whitespace in source comments.
+tests/fixtures/diffusion/*.dvs binary
+
 # Golden snapshots are regenerated and diffed by hand across platforms, so
 # pin them to LF rather than leaving it to the checkout setting.
 *.json text eol=lf

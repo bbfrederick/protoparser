@@ -1150,6 +1150,83 @@ def _extract_command() -> Command:
     )
 
 
+def _diffusion_command() -> Command:
+    """Describe diffusion inventory and export using the shared CLI."""
+    return Command(
+        name="diffusion",
+        group="Archive",
+        title="Extract diffusion vectors",
+        summary=(
+            "Find embedded free-diffusion tables and their stored comments. To export one, "
+            "choose a scan and output file. Known coordinate and normalization settings "
+            "are recovered automatically; unknown codes need the original DVS settings."
+        ),
+        argv=("diffusion",),
+        fields=(
+            Field(
+                name="input",
+                kind="path",
+                label="Archive",
+                help="The .exar1 archive to read.",
+                picker="file",
+                accept=(".exar1",),
+                required=True,
+            ),
+            _program_field(),
+            Field(
+                name="scan",
+                kind="text",
+                label="Scan",
+                help="One scan address from the inventory; add #2 for repeated names.",
+                flag="--scan",
+            ),
+            Field(
+                name="json",
+                kind="flag",
+                label="JSON output",
+                help="Include all vector components in the output.",
+                flag="--json",
+                default=False,
+            ),
+            Field(
+                name="out",
+                kind="path",
+                label="Write DVS to",
+                help="Leave empty to inventory tables. Export requires one selected table.",
+                flag="--out",
+                picker="save",
+                accept=(".dvs",),
+            ),
+            Field(
+                name="coordinate_system",
+                kind="choice",
+                label="Coordinate system",
+                help="Automatic when known. For an unknown code, use the original DVS setting.",
+                flag="--coordinate-system",
+                choices=("", "xyz", "prs"),
+                default="",
+            ),
+            Field(
+                name="normalization",
+                kind="choice",
+                label="Normalization",
+                help="Automatic when known. For an unknown code, use the original DVS setting.",
+                flag="--normalization",
+                choices=("", "none", "unity", "maximum"),
+                default="",
+            ),
+            Field(
+                name="force",
+                kind="flag",
+                label="Replace an existing file",
+                help="Overwrite the destination if it already exists.",
+                flag="--force",
+                default=False,
+            ),
+        ),
+    )
+
+
 def _exar_command() -> Command:
     """Describe the archive-writing command.
 
@@ -1617,6 +1694,7 @@ def command_specs() -> tuple[Command, ...]:
         _archive_command(),
         _tree_command(),
         _extract_command(),
+        _diffusion_command(),
         _exar_command(),
         _sequences_command(),
         *_vocab_commands(),

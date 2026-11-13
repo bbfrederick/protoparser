@@ -31,6 +31,7 @@ from .archive import (
     read,
     unpack_guids,
 )
+from .diffusion import DiffusionScan, DiffusionTable, extract_diffusion, find_diffusion
 from .envelope import Envelope
 
 __all__ = [
@@ -38,6 +39,10 @@ __all__ = [
     "COPY_REFERENCE_GROUPS",
     "SPLIT_JOIN",
     "Archive",
+    "DiffusionScan",
+    "DiffusionTable",
+    "extract_diffusion",
+    "find_diffusion",
     "Link",
     "Program",
     "ascconv",

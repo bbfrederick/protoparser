@@ -220,6 +220,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
+    diffusion_cmd = sub.add_parser(
+        "diffusion", help="find embedded diffusion vectors and optionally export one table as DVS"
+    )
+    diffusion_cmd.add_argument("input", help=".exar1 archive")
+    add_program_option(diffusion_cmd)
+    diffusion_cmd.add_argument("--scan", help="one scan address (add #2 for repeated names)")
+    diffusion_cmd.add_argument(
+        "--json", action="store_true", help="include vectors and raw codes as JSON"
+    )
+    diffusion_cmd.add_argument("--out", help="write the selected table as a .dvs file")
+    diffusion_cmd.add_argument(
+        "--coordinate-system",
+        choices=["xyz", "prs"],
+        help="original DVS convention for an unknown stored coordinate code",
+    )
+    diffusion_cmd.add_argument(
+        "--normalization",
+        choices=["none", "unity", "maximum"],
+        help="original DVS convention for an unknown stored normalization code",
+    )
+    diffusion_cmd.add_argument(
+        "--force", action="store_true", help="replace an existing DVS output"
+    )
+
     validate_cmd = sub.add_parser(
         "validate", help="check archive structure and characterized XA60 semantics"
     )
@@ -3004,6 +3028,78 @@ def _run_tree(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_diffusion(args: argparse.Namespace) -> int:
+    """Inventory embedded tables or export one with explicit DVS conventions."""
+    from dataclasses import asdict
+
+    from .exar.diffusion import find_diffusion
+
+    try:
+        archive = _read_archive(args.input)
+        matches = find_diffusion(archive)
+        if args.program is not None:
+            program = _select_program(archive, args.program, args.input)
+            ids = {p.instance.element_id for s in program.steps for p in s.protocols}
+            matches = [m for m in matches if m.protocol_id in ids]
+        if args.scan is not None:
+            matches = [
+                address.resolve(
+                    args.scan,
+                    [(m.path, m) for m in matches],
+                    what="diffusion scan",
+                    source=args.input,
+                )
+            ]
+        if not matches:
+            raise ValueError(
+                "no embedded free-diffusion tables found; built-in direction sets "
+                "are not reconstructed from their direction count"
+            )
+        if args.out:
+            if len(matches) != 1:
+                raise ValueError(
+                    "export needs one table; use --scan to choose from:\n  "
+                    + "\n  ".join(address.join(m.path) for m in matches)
+                )
+            refusal = _extract_destination_refusal(args.input, args.out, args.force)
+            if refusal:
+                raise ValueError(refusal)
+            if not args.out.lower().endswith(".dvs"):
+                raise ValueError("diffusion output must have a .dvs extension")
+            matches[0].table.write_dvs(
+                args.out,
+                coordinate_system=args.coordinate_system,
+                normalization=args.normalization,
+                overwrite=args.force,
+            )
+        if args.json:
+            payload = []
+            for match in matches:
+                row = asdict(match)
+                row["table"].update(
+                    coordinate_system=match.table.coordinate_system,
+                    normalization=match.table.normalization,
+                )
+                payload.append(row)
+            print(_json_text(payload))
+        else:
+            for match in matches:
+                t = match.table
+                print(
+                    f"{address.join(match.path)}: {len(t.vectors)} vectors; "
+                    f"coordinate={t.coordinate_system or 'unknown'} (code={t.coordinate_system_code}), "
+                    f"normalization={t.normalization or 'unknown'} (code={t.normalization_code}), "
+                    f"diffusion mode={t.diffusion_mode_code}; "
+                    f"comment={t.comment!r}"
+                )
+            if args.out:
+                print(f"wrote {args.out}")
+        return 0
+    except (OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
 def _run_exar(args: argparse.Namespace) -> int:
     """Write a PDF's mapped parameters into a template archive.
 
@@ -3377,6 +3473,9 @@ def _dispatch(args: argparse.Namespace) -> int:
     """
     if args.command == "versions":
         return _list_versions()
+
+    if args.command == "diffusion":
+        return _run_diffusion(args)
 
     if args.command == "validate":
         return _run_validation(args)

@@ -68,6 +68,25 @@ or [validation](#offline-validation-and-scanner-returns). The
 evidence. [TODO.md](TODO.md) tracks the remaining work, and
 [Design.md](Design.md) describes the architecture and PDF parser design.
 
+## Extracting diffusion vectors
+
+Find stored free-diffusion tables in Siemens or third-party scans:
+
+```sh
+spt diffusion protocol.exar1
+spt diffusion protocol.exar1 --scan SCAN_NAME --json
+spt diffusion protocol.exar1 --scan SCAN_NAME --out vectors.dvs
+```
+
+Export recovers known coordinate and normalization settings automatically:
+coordinate codes `1 = xyz`, `2 = prs`, and normalization code `1 = none` are
+verified against two original DVS/archive pairs. Unknown codes require explicit
+settings from the original DVS. Extraction preserves vector order, magnitudes
+and omitted zero components.
+The decoded comment sometimes recovers the original filename too.
+See [diffusion extraction](docs/diffusion.md) for the Python API, mapping evidence
+and remaining verification work.
+
 ## Install
 
 Linux, macOS and Windows, on Python 3.10 through 3.14. The package is pure
